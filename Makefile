@@ -22,7 +22,8 @@ YELLOW	=	\e[0;33m
 RESET	=	\e[0m
 
 FILES	=	main \
-			webserv 	
+			Webserv \
+			Config
 
 SRC_DIR = 	src/
 SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))
