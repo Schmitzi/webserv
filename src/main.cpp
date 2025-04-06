@@ -10,7 +10,7 @@ int inputCheck(int ac, char **av, Webserv &webserv) {
         return (ft_error("Bad arguments"));
     } else if (ac == 1) {
         if (webserv.setConfig("../config/default.conf")) {
-            std::cout << "Config saved\n";
+            std::cout << webserv.getTimeStamp() << "Config saved\n";
         }
     } else {
         webserv.setConfig(av[1]);
@@ -20,12 +20,13 @@ int inputCheck(int ac, char **av, Webserv &webserv) {
 
 int main(int ac, char **av) {
     (void) av;
+    (void) ac;
     Webserv webserv;
 
-    if (inputCheck(ac, av, webserv)) {
-        return -1;
-    }
-     
-    //webserv.run();
+    // if (inputCheck(ac, av, webserv)) {
+    //     return -1;
+    // }
+
+    webserv.run();
     return 0;
 }
