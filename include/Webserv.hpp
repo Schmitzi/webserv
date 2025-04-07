@@ -13,6 +13,9 @@
 #include <sstream>
 #include <ctime>
 #include <poll.h>
+#include <iomanip>
+#include <vector>
+#include <fcntl.h>
 
 class Server;
 class Client;
@@ -25,6 +28,8 @@ class Config;
 #define WHITE   "\33[97m"
 #define RESET   "\33[0m" // No Colour
 
+#define MAX_CLIENTS 30
+
 class Webserv {
     public:
         Webserv();
@@ -32,17 +37,26 @@ class Webserv {
         Webserv(Webserv const &other);
         Webserv &operator=(Webserv const &other);
         ~Webserv();
-        int setConfig(std::string const filepath);
-        struct pollfd *getPfds();
-        int    run();
-        void    ft_error(std::string const msg);
-        std::string getTimeStamp();
-        void    printMsg(const std::string msg, char const *colour, std::string const opt);
+
+        int             setConfig(std::string const filepath);
+        struct pollfd   *getPfds();
+        int             run();
+        void            ft_error(std::string const msg);
+        std::string     getTimeStamp();
+        void            printMsg(const std::string msg, char const *colour, std::string const opt);
     private:
-        Client  *_client;
-        Server  *_server;
-        //Config  *_config;
-        struct pollfd _pfds[1];       
+        Client          *_client;
+        Server          *_server;
+        //Config        *_config;
+
+        std::vector<Client *>   _clients;
+        struct pollfd   _pfds[MAX_CLIENTS + 1];
+        int             _nfds;
+
+        // Polling
+
+        int             addToPoll(int fd, short events);
+        void            removeFromPoll(int index);
 };
 
 #endif

@@ -28,6 +28,7 @@ class Client {
         Server              *_server;
 
         Client();
+        Client(Client const &other);
         ~Client();
         void setWebserv(Webserv* webserv);
         void setServer(Server *server);

@@ -6,6 +6,11 @@ Client::Client() : _webserv(NULL), _server(NULL) {
 
 }
 
+Client::Client(Client const &other) {
+    setWebserv(other._webserv);
+    setServer(other._server);
+}
+
 Client::~Client() {
 
 }
@@ -35,45 +40,34 @@ void Client::displayConnection() {
 }
 
 int Client::recieveData() {
-    // Clear buffer
     memset(_buffer, 0, sizeof(_buffer));
+    
     // Receive data
     int bytes_read = recv(_fd, _buffer, sizeof(_buffer) - 1, 0);
-    if (bytes_read <= 0) {
-        if (bytes_read == 0) {
-            _webserv->printMsg("Client disconnected", RED, "");
+    
+    if (bytes_read > 0) {
+        std::cout << GREEN << "Recieved from " << _fd << ": " << _buffer << "\n" << RESET;
+
+        // Echo the command back to client
+        std::string response_str = "Server received: ";
+        response_str += _buffer;
+        send(_fd, response_str.c_str(), response_str.length(), 0);
+        return 0;
+    } 
+    else if (bytes_read == 0) {
+        // Connection closed by client
+        std::cout << RED << "Client disconnected: " << _fd << RESET << "\n";
+        return 1;
+    }
+    else {
+        // Error occurred
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            // This is not a real error, just no data available yet
+            return 0;  // Return 0 to indicate "try again later"
         } else {
+            // This is an actual error
             _webserv->ft_error("recv() failed");
-        }
-        return 1; //break
-    }
-
-    // Process received command
-    _webserv->printMsg("Recieved", GREEN, _buffer);
-
-    // Echo the command back to client
-    std::string response_str = "Server received: ";
-    response_str += _buffer;
-    send(_fd, response_str.c_str(), response_str.length(), 0);
-    return 0;
-}
-
-/*
-int bytes_read;
-    int poll_count = poll(_webserv->getPfds(), 1, 1000);
-    while ((bytes_read = recv(_fd, _buffer, sizeof(_buffer), 0)) != -1) {
-        _buffer[bytes_read] = '\0';
-        std::cout << _buffer << "\n";
-
-
-        if (poll_count == -1) {
-            _webserv->ft_error("Poll error");
             return 1;
-        } else if (poll_count > 0) {
-            std::cin.getline(_buffer, 1024);
-            // std::cout << _buffer << "\n";
-            _webserv->printMsg("Recieved", GREEN, _buffer);
-            bytes_read = send(_fd, _buffer, sizeof(_buffer), 0);
-        } 
+        }
     }
-*/
+}
