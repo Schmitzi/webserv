@@ -1,5 +1,7 @@
 #include "../include/Webserv.hpp"
+#include "../include/Server.hpp"
 #include "../include/Client.hpp"
+#include "../include/Config.hpp"
 
 // Othodox Cannonical Form
 
@@ -140,7 +142,7 @@ std::string Webserv::getTimeStamp() {
     pfd.events = POLLIN;
     
     // Poll returns immediately due to invalid fd
-    poll(&pfd, 1, 1);  // Wait for 1ms max
+    poll(&pfd, 1, 1);  // Wait for 1ms max    NEEDS TO BE CHANGED
     
     // Get current time manually
     time_t now = time(NULL);  // time() is a standard function

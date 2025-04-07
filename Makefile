@@ -16,10 +16,10 @@ CXX		=	c++
 CFLAGS	=	-Wall -Werror -Wextra -std=c++98
 RM		=	rm -f
 
-RED		=	\e[0;91m
-GREEN	=	\e[0;92m
-YELLOW	=	\e[0;33m
-RESET	=	\e[0m
+RED     =   $(shell tput setaf 1)
+GREEN   =   $(shell tput setaf 2)
+YELLOW  =   $(shell tput setaf 3)
+RESET   =   $(shell tput sgr0)
 
 FILES	=	main \
 			Webserv \

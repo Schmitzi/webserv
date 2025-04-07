@@ -13,9 +13,11 @@
 #include <sstream>
 #include <ctime>
 #include <poll.h>
-#include "../include/Server.hpp"
-#include "../include/Client.hpp"
-#include "../include/Config.hpp"
+
+
+class Server;
+class Client;
+class Config;
 
 class Webserv {
     public:
