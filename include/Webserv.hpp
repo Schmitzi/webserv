@@ -33,6 +33,7 @@ class Webserv {
         Webserv &operator=(Webserv const &other);
         ~Webserv();
         int setConfig(std::string const filepath);
+        struct pollfd *getPfds();
         int    run();
         void    ft_error(std::string const msg);
         std::string getTimeStamp();
@@ -41,6 +42,7 @@ class Webserv {
         Client  *_client;
         Server  *_server;
         //Config  *_config;
+        struct pollfd _pfds[1];       
 };
 
 #endif

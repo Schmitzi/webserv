@@ -52,16 +52,18 @@ int Webserv::run() {
 
     printMsg("Server is listening on port", GREEN, "8080"); //_address.sin_port
 
+    _pfds[0].fd = 0;
+    _pfds[0].events = POLLIN;
+
     while (1) { // Accept connections and handle them in a loop
-        
         // Accept connections
         if (_client->acceptConnection() == 1) {
             continue;
         }
-
+        
         // Display client connection info
         _client->displayConnection();
-
+        
         // Handle communication with this client
         while (1) {
             if (_client->recieveData() == 1) {
@@ -111,4 +113,8 @@ std::string Webserv::getTimeStamp() {
         << tm_info->tm_sec << "] ";
     
     return oss.str();
+}
+
+struct pollfd *Webserv::getPfds() {
+    return _pfds;
 }

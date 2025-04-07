@@ -37,7 +37,6 @@ void Client::displayConnection() {
 int Client::recieveData() {
     // Clear buffer
     memset(_buffer, 0, sizeof(_buffer));
-
     // Receive data
     int bytes_read = recv(_fd, _buffer, sizeof(_buffer) - 1, 0);
     if (bytes_read <= 0) {
@@ -58,3 +57,23 @@ int Client::recieveData() {
     send(_fd, response_str.c_str(), response_str.length(), 0);
     return 0;
 }
+
+/*
+int bytes_read;
+    int poll_count = poll(_webserv->getPfds(), 1, 1000);
+    while ((bytes_read = recv(_fd, _buffer, sizeof(_buffer), 0)) != -1) {
+        _buffer[bytes_read] = '\0';
+        std::cout << _buffer << "\n";
+
+
+        if (poll_count == -1) {
+            _webserv->ft_error("Poll error");
+            return 1;
+        } else if (poll_count > 0) {
+            std::cin.getline(_buffer, 1024);
+            // std::cout << _buffer << "\n";
+            _webserv->printMsg("Recieved", GREEN, _buffer);
+            bytes_read = send(_fd, _buffer, sizeof(_buffer), 0);
+        } 
+    }
+*/

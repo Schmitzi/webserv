@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <iostream>
 #include <cstring>
+#include <map>
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -21,6 +22,7 @@ class Client {
         int                 _fd;
         unsigned char       *_ip;
         char				_buffer[1024] ;
+		std::map<std::string, std::string> connections;
 
         Webserv             *_webserv;
         Server              *_server;
