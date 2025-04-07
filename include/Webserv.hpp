@@ -14,10 +14,16 @@
 #include <ctime>
 #include <poll.h>
 
-
 class Server;
 class Client;
 class Config;
+
+// COLOURS
+#define BLUE    "\33[34m"
+#define GREEN   "\33[32m"
+#define RED     "\33[31m"
+#define WHITE   "\33[97m"
+#define RESET   "\33[0m" // No Colour
 
 class Webserv {
     public:
@@ -30,16 +36,11 @@ class Webserv {
         int    run();
         void    ft_error(std::string const msg);
         std::string getTimeStamp();
+        void    printMsg(const std::string msg, char const *colour, std::string const opt);
     private:
-        Client  _client;
-        Server  _server;
-        Config  _config;
-
-        int openSocket();
-        int setOptional();
-        int setServerAddr();
-        int ft_bind();
-        int ft_listen();
+        Client  *_client;
+        Server  *_server;
+        //Config  *_config;
 };
 
 #endif

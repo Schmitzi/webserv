@@ -23,7 +23,9 @@ RESET   =   $(shell tput sgr0)
 
 FILES	=	main \
 			Webserv \
-			Config
+			Config \
+			Server \
+			Client
 
 SRC_DIR = 	src/
 SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))

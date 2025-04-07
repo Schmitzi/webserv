@@ -27,6 +27,8 @@ int main(int ac, char **av) {
     //     return -1;
     // }
 
-    webserv.run();
+    if (webserv.run()) {
+        webserv.ft_error("Setup failed");
+    }
     return 0;
 }
