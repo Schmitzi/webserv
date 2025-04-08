@@ -16,6 +16,7 @@
 #include <iomanip>
 #include <vector>
 #include <fcntl.h>
+#include <signal.h>
 
 class Server;
 class Client;
@@ -38,25 +39,26 @@ class Webserv {
         Webserv &operator=(Webserv const &other);
         ~Webserv();
 
+        Server          &getServer();
+        std::vector<struct pollfd> &getPfds();
         int             setConfig(std::string const filepath);
-        struct pollfd   *getPfds();
         int             run();
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
     private:
-        Client          *_client;
-        Server          *_server;
-        //Config        *_config;
-
+        Server                  *_server;
         std::vector<Client *>   _clients;
-        struct pollfd   _pfds[MAX_CLIENTS + 1];
-        int             _nfds;
+        //Config                *_config;
+
+        //struct pollfd   _pfds[MAX_CLIENTS + 1];
+        std::vector<struct pollfd> _pfds;
+        //int             _nfds;
 
         // Polling
 
         int             addToPoll(int fd, short events);
-        void            removeFromPoll(int index);
+        void            removeFromPoll(size_t index);
 };
 
 #endif

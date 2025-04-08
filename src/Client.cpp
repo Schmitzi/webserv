@@ -6,16 +6,36 @@ Client::Client() : _webserv(NULL), _server(NULL) {
 
 }
 
-Client::Client(Client const &other) {
-    setWebserv(other._webserv);
-    setServer(other._server);
+Client::Client(Webserv &other) {
+    setWebserv(&other);
+    setServer(&other.getServer());
 }
 
 Client::~Client() {
 
 }
 
-void Client::setWebserv(Webserv* webserv) {
+struct sockaddr_in  &Client::getAddr() {
+    return _addr;
+}
+
+socklen_t   &Client::getAddrLen() {
+    return _addrLen;
+}
+
+int     &Client::getFd() {
+    return _fd;
+}
+
+unsigned char &Client::getIP() {
+    return *_ip;
+}
+
+char    &Client::getBuffer() {
+    return *_buffer;
+}
+
+void Client::setWebserv(Webserv *webserv) {
     _webserv = webserv;
 }
 
@@ -25,7 +45,7 @@ void Client::setServer(Server *server) {
 
 int Client::acceptConnection() {
     _addrLen = sizeof(_addr);
-    _fd = accept(_server->_fd, (struct sockaddr *)&_addr, &_addrLen);
+    _fd = accept(_server->getFd(), (struct sockaddr *)&_addr, &_addrLen);
     if (_fd < 0) {
         _webserv->ft_error("Accept failed");
         return 1; // Try again
@@ -37,37 +57,33 @@ void Client::displayConnection() {
     _ip = (unsigned char *)&_addr.sin_addr.s_addr;
     std::cout << BLUE << _webserv->getTimeStamp() << "New connection from " << _ip[0] << "." << _ip[1] \
         << "." << _ip[2] << "." << _ip[3] << ":" << ntohs(_addr.sin_port) << "\n";
+    send(_fd, "Connection established!\nType message here:\n", 44, 0);
 }
 
 int Client::recieveData() {
     memset(_buffer, 0, sizeof(_buffer));
     
     // Receive data
-    int bytes_read = recv(_fd, _buffer, sizeof(_buffer) - 1, 0);
+    int bytesRead = recv(_fd, _buffer, sizeof(_buffer) - 1, 0);
     
-    if (bytes_read > 0) {
-        std::cout << GREEN << "Recieved from " << _fd << ": " << _buffer << "\n" << RESET;
+    if (bytesRead > 0) {
+        std::cout << GREEN << "Recieved from " << _fd << ": " << _buffer << RESET << "\n";
 
         // Echo the command back to client
         std::string response_str = "Server received: ";
         response_str += _buffer;
         send(_fd, response_str.c_str(), response_str.length(), 0);
-        return 0;
+        return (0);
     } 
-    else if (bytes_read == 0) {
-        // Connection closed by client
+    else if (bytesRead == 0) {
         std::cout << RED << "Client disconnected: " << _fd << RESET << "\n";
-        return 1;
+        return (1);
     }
-    else {
-        // Error occurred
+    else { // Error occurred
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            // This is not a real error, just no data available yet
-            return 0;  // Return 0 to indicate "try again later"
+            return (0);
         } else {
-            // This is an actual error
-            _webserv->ft_error("recv() failed");
-            return 1;
+            return (_webserv->ft_error("recv() failed"), 1);
         }
     }
 }

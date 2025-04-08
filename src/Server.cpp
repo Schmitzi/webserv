@@ -9,8 +9,24 @@ Server::~Server() {
 
 }
 
+Webserv &Server::getWebServ() {
+    return *_webserv;
+}
+
+struct sockaddr_in  &Server::getAddr() {
+    return _addr;
+}
+
+int &Server::getFd() {
+    return _fd;
+}
+
 void Server::setWebserv(Webserv* webserv) {
     _webserv = webserv;
+}
+
+void    Server::setFd(int const fd) {
+    _fd = fd;
 }
 
 int Server::openSocket() { // Create a TCP socket

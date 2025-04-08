@@ -13,7 +13,7 @@
 NAME	=	webserv
 
 CXX		=	c++
-CFLAGS	=	-Wall -Werror -Wextra -std=c++98
+CFLAGS	=	-Wall -Werror -Wextra -std=c++98 -g
 RM		=	rm -f
 
 RED     =   $(shell tput setaf 1)
@@ -58,5 +58,11 @@ fclean:	clean
 re:		fclean all
 	@clear ;
 	@echo "$(GREEN)Files cleaned and program re-compiled$(RESET)"
+
+start: re
+	@./webserv
+
+val: re
+	@valgrind --track-origins=yes --leak-check=full ./webserv
 
 .PHONY:		all clean fclean re

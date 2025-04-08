@@ -6,16 +6,16 @@
 
 // Othodox Cannonical Form
 
-Webserv::Webserv() : _nfds(0) {
+Webserv::Webserv() { // _nfds(0) 
     //std::cout << "Webserv constructed" << std::endl;
     // Create objects first
     _server = new Server();
-    _client = new Client();
+    //_client = new Client();
     //_config = new Config(Config);
 
     _server->setWebserv(this);
-    _client->setWebserv(this);
-    _client->setServer(_server);
+    //_client->setWebserv(this);
+    //_client->setServer(_server);
 }
 
 Webserv::Webserv(std::string const &config) {
@@ -36,7 +36,36 @@ Webserv &Webserv::operator=(Webserv const &other) {
 }
 
 Webserv::~Webserv() {
+    // Clean up server
+    if (_server) {
+        delete _server;
+        _server = NULL;
+    }
+    
+    // Clean up all clients
+    for (size_t i = 0; i < _clients.size(); i++) {
+        if (_clients[i]) {
+            delete _clients[i];
+        }
+    }
+    _clients.clear();
+    
+    // Close any open file descriptors
+    for (size_t i = 0; i < _pfds.size(); i++) {
+        if (_pfds[i].fd >= 0) {
+            close(_pfds[i].fd);
+        }
+    }
+    _pfds.clear();
     //std::cout << "Webserv deconstructed" << std::endl;
+}
+
+Server &Webserv::getServer() {
+    return *_server;
+}
+
+std::vector<struct pollfd> &Webserv::getPfds() {
+    return _pfds;
 }
 
 int Webserv::setConfig(std::string const filepath) {
@@ -45,12 +74,7 @@ int Webserv::setConfig(std::string const filepath) {
 }
 
 // Add a file descriptor to the poll array
-int Webserv::addToPoll(int fd, short events) {
-    if (_nfds >= MAX_CLIENTS + 1) {
-        printMsg("Poll array is full", RED, "");
-        return 1; // Error - too many file descriptors
-    }
-    
+int Webserv::addToPoll(int fd, short events) {  
     // Set the socket to non-blocking mode
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags == -1) {
@@ -64,27 +88,23 @@ int Webserv::addToPoll(int fd, short events) {
     }
     
     // Add to poll array
-    _pfds[_nfds].fd = fd;
-    _pfds[_nfds].events = events;
-    _nfds++;
+    struct pollfd temp;
+    temp.fd = fd;
+    temp.events = events;
+    temp.revents = 0;
+    _pfds.push_back(temp);
     
     return 0;
 }
 
 // Remove a file descriptor from the poll array by index
-void Webserv::removeFromPoll(int index) {
-    if (index < 0 || index >= _nfds) {
+void Webserv::removeFromPoll(size_t index) {
+    if (index >= _pfds.size()) {
         printMsg("Invalid poll index", RED, "");
         return;
     }
     
-    // Move all higher elements down by one
-    for (int i = index; i < _nfds - 1; i++) {
-        _pfds[i] = _pfds[i + 1];
-    }
-    
-    // Decrement count
-    _nfds--;
+    _pfds.erase(_pfds.begin() + index);
 }
 
 int Webserv::run() {
@@ -97,13 +117,12 @@ int Webserv::run() {
     printMsg("Server is listening on port", GREEN, "8080");
 
     // Initialize poll array with server socket
-    _nfds = 0; // Start with 0 and add the server
-    addToPoll(_server->_fd, POLLIN);
+    addToPoll(_server->getFd(), POLLIN);
 
     while (1) {
         // Wait for activity on any socket
         
-        if ( poll(_pfds, _nfds, -1) < 0) {
+        if (poll(&_pfds[0], _pfds.size(), -1) < 0) {
             ft_error("poll() failed");
             continue;
         }
@@ -111,11 +130,11 @@ int Webserv::run() {
         // Check if server socket has activity (new connection)
         if (_pfds[0].revents & POLLIN) {
             // Accept the new connection
-            Client* newClient = new Client(*_client);
+            Client* newClient = new Client(*this);
             
             if (newClient->acceptConnection() == 0) {
                 // Add to poll array
-                if (addToPoll(newClient->_fd, POLLIN) == 0) {
+                if (addToPoll(newClient->getFd(), POLLIN) == 0) {
                     // Store client for later use
                     _clients.push_back(newClient);
                     
@@ -131,12 +150,12 @@ int Webserv::run() {
         }
         
         // Check client sockets for activity
-        for (int i = 1; i < _nfds; i++) {
+        for (size_t i = 1; i < _pfds.size(); i++) {
             if (_pfds[i].revents & POLLIN) {
                 // Find the corresponding client
                 Client* client = NULL;
                 for (size_t j = 0; j < _clients.size(); j++) {
-                    if (_clients[j]->_fd == _pfds[i].fd) {
+                    if (_clients[j]->getFd() == _pfds[i].fd) {
                         client = _clients[j];
                         break;
                     }
@@ -150,7 +169,7 @@ int Webserv::run() {
                         
                         // Remove client from vector
                         for (size_t j = 0; j < _clients.size(); j++) {
-                            if (_clients[j]->_fd == _pfds[i].fd) {
+                            if (_clients[j]->getFd() == _pfds[i].fd) {
                                 delete _clients[j];
                                 _clients.erase(_clients.begin() + j);
                                 break;
@@ -165,7 +184,7 @@ int Webserv::run() {
             }
         }
     }
-    close(_server->_fd);
+    close(_server->getFd());
     return 0;
 }
 
@@ -195,8 +214,4 @@ std::string Webserv::getTimeStamp() {
         << std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
     
     return oss.str();
-}
-
-struct pollfd *Webserv::getPfds() {
-    return _pfds;
 }

@@ -1,8 +1,21 @@
 #include "../include/Webserv.hpp"
+Webserv* g_webserv = NULL;
 
 int    ft_error(std::string const errMsg) {
     std::cerr << "Error: " << errMsg << "\n";
     return 0;
+}
+
+void signalHandler(int signal) {
+    if (signal == SIGINT || signal == SIGTERM) {
+        std::cout << "\nReceived signal, shutting down...\n";
+        if (g_webserv) {
+            delete g_webserv;
+            g_webserv = NULL;
+        }
+        std::cout << "Goodbye!" << std::endl;
+        exit(0);
+    }
 }
 
 int inputCheck(int ac, char **av, Webserv &webserv) {
@@ -21,14 +34,23 @@ int inputCheck(int ac, char **av, Webserv &webserv) {
 int main(int ac, char **av) {
     (void) av;
     (void) ac;
-    Webserv webserv;
+
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+
+    Webserv* webserv = new Webserv();
+    g_webserv = webserv;
 
     // if (inputCheck(ac, av, webserv)) {
     //     return -1;
     // }
 
-    if (webserv.run()) {
-        webserv.ft_error("Setup failed");
+    if (webserv->run()) {
+        webserv->ft_error("Setup failed");
     }
+
+    delete webserv;
+    g_webserv = NULL;
+
     return 0;
 }
