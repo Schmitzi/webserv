@@ -46,7 +46,7 @@ void    Request::formatPost(std::string const target) {
     
     if (target.find("[") != std::string::npos) {
         setPath(target.substr((target.find(" ") + 1), target.find("[") - 5));
-        
+
         size_t queryStart = target.find("\"?\"") + 3;
         if (queryStart != std::string::npos) {
             size_t bodyStart = queryStart;

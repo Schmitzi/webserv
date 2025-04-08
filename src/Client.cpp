@@ -228,17 +228,9 @@ int Client::handleGetRequest(Request& req) {
         return 1;
     }
 
-    // Prepare and send HTTP response
-    std::string response = "\nHTTP/1.1 200 OK\r\n";
-    response += "Content-Length: " + ft_itoa(req.getBody().length()) + "\r\n";
-    response += "Content-Type: " + contentType + "\r\n";
-    response += "Server: WebServ/1.0\r\n";
-    response += "Connection: close\r\n\r\n";
-    response += req.getBody();
-    response += "\n";
-
     // Send response
-    ssize_t bytesSent = send(_fd, response.c_str(), response.length(), 0);
+    ssize_t bytesSent = sendResponse(req);
+    bytesSent += send(_fd, req.getBody().c_str(), req.getBody().length(), 0);
     if (bytesSent < 0) {
         std::cout << "Failed to send response" << std::endl;
         return 1;
@@ -288,6 +280,7 @@ int Client::handlePostRequest(Request& req) {
     }
 
     sendResponse(req);
+    send(_fd, "File successfully created\n", 27, 0);
 
     std::cout << "Successfully uploaded file: " << uploadPath << std::endl;
     return 0;
@@ -312,12 +305,13 @@ int Client::handleDeleteRequest(Request& req) {
     return 0;
 }
 
-void    Client::sendResponse(Request req) {
+ssize_t    Client::sendResponse(Request req) {
     std::string response = "HTTP/1.1 201 OK\r\n";
     response += "Content-Length: " + std::string(ft_itoa(req.getBody().length()));
     response +=  "\r\n";
+    response += "Server: WebServ/1.0\r\n";
     response += "Connection: close\r\n\r\n";
-    send(_fd, response.c_str(), response.length(), 0);
+    return send(_fd, response.c_str(), response.length(), 0);
 }
 
 void Client::sendErrorResponse(int statusCode, const std::string& message) {

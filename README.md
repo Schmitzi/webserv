@@ -1,7 +1,7 @@
 # webserv
 The purpose of this project is to build a webserver in C++98 that handles request and parses configurations files
 
-Team : [Michael](https://github.com/Schmitzi)
+Team : [Michael](https://github.com/Schmitzi)  [Lilly](https://github.com/waterlilly)
 
 ## Index
 - How do I use Webserv?

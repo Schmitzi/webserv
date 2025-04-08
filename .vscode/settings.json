@@ -1,1 +1,6 @@
-"C_Cpp.errorSquiggles": "Enabled", 
+{
+    "C_Cpp.default.compilerPath": "/nix/var/nix/profiles/default/bin/g++",
+    "files.associations": {
+        "ostream": "cpp"
+    }
+}
