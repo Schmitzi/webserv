@@ -17,6 +17,7 @@
 #include <vector>
 #include <fcntl.h>
 #include <signal.h>
+#include "../include/Helper.hpp"
 
 class Server;
 class Client;
@@ -28,8 +29,6 @@ class Config;
 #define RED     "\33[31m"
 #define WHITE   "\33[97m"
 #define RESET   "\33[0m" // No Colour
-
-#define MAX_CLIENTS 30
 
 class Webserv {
     public:
@@ -46,14 +45,13 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
+
     private:
         Server                  *_server;
         std::vector<Client *>   _clients;
         //Config                *_config;
 
-        //struct pollfd   _pfds[MAX_CLIENTS + 1];
         std::vector<struct pollfd> _pfds;
-        //int             _nfds;
 
         // Polling
 

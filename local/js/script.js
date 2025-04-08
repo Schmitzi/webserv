@@ -1,0 +1,1 @@
+console.log('WebServ JavaScript is working!');

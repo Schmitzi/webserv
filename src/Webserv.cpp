@@ -6,16 +6,12 @@
 
 // Othodox Cannonical Form
 
-Webserv::Webserv() { // _nfds(0) 
-    //std::cout << "Webserv constructed" << std::endl;
-    // Create objects first
+Webserv::Webserv() {  
     _server = new Server();
-    //_client = new Client();
     //_config = new Config(Config);
-
+    
     _server->setWebserv(this);
-    //_client->setWebserv(this);
-    //_client->setServer(_server);
+    //std::cout << "Webserv constructed" << std::endl;
 }
 
 Webserv::Webserv(std::string const &config) {
@@ -36,28 +32,29 @@ Webserv &Webserv::operator=(Webserv const &other) {
 }
 
 Webserv::~Webserv() {
-    // Clean up server
+    for (size_t i = 0; i < _clients.size(); ++i) {
+        if (_clients[i]->getFd() >= 0) {
+            close(_clients[i]->getFd());
+        }
+        delete _clients[i];
+    }
+    _clients.clear();
+
+    if (_server && _server->getFd() >= 0) {
+        close(_server->getFd());
+    }
+    
     if (_server) {
         delete _server;
         _server = NULL;
     }
-    
-    // Clean up all clients
-    for (size_t i = 0; i < _clients.size(); i++) {
-        if (_clients[i]) {
-            delete _clients[i];
-        }
-    }
-    _clients.clear();
-    
-    // Close any open file descriptors
-    for (size_t i = 0; i < _pfds.size(); i++) {
-        if (_pfds[i].fd >= 0) {
-            close(_pfds[i].fd);
-        }
-    }
+
+    // for (size_t i = 0; i < _pfds.size(); ++i) {
+    //     if (_pfds[i].fd >= 0) {
+    //         close(_pfds[i].fd);
+    //     }
+    // }
     _pfds.clear();
-    //std::cout << "Webserv deconstructed" << std::endl;
 }
 
 Server &Webserv::getServer() {
@@ -103,7 +100,6 @@ void Webserv::removeFromPoll(size_t index) {
         printMsg("Invalid poll index", RED, "");
         return;
     }
-    
     _pfds.erase(_pfds.begin() + index);
 }
 
@@ -180,6 +176,7 @@ int Webserv::run() {
                         removeFromPoll(i);
                         i--; // Adjust index since we removed an element
                     }
+                    send(client->getFd(), "\nEnter request: ", 17, 0);
                 }
             }
         }

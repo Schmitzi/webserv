@@ -8,13 +8,16 @@ int    ft_error(std::string const errMsg) {
 
 void signalHandler(int signal) {
     if (signal == SIGINT || signal == SIGTERM) {
-        std::cout << "\nReceived signal, shutting down...\n";
+        std::cout << "\r" << std::string(80, ' ') << "\r" << std::flush;
+        std::cout << "Received signal, shutting down...\n";
+
         if (g_webserv) {
             delete g_webserv;
             g_webserv = NULL;
         }
+    
         std::cout << "Goodbye!" << std::endl;
-        exit(0);
+        std::exit(0); // TEMPORARY!!!!
     }
 }
 

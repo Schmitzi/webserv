@@ -25,7 +25,10 @@ FILES	=	main \
 			Webserv \
 			Config \
 			Server \
-			Client
+			Client \
+			Request \
+			ft_split \
+			ft_itoa
 
 SRC_DIR = 	src/
 SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))
@@ -63,6 +66,6 @@ start: re
 	@./webserv
 
 val: re
-	@valgrind --track-origins=yes --leak-check=full ./webserv
+	@valgrind --track-origins=yes --leak-check=full --track-fds=yes ./webserv
 
 .PHONY:		all clean fclean re

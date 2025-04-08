@@ -23,6 +23,8 @@ class Server {
         Webserv             &getWebServ();
         struct sockaddr_in  &getAddr();
         int                 &getFd();
+        std::string const   &getUploadDir();
+        std::string const   &getWebRoot();
         void                setFd(int const fd);
         void                setWebserv(Webserv* webserv); // Add a setter for the webserv pointer
         int                 openSocket();
@@ -33,6 +35,8 @@ class Server {
     private:
         int                 _fd;
         struct sockaddr_in  _addr;
+        std::string         _uploadDir;
+        std::string         _webRoot;
         
         Webserv             *_webserv;
 };

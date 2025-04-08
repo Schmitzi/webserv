@@ -4,13 +4,77 @@ The purpose of this project is to build a webserver in C++98 that handles reques
 Team : [Michael](https://github.com/Schmitzi)
 
 ## Index
-
-- What is CGI
+- How do I use Webserv?
 - Useful functions
   - What is socket()?
   - What is bind()?
   - What is listen()?
   - What is accept()?
+
+# How do I use Webserv?
+
+To use webserv, you first need to compile it
+
+```bash
+make start
+```
+
+This will clear the objects, recompile the binary and start the server with the default configuration.
+
+Then open a second terminal and enter:
+```bash
+nc localhost 8080
+```
+
+This will start the connection to the server.
+
+After this, you have 3 options to test the server. The vaild requests are GET, POST and DELETE.
+
+## GET
+
+GET returns the contents of a file. For example:
+
+```bash
+GET /
+```
+
+This will return the index.html stored at /local/ aswell as a header containing some information about the file.
+
+You can also specify a different file such as:
+
+```bash
+GET css/styles.css
+```
+
+This will display the contents of the given CSS file
+
+## POST
+
+POST allows us to create a file on the server. We can use it in the following ways:
+
+```bash
+POST test.txt
+```
+
+This will create a file under /local/upload/ called text.txt
+
+If we want to fill this with text, we need to use a different format.
+
+```bash
+POST test.txt["?"This is a test]
+```
+
+With this format, we can specify the body and write it into the file we created.
+
+## DELETE
+
+The final request is pretty self explanitory. 
+
+```bash
+DELETE test.txt
+```
+
+This function will delete the specified file. At the moment, this is limited to only being able to delete files located in /local/upload because I have already borked some files and deleting files this way means Ctrl+Z is not possible.....
 
 # Useful functions
 

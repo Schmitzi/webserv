@@ -5,6 +5,8 @@
 #include <iostream>
 #include <cstring>
 #include <map>
+#include "../include/Helper.hpp"
+#include "../include/Request.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -25,11 +27,19 @@ class Client {
         int                     &getFd();
         unsigned char           &getIP();
         char                    &getBuffer();
-        void setWebserv(Webserv *webserv);
-        void setServer(Server *server);
-        int acceptConnection();
-        void displayConnection();
-        int recieveData();
+        void                    setWebserv(Webserv *webserv);
+        void                    setServer(Server *server);
+        int                     acceptConnection();
+        void                    displayConnection();
+        int                     recieveData();
+        int                     processRequest(char *buffer);
+        Request                 parseRequest(char* buffer);
+        int                     handleGetRequest(Request& req);
+        std::string             extractFileName(const std::string& path);
+        int                     handlePostRequest(Request& req);
+        int                     handleDeleteRequest(Request& req);
+        void                    sendResponse(Request req);
+        void                    sendErrorResponse(int statusCode, const std::string& message);
     private:
         struct sockaddr_in  _addr;
         socklen_t           _addrLen;

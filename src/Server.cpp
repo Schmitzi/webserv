@@ -1,11 +1,11 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
 
-Server::Server() : _webserv(NULL) {
+Server::Server() : _uploadDir("local/upload/"), _webRoot("local"), _webserv(NULL) {
 
 }
 
-Server::~Server() {
+Server::~Server()  {
 
 }
 
@@ -19,6 +19,14 @@ struct sockaddr_in  &Server::getAddr() {
 
 int &Server::getFd() {
     return _fd;
+}
+
+std::string const &Server::getUploadDir() {
+    return _uploadDir;
+}
+
+std::string const   &Server::getWebRoot() {
+    return _webRoot;
 }
 
 void Server::setWebserv(Webserv* webserv) {
