@@ -40,6 +40,7 @@ class Client {
         int                     handleDeleteRequest(Request& req);
         ssize_t                 sendResponse(Request req);
         void                    sendErrorResponse(int statusCode, const std::string& message);
+        void                    freeTokens(char **tokens);
     private:
         struct sockaddr_in  _addr;
         socklen_t           _addrLen;

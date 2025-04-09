@@ -23,6 +23,8 @@ class Server;
 class Client;
 class Config;
 
+#define debug false;
+
 // COLOURS
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"

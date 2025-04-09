@@ -61,7 +61,8 @@ void Client::displayConnection() {
                 << (int)ip[2] << "."
                 << (int)ip[3]
                 << ":" << ntohs(_addr.sin_port) << RESET << "\n";
-    send(_fd, "Connection established!\nEnter request: ", 40, 0);
+    // if (debug == true)
+    // send(_fd, "Connection established!\nEnter request: ", 40, 0);
 }
 
 int Client::recieveData() {
@@ -93,32 +94,55 @@ int Client::recieveData() {
 Request Client::parseRequest(char* buffer) {
     Request req;
     
+    // Clean up input by removing trailing whitespace including newlines
+    size_t len = strlen(buffer);
+    while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || 
+                       buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
+        buffer[--len] = '\0';
+    }
+
     std::string input(buffer);
-    input.erase(0, input.find_first_not_of(" \t\r\n"));
-    input.erase(input.find_last_not_of(" \t\r\n") + 1);
     
     if (input.empty()) {
-        req.setMethod("GET");
-        req.setPath("/");
-        req.setVersion("HTTP/1.1");
-        return (req);
+        return req;
     }
     
     char** tokens = ft_split(buffer, ' ');
     
     if (tokens == NULL) {
         sendErrorResponse(400, "Bad Request");
-        return (req);
+        return req;
+    }
+    // Trim any whitespace from the token
+    std::string path = "/";
+    if (tokens[1]) {
+        path = tokens[1];
+        path.erase(path.find_last_not_of(" \t\r\n") + 1);
     }
     
     if (std::string(tokens[0]) == "POST") {
-        req.formatPost(_buffer);
+        req.formatPost(input);
     } else if (std::string(tokens[0]) == "DELETE") {
-        req.formatDelete(tokens[1]);
-    } else if (std::string(tokens[0]) == "GET") {
-        req.formatGet(std::string(tokens[1]));
+        if (tokens[1]) {
+            req.formatDelete(path);
+        } else {
+            sendErrorResponse(400, "Bad Request - Missing path");
+        }
+    } else if (std::string(tokens[0]) == "GET" || std::string(tokens[0]) == "curl") {
+        if (tokens[1]) {
+            
+            if (req.formatGet(path) == 1) {
+                sendErrorResponse(403, "Bad request\n");
+                freeTokens(tokens);
+                return req;
+            }
+        } else {
+            // GET with no path defaults to root
+            req.formatGet("/index.html");
+        }
     } else {
-        send(_fd, "Bad request\n", 13, 0);
+        sendErrorResponse(403, "Bad request\n");
+        freeTokens(tokens);
         return req;
     }
 
@@ -126,10 +150,7 @@ Request Client::parseRequest(char* buffer) {
         req.setPath("/" + req.getPath());
     }
     
-    for (int i = 0; tokens[i]; i++) {
-        free(tokens[i]);
-    }
-    free(tokens);
+    freeTokens(tokens);
     
     return req;
 }
@@ -204,22 +225,22 @@ int Client::handleGetRequest(Request& req) {
         return 1;
     }
 
-    // Determine mime type based on file extension
-    std::string contentType = "text/";
-    size_t dotPos = requestPath.find_last_of('.');
-    if (dotPos != std::string::npos) {
-        std::string ext = requestPath.substr(dotPos);
-        if (ext != ".html")
-            contentType += ext;
-    }
+    // Clear any previous body content
+    req.setBody("");
 
     // Read file contents
     char buffer[4096];
     ssize_t bytesRead;
-    while ((bytesRead = read(fd, buffer, sizeof(buffer))) > 0) {
-        req.setBody(req.getBody() + buffer);
+    std::string fileContent;
+    
+    while ((bytesRead = read(fd, buffer, sizeof(buffer) - 1)) > 0) {
+        buffer[bytesRead] = '\0';  // Null terminate for safety
+        fileContent += buffer;
     }
     close(fd);
+    
+    // Set the body content
+    req.setBody(fileContent);
 
     // Check for read errors
     if (bytesRead < 0) {
@@ -228,13 +249,8 @@ int Client::handleGetRequest(Request& req) {
         return 1;
     }
 
-    // Send response
-    ssize_t bytesSent = sendResponse(req);
-    bytesSent += send(_fd, req.getBody().c_str(), req.getBody().length(), 0);
-    if (bytesSent < 0) {
-        std::cout << "Failed to send response" << std::endl;
-        return 1;
-    }
+    sendResponse(req);
+    send(_fd, req.getBody().c_str(), req.getBody().length(), 0);
 
     std::cout << "\nSuccessfully sent file: " << fullPath << std::endl;
     return 0;
@@ -280,9 +296,10 @@ int Client::handlePostRequest(Request& req) {
     }
 
     sendResponse(req);
-    send(_fd, "File successfully created\n", 27, 0);
+    // if (debug)
+        // send(_fd, "File successfully created\n", 27, 0);
 
-    std::cout << "Successfully uploaded file: " << uploadPath << std::endl;
+    std::cout << _webserv->getTimeStamp() << "Successfully uploaded file: " << uploadPath << std::endl;
     return 0;
 }
 
@@ -305,16 +322,28 @@ int Client::handleDeleteRequest(Request& req) {
     return 0;
 }
 
-ssize_t    Client::sendResponse(Request req) {
-    std::string response = "HTTP/1.1 201 OK\r\n";
-    response += "Content-Length: " + std::string(ft_itoa(req.getBody().length()));
-    response +=  "\r\n";
+ssize_t Client::sendResponse(Request req) {
+    std::string response = "HTTP/1.1 200 OK\r\n";
+    
+    // Get proper content type based on file extension
+    std::string contentType = req.getMimeType(req.getPath());
+    
+    response += "Content-Type: " + contentType + "\r\n";
+    response += "Content-Length: " + std::string(ft_itoa(req.getBody().length())) + "\r\n";
     response += "Server: WebServ/1.0\r\n";
-    response += "Connection: close\r\n\r\n";
+    response += "Connection: keep-alive\r\n\r\n";
+    
     return send(_fd, response.c_str(), response.length(), 0);
 }
 
 void Client::sendErrorResponse(int statusCode, const std::string& message) {
     std::string response = "HTTP/1.1 " + ft_itoa(statusCode) + " " + message + "\r\n\r\n";
     send(_fd, response.c_str(), response.length(), 0);
+}
+
+void    Client::freeTokens(char **tokens) {
+    for (int i = 0; tokens[i]; i++) {
+        free(tokens[i]);
+    }
+    free(tokens);
 }

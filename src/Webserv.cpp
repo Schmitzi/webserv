@@ -176,7 +176,8 @@ int Webserv::run() {
                         removeFromPoll(i);
                         i--; // Adjust index since we removed an element
                     }
-                    send(client->getFd(), "\nEnter request: ", 17, 0);
+                    // if (debug)
+                    //send(client->getFd(), "\nEnter request: ", 17, 0);
                 }
             }
         }
