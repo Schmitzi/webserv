@@ -34,7 +34,7 @@ int inputCheck(int ac, char **av, Webserv &webserv) {
     return 0;
 }
 
-int main(int ac, char **av) {
+int main(int ac, char **av, char **envp) {
     (void) av;
     (void) ac;
 
@@ -43,6 +43,8 @@ int main(int ac, char **av) {
 
     Webserv* webserv = new Webserv();
     g_webserv = webserv;
+
+    webserv->setEnvironment(envp);
 
     // if (inputCheck(ac, av, webserv)) {
     //     return -1;

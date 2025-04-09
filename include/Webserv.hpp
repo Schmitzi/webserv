@@ -42,6 +42,8 @@ class Webserv {
 
         Server          &getServer();
         std::vector<struct pollfd> &getPfds();
+        void            setEnvironment(char **envp);
+        char            **getEnvironment() const;
         int             setConfig(std::string const filepath);
         int             run();
         void            ft_error(std::string const msg);
@@ -52,6 +54,7 @@ class Webserv {
         Server                  *_server;
         std::vector<Client *>   _clients;
         //Config                *_config;
+        char                    **_env;
 
         std::vector<struct pollfd> _pfds;
 

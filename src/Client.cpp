@@ -9,6 +9,9 @@ Client::Client() : _webserv(NULL), _server(NULL) {
 Client::Client(Webserv &other) {
     setWebserv(&other);
     setServer(&other.getServer());
+
+    _cgi.setPythonPath(other.getEnvironment());
+    _cgi.setClient(*this);
 }
 
 Client::~Client() {
@@ -48,7 +51,7 @@ int Client::acceptConnection() {
     _fd = accept(_server->getFd(), (struct sockaddr *)&_addr, &_addrLen);
     if (_fd < 0) {
         _webserv->ft_error("Accept failed");
-        return 1; // Try again
+        return 1;
     }
     return 0;
 }
@@ -61,8 +64,6 @@ void Client::displayConnection() {
                 << (int)ip[2] << "."
                 << (int)ip[3]
                 << ":" << ntohs(_addr.sin_port) << RESET << "\n";
-    // if (debug == true)
-    // send(_fd, "Connection established!\nEnter request: ", 40, 0);
 }
 
 int Client::recieveData() {
@@ -72,14 +73,14 @@ int Client::recieveData() {
     int bytesRead = recv(_fd, _buffer, sizeof(_buffer) - 1, 0);
     
     if (bytesRead > 0) {
-        std::cout << GREEN << "Recieved from " << _fd << ": " << _buffer << RESET << "\n";
+        std::cout << GREEN << _webserv->getTimeStamp() << "Recieved from " << _fd << ": " << _buffer << RESET << "\n";
         if (processRequest(_buffer) == 1) {
             return (0);
         }
         return (0);
     } 
     else if (bytesRead == 0) {
-        std::cout << RED << "Client disconnected: " << _fd << RESET << "\n";
+        std::cout << RED << _webserv->getTimeStamp() << "Client disconnected: " << _fd << RESET << "\n";
         return (1);
     }
     else { // Error occurred
@@ -94,7 +95,6 @@ int Client::recieveData() {
 Request Client::parseRequest(char* buffer) {
     Request req;
     
-    // Clean up input by removing trailing whitespace including newlines
     size_t len = strlen(buffer);
     while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || 
                        buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
@@ -113,7 +113,6 @@ Request Client::parseRequest(char* buffer) {
         sendErrorResponse(400, "Bad Request");
         return req;
     }
-    // Trim any whitespace from the token
     std::string path = "/";
     if (tokens[1]) {
         path = tokens[1];
@@ -121,7 +120,7 @@ Request Client::parseRequest(char* buffer) {
     }
     
     if (std::string(tokens[0]) == "POST") {
-        req.formatPost(input);
+        req.formatPost(tokens[1]);
     } else if (std::string(tokens[0]) == "DELETE") {
         if (tokens[1]) {
             req.formatDelete(path);
@@ -137,12 +136,13 @@ Request Client::parseRequest(char* buffer) {
                 return req;
             }
         } else {
-            // GET with no path defaults to root
             req.formatGet("/index.html");
         }
     } else {
         sendErrorResponse(403, "Bad request\n");
         freeTokens(tokens);
+        std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd << ": 403 Bad request\n" << RESET;
+        req.setMethod("BAD");
         return req;
     }
 
@@ -157,12 +157,16 @@ Request Client::parseRequest(char* buffer) {
 
 int Client::processRequest(char *buffer) {
     Request req = parseRequest(buffer);
+    if (req.getMethod() == "BAD") {
+        return 1;
+    }
 
     // Debug print
-    std::cout << "Parsed Request:" << std::endl;
-    std::cout << "Method: " << req.getMethod() << std::endl;
-    std::cout << "Path: " << req.getPath() << std::endl;
-    std::cout << "Version: " << req.getVersion() << "\n" << std::endl;
+    std::cout << BLUE <<  _webserv->getTimeStamp() << "\n";
+    std::cout << "Parsed Request:" << "\n";
+    std::cout << "Method: " << req.getMethod() << "\n";
+    std::cout << "Path: " << req.getPath() << "\n";
+    std::cout << "Version: " << req.getVersion() << RESET << "\n\n";
 
     if (req.getMethod() == "GET") {
         return handleGetRequest(req);
@@ -177,7 +181,18 @@ int Client::processRequest(char *buffer) {
 }
 
 int Client::handleGetRequest(Request& req) {
-    std::cout << "Handling GET request for path: " << req.getPath() << std::endl;
+
+    // First, check if the requested path is a CGI script
+    std::string scriptPath = req.getPath();
+    std::string fullPath = _server->getWebRoot() + scriptPath;
+    
+    if (_cgi.isCGIScript(scriptPath)) {
+        // If it's a CGI script, execute it
+        return _cgi.executeCGI(*this, req, fullPath);
+    }
+
+    // If not a CGI script, continue with normal file serving (your existing code)
+    std::cout << _webserv->getTimeStamp() << "Handling GET request for path: " << req.getPath() << std::endl;
 
     // Sanitize path to prevent directory traversal
     if (req.getPath().find("../") != std::string::npos) {
@@ -197,22 +212,22 @@ int Client::handleGetRequest(Request& req) {
     }
 
     // Construct full file path
-    std::string fullPath = _server->getWebRoot() + requestPath;
+    fullPath = _server->getWebRoot() + requestPath;
 
     // Debug print full path
-    std::cout << "Full file path: " << fullPath << std::endl;
+    std::cout << _webserv->getTimeStamp() << "Full file path: " << fullPath << "\n";
 
     // Check if file exists and is regular file
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cout << "File not found: " << fullPath << std::endl;
+        std::cout << _webserv->getTimeStamp() << "File not found: " << fullPath << "\n";
         sendErrorResponse(404, "Not Found");
         return 1;
     }
 
     // Additional security checks
     if (!S_ISREG(fileStat.st_mode)) {
-        std::cout << "Not a regular file: " << fullPath << std::endl;
+        std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
         sendErrorResponse(403, "Forbidden");
         return 1;
     }
@@ -220,7 +235,7 @@ int Client::handleGetRequest(Request& req) {
     // Open file with additional error checking
     int fd = open(fullPath.c_str(), O_RDONLY);
     if (fd < 0) {
-        std::cout << "Failed to open file: " << fullPath << std::endl;
+        std::cout << _webserv->getTimeStamp() << "Failed to open file: " << fullPath << std::endl;
         sendErrorResponse(500, "Internal Server Error");
         return 1;
     }
@@ -234,7 +249,7 @@ int Client::handleGetRequest(Request& req) {
     std::string fileContent;
     
     while ((bytesRead = read(fd, buffer, sizeof(buffer) - 1)) > 0) {
-        buffer[bytesRead] = '\0';  // Null terminate for safety
+        buffer[bytesRead] = '\0';
         fileContent += buffer;
     }
     close(fd);
@@ -249,10 +264,9 @@ int Client::handleGetRequest(Request& req) {
         return 1;
     }
 
-    sendResponse(req);
-    send(_fd, req.getBody().c_str(), req.getBody().length(), 0);
+    sendResponse(req, "keep-alive", req.getBody());
 
-    std::cout << "\nSuccessfully sent file: " << fullPath << std::endl;
+    std::cout << _webserv->getTimeStamp() << "\nSuccessfully sent file: " << fullPath << std::endl;
     return 0;
 }
 
@@ -267,6 +281,11 @@ std::string Client::extractFileName(const std::string& path) {
 }
 
 int Client::handlePostRequest(Request& req) {
+    std::string fullPath = _server->getWebRoot() + req.getPath();
+
+    if (_cgi.isCGIScript(req.getPath())) {
+        return _cgi.executeCGI(*this, req, fullPath);
+    }
 
     // Sanitize path to prevent directory traversal
     if (req.getPath().find("../") != std::string::npos) {
@@ -278,15 +297,15 @@ int Client::handlePostRequest(Request& req) {
     
     int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
-        std::cout << "Failed to open file for writing: " << uploadPath << std::endl;
+        std::cout << _webserv->getTimeStamp() << "Failed to open file for writing: " << uploadPath << std::endl;
         sendErrorResponse(500, "Internal Server Error");
         return 1;
     }
 
-    std::cout << "Writing to file: " << uploadPath << "\n";
-    std::cout << "Content to write: " << req.getBody() << "\n";
+    std::cout << _webserv->getTimeStamp() << "Writing to file: " << uploadPath << "\n";
+    std::cout << _webserv->getTimeStamp() << "Content to write: " << req.getQuery() << "\n"; // body?
 
-    ssize_t bytesWritten = write(fd, req.getBody().c_str(), req.getBody().length());
+    ssize_t bytesWritten = write(fd, req.getQuery().c_str(), req.getQuery().length()); // Maybe body?
     close(fd);
 
     if (bytesWritten < 0) {
@@ -295,9 +314,7 @@ int Client::handlePostRequest(Request& req) {
         return 1;
     }
 
-    sendResponse(req);
-    // if (debug)
-        // send(_fd, "File successfully created\n", 27, 0);
+    sendResponse(req, "close", req.getBody());
 
     std::cout << _webserv->getTimeStamp() << "Successfully uploaded file: " << uploadPath << std::endl;
     return 0;
@@ -306,34 +323,44 @@ int Client::handlePostRequest(Request& req) {
 int Client::handleDeleteRequest(Request& req) {
     std::string fullPath = _server->getWebRoot() + req.getPath();
 
+    if (_cgi.isCGIScript(req.getPath())) {
+        return _cgi.executeCGI(*this, req, fullPath);
+    }
+
     size_t end = fullPath.find_last_not_of(" \t\r\n");
     if (end != std::string::npos) {
         fullPath = fullPath.substr(0, end + 1);
     }
-
-    std::cout << "|" << fullPath << "|\n";
 
     if (unlink(fullPath.c_str()) != 0) {
         sendErrorResponse(403, "Forbidden");
         return 1;
     }
 
-    // Send success response
     std::string response = "HTTP/1.1 200 OK\r\n\r\n";
     send(_fd, response.c_str(), response.length(), 0);
     return 0;
 }
 
-ssize_t Client::sendResponse(Request req) {
+ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
     std::string response = "HTTP/1.1 200 OK\r\n";
     
     // Get proper content type based on file extension
     std::string contentType = req.getMimeType(req.getPath());
     
     response += "Content-Type: " + contentType + "\r\n";
-    response += "Content-Length: " + std::string(ft_itoa(req.getBody().length())) + "\r\n";
+    if (req.getMethod() == "POST") {
+        response += "Content-Length: " + std::string(ft_itoa(req.getQuery().length())) + "\r\n";
+    } else {
+        response += "Content-Length: " + std::string(ft_itoa(req.getBody().length())) + "\r\n";
+    }
     response += "Server: WebServ/1.0\r\n";
-    response += "Connection: keep-alive\r\n\r\n";
+    response += "Connection: " + connect;
+    response += "\r\n\r\n";
+    if (!body.empty()) {
+        response += req.getBody();
+        response += "\r\n\r\n";
+    }
     
     return send(_fd, response.c_str(), response.length(), 0);
 }

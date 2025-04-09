@@ -1,10 +1,11 @@
-# webserv
+# Webserv
 The purpose of this project is to build a webserver in C++98 that handles request and parses configurations files
 
-Team : [Michael](https://github.com/Schmitzi)  [Lilly](https://github.com/waterlilly)
+Team : [Michael](https://github.com/Schmitzi) | [Lilly](https://github.com/waterlilly)
 
 ## Index
 - How do I use Webserv?
+- What is CGI?
 - Useful functions
   - What is socket()?
   - What is bind()?
@@ -35,7 +36,7 @@ After this, you have 3 options to test the server. The vaild requests are GET, P
 GET returns the contents of a file. For example:
 
 ```bash
-GET /
+GET / HTTP/1.1
 ```
 
 This will return the index.html stored at /local/ aswell as a header containing some information about the file.
@@ -43,7 +44,7 @@ This will return the index.html stored at /local/ aswell as a header containing 
 You can also specify a different file such as:
 
 ```bash
-GET css/styles.css
+GET css/styles.css HTTP/1.1
 ```
 
 This will display the contents of the given CSS file
@@ -53,7 +54,7 @@ This will display the contents of the given CSS file
 POST allows us to create a file on the server. We can use it in the following ways:
 
 ```bash
-POST test.txt
+POST test.txt HTTP/1.1
 ```
 
 This will create a file under /local/upload/ called text.txt
@@ -61,7 +62,7 @@ This will create a file under /local/upload/ called text.txt
 If we want to fill this with text, we need to use a different format.
 
 ```bash
-POST test.txt["?"This is a test]
+POST test.txt?value=test HTTP/1.1
 ```
 
 With this format, we can specify the body and write it into the file we created.
@@ -71,10 +72,82 @@ With this format, we can specify the body and write it into the file we created.
 The final request is pretty self explanitory. 
 
 ```bash
-DELETE test.txt
+DELETE test.txt HTTP/1.1
 ```
 
 This function will delete the specified file. At the moment, this is limited to only being able to delete files located in /local/upload because I have already borked some files and deleting files this way means Ctrl+Z is not possible.....
+
+# What is CGI (Common Gateway Interface)?
+
+The Common Gateway Interface (CGI) is a standard protocol that defines how web servers communicate with external programs to dynamically generate content for web users.
+
+## How CGI Works
+
+A client sends an HTTP request to the web server for a CGI resource
+The web server identifies the request as a CGI request (typically by the file's location or extension)
+Instead of sending the file directly to the client, the server executes the CGI program
+The CGI program processes the request, possibly accessing databases or performing other operations
+The CGI program generates output (typically HTML) which is sent back to the web server
+The web server relays this output to the client as the HTTP response
+
+## Key Features of CGI
+
+- <b>Environment Variables</b>: The web server passes information to CGI scripts through environment variables like:
+  - REQUEST_METHOD
+  - QUERY_STRING
+  - CONTENT_LENGTH
+
+- <b>Standard Input/Output</b>: Request data can be read from standard input (stdin), and responses are written to standard output (stdout)
+- <b>Headers</b>: CGI programs must output proper HTTP headers before the content, with a blank line separating headers from the body
+- <b>Content Types</b>: The "Content-type" header tells browsers how to interpret the data (e.g., "text/html", "image/jpeg")
+
+## CGI in Modern Web Development
+While CGI has been largely replaced by more efficient technologies in high-traffic environments (like FastCGI, WSGI, application servers), it's still valuable to understand as it forms the foundation of web application development concepts. Many modern frameworks still use CGI principles even if they don't use the exact implementation.
+
+## Example program
+```python
+#!/usr/bin/env python3
+import os
+import sys
+
+# Print headers (optional)
+print("Content-Type: text/html")
+print()  # Extra newline to separate headers from body
+
+# Access environment variables
+print("<html><body>")
+print("<h1>Hello from CGI!</h1>")
+print(f"<p>Method: {os.environ.get('REQUEST_METHOD')}</p>")
+print(f"<p>Query String: {os.environ.get('QUERY_STRING')}</p>")
+
+# Read input if any
+input_data = sys.stdin.read()
+if input_data:
+    print(f"<p>Input Data: {input_data}</p>")
+
+print("</body></html>")
+```
+
+This can then be called with:
+```bash
+curl -i "http://localhost:8080/scripts/hello.py?name=World"
+```
+
+And our output will look something like this:
+```bash
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 104
+Server: WebServ/1.0
+Connection: keep-alive
+
+<html><body>
+<h1>Hello from CGI!</h1>
+<p>Method: GET</p>
+<p>Query String: name=World</p>
+</body></html>
+```
+<br>
 
 # Useful functions
 

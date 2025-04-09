@@ -27,6 +27,7 @@ FILES	=	main \
 			Server \
 			Client \
 			Request \
+			CGIHandler \
 			ft_split \
 			ft_itoa
 

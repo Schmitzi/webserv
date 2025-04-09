@@ -7,6 +7,7 @@
 #include <map>
 #include "../include/Helper.hpp"
 #include "../include/Request.hpp"
+#include "../include/CGIHandler.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -16,6 +17,7 @@
 
 class Webserv;
 class Server;
+class CGIHandler;
 
 class Client {
     public:
@@ -38,7 +40,7 @@ class Client {
         std::string             extractFileName(const std::string& path);
         int                     handlePostRequest(Request& req);
         int                     handleDeleteRequest(Request& req);
-        ssize_t                 sendResponse(Request req);
+        ssize_t                 sendResponse(Request req, std::string connect, std::string body);
         void                    sendErrorResponse(int statusCode, const std::string& message);
         void                    freeTokens(char **tokens);
     private:
@@ -50,6 +52,7 @@ class Client {
 
         Webserv             *_webserv;
         Server              *_server;
+        CGIHandler          _cgi;
 };
 
 #endif

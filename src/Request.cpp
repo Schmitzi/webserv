@@ -1,6 +1,6 @@
 #include "../include/Request.hpp"
 
-Request::Request() : _method("GET"), _path("/index"), _version("HTTP/1.1") {
+Request::Request() : _method("GET"), _path("/index.html"), _version("HTTP/1.1"), _body("") {
 }
 
 Request::~Request() {
@@ -27,6 +27,10 @@ std::string const &Request::getContentType() {
     return _contentType;
 }
 
+std::string const &Request::getQuery() {
+    return _query;
+}
+
 void    Request::setMethod(std::string const method) {
     _method = method;
 }
@@ -43,40 +47,46 @@ void    Request::setBody(std::string const body) {
     _body = body;
 }
 
-void    Request::formatPost(std::string const target) {
+void    Request::setQuery(std::string const query) {
+    _query = query;
+}
+
+void    Request::setContentType(std::string const content) {
+    _contentType = content;
+}
+
+void Request::formatPost(std::string const target) {  
     setMethod("POST");
     setVersion("HTTP/1.1");
-    
-    if (target.find("[") != std::string::npos) {
-        setPath(target.substr((target.find(" ") + 1), target.find("[") - 5));
-
-        size_t queryStart = target.find("\"?\"") + 3;
-        if (queryStart != std::string::npos) {
-            size_t bodyStart = queryStart;
-            size_t bodyEnd = target.find("]", bodyStart);
-            
-            if (bodyEnd != std::string::npos) {
-                setBody(target.substr(bodyStart, bodyEnd - bodyStart));
-            }
-        }
+    size_t queryPos = target.find('?');
+    if (queryPos != std::string::npos) {
+        setPath(target.substr(0, queryPos));
+        setQuery(target.substr(queryPos + 1));
     } else {
-        setPath(target.substr(target.find(" ") + 1, target.length()));
+        setPath(target);
+        setQuery("");
     }
 }
 
 void    Request::formatDelete(std::string const token) {
     setMethod("DELETE");
-    setPath("upload/" + token);
     setVersion("HTTP/1.1");
+    setPath("upload/" + token);
 }
 
-int    Request::formatGet(std::string const token) {
+int Request::formatGet(std::string const token) {
     setMethod("GET");
-    if (!token.empty())
-        setPath(token);
-    else
-        return 1;
     setVersion("HTTP/1.1");
+    
+    size_t queryPos = token.find('?');
+    if (queryPos != std::string::npos) {
+        setPath(token.substr(0, queryPos));
+        setQuery(token.substr(queryPos + 1));
+    } else {
+        setPath(token);
+        setQuery("");
+    }
+    
     return 0;
 }
 
@@ -86,8 +96,10 @@ std::string Request::getMimeType(std::string const &path) {
     
     if (dotPos != std::string::npos) {
         ext = path.substr(dotPos + 1);
-    } else {
+    } else if (path == "/") {
         return "text/html";
+    } else {
+        return "text/plain";
     }
     
     if (ext == "html" || ext == "htm")

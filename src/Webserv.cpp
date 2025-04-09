@@ -3,7 +3,6 @@
 #include "../include/Client.hpp"
 #include "../include/Config.hpp"
 
-
 // Othodox Cannonical Form
 
 Webserv::Webserv() {  
@@ -48,12 +47,6 @@ Webserv::~Webserv() {
         delete _server;
         _server = NULL;
     }
-
-    // for (size_t i = 0; i < _pfds.size(); ++i) {
-    //     if (_pfds[i].fd >= 0) {
-    //         close(_pfds[i].fd);
-    //     }
-    // }
     _pfds.clear();
 }
 
@@ -63,6 +56,14 @@ Server &Webserv::getServer() {
 
 std::vector<struct pollfd> &Webserv::getPfds() {
     return _pfds;
+}
+
+void Webserv::setEnvironment(char **envp) {
+    _env = envp;
+}
+
+char **Webserv::getEnvironment() const {
+    return _env;
 }
 
 int Webserv::setConfig(std::string const filepath) {
@@ -129,13 +130,13 @@ int Webserv::run() {
             Client* newClient = new Client(*this);
             
             if (newClient->acceptConnection() == 0) {
+                // Display connection info
+                newClient->displayConnection();
                 // Add to poll array
                 if (addToPoll(newClient->getFd(), POLLIN) == 0) {
                     // Store client for later use
                     _clients.push_back(newClient);
                     
-                    // Display connection info
-                    newClient->displayConnection();
                 } else {
                     printMsg("Failed to add client to poll", RED, "");
                     delete newClient;
@@ -171,13 +172,9 @@ int Webserv::run() {
                                 break;
                             }
                         }
-                        
-                        // Remove from poll array
                         removeFromPoll(i);
-                        i--; // Adjust index since we removed an element
+                        i--;
                     }
-                    // if (debug)
-                    //send(client->getFd(), "\nEnter request: ", 17, 0);
                 }
             }
         }
