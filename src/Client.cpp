@@ -240,7 +240,7 @@ int Client::handleGetRequest(Request& req) {
     close(fd);
     
     // Set the body content
-    req.setBody(fileContent);
+    req.setBody(fileContent + "\r\n");
 
     // Check for read errors
     if (bytesRead < 0) {
@@ -310,6 +310,8 @@ int Client::handleDeleteRequest(Request& req) {
     if (end != std::string::npos) {
         fullPath = fullPath.substr(0, end + 1);
     }
+
+    std::cout << "|" << fullPath << "|\n";
 
     if (unlink(fullPath.c_str()) != 0) {
         sendErrorResponse(403, "Forbidden");
