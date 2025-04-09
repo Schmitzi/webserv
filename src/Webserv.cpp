@@ -7,7 +7,7 @@
 
 Webserv::Webserv() {  
     _server = new Server();
-    //_config = new Config(Config);
+    // _config = new Config(Config);
     
     _server->setWebserv(this);
     //std::cout << "Webserv constructed" << std::endl;
@@ -16,17 +16,18 @@ Webserv::Webserv() {
 Webserv::Webserv(std::string const &config) {
    std::cout << "Webserv copy constructed" << std::endl;
    (void) config;
-   //_config = config;
+	//  _config = config;
 }
 
 Webserv::Webserv(Webserv const &other) {
-    (void) other;
-    //_config = other._config;
+    // (void) other;
+	// _config = other._config;
+	*this = other;
 }
 
 Webserv &Webserv::operator=(Webserv const &other) {
-    (void) other;
-    // _config = other._config;
+    // (void) other;
+    _config = other._config;
 	return *this;
 }
 
@@ -68,6 +69,7 @@ char **Webserv::getEnvironment() const {
 
 int Webserv::setConfig(std::string const filepath) {
     std::cout << getTimeStamp() << "Config found at " << filepath << "\n";
+	_config = new Config(filepath);
     return true;
 }
 
@@ -104,14 +106,21 @@ void Webserv::removeFromPoll(size_t index) {
     _pfds.erase(_pfds.begin() + index);
 }
 
+const Config& Webserv::getConfig() const {
+	return *_config;
+}
+
 int Webserv::run() {
     // Initialize server
     if (_server->openSocket() || _server->setOptional() || _server->setServerAddr() || 
         _server->ft_bind() || _server->ft_listen()) {
         return 1;
     }
-
-    printMsg("Server is listening on port", GREEN, "8080");
+	
+	std::string port = getConfig().getConfigValue("port");
+	if (port.empty())
+		std::cerr << "No port found in config..\n";
+    printMsg("Server is listening on port", GREEN, port);
 
     // Initialize poll array with server socket
     addToPoll(_server->getFd(), POLLIN);

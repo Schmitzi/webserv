@@ -46,9 +46,9 @@ int main(int ac, char **av, char **envp) {
 
     webserv->setEnvironment(envp);
 
-    // if (inputCheck(ac, av, webserv)) {
-    //     return -1;
-    // }
+    if (inputCheck(ac, av, webserv)) {
+        return -1;
+    }
 
     if (webserv->run()) {
         webserv->ft_error("Setup failed");

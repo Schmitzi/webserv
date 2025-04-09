@@ -17,6 +17,7 @@
 #include <vector>
 #include <fcntl.h>
 #include <signal.h>
+#include <map>
 #include "../include/Helper.hpp"
 
 class Server;
@@ -49,12 +50,13 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
+		const Config&	getConfig() const; 
 
     private:
         Server                  *_server;
         std::vector<Client *>   _clients;
-        //Config                *_config;
         char                    **_env;
+        Config                	*_config;
 
         std::vector<struct pollfd> _pfds;
 
