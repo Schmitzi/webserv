@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>File Upload</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/fileupload.css">
+</head>
+<body>
+    <h1>File Upload</h1>
+    <a href="index.html">Home</a>
+    
+    <form id="upload-form" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="file-upload">Select File:</label>
+            <input type="file" id="file-upload" name="file">
+        </div>
+        <button type="submit">Upload</button>
+    </form>
+    
+    <div id="upload-status"></div>
+    
+    <div class="debug-container">
+        <label class="debug-switch">
+            <input type="checkbox" id="debug-toggle">
+            <span class="slider"></span>
+            <span class="label-text">Debug Mode</span>
+        </label>
+        
+        <div id="debug-panel" class="hidden">
+            <h3>Request Details</h3>
+            <div id="debug-request"></div>
+            
+            <h3>Response Details</h3>
+            <div id="debug-response"></div>
+        </div>
+    </div>
+    
+    <script src="/js/fileupload.js"></script>
+</body>
+</html>
