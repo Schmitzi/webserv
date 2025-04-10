@@ -29,23 +29,19 @@ class Client {
         int                     &getFd();
         unsigned char           &getIP();
         char                    &getBuffer();
-        std::string const       &getRawData();
         void                    setWebserv(Webserv *webserv);
         void                    setServer(Server *server);
-        void                    setRawData(std::string const data);
         int                     acceptConnection();
         void                    displayConnection();
         int                     recieveData();
-        int                     processRequest(char const *buffer);
-        Request                 parseRequest(char const *buffer);
+        int                     processRequest(char *buffer);
+        Request                 parseRequest(char* buffer);
         int                     handleGetRequest(Request& req);
         std::string             extractFileName(const std::string& path);
         int                     handlePostRequest(Request& req);
         int                     handleDeleteRequest(Request& req);
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
         void                    sendErrorResponse(int statusCode, const std::string& message);
-        int                     handleMultipartPost(Request& req);
-        bool                    isRequestComplete(std::string &data);
         void                    freeTokens(char **tokens);
     private:
         struct sockaddr_in  _addr;
@@ -53,7 +49,6 @@ class Client {
         int                 _fd;
         unsigned char       *_ip;
         char				_buffer[1024];
-        std::string         _rawData;
 
         Webserv             *_webserv;
         Server              *_server;

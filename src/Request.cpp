@@ -30,6 +30,7 @@ std::string const &Request::getContentType() {
 std::string const &Request::getQuery() {
     return _query;
 }
+
 void    Request::setMethod(std::string const method) {
     _method = method;
 }
@@ -118,7 +119,5 @@ std::string Request::getMimeType(std::string const &path) {
     if (ext == "ico")
         return "image/x-icon";
     
-    return "text/plain";
+    return "text/plain"; // Default
 }
-
-
