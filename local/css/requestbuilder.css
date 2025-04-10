@@ -1,0 +1,128 @@
+body {
+    font-family: Arial, sans-serif;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
+
+h1, h2 {
+    color: #333;
+}
+
+.container {
+    display: flex;
+    margin-bottom: 20px;
+}
+
+.blocks-container {
+    width: 200px;
+    padding: 10px;
+    background-color: #e0e0e0;
+    border-radius: 5px;
+    margin-right: 20px;
+}
+
+.drop-zone {
+    flex-grow: 1;
+    min-height: 150px;
+    padding: 10px;
+    background-color: #fff;
+    border: 2px dashed #aaa;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.block {
+    padding: 8px 12px;
+    margin: 5px;
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 3px;
+    cursor: move;
+    user-select: none;
+    display: inline-block;
+}
+
+.method-block {
+    background-color: #2196F3;
+}
+
+.version-block {
+    background-color: #9C27B0;
+}
+
+.custom-block {
+    background-color: #FF9800;
+}
+
+.output {
+    background-color: #333;
+    color: #fff;
+    padding: 15px;
+    border-radius: 5px;
+    font-family: monospace;
+    margin-top: 20px;
+    min-height: 20px;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+.info {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #e8f4f8;
+    border-radius: 5px;
+}
+
+.block.dragging {
+    opacity: 0.5;
+}
+
+#custom-input {
+    padding: 8px;
+    width: 80%;
+    margin-top: 10px;
+}
+
+#add-custom {
+    padding: 8px 12px;
+    background-color: #FF9800;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.remove-btn {
+    margin-left: 5px;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.clear-btn {
+    padding: 8px 12px;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.send-btn {
+    padding: 8px 12px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-top: 10px;
+    margin-left: 10px;
+}

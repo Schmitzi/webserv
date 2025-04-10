@@ -287,7 +287,6 @@ int Client::handlePostRequest(Request& req) {
         return _cgi.executeCGI(*this, req, fullPath);
     }
 
-    // Sanitize path to prevent directory traversal
     if (req.getPath().find("../") != std::string::npos) {
         sendErrorResponse(403, "Forbidden");
         return 1;
@@ -314,7 +313,7 @@ int Client::handlePostRequest(Request& req) {
         return 1;
     }
 
-    sendResponse(req, "close", req.getBody());
+    sendResponse(req, "keep-alive", "");
 
     std::cout << _webserv->getTimeStamp() << "Successfully uploaded file: " << uploadPath << std::endl;
     return 0;
@@ -337,8 +336,9 @@ int Client::handleDeleteRequest(Request& req) {
         return 1;
     }
 
-    std::string response = "HTTP/1.1 200 OK\r\n\r\n";
-    send(_fd, response.c_str(), response.length(), 0);
+    // std::string response = "HTTP/1.1 200 OK\r\n\r\n";
+    // send(_fd, response.c_str(), response.length(), 0);
+    sendResponse(req, "keep-alive", "");
     return 0;
 }
 
@@ -366,7 +366,15 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
 }
 
 void Client::sendErrorResponse(int statusCode, const std::string& message) {
-    std::string response = "HTTP/1.1 " + ft_itoa(statusCode) + " " + message + "\r\n\r\n";
+    // Create a more complete HTTP response with all required headers
+    std::string response = "HTTP/1.1 " + ft_itoa(statusCode) + " " + message + "\r\n";
+    response += "Content-Type: text/plain\r\n";
+    response += "Content-Length: " + ft_itoa(message.length()) + "\r\n";
+    response += "Server: WebServ/1.0\r\n";
+    response += "Connection: close\r\n";
+    response += "\r\n";
+    response += message;  // Add the message as the response body
+    
     send(_fd, response.c_str(), response.length(), 0);
 }
 
