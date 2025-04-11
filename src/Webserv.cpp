@@ -7,19 +7,19 @@
 
 Webserv::Webserv() {  
     _server = new Server();
-    // _config = new Config(Config);
+    _config = new Config("config/default.conf");
     
     _server->setWebserv(this);
     //std::cout << "Webserv constructed" << std::endl;
 }
 
 Webserv::Webserv(std::string const &config) {
-   std::cout << "Webserv copy constructed" << std::endl;
-   (void) config;
-	//  _config = config;
+	// (void) config;
+	*_config = Config(config);
 }
 
 Webserv::Webserv(Webserv const &other) {
+	std::cout << "Webserv copy constructed" << std::endl;
     // (void) other;
 	// _config = other._config;
 	*this = other;

@@ -1,6 +1,8 @@
 #include "../include/Config.hpp"
 
-Config::Config() {}
+Config::Config() {
+	
+}
 
 Config::Config(std::string const &filepath) {
 	std::string s = filepath.substr(strlen(filepath.c_str()) - 5, 5);
@@ -28,6 +30,8 @@ Config &Config::operator=(const Config& other) {
 Config::~Config() {
 	_config.clear();
 }
+
+/* ************************************************************************************** */
 
 std::map<std::string, std::string> const &Config::getConfig() const {
 	return _config;
@@ -83,3 +87,29 @@ void Config::printConfig() {
 		++it;
 	}
 }
+
+// std::vector<std::string> tokenize(const std::string &input) {
+// 	std::vector<std::string> tokens;
+// 	std::string token;
+// 	for (size_t i = 0; i < input.length(); ++i) {
+// 		char c = input[i];
+// 		if (std::isspace(c)) {
+// 			if (!token.empty()) {
+// 				tokens.push_back(token);
+// 				token.clear();
+// 			}
+// 		} else if (c == '{' || c == '}' || c == ';') {
+// 			if (!token.empty()) {
+// 				tokens.push_back(token);
+// 				token.clear();
+// 			}
+// 			tokens.push_back(std::string(1, c));
+// 		} else if (c == '#')
+// 			while (i < input.length() && input[i] != '\n') ++i;
+// 		else
+// 			token += c;
+// 	}
+// 	if (!token.empty())
+// 		tokens.push_back(token);
+// 	return tokens;
+// }
