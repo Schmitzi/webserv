@@ -8,22 +8,22 @@
 #include <fstream>
 #include <vector>
 
-typedef struct serverLevel {
-	size_t port;
-	std::string servName;
-	std::map<int, std::string> errPages;
-	size_t maxRequestSize;
-};
+// typedef struct serverLevel {
+// 	size_t port;
+// 	std::string servName;
+// 	std::map<int, std::string> errPages;
+// 	size_t maxRequestSize;
+// };
 
-typedef struct locationLevel {
-	std::string docRootDir;
-	std::string indexFile;
-	std::vector<std::string> methods;
-	bool autoindex;
-	std::string redirectionHTTP;
-	std::string cgiProcessorPath;
-	std::string uploadDirPath;
-};
+// typedef struct locationLevel {
+// 	std::string docRootDir;
+// 	std::string indexFile;
+// 	std::vector<std::string> methods;
+// 	bool autoindex;
+// 	std::string redirectionHTTP;
+// 	std::string cgiProcessorPath;
+// 	std::string uploadDirPath;
+// };
 
 class Config {
     public:
