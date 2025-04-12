@@ -35,13 +35,15 @@ int inputCheck(int ac, char **av, Webserv &webserv) {
 }
 
 int main(int ac, char **av, char **envp) {
-    (void) av;
+    // (void) av;
     (void) ac;
 
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
 
-    Webserv* webserv = new Webserv();
+	Webserv* webserv = new Webserv();
+    if (av[1])
+		webserv->setConfig(av[1]);
     g_webserv = webserv;
 
     webserv->setEnvironment(envp);
