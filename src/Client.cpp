@@ -73,7 +73,7 @@ int Client::recieveData() {
     int bytesRead = recv(_fd, _buffer, sizeof(_buffer) - 1, 0);
     
     if (bytesRead > 0) {
-        std::cout << GREEN << _webserv->getTimeStamp() << "Recieved from " << _fd << ": " << _buffer << RESET << "\n";
+        std::cout << BLUE << _webserv->getTimeStamp() << "Recieved from " << _fd << ": " << _buffer << RESET << "\n";
         if (processRequest(_buffer) == 1) {
             return (0);
         }
@@ -102,6 +102,8 @@ Request Client::parseRequest(char* buffer) {
     }
 
     std::string input(buffer);
+
+    findContentType(req);
     
     if (input.empty()) {
         return req;
@@ -114,6 +116,7 @@ Request Client::parseRequest(char* buffer) {
         return req;
     }
     std::string path = "/";
+
     if (tokens[1]) {
         path = tokens[1];
         path.erase(path.find_last_not_of(" \t\r\n") + 1);
@@ -182,31 +185,27 @@ int Client::processRequest(char *buffer) {
 
 int Client::handleGetRequest(Request& req) {
 
-    // First, check if the requested path is a CGI script
     std::string scriptPath = req.getPath();
     std::string fullPath = _server->getWebRoot() + scriptPath;
     
-    if (_cgi.isCGIScript(scriptPath)) {
-        // If it's a CGI script, execute it
-        return _cgi.executeCGI(*this, req, fullPath);
-    }
-
-    // If not a CGI script, continue with normal file serving (your existing code)
-    std::cout << _webserv->getTimeStamp() << "Handling GET request for path: " << req.getPath() << std::endl;
-
-    // Sanitize path to prevent directory traversal
-    if (req.getPath().find("../") != std::string::npos) {
+    if (scriptPath.find("../") != std::string::npos) {
         sendErrorResponse(403, "Forbidden");
         return 1;
     }
 
-    // Handle default index if root path is requested
+    if (_cgi.isCGIScript(scriptPath)) {
+        return _cgi.executeCGI(*this, req, fullPath);
+    }
+
+    std::cout << _webserv->getTimeStamp() << "Handling GET request for path: " << req.getPath() << std::endl;
+
     std::string requestPath = req.getPath();
     if (requestPath == "/" || requestPath.empty()) {
         requestPath = "/index.html";
     }
 
     size_t end = requestPath.find_last_not_of(" \t\r\n");
+
     if (end != std::string::npos) {
         requestPath = requestPath.substr(0, end + 1);
     }
@@ -214,7 +213,6 @@ int Client::handleGetRequest(Request& req) {
     // Construct full file path
     fullPath = _server->getWebRoot() + requestPath;
 
-    // Debug print full path
     std::cout << _webserv->getTimeStamp() << "Full file path: " << fullPath << "\n";
 
     // Check if file exists and is regular file
@@ -225,7 +223,7 @@ int Client::handleGetRequest(Request& req) {
         return 1;
     }
 
-    // Additional security checks
+
     if (!S_ISREG(fileStat.st_mode)) {
         std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
         sendErrorResponse(403, "Forbidden");
@@ -266,7 +264,7 @@ int Client::handleGetRequest(Request& req) {
 
     sendResponse(req, "keep-alive", req.getBody());
 
-    std::cout << _webserv->getTimeStamp() << "\nSuccessfully sent file: " << fullPath << std::endl;
+    std::cout << GREEN << _webserv->getTimeStamp() << "\nSuccessfully sent file: " << fullPath << std::endl;
     return 0;
 }
 
@@ -286,6 +284,10 @@ int Client::handlePostRequest(Request& req) {
     if (_cgi.isCGIScript(req.getPath())) {
         return _cgi.executeCGI(*this, req, fullPath);
     }
+    // Check if this is a multipart/form-data request and handle it separately
+    if (req.getContentType().find("multipart/form-data") != std::string::npos) {
+        return handleMultipartPost(req);
+    }
 
     if (req.getPath().find("../") != std::string::npos) {
         sendErrorResponse(403, "Forbidden");
@@ -302,9 +304,9 @@ int Client::handlePostRequest(Request& req) {
     }
 
     std::cout << _webserv->getTimeStamp() << "Writing to file: " << uploadPath << "\n";
-    std::cout << _webserv->getTimeStamp() << "Content to write: " << req.getQuery() << "\n"; // body?
+    std::cout << _webserv->getTimeStamp() << "Content to write: " << req.getQuery() << "\n";
 
-    ssize_t bytesWritten = write(fd, req.getQuery().c_str(), req.getQuery().length()); // Maybe body?
+    ssize_t bytesWritten = write(fd, req.getQuery().c_str(), req.getQuery().length());
     close(fd);
 
     if (bytesWritten < 0) {
@@ -336,17 +338,206 @@ int Client::handleDeleteRequest(Request& req) {
         return 1;
     }
 
-    // std::string response = "HTTP/1.1 200 OK\r\n\r\n";
-    // send(_fd, response.c_str(), response.length(), 0);
     sendResponse(req, "keep-alive", "");
     return 0;
+}
+
+int Client::handleMultipartPost(Request& req) {
+    std::string raw(_buffer);
+    std::string boundary = req.getBoundary();
+    
+    if (boundary.empty()) {
+        std::cout << "Error: No boundary found for multipart/form-data request" << std::endl;
+        sendErrorResponse(400, "Bad Request - No Boundary");
+        return 1;
+    }
+    
+    std::cout << "Handling multipart POST with boundary: " << boundary << std::endl;
+    
+    // The boundary in the body will have -- prefix
+    std::string fullBoundary = "--" + boundary;
+    
+    // Find the first boundary
+    size_t boundaryPos = raw.find(fullBoundary);
+    if (boundaryPos == std::string::npos) {
+        std::cout << "Error: Boundary not found in request body" << std::endl;
+        sendErrorResponse(400, "Bad Request - Invalid Format");
+        return 1;
+    }
+    
+    // Find the Content-Disposition header
+    size_t dispositionPos = raw.find("Content-Disposition:", boundaryPos);
+    if (dispositionPos == std::string::npos) {
+        std::cout << "Error: Content-Disposition not found" << std::endl;
+        sendErrorResponse(400, "Bad Request - Invalid Format");
+        return 1;
+    }
+    
+    // Extract filename
+    size_t filenamePos = raw.find("filename=\"", dispositionPos);
+    if (filenamePos == std::string::npos) {
+        std::cout << "Error: Filename not found in Content-Disposition" << std::endl;
+        sendErrorResponse(400, "Bad Request - No Filename");
+        return 1;
+    }
+    
+    filenamePos += 10; // Skip 'filename="'
+    size_t filenameEnd = raw.find("\"", filenamePos);
+    if (filenameEnd == std::string::npos) {
+        std::cout << "Error: Invalid filename format" << std::endl;
+        sendErrorResponse(400, "Bad Request - Invalid Format");
+        return 1;
+    }
+    
+    std::string filename = raw.substr(filenamePos, filenameEnd - filenamePos);
+    std::cout << "Extracted filename: " << filename << std::endl;
+    
+    // Find the blank line after headers
+    size_t headersEnd = raw.find("\r\n\r\n", filenameEnd);
+    if (headersEnd == std::string::npos) {
+        headersEnd = raw.find("\n\n", filenameEnd);
+        if (headersEnd == std::string::npos) {
+            std::cout << "Error: Headers end not found" << std::endl;
+            sendErrorResponse(400, "Bad Request - Invalid Format");
+            return 1;
+        }
+        headersEnd += 2; // Skip \n\n
+    } else {
+        headersEnd += 4; // Skip \r\n\r\n
+    }
+    
+    // Find the end boundary
+    size_t contentEnd = raw.find(fullBoundary, headersEnd);
+    if (contentEnd == std::string::npos) {
+        std::cout << "Error: End boundary not found" << std::endl;
+        sendErrorResponse(400, "Bad Request - Invalid Format");
+        return 1;
+    }
+    
+    // Extract the file content
+    std::string fileContent = raw.substr(headersEnd, contentEnd - headersEnd);
+    
+    // Remove trailing whitespace and newlines (C++98 compatible)
+    while (!fileContent.empty()) {
+        char lastChar = fileContent[fileContent.length() - 1];
+        if (lastChar == '\r' || lastChar == '\n' || lastChar == ' ' || lastChar == '\t') {
+            fileContent.resize(fileContent.length() - 1);
+        } else {
+            break;
+        }
+    }
+    
+    std::cout << "Extracted file content: [" << fileContent << "]" << std::endl;
+    
+    // Create upload directory if it doesn't exist
+    struct stat st;
+    if (stat(_server->getUploadDir().c_str(), &st) != 0) {
+        if (mkdir(_server->getUploadDir().c_str(), 0755) != 0) {
+            std::cout << "Error: Failed to create upload directory" << std::endl;
+            sendErrorResponse(500, "Internal Server Error");
+            return 1;
+        }
+    }
+    
+    // Save the file
+    std::string uploadPath = _server->getUploadDir() + filename;
+    int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+        std::cout << "Error: Failed to open file for writing: " << uploadPath << std::endl;
+        std::cout << "Error details: " << strerror(errno) << std::endl;
+        sendErrorResponse(500, "Internal Server Error");
+        return 1;
+    }
+    
+    std::cout << _webserv->getTimeStamp() << "Writing to file: " << uploadPath << std::endl;
+    
+    ssize_t bytesWritten = write(fd, fileContent.c_str(), fileContent.length());
+    close(fd);
+    
+    if (bytesWritten < 0) {
+        std::cout << "Error: Failed to write to file: " << strerror(errno) << std::endl;
+        sendErrorResponse(500, "Internal Server Error");
+        return 1;
+    }
+    
+    // Send success response
+    std::string successMsg = "File uploaded successfully: " + filename;
+    std::string response = "HTTP/1.1 200 OK\r\n";
+    response += "Content-Type: text/plain\r\n";
+    response += "Content-Length: " + ft_itoa(successMsg.length()) + "\r\n";
+    response += "Server: WebServ/1.0\r\n";
+    response += "Connection: keep-alive\r\n";
+    response += "\r\n";
+    response += successMsg;
+    
+    send(_fd, response.c_str(), response.length(), 0);
+    
+    std::cout << _webserv->getTimeStamp() << "Successfully uploaded file: " << uploadPath << std::endl;
+    return 0;
+}
+
+void Client::findContentType(Request& req) {
+    std::string raw(_buffer);
+    size_t start = raw.find("Content-Type: ");
+    
+    if (start == std::string::npos) {
+        // Content-Type header not found
+        if (raw.find("POST") == 0) {
+            std::cout << "Warning: POST request without Content-Type header" << std::endl;
+            req.setContentType("application/octet-stream");
+        }
+        return;
+    }
+    
+    // Extract the full Content-Type header value
+    start += 14; // Skip "Content-Type: "
+    size_t end = raw.find("\r\n", start);
+    if (end == std::string::npos) {
+        end = raw.find("\n", start);
+        if (end == std::string::npos) {
+            end = raw.length();
+        }
+    }
+    
+    // Get the complete Content-Type value
+    std::string contentType = raw.substr(start, end - start);
+    req.setContentType(contentType); // Store the full Content-Type
+    
+    std::cout << "Found Content-Type: [" << contentType << "]" << std::endl;
+    
+    // Check for boundary parameter
+    size_t boundaryPos = contentType.find("; boundary=");
+    if (boundaryPos != std::string::npos) {
+        std::string boundary = contentType.substr(boundaryPos + 11); // +11 for "; boundary="
+        
+        // Clean up boundary if needed
+        size_t quotePos = boundary.find("\"");
+        if (quotePos != std::string::npos) {
+            boundary = boundary.substr(0, quotePos);
+        }
+        
+        std::cout << "Boundary: [" << boundary << "]" << std::endl;
+        
+        if (boundary.empty()) {
+            std::cout << "Warning: Empty boundary found" << std::endl;
+        }
+        
+        // Store the boundary
+        req.setBoundary(boundary);
+        
+        // Verify the boundary was set correctly
+        std::cout << "Stored boundary: [" << req.getBoundary() << "]" << std::endl;
+    }
 }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
     std::string response = "HTTP/1.1 200 OK\r\n";
     
     // Get proper content type based on file extension
-    std::string contentType = req.getMimeType(req.getPath());
+    std::string contentType = req.getContentType();
+    if (contentType.find("multipart") == std::string::npos) {
+        contentType = req.getMimeType(req.getPath());
+    }
     
     response += "Content-Type: " + contentType + "\r\n";
     if (req.getMethod() == "POST") {

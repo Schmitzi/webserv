@@ -31,6 +31,10 @@ std::string const &Request::getQuery() {
     return _query;
 }
 
+std::string const &Request::getBoundary() {
+    return _boundary;
+}
+
 void    Request::setMethod(std::string const method) {
     _method = method;
 }
@@ -53,6 +57,10 @@ void    Request::setQuery(std::string const query) {
 
 void    Request::setContentType(std::string const content) {
     _contentType = content;
+}
+
+void    Request::setBoundary(std::string boundary) {
+    _boundary = boundary;
 }
 
 void Request::formatPost(std::string const target) {  

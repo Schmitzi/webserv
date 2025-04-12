@@ -40,6 +40,8 @@ class Client {
         std::string             extractFileName(const std::string& path);
         int                     handlePostRequest(Request& req);
         int                     handleDeleteRequest(Request& req);
+        int                     handleMultipartPost(Request& req);
+        void                    findContentType(Request &req);
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
         void                    sendErrorResponse(int statusCode, const std::string& message);
         void                    freeTokens(char **tokens);
