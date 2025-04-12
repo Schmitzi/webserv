@@ -56,7 +56,8 @@ class Webserv {
         Server                  *_server;
         std::vector<Client *>   _clients;
         char                    **_env;
-        Config                	*_config;
+        std::map<int, Config>   *_config;//once set-> check how many elements are inside?
+		bool					_configIsStored;
 
         std::vector<struct pollfd> _pfds;
 
