@@ -2,6 +2,7 @@
 
 -> change hardcoded values of request to actual values of getConfigValue()
 -> maybe implement different split and itoa?
+-> make default error page(s)
 
 in config file:
 	- listen/port 8080; #can have multiple
