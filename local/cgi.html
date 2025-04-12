@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CGI Tester</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body class="bg-gray-100 flex flex-col min-h-screen">
+    <div class="container mx-auto px-4 py-8 flex-grow">
+        <div class="max-w-md mx-auto bg-white shadow-lg rounded-lg overflow-hidden p-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">CGI Tester</h1>
+            
+            <p class="text-gray-600 text-center mb-6">Click one of the links below to test the example CGI scripts.</p>
+            
+            <div class="space-y-4">
+                <a 
+                    href="index.html" 
+                    class="block text-center text-blue-500 hover:underline mb-4"
+                >
+                    Back to Home
+                </a>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <a 
+                        href="../scripts/hello.py" 
+                        class="bg-blue-500 text-white py-2 px-4 rounded text-center hover:bg-blue-600 transition duration-300"
+                    >
+                        Python
+                    </a>
+                    <a 
+                        href="../scripts/helloWorld.php" 
+                        class="bg-green-500 text-white py-2 px-4 rounded text-center hover:bg-green-600 transition duration-300"
+                    >
+                        PHP
+                    </a>
+                    <a 
+                        href="../scripts/hello.pl" 
+                        class="bg-purple-500 text-white py-2 px-4 rounded text-center hover:bg-purple-600 transition duration-300"
+                    >
+                        Perl
+                    </a>
+                    <a 
+                        href="../scripts/hello.cgi" 
+                        class="bg-red-500 text-white py-2 px-4 rounded text-center hover:bg-red-600 transition duration-300"
+                    >
+                        CGI
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-gray-200 py-4">
+        <div class="container mx-auto text-center">
+            <p class="text-gray-600">
+                Credits - 
+                <a href="https://www.github.com/Schmitzi" class="text-blue-500 hover:underline">Michael</a> | 
+                <a href="https://www.github.com/waterlillly" class="text-blue-500 hover:underline">Lilly</a>
+            </p>
+        </div>
+    </footer>
+    
+    <script src="/js/script.js"></script>
+</body>
+</html>

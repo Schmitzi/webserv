@@ -42,7 +42,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         close(_input[0]);
         close(_output[1]);
         
-        execve(_args[0], _args, &_env[0]); //"/usr/bin/env"
+        execve(_args[0], _args, &_env[0]);
         
         std::cerr << "execve failed: " << strerror(errno) << "\n";
         exit(1);
@@ -109,12 +109,11 @@ int CGIHandler::processScriptOutput(Client &client) {
         }
     }
     
-    // Close output pipe
     close(_output[0]);
     _output[0] = -1;
 
     // Debug print
-    std::cout << "CGI Output:\n" << output << std::endl;
+    // std::cout << "CGI Output:\n" << output << std::endl;
     std::cout << "Total bytes read: " << totalBytesRead << std::endl;
 
     // If no output, send a default response
@@ -128,7 +127,6 @@ int CGIHandler::processScriptOutput(Client &client) {
         return 0;
     }
 
-    // Parse CGI output
     Request temp = createTempHeader(output);
     
     _client->sendResponse(temp, "keep-alive", temp.getBody());
@@ -172,17 +170,39 @@ void CGIHandler::prepareEnv(Request &req) {
     }
     _env.push_back(NULL);
 
-    if (_pythonPath == "/usr/bin/env") {
-        _args = new char*[4];
-        _args[0] = strdup(_pythonPath.c_str());
-        _args[1] = strdup("python3");
-        _args[2] = strdup(_path.c_str());
-        _args[3] = NULL;
-    } else {
+    std::string ext = "";
+    size_t dotPos = _path.find_last_of('.');
+    if (dotPos != std::string::npos) {
+        ext = _path.substr(dotPos + 1);
+    }
+
+    if (ext == "php") {
         _args = new char*[3];
-        _args[0] = strdup(_pythonPath.c_str());
+        _args[0] = strdup("/usr/bin/php");
         _args[1] = strdup(_path.c_str());
         _args[2] = NULL;
+    } 
+    else if (ext == "py") {
+        if (_pythonPath == "/usr/bin/env") {
+            _args = new char*[4];
+            _args[0] = strdup(_pythonPath.c_str());
+            _args[1] = strdup("python3");
+            _args[2] = strdup(_path.c_str());
+            _args[3] = NULL;
+        } else {
+            _args = new char*[3];
+            _args[0] = strdup(_pythonPath.c_str());
+            _args[1] = strdup(_path.c_str());
+            _args[2] = NULL;
+        }
+    }
+    else if (ext == "cgi" || ext == "pl") {
+        _args = new char*[2];
+        _args[0] = strdup(_path.c_str());
+        _args[1] = NULL;
+    }
+    else {
+        std::cerr << "Unsupported script type: " << ext << std::endl;
     }
 }
 
@@ -202,14 +222,18 @@ void CGIHandler::cleanupResources() {
         _args = NULL;
     }
     
-    if (_input[0] >= 0) 
-        close(_input[0]);
-    if (_input[1] >= 0)
-        close(_input[1]);
-    if (_output[0] >= 0) 
-        close(_output[0]); 
-    if (_output[1] >= 0) 
-        close(_output[1]);
+    for (int i = 0; i < 2; i++) {
+        if (_input[i] >= 0) {
+            close(_input[i]);
+            _input[i] = -1;
+        }
+        if (_output[i] >= 0) {
+            close(_output[i]);
+            _output[i] = -1;
+        }
+    }
+
+    _path.clear();
 }
 
 void CGIHandler::setPythonPath(char **envp) {  // Please dont judge me 

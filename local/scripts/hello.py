@@ -1,20 +1,41 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 import os
-import sys
+import urllib.parse
 
-# Print headers (optional)
-print("Content-Type: text/html")
-print()  # Extra newline to separate headers from body
+# Output headers first
+print("Content-Type: text/html\r\n\r\n")
 
-# Access environment variables
-print("<html><body>")
+# Start HTML
+print("<!DOCTYPE html>")
+print("<html>")
+print("<head><title>Hello from Python CGI</title></head>")
+print("<body>")
 print("<h1>Hello from CGI!</h1>")
-print(f"<p>Method: {os.environ.get('REQUEST_METHOD')}</p>")
-print(f"<p>Query String: {os.environ.get('QUERY_STRING')}</p>")
 
-# Read input if any
-input_data = sys.stdin.read()
-if input_data:
-    print(f"<p>Input Data: {input_data}</p>")
+# Get request method
+method = os.environ.get("REQUEST_METHOD", "Unknown")
+print(f"<p>Method: {method}</p>")
 
-print("</body></html>")
+# Get and parse query string
+query_string = os.environ.get("QUERY_STRING", "")
+print(f"<p>Query String: {query_string}</p>")
+
+# Parse query string without using the cgi module
+if query_string:
+    # Parse query parameters
+    params = urllib.parse.parse_qs(query_string)
+    print("<h2>Query Parameters:</h2>")
+    print("<ul>")
+    for key, values in params.items():
+        for value in values:
+            print(f"<li>{key}: {value}</li>")
+    print("</ul>")
+    
+    # Special greeting if name parameter exists
+    if 'name' in params:
+        name = params['name'][0]
+        print(f"<h3>Hello, {name}!</h3>")
+
+# End HTML
+print("</body>")
+print("</html>")

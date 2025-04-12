@@ -1,43 +1,42 @@
+#!/usr/bin/php
 <?php
-/**
- * Simple PHP script to post "Hello World" to a server
- * 
- * Usage: 
- * 1. Replace 'https://your-server-url.com/endpoint' with your actual server URL
- * 2. Run the script with PHP: php post_hello_world.php
- */
+// Set content type header for CGI response
+header("Content-Type: text/html");
 
-// Server URL to post to
-$serverUrl = 'http://localhost:8080';
+// Get request information from environment variables
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'Unknown';
+$queryString = $_SERVER['QUERY_STRING'] ?? '';
+$contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+$contentLength = $_SERVER['CONTENT_LENGTH'] ?? 0;
 
-// Data to send
-$postData = [
-    'message' => 'Hello World'
-];
-
-// Initialize cURL session
-$ch = curl_init($serverUrl);
-
-// Set cURL options
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Content-Type: application/x-www-form-urlencoded'
-]);
-
-// Execute the request
-$response = curl_exec($ch);
-
-// Check for errors
-if(curl_errno($ch)) {
-    echo 'Error: ' . curl_error($ch) . "\n";
-} else {
-    // Output the response
-    echo "Server Response:\n";
-    echo $response . "\n";
+// Read POST data if any
+$postData = '';
+if ($contentLength > 0) {
+    $postData = file_get_contents("php://input");
 }
 
-// Close cURL session
-curl_close($ch);
+// Output the response
+echo "<!DOCTYPE html>\n";
+echo "<html>\n";
+echo "<head>\n";
+echo "    <title>Hello World CGI Script</title>\n";
+echo "</head>\n";
+echo "<body>\n";
+echo "    <h1>Hello World from PHP!</h1>\n";
+echo "    <p>This is a CGI response from a PHP script.</p>\n";
+echo "    <h2>Request Information:</h2>\n";
+echo "    <ul>\n";
+echo "        <li>Request Method: $requestMethod</li>\n";
+echo "        <li>Query String: $queryString</li>\n";
+echo "        <li>Content Type: $contentType</li>\n";
+echo "        <li>Content Length: $contentLength</li>\n";
+echo "    </ul>\n";
+
+if (!empty($postData)) {
+    echo "    <h2>POST Data:</h2>\n";
+    echo "    <pre>" . htmlspecialchars($postData) . "</pre>\n";
+}
+
+echo "</body>\n";
+echo "</html>";
 ?>

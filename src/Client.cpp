@@ -73,7 +73,7 @@ int Client::recieveData() {
     int bytesRead = recv(_fd, _buffer, sizeof(_buffer) - 1, 0);
     
     if (bytesRead > 0) {
-        std::cout << BLUE << _webserv->getTimeStamp() << "Recieved from " << _fd << ": " << _buffer << RESET << "\n";
+        std::cout << BLUE << _webserv->getTimeStamp() << "Recieved from " << _fd << ": \n" << _buffer << RESET << "\n";
         if (processRequest(_buffer) == 1) {
             return (0);
         }
