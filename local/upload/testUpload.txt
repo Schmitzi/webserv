@@ -1,1 +1,5 @@
-this is the contents of my upload test file
+------geckoformboundaryf903f98ee25d8d6caa645ea27a235eb0
+Content-Disposition: form-data; name="file"; filename="testUpload.txt"
+Content-Type: text/plain
+
+This is a test upload file

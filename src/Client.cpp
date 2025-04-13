@@ -67,135 +67,177 @@ void Client::displayConnection() {
 }
 
 int Client::recieveData() {
-    memset(_buffer, 0, sizeof(_buffer));
+    // Larger buffer for multipart uploads
+    char buffer[1024 * 1024];
+    memset(buffer, 0, sizeof(buffer));
     
     // Receive data
-    int bytesRead = recv(_fd, _buffer, sizeof(_buffer) - 1, 0);
+    int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, 0);
     
     if (bytesRead > 0) {
-        std::cout << BLUE << _webserv->getTimeStamp() << "Recieved from " << _fd << ": \n" << _buffer << RESET << "\n";
-        if (processRequest(_buffer) == 1) {
-            return (0);
+        // Append to request buffer
+        _requestBuffer.append(buffer, bytesRead);
+
+        if (_requestBuffer.length() > MAX_BUFFER_SIZE) {
+            std::cout << "Buffer size exceeded maximum limit" << std::endl;
+            sendErrorResponse(413, "File Too Large");
+            _requestBuffer.clear();
+            return 1;
         }
-        return (0);
+
+        std::cout << BLUE << _webserv->getTimeStamp() 
+                  << "Received " << bytesRead << " bytes from " << _fd 
+                  << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
+
+        // Handle multipart uploads separately
+        if (_requestBuffer.find("multipart/form-data") != std::string::npos) {
+            Request req;
+            
+            size_t boundaryPos = _requestBuffer.find("boundary=");
+            if (boundaryPos != std::string::npos) {
+                size_t boundaryEnd = _requestBuffer.find("\r\n", boundaryPos);
+                if (boundaryEnd == std::string::npos) {
+                    boundaryEnd = _requestBuffer.length();
+                }
+                std::string boundary = _requestBuffer.substr(
+                    boundaryPos + 9, 
+                    boundaryEnd - (boundaryPos + 9)
+                );
+                // Remove quotes if present
+                if (boundary[0] == '"') {
+                    boundary = boundary.substr(1, boundary.length() - 2);
+                }
+                req.setBoundary(boundary);
+                req.setContentType("multipart/form-data; boundary=" + boundary);
+            }
+            
+            int result = handleMultipartPost(req);
+            
+            if (result != -1) {
+                return result;
+            }
+            
+            // If partial upload, wait for more data
+            return 0;
+        }
+
+        // Create a copy of the buffer for processing
+        std::string tempBuffer = _requestBuffer;
+
+        // Try processing the request
+        int processResult = processRequest(const_cast<char*>(tempBuffer.c_str()));
+        
+        // If fully processed, clear the buffer
+        if (processResult != -1) {
+            _requestBuffer.clear();
+        }
+
+        return processResult;
     } 
     else if (bytesRead == 0) {
-        std::cout << RED << _webserv->getTimeStamp() << "Client disconnected: " << _fd << RESET << "\n";
-        return (1);
+        std::cout << RED << _webserv->getTimeStamp() 
+                  << "Client disconnected: " << _fd << RESET << "\n";
+        return 1;
     }
     else { // Error occurred
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            return (0);
+            return 0;
         } else {
             return (_webserv->ft_error("recv() failed"), 1);
         }
     }
 }
 
-/*
-Request req;
-    char buffer[4096];
-
-    strcpy(buffer, reqBuffer.c_str());
-
-    size_t len = reqBuffer.length();
-    while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || 
-                       buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
-        buffer[--len] = '\0';
-    }
-
-    _reqBuffer = buffer;
-
-    findContentType(req);
-    
-    if (_reqBuffer.empty()) {
-        return req;
-    }
-    
-    std::vector<std::string> tokens = split(reqBuffer, ' ');
-
-    for (size_t i = 0; i < tokens.size() ;i++) {
-        std::cout << RED << tokens[i] << "\n";
-    }
-    std::cout << RESET;
-*/
-
 Request Client::parseRequest(char* buffer) {
     Request req;
 
-    // std::cout << RED << buffer << "\n" << RESET;
-    
-    size_t len = strlen(buffer);
-    while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || 
-                       buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
-        buffer[--len] = '\0';
+    // Safely convert buffer to std::string
+    std::string input;
+    if (buffer) {
+        size_t len = strlen(buffer);
+        input.assign(buffer, len);
     }
 
-    std::string input(buffer);
+    // Trim trailing whitespace and newlines
+    while (!input.empty()) {
+        char lastChar = input[input.length() - 1];
+        if (lastChar == '\n' || lastChar == '\r' || 
+            lastChar == ' ' || lastChar == '\t') {
+            input.resize(input.length() - 1);
+        } else {
+            break;
+        }
+    }
 
     findContentType(req);
     
     if (input.empty()) {
         return req;
     }
-    std::vector<std::string> raw = split(input, '\n');
-    std::vector<std::string> tokens = split(raw[0], ' ');
-    req.setHeader(mapSplit(raw));
 
-    std::map<std::string, std::string> temp = req.getHeaders();
-    std::map<std::string, std::string>::iterator it = temp.begin();
-    while (it != temp.end()) {
-        std::cout << RED << it->first << " | ";
-        std::cout << RED << it->second << "\n";
-        it++;
-    }
-    std::cout << RESET;
+    std::vector<std::string> raw = split(input, '\n');
     
-    if (tokens.empty()) {
+    // Ensure we have at least one line
+    if (raw.empty()) {
         sendErrorResponse(400, "Bad Request");
         return req;
     }
+
+    std::vector<std::string> tokens = split(raw[0], ' ');
+    req.setHeader(mapSplit(raw));
+    
+    if (tokens.size() < 2) {
+        sendErrorResponse(400, "Bad Request");
+        return req;
+    }
+
     std::string path = "/";
 
     if (!tokens[1].empty()) {
         path = tokens[1];
-        path.erase(path.find_last_not_of(" \t\r\n") + 1);
+        // Remove trailing whitespace
+        size_t end = path.find_last_not_of(" \t\r\n");
+        if (end != std::string::npos) {
+            path = path.substr(0, end + 1);
+        }
     }
     
-    if (tokens[0] == "POST") {
-        req.formatPost(tokens[1]);
-    } else if (tokens[0] == "DELETE") {
-        if (!tokens[1].empty()) {
-            req.formatDelete(path);
-        } else {
-            sendErrorResponse(400, "Bad Request - Missing path");
-        }
-    } else if (tokens[0] == "GET" || tokens[0] == "curl") {
-        if (!tokens[1].empty()) {
-            
-            if (req.formatGet(path) == 1) {
-                sendErrorResponse(403, "Bad request\n");
-                tokens.clear();
-                return req;
+    try {
+        if (tokens[0] == "POST") {
+            req.formatPost(tokens[1]);
+        } else if (tokens[0] == "DELETE") {
+            if (!tokens[1].empty()) {
+                req.formatDelete(path);
+            } else {
+                sendErrorResponse(400, "Bad Request - Missing path");
+            }
+        } else if (tokens[0] == "GET" || tokens[0] == "curl") {
+            if (!tokens[1].empty()) {
+                if (req.formatGet(path) == 1) {
+                    sendErrorResponse(403, "Bad request\n");
+                    return req;
+                }
+            } else {
+                req.formatGet("/index.html");
             }
         } else {
-            req.formatGet("/index.html");
+            sendErrorResponse(403, "Bad request\n");
+            std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd 
+                      << ": 403 Bad request\n" << RESET;
+            req.setMethod("BAD");
+            return req;
         }
-    } else {
-        sendErrorResponse(403, "Bad request\n");
-        // freeTokens(tokens);
-        tokens.clear();
-        std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd << ": 403 Bad request\n" << RESET;
+    } catch (const std::exception& e) {
+        std::cout << "Exception in parseRequest: " << e.what() << std::endl;
+        sendErrorResponse(500, "Internal Server Error");
         req.setMethod("BAD");
         return req;
     }
 
+    // Ensure path starts with '/'
     if (req.getPath().empty() || req.getPath()[0] != '/') {
         req.setPath("/" + req.getPath());
     }
-    
-    // freeTokens(tokens);
-    tokens.clear();
     
     return req;
 }
@@ -385,7 +427,7 @@ int Client::handleDeleteRequest(Request& req) {
 }
 
 int Client::handleMultipartPost(Request& req) {
-    std::string raw(_buffer);
+    std::string& raw = _requestBuffer;
     std::string boundary = req.getBoundary();
     
     if (boundary.empty()) {
@@ -394,82 +436,44 @@ int Client::handleMultipartPost(Request& req) {
         return 1;
     }
     
-    std::cout << "Handling multipart POST with boundary: " << boundary << std::endl;
-    
     // The boundary in the body will have -- prefix
     std::string fullBoundary = "--" + boundary;
     
-    // Find the first boundary
-    size_t boundaryPos = raw.find(fullBoundary);
-    if (boundaryPos == std::string::npos) {
-        std::cout << "Error: Boundary not found in request body" << std::endl;
-        sendErrorResponse(400, "Bad Request - Invalid Format");
-        return 1;
-    }
-    
-    // Find the Content-Disposition header
-    size_t dispositionPos = raw.find("Content-Disposition:", boundaryPos);
-    if (dispositionPos == std::string::npos) {
-        std::cout << "Error: Content-Disposition not found" << std::endl;
-        sendErrorResponse(400, "Bad Request - Invalid Format");
-        return 1;
-    }
-    
     // Extract filename
-    size_t filenamePos = raw.find("filename=\"", dispositionPos);
-    if (filenamePos == std::string::npos) {
-        std::cout << "Error: Filename not found in Content-Disposition" << std::endl;
+    std::vector<std::string> lines = split(raw, '\n');
+    std::map<std::string, std::string> headers = mapSplit(lines);
+    
+    std::string contentDisposition = headers["Content-Disposition"];
+    std::string filename;
+    
+    size_t filenamePos = contentDisposition.find("filename=\"");
+    if (filenamePos != std::string::npos) {
+        filenamePos += 10; // Skip 'filename="'
+        size_t filenameEnd = contentDisposition.find("\"", filenamePos);
+        if (filenameEnd != std::string::npos) {
+            filename = contentDisposition.substr(filenamePos, filenameEnd - filenamePos);
+        }
+    }
+    
+    if (filename.empty()) {
+        std::cout << "Error: Filename not found" << std::endl;
         sendErrorResponse(400, "Bad Request - No Filename");
         return 1;
     }
     
-    filenamePos += 10; // Skip 'filename="'
-    size_t filenameEnd = raw.find("\"", filenamePos);
-    if (filenameEnd == std::string::npos) {
-        std::cout << "Error: Invalid filename format" << std::endl;
-        sendErrorResponse(400, "Bad Request - Invalid Format");
-        return 1;
-    }
-    
-    std::string filename = raw.substr(filenamePos, filenameEnd - filenamePos);
-    std::cout << "Extracted filename: " << filename << std::endl;
-    
-    // Find the blank line after headers
-    size_t headersEnd = raw.find("\r\n\r\n", filenameEnd);
-    if (headersEnd == std::string::npos) {
-        headersEnd = raw.find("\n\n", filenameEnd);
-        if (headersEnd == std::string::npos) {
-            std::cout << "Error: Headers end not found" << std::endl;
+    // Find the start of the file content
+    size_t contentStart = raw.find("\r\n\r\n");
+    if (contentStart == std::string::npos) {
+        contentStart = raw.find("\n\n");
+        if (contentStart == std::string::npos) {
+            std::cout << "Error: Could not find start of file content" << std::endl;
             sendErrorResponse(400, "Bad Request - Invalid Format");
             return 1;
         }
-        headersEnd += 2; // Skip \n\n
+        contentStart += 2;
     } else {
-        headersEnd += 4; // Skip \r\n\r\n
+        contentStart += 4;
     }
-    
-    // Find the end boundary
-    size_t contentEnd = raw.find(fullBoundary, headersEnd);
-    if (contentEnd == std::string::npos) {
-        std::cout << "Error: End boundary not found" << std::endl;
-        sendErrorResponse(400, "Bad Request - Invalid Format");
-        return 1;
-    }
-    
-    // Extract the file content
-    std::string fileContent = raw.substr(headersEnd, contentEnd - headersEnd);
-    
-    // Remove trailing whitespace and newlines (C++98 compatible)
-    while (!fileContent.empty()) {
-        char lastChar = fileContent[fileContent.length() - 1];
-        if (lastChar == '\r' || lastChar == '\n' || lastChar == ' ' || lastChar == '\t') {
-            fileContent.resize(fileContent.length() - 1);
-        } else {
-            break;
-        }
-    }
-    
-    std::cout << "Extracted file content: [" << fileContent << "]" << std::endl;
     
     // Create upload directory if it doesn't exist
     struct stat st;
@@ -481,7 +485,7 @@ int Client::handleMultipartPost(Request& req) {
         }
     }
     
-    // Save the file
+    // Save the file using a 1MB buffer
     std::string uploadPath = _server->getUploadDir() + filename;
     int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
@@ -491,8 +495,41 @@ int Client::handleMultipartPost(Request& req) {
         return 1;
     }
     
-    std::cout << _webserv->getTimeStamp() << "Writing to file: " << uploadPath << std::endl;
+    // Write the first chunk from the current buffer
+    std::string initialContent = raw.substr(contentStart);
     
+    // Find the end boundary
+    size_t contentEnd = initialContent.find(fullBoundary + "--");
+    
+    if (contentEnd == std::string::npos) {
+        // Partial upload - write current content and prepare for more
+        ssize_t bytesWritten = write(fd, initialContent.c_str(), initialContent.length());
+        
+        if (bytesWritten < 0) {
+            close(fd);
+            std::cout << "Error writing file: " << strerror(errno) << std::endl;
+            sendErrorResponse(500, "Internal Server Error");
+            return 1;
+        }
+        
+        close(fd);
+        return -1; // Indicates more data is needed
+    }
+    
+    // Write the file content before the end boundary
+    std::string fileContent = initialContent.substr(0, contentEnd);
+    
+    // Remove trailing whitespace, newlines, and the last boundary
+    while (!fileContent.empty()) {
+        char lastChar = fileContent[fileContent.length() - 1];
+        if (lastChar == '\r' || lastChar == '\n' || lastChar == ' ' || lastChar == '\t') {
+            fileContent.resize(fileContent.length() - 1);
+        } else {
+            break;
+        }
+    }
+    
+    // Write the file content
     ssize_t bytesWritten = write(fd, fileContent.c_str(), fileContent.length());
     close(fd);
     
@@ -514,7 +551,9 @@ int Client::handleMultipartPost(Request& req) {
     
     send(_fd, response.c_str(), response.length(), 0);
     
-    std::cout << _webserv->getTimeStamp() << "Successfully uploaded file: " << uploadPath << std::endl;
+    // Clear the request buffer after successful upload
+    _requestBuffer.clear();
+    
     return 0;
 }
 

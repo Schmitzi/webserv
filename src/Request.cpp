@@ -1,6 +1,6 @@
 #include "../include/Request.hpp"
 
-Request::Request() : _method("GET"), _path("/index.html"), _version("HTTP/1.1"), _body("") {
+Request::Request() : _method("GET"), _path("/"), _version("HTTP/1.1"), _body("") {
 }
 
 Request::~Request() {

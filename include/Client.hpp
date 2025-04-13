@@ -15,6 +15,8 @@
 #define WHITE   "\33[97m"
 #define RESET   "\33[0m" // No Colour
 
+#define MAX_BUFFER_SIZE  100 * 1024 * 1024
+
 // Forward declarations
 class Webserv;
 class Server;
@@ -41,6 +43,9 @@ class Client {
         int                     handlePostRequest(Request& req);
         int                     handleDeleteRequest(Request& req);
         int                     handleMultipartPost(Request& req);
+
+        int                     handleChunkedUpload(char* buffer, ssize_t bytesRead);
+        void                    resetUploadState();
         void                    findContentType(Request &req);
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
         void                    sendErrorResponse(int statusCode, const std::string& message);
@@ -50,9 +55,9 @@ class Client {
         socklen_t           _addrLen;
         int                 _fd;
         unsigned char       *_ip;
-        char                _buffer[4096];
-        std::string         _requestData;
-
+        char                _buffer[16384];
+        std::string         _requestBuffer;
+        
         Webserv             *_webserv;
         Server              *_server;
         CGIHandler          _cgi;
