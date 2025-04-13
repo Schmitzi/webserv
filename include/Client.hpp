@@ -15,9 +15,9 @@
 #define WHITE   "\33[97m"
 #define RESET   "\33[0m" // No Colour
 
+// Forward declarations
 class Webserv;
 class Server;
-class CGIHandler;
 
 class Client {
     public:
@@ -50,11 +50,14 @@ class Client {
         socklen_t           _addrLen;
         int                 _fd;
         unsigned char       *_ip;
-        char				_buffer[1024];
+        char                _buffer[4096];
+        std::string         _requestData;
 
         Webserv             *_webserv;
         Server              *_server;
         CGIHandler          _cgi;
 };
+
+//create buffer
 
 #endif

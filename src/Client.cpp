@@ -92,8 +92,38 @@ int Client::recieveData() {
     }
 }
 
+/*
+Request req;
+    char buffer[4096];
+
+    strcpy(buffer, reqBuffer.c_str());
+
+    size_t len = reqBuffer.length();
+    while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || 
+                       buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
+        buffer[--len] = '\0';
+    }
+
+    _reqBuffer = buffer;
+
+    findContentType(req);
+    
+    if (_reqBuffer.empty()) {
+        return req;
+    }
+    
+    std::vector<std::string> tokens = split(reqBuffer, ' ');
+
+    for (size_t i = 0; i < tokens.size() ;i++) {
+        std::cout << RED << tokens[i] << "\n";
+    }
+    std::cout << RESET;
+*/
+
 Request Client::parseRequest(char* buffer) {
     Request req;
+
+    // std::cout << RED << buffer << "\n" << RESET;
     
     size_t len = strlen(buffer);
     while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || 
@@ -108,34 +138,44 @@ Request Client::parseRequest(char* buffer) {
     if (input.empty()) {
         return req;
     }
+    std::vector<std::string> raw = split(input, '\n');
+    std::vector<std::string> tokens = split(raw[0], ' ');
+    req.setHeader(mapSplit(raw));
+
+    std::map<std::string, std::string> temp = req.getHeaders();
+    std::map<std::string, std::string>::iterator it = temp.begin();
+    while (it != temp.end()) {
+        std::cout << RED << it->first << " | ";
+        std::cout << RED << it->second << "\n";
+        it++;
+    }
+    std::cout << RESET;
     
-    char** tokens = ft_split(buffer, ' ');
-    
-    if (tokens == NULL) {
+    if (tokens.empty()) {
         sendErrorResponse(400, "Bad Request");
         return req;
     }
     std::string path = "/";
 
-    if (tokens[1]) {
+    if (!tokens[1].empty()) {
         path = tokens[1];
         path.erase(path.find_last_not_of(" \t\r\n") + 1);
     }
     
-    if (std::string(tokens[0]) == "POST") {
+    if (tokens[0] == "POST") {
         req.formatPost(tokens[1]);
-    } else if (std::string(tokens[0]) == "DELETE") {
-        if (tokens[1]) {
+    } else if (tokens[0] == "DELETE") {
+        if (!tokens[1].empty()) {
             req.formatDelete(path);
         } else {
             sendErrorResponse(400, "Bad Request - Missing path");
         }
-    } else if (std::string(tokens[0]) == "GET" || std::string(tokens[0]) == "curl") {
-        if (tokens[1]) {
+    } else if (tokens[0] == "GET" || tokens[0] == "curl") {
+        if (!tokens[1].empty()) {
             
             if (req.formatGet(path) == 1) {
                 sendErrorResponse(403, "Bad request\n");
-                freeTokens(tokens);
+                tokens.clear();
                 return req;
             }
         } else {
@@ -143,7 +183,8 @@ Request Client::parseRequest(char* buffer) {
         }
     } else {
         sendErrorResponse(403, "Bad request\n");
-        freeTokens(tokens);
+        // freeTokens(tokens);
+        tokens.clear();
         std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd << ": 403 Bad request\n" << RESET;
         req.setMethod("BAD");
         return req;
@@ -153,7 +194,8 @@ Request Client::parseRequest(char* buffer) {
         req.setPath("/" + req.getPath());
     }
     
-    freeTokens(tokens);
+    // freeTokens(tokens);
+    tokens.clear();
     
     return req;
 }
@@ -503,7 +545,7 @@ void Client::findContentType(Request& req) {
     std::string contentType = raw.substr(start, end - start);
     req.setContentType(contentType); // Store the full Content-Type
     
-    std::cout << "Found Content-Type: [" << contentType << "]" << std::endl;
+    //std::cout << "Found Content-Type: [" << contentType << "]" << std::endl;
     
     // Check for boundary parameter
     size_t boundaryPos = contentType.find("; boundary=");
@@ -516,7 +558,7 @@ void Client::findContentType(Request& req) {
             boundary = boundary.substr(0, quotePos);
         }
         
-        std::cout << "Boundary: [" << boundary << "]" << std::endl;
+        //std::cout << "Boundary: [" << boundary << "]" << std::endl;
         
         if (boundary.empty()) {
             std::cout << "Warning: Empty boundary found" << std::endl;
@@ -526,7 +568,7 @@ void Client::findContentType(Request& req) {
         req.setBoundary(boundary);
         
         // Verify the boundary was set correctly
-        std::cout << "Stored boundary: [" << req.getBoundary() << "]" << std::endl;
+        //std::cout << "Stored boundary: [" << req.getBoundary() << "]" << std::endl;
     }
 }
 

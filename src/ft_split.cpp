@@ -1,6 +1,4 @@
-#include <cstring>
-#include <cstdlib>
-#include <iostream>
+#include "../include/Helper.hpp"
 
 char *ft_substr(const char *s, unsigned int start, size_t len)
 {
@@ -81,4 +79,56 @@ char **ft_split(const char *s, char c)
     }
     lst[i] = NULL;
     return lst;
+}
+
+std::vector<std::string> split(const std::string& str, char delimiter) {
+    std::vector<std::string> tokens;
+    size_t start = 0;
+    size_t end = 0;
+    
+    while ((end = str.find(delimiter, start)) != std::string::npos) {
+        tokens.push_back(str.substr(start, end - start));
+        start = end + 1;
+    }
+    
+    // Don't forget the last token after the final delimiter (or the whole string if no delimiter found)
+    tokens.push_back(str.substr(start));
+    
+    return tokens;
+}
+
+std::map<std::string, std::string> mapSplit(const std::vector<std::string>& lines) {
+    std::map<std::string, std::string> result;
+    
+    // Skip the first line (which is the request line)
+    for (size_t i = 1; i < lines.size(); i++) {
+        // Skip empty lines
+        if (lines[i].empty()) {
+            continue;
+        }
+        
+        // Find the separator (colon)
+        size_t colonPos = lines[i].find(':');
+        if (colonPos != std::string::npos) {
+            // Split into key-value
+            std::string key = lines[i].substr(0, colonPos);
+            std::string value = lines[i].substr(colonPos + 1);
+            
+            // Trim whitespace
+            size_t valueStart = value.find_first_not_of(" \t");
+            if (valueStart != std::string::npos) {
+                value = value.substr(valueStart);
+            }
+            
+            // Remove carriage returns
+            size_t crPos;
+            while ((crPos = value.find('\r')) != std::string::npos) {
+                value.erase(crPos, 1);
+            }
+            
+            result[key] = value;
+        }
+    }
+    
+    return result;
 }

@@ -35,6 +35,10 @@ std::string const &Request::getBoundary() {
     return _boundary;
 }
 
+std::map<std::string, std::string> &Request::getHeaders() {
+    return _headers;
+}
+
 void    Request::setMethod(std::string const method) {
     _method = method;
 }
@@ -61,6 +65,10 @@ void    Request::setContentType(std::string const content) {
 
 void    Request::setBoundary(std::string boundary) {
     _boundary = boundary;
+}
+
+void    Request::setHeader(std::map<std::string, std::string> map) {
+    _headers = map;
 }
 
 void Request::formatPost(std::string const target) {  
@@ -128,4 +136,8 @@ std::string Request::getMimeType(std::string const &path) {
         return "image/x-icon";
     
     return "text/plain"; // Default
+}
+
+void Request::buildBuffer() {
+    
 }

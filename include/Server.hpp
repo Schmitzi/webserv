@@ -13,6 +13,7 @@
 #define WHITE   "\33[97m"
 #define RESET   "\33[0m" // No Colour
 
+// Forward declaration
 class Webserv;
 
 class Server {

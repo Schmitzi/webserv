@@ -151,6 +151,8 @@ bool CGIHandler::isCGIScript(const std::string& path) {
     return false;
 }
 
+// In your CGIHandler.cpp, modify the prepareEnv function:
+
 void CGIHandler::prepareEnv(Request &req) {
     _env.clear();
 
@@ -177,10 +179,35 @@ void CGIHandler::prepareEnv(Request &req) {
     }
 
     if (ext == "php") {
-        _args = new char*[3];
-        _args[0] = strdup("/usr/bin/php");
-        _args[1] = strdup(_path.c_str());
-        _args[2] = NULL;
+        // Whitelist of possible PHP locations
+        static const char* phpLocations[] = {
+            "/usr/bin/php",
+            "/run/current-system/sw/bin/php",
+            "/usr/local/bin/php",
+            NULL
+        };
+        
+        std::string phpPath = "/usr/bin/env";
+        for (int i = 0; phpLocations[i] != NULL; ++i) {
+            if (access(phpLocations[i], X_OK) == 0) {
+                phpPath = phpLocations[i];
+                break;
+            }
+        }
+        
+        // Use env as fallback
+        if (phpPath == "/usr/bin/env") {
+            _args = new char*[4];
+            _args[0] = strdup(phpPath.c_str());
+            _args[1] = strdup("php");
+            _args[2] = strdup(_path.c_str());
+            _args[3] = NULL;
+        } else {
+            _args = new char*[3];
+            _args[0] = strdup(phpPath.c_str());
+            _args[1] = strdup(_path.c_str());
+            _args[2] = NULL;
+        }
     } 
     else if (ext == "py") {
         if (_pythonPath == "/usr/bin/env") {
@@ -196,13 +223,50 @@ void CGIHandler::prepareEnv(Request &req) {
             _args[2] = NULL;
         }
     }
-    else if (ext == "cgi" || ext == "pl") {
-        _args = new char*[2];
-        _args[0] = strdup(_path.c_str());
-        _args[1] = NULL;
+    else if (ext == "pl") {
+        // Whitelist of possible Perl locations
+        static const char* perlLocations[] = {
+            "/usr/bin/perl",
+            "/run/current-system/sw/bin/perl",
+            "/usr/local/bin/perl",
+            NULL
+        };
+        
+        std::string perlPath = "/usr/bin/env";
+        for (int i = 0; perlLocations[i] != NULL; ++i) {
+            if (access(perlLocations[i], X_OK) == 0) {
+                perlPath = perlLocations[i];
+                break;
+            }
+        }
+        
+        // Use env as fallback
+        if (perlPath == "/usr/bin/env") {
+            _args = new char*[4];
+            _args[0] = strdup(perlPath.c_str());
+            _args[1] = strdup("perl");
+            _args[2] = strdup(_path.c_str());
+            _args[3] = NULL;
+        } else {
+            _args = new char*[3];
+            _args[0] = strdup(perlPath.c_str());
+            _args[1] = strdup(_path.c_str());
+            _args[2] = NULL;
+        }
+    }
+    else if (ext == "cgi") {
+        _args = new char*[3];
+        _args[0] = strdup("/run/current-system/sw/bin/bash"); // NIXOS
+        //_args[0] = strdup("/usr/bin/bash"); //???
+        _args[1] = strdup(_path.c_str());
+        _args[2] = NULL;
     }
     else {
         std::cerr << "Unsupported script type: " << ext << std::endl;
+    }
+
+    for (size_t i = 0; _args[i]; i++) {
+        std::cout << RED << _args[i] << "\n" << RESET;
     }
 }
 
