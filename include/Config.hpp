@@ -7,23 +7,27 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <sstream>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 struct locationLevel {
-	std::string									docRootDir;
-	std::string									indexFile;
-	std::vector<std::string>					methods;
-	bool										autoindex;
-	std::string									redirectionHTTP;
-	std::string									cgiProcessorPath;
-	std::string									uploadDirPath;
+	std::string									docRootDir;//root
+	std::string									indexFile;//index
+	std::vector<std::string>					methods;//methods
+	bool										autoindex;//autoindex
+	std::string									redirectionHTTP;//redirect
+	std::string									cgiProcessorPath;//cgi_pass
+	std::string									uploadDirPath;//upload_store
 };
 
 struct serverLevel {
-	size_t										port;
-	std::string									servName;
-	std::map<int, std::string>					errPages;
-	size_t										maxRequestSize;
-	std::map<std::string, struct locationLevel>	locations;
+	std::string										port;//listen //int??
+	std::string									servName;//server_name
+	std::map<int, std::string>					errPages;//error_page
+	std::string									maxRequestSize;//client_max_body_size //TODO: maybe size_t??
+	std::map<std::string, struct locationLevel>	locations;//location
 };
 
 class Config {
@@ -33,16 +37,24 @@ class Config {
 		Config &operator=(const Config& other);
 		~Config();
 		// std::map<std::string, std::string> const &getConfig() const;
-		void configurate(const std::string& filepath);
+		void storeConfigs();
+		std::vector<std::vector<std::string> > getStoredConfigs();
+		void setServerLevel(struct serverLevel& serv, std::vector<std::string>& conf);
+		void setLocationLevel(size_t& i, struct serverLevel& serv, std::vector<std::string>& conf, std::vector<std::string>& s);
+		void parseAndSetConfigs();
+		// void setConfig();
 		// const std::string& getConfigValue(const std::string& key) const;
 		// void printConfig();
+		void printAllConfigs();
+		std::vector<std::string> split(std::string& s);
+		bool isValidDir(const std::string& path);
 
     private:
 		Config();
 		std::string _filepath;
-		struct serverLevel;
-		std::vector<std::vector<std::string> > configFile; 
-        // std::map<std::string, std::string> _config;
+		std::vector<std::vector<std::string> > _storedConfigs;
+		std::vector<struct serverLevel> _allConfigs;
+        struct serverLevel _config;
         // void parseFile(std::string const &filepath);
 };
 

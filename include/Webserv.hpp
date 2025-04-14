@@ -50,13 +50,14 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-		const Config&	getConfig() const; 
+		const Config&	getConfig() const;
 
     private:
         Server                  *_server;
         std::vector<Client *>   _clients;
         char                    **_env;
-        std::map<int, Config>   *_config;//once set-> check how many elements are inside?
+        // std::map<int, Config>   *_config;//once set-> check how many elements are inside?
+		Config					*_config;
 		bool					_configIsStored;
 
         std::vector<struct pollfd> _pfds;

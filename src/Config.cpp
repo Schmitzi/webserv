@@ -11,9 +11,11 @@ Config::Config(std::string const &filepath) {
 		return;
 	}
 	_filepath = filepath;
-	configurate(filepath);
+	// setConfig();
+	storeConfigs();
+	parseAndSetConfigs();
 	// printConfig();
-}
+}//TODO: ADD FLAG IN WEBSERV FOR SETTING CONFIGS
 
 Config::Config(const Config& other) {
 	*this = other;
@@ -22,7 +24,9 @@ Config::Config(const Config& other) {
 Config &Config::operator=(const Config& other) {
 	if (this != &other) {
 		_filepath = other._filepath;
-		// _config = other._config;
+		_config = other._config;
+		_storedConfigs = other._storedConfigs;
+		_allConfigs = other._allConfigs;
 	}
 	return *this;
 }
@@ -34,22 +38,175 @@ Config::~Config() {
 /* ************************************************************************************** */
 
 //parse config, set configs!
-void Config::configurate(const std::string& filepath) {
+void Config::storeConfigs() {
 	std::ifstream file(_filepath.c_str());
 	if (!file.is_open()) {
 		std::cerr << "Failed to open file." << std::endl;
 		return;
 	}
 	std::string line;
-	static int configNum = 0;
+	int configNum = -1;
 	while (std::getline(file, line)) {
-		if (line.find("server {") != std::string::npos)
+		if (line.find("server {") != std::string::npos) {
+			nextConfig:
 			configNum++;
+			_storedConfigs.resize(configNum + 1);
+			_storedConfigs[configNum].push_back(line);
+			while (std::getline(file, line) && line.find("server {") == std::string::npos) {
+				_storedConfigs[configNum].push_back(line);
+			}
+			if (line.find("server {") != std::string::npos)
+				goto nextConfig;
+		}
 	}
 }
 
+std::vector<std::vector<std::string> > Config::getStoredConfigs() {
+	return _storedConfigs;
+}
+
+std::vector<std::string> Config::split(std::string& s) {
+	std::vector<std::string> ret;
+	std::istringstream iss(s);
+	std::string single;
+	while (iss >> single)
+		ret.push_back(single);
+	return ret;
+}
+
+bool Config::isValidDir(const std::string& path) {
+    struct stat info;
+    if (stat(path.c_str(), &info) != 0)
+        return false;
+    if (!S_ISDIR(info.st_mode))
+        return false;
+    if (access(path.c_str(), R_OK | X_OK) != 0)
+        return false;
+    return true;
+}
+
+void Config::setLocationLevel(size_t& i, struct serverLevel& serv, std::vector<std::string>& conf, std::vector<std::string>& s) {
+	struct locationLevel loc;
+	loc.autoindex = false;
+	std::string locName;
+	if (s[0].find("location") != std::string::npos) {
+		for (size_t x = 1; x < s.size() && s[x] != "{"; x++)
+			locName += s[x];
+	}
+	else
+		locName = "location";
+	i++;
+	if (i < conf.size() && conf[i].find("}") == std::string::npos) {
+		s = split(conf[i]);
+		for (size_t y = 0; y < s.size(); y++) {
+			std::cout << s[y] << " ";
+		}
+		std::cout << "___\n";
+		size_t a = s.size() - 1;
+		size_t b = s[a].size() - 1;
+		if (s[a][b] == ';') {
+			std::string t = s[a].substr(0, s[a].size() - 1);
+			s[a] = t;
+		}
+		if (s[0].find("root") != std::string::npos) {
+			loc.docRootDir = s[1];
+			if (!isValidDir(loc.docRootDir))
+				std::cerr << "Error: invalid directory path in config file -> " << loc.docRootDir << std::endl;
+		}
+		else if (s[0].find("index") != std::string::npos)
+			loc.indexFile = s[1];
+		else if (s[0].find("methods") != std::string::npos) {
+			for (size_t m = 1; m < s.size(); m++)
+				loc.methods.push_back(s[1]);
+		}
+		else if (s[0].find("autoindex") != std::string::npos && s[1].find("on") != std::string::npos)
+			loc.autoindex = true;
+		else if (s[0].find("redirect") != std::string::npos)
+			loc.redirectionHTTP = s[1];
+		else if (s[0].find("cgi_pass") != std::string::npos) {
+			loc.cgiProcessorPath = s[1];
+			if (!isValidDir(loc.cgiProcessorPath))
+				std::cerr << "Error: invalid directory path in config file -> " << loc.cgiProcessorPath << std::endl;
+		}
+		else if (s[0].find("upload_store") != std::string::npos) {
+			loc.uploadDirPath = s[1];
+			if (!isValidDir(loc.uploadDirPath))
+				std::cerr << "Error: invalid directory path in config file -> " << loc.uploadDirPath << std::endl;
+		}
+	}
+	serv.locations.insert(std::pair<std::string, struct locationLevel>(locName, loc));
+	std::cout << "LOCATION: " << locName << std::endl;
+}
 
 
+void Config::setServerLevel(struct serverLevel& serv, std::vector<std::string>& conf) {
+	struct locationLevel loc;
+	loc.autoindex = false;
+	std::string locName;
+	size_t i = 0;
+	while (i < conf.size()) {
+		std::vector<std::string> s = split(conf[i]);
+		for (size_t y = 0; y < s.size(); y++) {
+			std::cout << s[y] << " ";
+		}
+		std::cout << "___\n";
+
+		if (s[0] == "server" && s[1] == "{") {
+			i++;
+			continue;
+		}
+		else if (s[0].find("location") != std::string::npos) {
+			for (size_t x = 1; x < s.size() && s[x] != "{"; x++)
+				locName += s[x];
+		}
+		else
+			locName = "location";
+
+		std::cout << "HERE1\n";
+		size_t a = s.size() - 1;
+		size_t b = s[a].size() - 1;
+		if (s[a][b] == ';') {
+			std::string t = s[a].substr(0, s[a].size() - 1);
+			s[a] = t;
+		}
+
+		if (s[0].find("listen") != std::string::npos || s[0].find("port") != std::string::npos) {
+			std::cout << "HERE3\n";
+			serv.port = s[1];//std::atoi(s[1].c_str());
+		}
+		else if (s[0].find("server_name") != std::string::npos) {
+			std::cout << "HERE4\n";
+			serv.servName = s[1];
+		}
+		else if (s[0].find("error_page") != std::string::npos) {
+			std::cout << "HERE5\n";
+			for (size_t j = 2; j < s.size(); j += 2)
+				serv.errPages.insert(std::pair<int, std::string>(atoi(s[j - 1].c_str()), s[j].substr(0, s[j].size() - 2)));
+		}
+		else if (s[0].find("client_max_body_size") != std::string::npos) {
+			std::cout << "HERE6\n";
+			serv.maxRequestSize = s[1];
+		}
+		else if (!s[0].empty()) {
+			std::cout << "HERE7\n";
+			setLocationLevel(i, serv, conf, s);
+		}
+		i++;
+		std::cout << "HERE8\n";
+	}
+	std::cout << "HERE9\n";
+}
+
+void Config::parseAndSetConfigs() {
+	for (size_t i = 0; i < _storedConfigs.size(); i++) {
+		//TODO: add error check!
+		struct serverLevel nextConf;
+		setServerLevel(nextConf, _storedConfigs[i]);
+		_allConfigs.push_back(nextConf);
+		if (i == 0)
+			_config = _allConfigs[0];
+	}
+}
 
 /* ************************************************************************************** */
 
@@ -91,6 +248,15 @@ void Config::configurate(const std::string& filepath) {
 // 	file.close();
 // }
 
+void Config::printAllConfigs() {
+	for (size_t i = 0; i < _storedConfigs.size(); i++) {
+		std::cout << "config[" << i << "]\n";
+		for (size_t j = 0; j < _storedConfigs[i].size(); j++) {
+			std::cout << _storedConfigs[i][j] << std::endl;
+		}
+	}
+}
+
 // const std::string& Config::getConfigValue(const std::string& key) const {
 // 	std::map<std::string, std::string> tmp = getConfig();
 // 	std::map<std::string, std::string>::const_iterator it = tmp.find(key);
@@ -106,30 +272,4 @@ void Config::configurate(const std::string& filepath) {
 // 		std::cout << it->first << " = " << it->second << std::endl;
 // 		++it;
 // 	}
-// }
-
-// std::vector<std::string> tokenize(const std::string &input) {
-// 	std::vector<std::string> tokens;
-// 	std::string token;
-// 	for (size_t i = 0; i < input.length(); ++i) {
-// 		char c = input[i];
-// 		if (std::isspace(c)) {
-// 			if (!token.empty()) {
-// 				tokens.push_back(token);
-// 				token.clear();
-// 			}
-// 		} else if (c == '{' || c == '}' || c == ';') {
-// 			if (!token.empty()) {
-// 				tokens.push_back(token);
-// 				token.clear();
-// 			}
-// 			tokens.push_back(std::string(1, c));
-// 		} else if (c == '#')
-// 			while (i < input.length() && input[i] != '\n') ++i;
-// 		else
-// 			token += c;
-// 	}
-// 	if (!token.empty())
-// 		tokens.push_back(token);
-// 	return tokens;
 // }
