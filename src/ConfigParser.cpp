@@ -6,12 +6,12 @@ ConfigParser::ConfigParser() : _filepath("config/default.conf") {
 }
 
 ConfigParser::ConfigParser(std::string const &filepath) {
+	_filepath = filepath;
 	std::string s = filepath.substr(strlen(filepath.c_str()) - 5, 5);
 	if (s != ".conf") {
-		std::cerr << "Invalid config file" << std::endl;
-		return;
+		std::cerr << "Invalid config file specified -> using default config file" << std::endl;
+		_filepath = "config/default.conf";
 	}
-	_filepath = filepath;
 	storeConfigs();
 	parseAndSetConfigs();
 }
@@ -32,6 +32,7 @@ ConfigParser &ConfigParser::operator=(const ConfigParser& other) {
 ConfigParser::~ConfigParser() {}
 
 /* ************************************************************************************** */
+//EXTRAS
 
 void ConfigParser::printAllConfigs() {
 	for (size_t i = 0; i < _storedConfigs.size(); i++) {
@@ -41,6 +42,53 @@ void ConfigParser::printAllConfigs() {
 		}
 	}
 }
+
+bool ConfigParser::whiteLine(std::string& line) {
+	if (line.empty())
+		return true;
+	for (size_t i = 0; i < line.size(); i++) {
+		if (!isspace(line[i]))
+			return false;
+	}
+	return true;
+}
+
+bool ConfigParser::checkSemicolon(std::string& line) {
+	if (line[line.size() - 1] == ';')
+		return true;
+	return false;
+}
+
+std::string ConfigParser::skipComments(std::string& s) {
+	std::string ret;
+	size_t x;
+	x = s.find("#");
+	if (x != std::string::npos) {
+		ret = s.substr(0, x);
+		return ret;
+	}
+	x = s.find("//");
+	if (x != std::string::npos) {
+		ret = s.substr(0, x);
+		return ret;
+	}
+	ret = s;
+	return ret;
+}
+
+bool ConfigParser::isValidDir(const std::string& path) {
+    struct stat info;
+    if (stat(path.c_str(), &info) != 0)
+        return false;
+    if (!S_ISDIR(info.st_mode))
+        return false;
+    if (access(path.c_str(), R_OK | X_OK) != 0)
+        return false;
+    return true;
+}
+
+/* ***************************************************************************************** */
+//SETTERS
 
 void ConfigParser::storeConfigs() {
 	std::ifstream file(_filepath.c_str());
@@ -70,57 +118,12 @@ void ConfigParser::storeConfigs() {
 	// printAllConfigs();
 }
 
-std::vector<std::vector<std::string> > ConfigParser::getStoredConfigs() {
-	return _storedConfigs;
-}
-
-// std::vector<std::string> ConfigParser::split(std::string& s) {
-// 	std::vector<std::string> ret;
-// 	std::istringstream iss(s);
-// 	std::string single;
-// 	while (iss >> single)
-// 		ret.push_back(single);
-// 	return ret;
-// }
-
-bool ConfigParser::isValidDir(const std::string& path) {
-    struct stat info;
-    if (stat(path.c_str(), &info) != 0)
-        return false;
-    if (!S_ISDIR(info.st_mode))
-        return false;
-    if (access(path.c_str(), R_OK | X_OK) != 0)
-        return false;
-    return true;
-}
-
-std::string ConfigParser::skipComments(std::string& s) {
-	std::string ret;
-	size_t x;
-	x = s.find("#");
-	if (x != std::string::npos) {
-		ret = s.substr(0, x);
-		return ret;
-	}
-	x = s.find("//");
-	if (x != std::string::npos) {
-		ret = s.substr(0, x);
-		return ret;
-	}
-	ret = s;
-	return ret;
-}
-
 void ConfigParser::setLocationLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf) {
 	struct locationLevel loc;
 	loc.autoindex = false;
 	std::string locName;
-	if (s[0] == "location") {//TODO: add check for '{'? how would it ever be unspecified?
-		for (size_t x = 1; x < s.size() && s[x] != "{"; x++)
-			locName += " " + s[x];
-	}
-	else
-		locName = "unspecified";
+	for (size_t x = 1; x < s.size() && s[x] != "{"; x++)
+		locName += " " + s[x];
 	while (i < conf.size() && conf[i].find("}") == std::string::npos) {
 		if (!whiteLine(conf[i])) {
 			if (!checkSemicolon(conf[i]))
@@ -129,8 +132,8 @@ void ConfigParser::setLocationLevel(size_t& i, std::vector<std::string>& s, stru
 			s = split(conf[i]);
 			if (s[0] == "root") {
 				loc.docRootDir = s[1];
-				//if (!isValidDir(loc.docRootDir))
-				//	std::cerr << "Error: invalid directory path in config file (docRootDir) -> " << loc.docRootDir << std::endl;
+				if (!isValidDir(loc.docRootDir))
+					std::cerr << "Error: invalid directory path in config file (docRootDir) -> " << loc.docRootDir << std::endl;
 			}
 			else if (s[0] == "index")
 				loc.indexFile = s[1];
@@ -144,13 +147,13 @@ void ConfigParser::setLocationLevel(size_t& i, std::vector<std::string>& s, stru
 				loc.redirectionHTTP = s[1];
 			else if (s[0] == "cgi_pass") {
 				loc.cgiProcessorPath = s[1];
-				//if (!isValidDir(loc.cgiProcessorPath))
-				//	std::cerr << "Error: invalid directory path in config file (cgiProcessorPath) -> " << loc.cgiProcessorPath << std::endl;
+				if (!isValidDir(loc.cgiProcessorPath))
+					std::cerr << "Error: invalid directory path in config file (cgiProcessorPath) -> " << loc.cgiProcessorPath << std::endl;
 			}
 			else if (s[0] == "upload_store") {
 				loc.uploadDirPath = s[1];
-				//if (!isValidDir(loc.uploadDirPath))
-				//	std::cerr << "Error: invalid directory path in config file (uploadDirPath) -> " << loc.uploadDirPath << std::endl;
+				if (!isValidDir(loc.uploadDirPath))
+					std::cerr << "Error: invalid directory path in config file (uploadDirPath) -> " << loc.uploadDirPath << std::endl;
 			}
 		}
 		i++;
@@ -175,29 +178,13 @@ void ConfigParser::setServerLevel(size_t& i, std::vector<std::string>& s, struct
 				serv.servName = s[1];
 			else if (s[0] == "error_page") {
 				for (size_t j = 2; j < s.size(); j += 2)
-					serv.errPages.insert(std::pair<int, std::string>(atoi(s[j - 1].c_str()), s[j].substr(0, s[j].size() - 2)));
+					serv.errPages.insert(std::pair<int, std::string>(atoi(s[j - 1].c_str()), s[j].substr(0, s[j].size())));
 			}
 			else if (s[0] == "client_max_body_size")
 				serv.maxRequestSize = s[1];
 		}
 		i++;
 	}
-}
-
-bool ConfigParser::whiteLine(std::string& line) {
-	if (line.empty())
-		return true;
-	for (size_t i = 0; i < line.size(); i++) {
-		if (!isspace(line[i]))
-			return false;
-	}
-	return true;
-}
-
-bool ConfigParser::checkSemicolon(std::string& line) {
-	if (line[line.size() - 1] == ';')
-		return true;
-	return false;
 }
 
 void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf) {
@@ -208,9 +195,9 @@ void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::st
 			s = split(conf[i]);
 			if (s[s.size() - 1] == "{") {
 				i++;
-				if (s[0] == "server")
+				if (s[0] == "server" && s[1] == "{")
 					setServerLevel(i, s, serv, conf);
-				else if (s[0] == "location")
+				else if (s[0] == "location" && s[s.size() - 1] == "{")
 					setLocationLevel(i, s, serv, conf);
 			}
 		}
@@ -225,6 +212,13 @@ void ConfigParser::parseAndSetConfigs() {
 		setConfigLevels(nextConf, _storedConfigs[i]);
 		_allConfigs.push_back(nextConf);
 	}
+}
+
+/* *************************************************************************************** */
+//GETTERS
+
+std::vector<std::vector<std::string> > ConfigParser::getStoredConfigs() {
+	return _storedConfigs;
 }
 
 std::vector<struct serverLevel> ConfigParser::getAllConfigs() {

@@ -11,7 +11,8 @@ Webserv::Webserv() {
     _server = new Server();
     _allConfigs = new ConfigParser();
 	_config = new Config(*_allConfigs);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
-    _server->setWebserv(this);
+    _config->printConfig();
+	_server->setWebserv(this);
 }
 
 Webserv::Webserv(std::string const &config) {

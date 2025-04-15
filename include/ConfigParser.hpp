@@ -39,21 +39,24 @@ class ConfigParser {
 		ConfigParser &operator=(const ConfigParser& other);
 		~ConfigParser();
 
+		//extras
 		void printAllConfigs();
-		void storeConfigs();
-		std::vector<std::vector<std::string> > getStoredConfigs();
-		std::vector<struct serverLevel> getAllConfigs();
-		
-		void setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf);
-		void setServerLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf);
-		void setLocationLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf);
-		void parseAndSetConfigs();
-
 		bool whiteLine(std::string& line);
 		bool checkSemicolon(std::string& line);
 		std::string skipComments(std::string& s);
 		bool isValidDir(const std::string& path);
+		
+		//setters
+		void storeConfigs();
+		void setLocationLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf);
+		void setServerLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf);
+		void setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf);
+		void parseAndSetConfigs();
 
+		//getters
+		std::vector<std::vector<std::string> > getStoredConfigs();
+		std::vector<struct serverLevel> getAllConfigs();
+		
 	private:
 
 		std::string _filepath;
