@@ -2,32 +2,36 @@
 #include "../include/Server.hpp"
 #include "../include/Client.hpp"
 #include "../include/Config.hpp"
+#include "../include/ConfigParser.hpp"
+#include "../include/Helper.hpp"
 
 // Othodox Cannonical Form
 
 Webserv::Webserv() {  
     _server = new Server();
-    _config = new Config("config/default.conf");
-    
+    _allConfigs = new ConfigParser();
+	_config = new Config(*_allConfigs);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
     _server->setWebserv(this);
-    //std::cout << "Webserv constructed" << std::endl;
 }
 
 Webserv::Webserv(std::string const &config) {
-	// (void) config;
-	*_config = Config(config);
+	_server = new Server();
+	_allConfigs = new ConfigParser(config);
+	_config = new Config(*_allConfigs);
+	_server->setWebserv(this);
 }
 
 Webserv::Webserv(Webserv const &other) {
 	std::cout << "Webserv copy constructed" << std::endl;
-    // (void) other;
-	// _config = other._config;
 	*this = other;
 }
 
 Webserv &Webserv::operator=(Webserv const &other) {
-    // (void) other;
-    _config = other._config;
+    if (this != &other) {
+		_server = other._server;
+		_allConfigs = other._allConfigs;
+		_config = other._config;
+	}
 	return *this;
 }
 
@@ -69,7 +73,8 @@ char **Webserv::getEnvironment() const {
 
 int Webserv::setConfig(std::string const filepath) {
     std::cout << getTimeStamp() << "Config found at " << filepath << "\n";
-	// _config = new Config(filepath);
+	_allConfigs = new ConfigParser(filepath);
+	_config = new Config(*_allConfigs);
     return true;
 }
 
@@ -117,10 +122,13 @@ int Webserv::run() {
         return 1;
     }
 	
-	// std::string port = getConfig().getConfigValue("port");
-	// if (port.empty())
-	// 	std::cerr << "No port found in config..\n";
-    printMsg("Server is listening on port", GREEN, "8080");//port);
+	int port = _config->getPort();
+	if (port == -1)
+		std::cerr << "No port found in config..\n";
+	else {
+		std::string p = tostring(port);
+    	printMsg("Server is listening on port", GREEN, p);
+	}
 
     // Initialize poll array with server socket
     addToPoll(_server->getFd(), POLLIN);

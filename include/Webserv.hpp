@@ -18,11 +18,13 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <map>
+#include <string>
 #include "../include/Helper.hpp"
 
 class Server;
 class Client;
 class Config;
+class ConfigParser;
 
 #define debug false;
 
@@ -56,9 +58,9 @@ class Webserv {
         Server                  *_server;
         std::vector<Client *>   _clients;
         char                    **_env;
-        // std::map<int, Config>   *_config;//once set-> check how many elements are inside?
+		ConfigParser			*_allConfigs;
 		Config					*_config;
-		bool					_configIsStored;
+
 
         std::vector<struct pollfd> _pfds;
 

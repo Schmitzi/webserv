@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: schmitzi <schmitzi@student.42.fr>          +#+  +:+       +#+         #
+#    By: lbaumeis <lbaumeis@student.42vienna.com    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/11/22 14:29:42 by mgeiger-          #+#    #+#              #
-#    Updated: 2024/11/11 14:29:35 by mgeiger-         ###   ########.fr        #
+#    Updated: 2025/04/15 16:24:31 by lbaumeis         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -24,12 +24,14 @@ RESET   =   $(shell tput sgr0)
 FILES	=	main \
 			Webserv \
 			Config \
+			ConfigParser \
 			Server \
 			Client \
 			Request \
 			CGIHandler \
 			ft_split \
-			ft_itoa
+			ft_itoa \
+			Helper
 
 SRC_DIR = 	src/
 SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))
