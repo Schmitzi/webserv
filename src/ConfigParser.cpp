@@ -76,11 +76,7 @@ std::string ConfigParser::skipComments(std::string& s) {
 
 bool ConfigParser::isValidDir(const std::string& path) {
     struct stat info;
-    if (stat(path.c_str(), &info) != 0)
-        return false;
-    if (!S_ISDIR(info.st_mode))
-        return false;
-    if (access(path.c_str(), R_OK | X_OK) != 0)
+    if (stat(path.c_str(), &info) != 0 || !S_ISDIR(info.st_mode) || access(path.c_str(), R_OK | X_OK) != 0)
         return false;
     return true;
 }
