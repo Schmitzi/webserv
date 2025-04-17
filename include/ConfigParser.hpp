@@ -14,20 +14,24 @@
 #include "../include/Helper.hpp"
 
 struct locationLevel {
-	std::string									docRootDir;//root
+	std::string									rootLoc;//root
 	std::string									indexFile;//index
 	std::vector<std::string>					methods;//methods
 	bool										autoindex;//autoindex
 	std::string									redirectionHTTP;//redirect
 	std::string									cgiProcessorPath;//cgi_pass
 	std::string									uploadDirPath;//upload_store
+	//return(=redirect?), limit_except(=methods?)
 };
 
 struct serverLevel {
 	int											port;//listen
+	std::string									rootServ;//root
 	std::string									servName;//server_name
 	std::map<int, std::string>					errPages;//error_page
-	std::string									maxRequestSize;//client_max_body_size //TODO: maybe size_t??
+	std::string									maxRequestSize;//client_max_body_size
+	size_t										requestLimit;//converted maxRequestSize
+	//data_directory
 	std::map<std::string, struct locationLevel>	locations;//location
 };
 
@@ -44,7 +48,9 @@ class ConfigParser {
 		bool whiteLine(std::string& line);
 		bool checkSemicolon(std::string& line);
 		std::string skipComments(std::string& s);
+		bool isValidPath(const std::string& path);
 		bool isValidDir(const std::string& path);
+		void parseClientMaxBodySize(struct serverLevel& serv);
 		
 		//setters
 		void storeConfigs();
@@ -62,6 +68,19 @@ class ConfigParser {
 		std::string _filepath;
 		std::vector<std::vector<std::string> > _storedConfigs;
 		std::vector<struct serverLevel> _allConfigs;
+};
+
+class configException : public std::exception {
+	private:
+		std::string _message;
+	
+	public:
+		configException() : _message("Unknown configuration error") {}
+		configException(const std::string& message) : _message(message) {}
+		virtual const char* what() const throw() {
+			return _message.c_str();
+		};
+		virtual ~configException() throw() {};
 };
 
 #endif

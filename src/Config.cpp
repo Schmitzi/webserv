@@ -40,6 +40,7 @@ struct serverLevel Config::getConfig() {
 void Config::printConfig() {
 	std::cout << "___config___" << std::endl
 	<< "server {" << std::endl
+	<< "\troot: " << _config.rootServ << std::endl
 	<< "\tport: " << _config.port << std::endl
 	<< "\tserver_name: " << _config.servName << std::endl
 	<< "\terror_page:" << std::endl;
@@ -52,7 +53,7 @@ void Config::printConfig() {
 	std::map<std::string, struct locationLevel>::iterator its = _config.locations.begin();
 	while (its != _config.locations.end()) {
 		std::cout << "\tlocation " << its->first << " {" << std::endl
-		<< "\t\troot: " << its->second.docRootDir << std::endl
+		<< "\t\troot: " << its->second.rootLoc << std::endl
 		<< "\t\tindex: " << its->second.indexFile << std::endl
 		<< "\t\tmethods:";
 		for (size_t i = 0; i < its->second.methods.size(); i++)

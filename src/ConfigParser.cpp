@@ -74,11 +74,36 @@ std::string ConfigParser::skipComments(std::string& s) {
 	return ret;
 }
 
+bool ConfigParser::isValidPath(const std::string& path) {
+	struct stat info;
+	if (stat(path.c_str(), &info) != 0 || S_ISDIR(info.st_mode) || access(path.c_str(), R_OK) != 0)
+		return false;
+	return true;
+}
+
 bool ConfigParser::isValidDir(const std::string& path) {
     struct stat info;
     if (stat(path.c_str(), &info) != 0 || !S_ISDIR(info.st_mode) || access(path.c_str(), R_OK | X_OK) != 0)
         return false;
     return true;
+}
+
+void ConfigParser::parseClientMaxBodySize(struct serverLevel& serv) {
+	size_t multiplier = 1;
+	char unit = serv.maxRequestSize[serv.maxRequestSize.size() - 1];
+	std::string numberPart = serv.maxRequestSize;
+	if (!std::isdigit(unit)) {
+		switch (std::tolower(unit)) {
+			case 'k': multiplier = 1024; break;
+			case 'm': multiplier = 1024 * 1024; break;
+			case 'g': multiplier = 1024 * 1024 * 1024; break;
+			default:
+				throw configException("Invalid size unit for client_max_body_size");
+		}
+		numberPart = serv.maxRequestSize.substr(0, serv.maxRequestSize.size() - 1);
+	}
+	size_t num = std::strtoul(numberPart.c_str(), NULL, 10);
+	serv.requestLimit = num * multiplier;
 }
 
 /* ***************************************************************************************** */
@@ -118,64 +143,89 @@ void ConfigParser::setLocationLevel(size_t& i, std::vector<std::string>& s, stru
 	std::string locName;
 	for (size_t x = 1; x < s.size() && s[x] != "{"; x++)
 		locName += " " + s[x];
-	while (i < conf.size() && conf[i].find("}") == std::string::npos) {
-		if (!whiteLine(conf[i])) {
+	while (i < conf.size()) {
+		if (conf[i].find("}") != std::string::npos)
+			break;
+		else if (!whiteLine(conf[i])) {
 			if (!checkSemicolon(conf[i]))
-				throw std::runtime_error("Error: no semicolon found in config file (locationLevel)");
+				throw configException("Error: no semicolon found (locationLevel)");
 			conf[i] = conf[i].substr(0, conf[i].size() - 1);
 			s = split(conf[i]);
 			if (s[0] == "root") {
-				loc.docRootDir = s[1];
-				if (!isValidDir(loc.docRootDir))
-					std::cerr << "Error: invalid directory path in config file (docRootDir) -> " << loc.docRootDir << std::endl;
+				if (!isValidDir(s[1]))
+					throw configException("Error: invalid directory path (rootLoc) -> " + s[1]);
+				loc.rootLoc = s[1];
 			}
-			else if (s[0] == "index")
+			else if (s[0] == "index") {
+				// if (!isValidPath(s[1]))
+				// 	throw configException("Error: invalid path (index) -> " + s[1]);
 				loc.indexFile = s[1];
-			else if (s[0] == "methods") {
-				for (size_t m = 1; m < s.size(); m++)
-					loc.methods.push_back(s[m]);
 			}
-			else if (s[0] == "autoindex")
+			else if (s[0] == "methods") {
+				for (size_t m = 1; m < s.size(); m++) {
+					if (s[m] != "GET" && s[m] != "DELETE" && s[m] != "POST")
+						throw configException("Error: Invalid method found: " + s[m]);
+					loc.methods.push_back(s[m]);
+				}
+			}
+			else if (s[0] == "autoindex" && s[1] == "on")
 				loc.autoindex = true;
-			else if (s[0] == "redirect")
+			else if (s[0] == "redirect") {
+				// if (!isValidPath(s[1]))
+				// 	throw configException("Error: invalid path (redirect) -> " + s[1]);
 				loc.redirectionHTTP = s[1];
+			}
 			else if (s[0] == "cgi_pass") {
+				if (!isValidDir(s[1]))
+					throw configException("Error: invalid directory path (cgiProcessorPath) -> " + s[1]);
 				loc.cgiProcessorPath = s[1];
-				if (!isValidDir(loc.cgiProcessorPath))
-					std::cerr << "Error: invalid directory path in config file (cgiProcessorPath) -> " << loc.cgiProcessorPath << std::endl;
 			}
 			else if (s[0] == "upload_store") {
+				if (!isValidDir(s[1]))
+					throw configException("Error: invalid directory path (uploadDirPath) -> " + s[1]);
 				loc.uploadDirPath = s[1];
-				if (!isValidDir(loc.uploadDirPath))
-					std::cerr << "Error: invalid directory path in config file (uploadDirPath) -> " << loc.uploadDirPath << std::endl;
 			}
 		}
 		i++;
 	}
+	if (conf[i].find("}") == std::string::npos)
+		throw configException("Error: no closing bracket found.");
 	serv.locations.insert(std::pair<std::string, struct locationLevel>(locName, loc));
 }
 
 void ConfigParser::setServerLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf) {
-	while (i < conf.size()) {
+	while (i < conf.size() && conf[i].find("}") == std::string::npos) {
 		if (conf[i].find("location ") != std::string::npos) {
 			i--;
 			return;
 		}
 		if (!whiteLine(conf[i])) {
 			if (!checkSemicolon(conf[i]))
-				throw std::runtime_error("Error: no semicolon found in config file (serverLevel)");
+				throw configException("Error: no semicolon found (serverLevel)");
 			conf[i] = conf[i].substr(0, conf[i].size() - 1);
 			s = split(conf[i]);
 			if (s[0] == "listen")
 				serv.port = std::atoi(s[1].c_str());
-			else if (s[0] == "server_name")
+			else if (s[0] == "root") {
+				if (!isValidDir(s[1]))
+					throw configException("Error: invalid directory path (rootServ) -> " + s[1]);
+				serv.rootServ = s[1];
+			}
+			else if (s[0] == "server_name")//TODO: add check?
 				serv.servName = s[1];
 			else if (s[0] == "error_page") {
-				for (size_t j = 2; j < s.size(); j += 2)
-					serv.errPages.insert(std::pair<int, std::string>(atoi(s[j - 1].c_str()), s[j].substr(0, s[j].size())));
+				std::string site;
+				for (size_t j = 2; j < s.size(); j += 2) {
+					site = s[j].substr(0, s[j].size());
+					// if (!isValidPath(site))
+					// 	throw configException("Error: Invalid path (error_page) -> " + site);
+					serv.errPages.insert(std::pair<int, std::string>(atoi(s[j - 1].c_str()), site));
+				}
 			}
-			else if (s[0] == "client_max_body_size")
+			else if (s[0] == "client_max_body_size") {
 				serv.maxRequestSize = s[1];
+				parseClientMaxBodySize(serv);
+			}
 		}
 		i++;
 	}
@@ -183,20 +233,31 @@ void ConfigParser::setServerLevel(size_t& i, std::vector<std::string>& s, struct
 
 void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf) {
 	std::vector<std::string> s;
+	bool bracket = false;
 	size_t i = 0;
-	while (i < conf.size()) {
+	while (i < conf.size() && bracket == false) {
 		if (!whiteLine(conf[i])) {
 			s = split(conf[i]);
 			if (s[s.size() - 1] == "{") {
 				i++;
-				if (s[0] == "server" && s[1] == "{")
+				if (s[0] == "server") {
+					if (s[1] != "{")
+						throw configException("Error: No opening bracket found for server.");
 					setServerLevel(i, s, serv, conf);
-				else if (s[0] == "location" && s[s.size() - 1] == "{")
+				}
+				else if (s[0] == "location") {
+					if (s[s.size() - 1] != "{")
+						throw configException("Error: No opening bracket found for location.");
 					setLocationLevel(i, s, serv, conf);
+				}
 			}
+			else if (s[0] == "}")
+				bracket = true;
 		}
 		i++;
 	}
+	if (bracket == false)
+		throw configException("Error: No closing bracket found for server.");
 }
 
 void ConfigParser::parseAndSetConfigs() {
