@@ -54,9 +54,7 @@ bool ConfigParser::whiteLine(std::string& line) {
 }
 
 bool ConfigParser::checkSemicolon(std::string& line) {
-	if (line[line.size() - 1] == ';')
-		return true;
-	return false;
+	return line[line.size() - 1] == ';';
 }
 
 std::string ConfigParser::skipComments(std::string& s) {
