@@ -1,14 +1,14 @@
 #include "../include/Helper.hpp"
 
-std::string tostring(int nbr) {
+const std::string& tostring(int nbr) {
 	std::ostringstream oss;
 	oss << nbr;
-	std::string result = oss.str();
+	const std::string result = oss.str();
 	return result;
 }
 
-std::vector<std::string> split(std::string& s) {
-	std::vector<std::string> ret;
+const std::vector<std::string>& split(const std::string& s) {
+	const std::vector<std::string> ret;
 	std::istringstream iss(s);
 	std::string single;
 	while (iss >> single)
