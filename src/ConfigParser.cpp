@@ -88,6 +88,43 @@ bool ConfigParser::isValidDir(const std::string& path) {
     return true;
 }
 
+bool ConfigParser::isValidName(const std::string& name) {
+	if (name.empty() || name.size() > 253)
+		return false;
+	std::string::const_iterator it = name.begin();
+	std::string label;
+	for (; it != name.end(); ++it) {
+		char c = *it;
+		if (c == '.') {
+			if (label.empty() || label[0] == '-' || label[label.size() - 1] == '-')
+				return false;
+			label.clear();
+		}
+		else if (isalnum(c) || c == '-')
+			label += c;
+		else
+			return false;
+	}
+	if (label.empty() || label[0] == '-' || label[label.size() - 1] == '-')
+		return false;
+	return true;
+}
+
+bool ConfigParser::isValidIndexFile(const std::string& indexFile) {
+	if (indexFile.empty() || indexFile.find('/') != std::string::npos || indexFile.find("..") != std::string::npos)
+		return false;
+	// std::string s = "local/" + indexFile;//TODO: how should this be checked?
+	// std::ifstream file(s.c_str());
+	// if (!file.is_open() || !file.good())
+	// 	throw configException("Error: Invalid indexFile -> " + indexFile);
+	std::string::size_type dot = indexFile.rfind('.');
+	if (dot == std::string::npos)
+		return false;
+	std::string ext = indexFile.substr(dot);
+	return ext == ".html";//TODO: maybe add more extension checks?
+}
+
+
 void ConfigParser::parseClientMaxBodySize(struct serverLevel& serv) {
 	size_t multiplier = 1;
 	char unit = serv.maxRequestSize[serv.maxRequestSize.size() - 1];
@@ -105,6 +142,20 @@ void ConfigParser::parseClientMaxBodySize(struct serverLevel& serv) {
 	size_t num = std::strtoul(numberPart.c_str(), NULL, 10);
 	serv.requestLimit = num * multiplier;
 }
+
+//TODO: do this with todos.md
+// void ConfigParser::checkConfig(const struct serverLevel& serv) {
+// 	if (serv.port < 0)
+// 		throw configException("Error: No port specified in config.");
+// 	if (serv.servName.empty())
+// 		throw configException("Error: No server_name specified in config.");
+// 	if (serv.rootServ.empty())// && serv.locations.find("rootLoc"))
+// 		throw configException("Error: No root specified in config.");
+// 	if (serv.locations)
+// 		throw configException("Error: No server_name specified in config.");
+// 	if (serv.servName.empty())
+// 		throw configException("Error: No server_name specified in config.");
+// }
 
 /* ***************************************************************************************** */
 //SETTERS
@@ -157,8 +208,8 @@ void ConfigParser::setLocationLevel(size_t& i, std::vector<std::string>& s, stru
 				loc.rootLoc = s[1];
 			}
 			else if (s[0] == "index") {
-				// if (!isValidPath(s[1]))
-				// 	throw configException("Error: invalid path (index) -> " + s[1]);
+				if (!isValidIndexFile(s[1]))
+					throw configException("Error: invalid path (index) -> " + s[1]);
 				loc.indexFile = s[1];
 			}
 			else if (s[0] == "methods") {
@@ -211,8 +262,11 @@ void ConfigParser::setServerLevel(size_t& i, std::vector<std::string>& s, struct
 					throw configException("Error: invalid directory path (rootServ) -> " + s[1]);
 				serv.rootServ = s[1];
 			}
-			else if (s[0] == "server_name")//TODO: add check?
+			else if (s[0] == "server_name") {
+				if (!isValidName(s[1]))
+					throw configException("Error: invalid server_name -> " + s[1]);
 				serv.servName = s[1];
+			}
 			else if (s[0] == "error_page") {
 				std::string site;
 				for (size_t j = 2; j < s.size(); j += 2) {
@@ -258,6 +312,7 @@ void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::st
 	}
 	if (bracket == false)
 		throw configException("Error: No closing bracket found for server.");
+	checkConfig(serv);
 }
 
 void ConfigParser::parseAndSetConfigs() {

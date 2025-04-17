@@ -93,3 +93,30 @@ Implement a robust parser for your configuration file:
 3. Build a hierarchical representation of the configuration
 4. Apply default values for unspecified parameters
 5. Detect and report configuration errors
+
+
+**🧾 TL;DR — Minimum Required in a Config File**
+ *🔧 At the top level (inside server {} block):*
+	Directive	Required?	Why it matters
+	listen					✅ YES			Tells the server which port/IP to listen on
+	server_name				✅ YES			Used to match incoming requests (vhosts)
+	root					✅ YES			Tells where to look for static files
+	index					✅ YES			Specifies default file in directories
+	location				✅ YES			To define behavior for URL paths
+	error_page				⚠️ Optional		 Useful for custom error responses
+	client_max_body_size	⚠️ Optional		 Used to limit POST/PUT request size
+
+ *🗂 Inside a location {} block:*
+	Directive	Required?	Why it matters
+	root					✅ YES			Can override or inherit from server root
+	index					✅ YES			Same as above, but per location
+	allow_methods			⚠️ Recommended	 Defines which HTTP methods are allowed
+	cgi_pass				⚠️ Optional		 If handling PHP/CGI scripts
+	autoindex				⚠️ Optional		 Enables directory listing if no index file
+
+**Missing thing	Resulting problem**
+	listen	Server won’t bind to any port
+	server_name								Virtual hosting may break / default fallback
+	root									Server doesn’t know where to serve files from
+	index									Requests to / may return 403 or 404
+	location block							All URL requests fall back to root config

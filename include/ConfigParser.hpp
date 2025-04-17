@@ -50,7 +50,10 @@ class ConfigParser {
 		std::string skipComments(std::string& s);
 		bool isValidPath(const std::string& path);
 		bool isValidDir(const std::string& path);
+		bool isValidName(const std::string& name);
+		bool isValidIndexFile(const std::string& indexFile);
 		void parseClientMaxBodySize(struct serverLevel& serv);
+		void checkConfig(const struct serverLevel& serv);
 		
 		//setters
 		void storeConfigs();
