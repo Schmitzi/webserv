@@ -17,6 +17,7 @@ struct locationLevel {
 	std::string									rootLoc;//root
 	std::string									indexFile;//index
 	std::vector<std::string>					methods;//methods
+	bool										autoindexFound;
 	bool										autoindex;//autoindex
 	std::string									redirectionHTTP;//redirect
 	std::string									cgiProcessorPath;//cgi_pass
@@ -27,11 +28,12 @@ struct locationLevel {
 struct serverLevel {
 	int											port;//listen
 	std::string									rootServ;//root
+	std::string									indexFile;
 	std::string									servName;//server_name
 	std::map<int, std::string>					errPages;//error_page
 	std::string									maxRequestSize;//client_max_body_size
 	size_t										requestLimit;//converted maxRequestSize
-	//data_directory
+	// data_directory?
 	std::map<std::string, struct locationLevel>	locations;//location
 };
 
@@ -45,15 +47,23 @@ class ConfigParser {
 
 		//extras
 		void printAllConfigs();
+
+		//small checks and skipping stuff
 		bool whiteLine(std::string& line);
 		bool checkSemicolon(std::string& line);
 		std::string skipComments(std::string& s);
+
+		//check if valid path/dir/file...
 		bool isValidPath(const std::string& path);
 		bool isValidDir(const std::string& path);
 		bool isValidName(const std::string& name);
 		bool isValidIndexFile(const std::string& indexFile);
 		void parseClientMaxBodySize(struct serverLevel& serv);
-		void checkConfig(const struct serverLevel& serv);
+
+		//check if valid config
+		void checkRoot(struct serverLevel& serv);
+		void checkIndex(struct serverLevel& serv);
+		void checkConfig(struct serverLevel& serv);
 		
 		//setters
 		void storeConfigs();

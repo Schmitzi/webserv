@@ -58,19 +58,14 @@ bool ConfigParser::checkSemicolon(std::string& line) {
 }
 
 std::string ConfigParser::skipComments(std::string& s) {
-	std::string ret;
+	std::string ret = s;
 	size_t x;
 	x = s.find("#");
-	if (x != std::string::npos) {
+	if (x != std::string::npos)
 		ret = s.substr(0, x);
-		return ret;
-	}
 	x = s.find("//");
-	if (x != std::string::npos) {
+	if (x != std::string::npos)
 		ret = s.substr(0, x);
-		return ret;
-	}
-	ret = s;
 	return ret;
 }
 
@@ -143,19 +138,40 @@ void ConfigParser::parseClientMaxBodySize(struct serverLevel& serv) {
 	serv.requestLimit = num * multiplier;
 }
 
-//TODO: do this with todos.md
-// void ConfigParser::checkConfig(const struct serverLevel& serv) {
-// 	if (serv.port < 0)
-// 		throw configException("Error: No port specified in config.");
-// 	if (serv.servName.empty())
-// 		throw configException("Error: No server_name specified in config.");
-// 	if (serv.rootServ.empty())// && serv.locations.find("rootLoc"))
-// 		throw configException("Error: No root specified in config.");
-// 	if (serv.locations)
-// 		throw configException("Error: No server_name specified in config.");
-// 	if (serv.servName.empty())
-// 		throw configException("Error: No server_name specified in config.");
-// }
+void ConfigParser::checkRoot(struct serverLevel& serv) {
+	if (serv.rootServ.empty()) {
+		std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
+		while (it != serv.locations.end()) {
+			if (it->second.rootLoc.empty())
+				throw configException("Error: No root for server and locations specified.\n-> Server doesn’t know where to serve files from");
+			++it;
+		}
+	}
+}
+
+void ConfigParser::checkIndex(struct serverLevel& serv) {
+	if (serv.indexFile.empty()) {
+		std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
+		while (it != serv.locations.end()) {
+			if (it->second.indexFile.empty())
+				throw configException("Error: No default index for server and locations specified.\n-> Requests to / may return 403 or 404");
+			++it;
+		}
+	}
+}
+
+void ConfigParser::checkConfig(struct serverLevel& serv) {
+	if (serv.port < 0)
+		throw configException("Error: No port specified in config.\n-> server won't bind to any port");
+	if (serv.servName.empty())
+		throw configException("Error: No server_name specified in config.\n-> Virtual hosting may break / default fallback");
+	checkRoot(serv);
+	checkIndex(serv);
+	//TODO: does every serverLevel need at least one location? (->recommended, but not needed, but maybe needed for out server??)
+	// std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
+	// if (it == serv.locations.end())
+	// 	throw configException("Error: no locations specified.\n-> All URL requests fall back to root config");
+}
 
 /* ***************************************************************************************** */
 //SETTERS
@@ -191,6 +207,7 @@ void ConfigParser::storeConfigs() {
 void ConfigParser::setLocationLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf) {
 	struct locationLevel loc;
 	loc.autoindex = false;
+	loc.autoindexFound = false;
 	std::string locName;
 	for (size_t x = 1; x < s.size() && s[x] != "{"; x++)
 		locName += " " + s[x];
@@ -219,8 +236,11 @@ void ConfigParser::setLocationLevel(size_t& i, std::vector<std::string>& s, stru
 					loc.methods.push_back(s[m]);
 				}
 			}
-			else if (s[0] == "autoindex" && s[1] == "on")
-				loc.autoindex = true;
+			else if (s[0] == "autoindex") {
+				loc.autoindexFound = true;
+				if (s[1] == "on")
+					loc.autoindex = true;
+			}
 			else if (s[0] == "redirect") {
 				// if (!isValidPath(s[1]))
 				// 	throw configException("Error: invalid path (redirect) -> " + s[1]);
@@ -261,6 +281,11 @@ void ConfigParser::setServerLevel(size_t& i, std::vector<std::string>& s, struct
 				if (!isValidDir(s[1]))
 					throw configException("Error: invalid directory path (rootServ) -> " + s[1]);
 				serv.rootServ = s[1];
+			}
+			else if (s[0] == "index") {
+				if (!isValidIndexFile(s[1]))
+					throw configException("Error: invalid path (index) -> " + s[1]);
+				serv.indexFile = s[1];
 			}
 			else if (s[0] == "server_name") {
 				if (!isValidName(s[1]))

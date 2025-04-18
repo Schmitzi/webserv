@@ -115,7 +115,7 @@ Implement a robust parser for your configuration file:
 	autoindex				⚠️ Optional		 Enables directory listing if no index file
 
 **Missing thing	Resulting problem**
-	listen	Server won’t bind to any port
+	listen									Server won’t bind to any port
 	server_name								Virtual hosting may break / default fallback
 	root									Server doesn’t know where to serve files from
 	index									Requests to / may return 403 or 404
