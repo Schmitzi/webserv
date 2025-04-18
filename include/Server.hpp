@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <iostream>
+#include "Config.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -14,6 +15,7 @@
 #define RESET   "\33[0m" // No Colour
 
 class Webserv;
+class Config;
 
 class Server {
     public:

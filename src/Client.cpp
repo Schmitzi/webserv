@@ -109,15 +109,16 @@ Request Client::parseRequest(char* buffer) {
         return req;
     }
     
-    char** tokens = ft_split(buffer, ' ');
+	// char** tokens = ft_split(buffer, ' ');
+    std::vector<std::string> tokens = split(buffer);
     
-    if (tokens == NULL) {
+    if (tokens.empty()) {//if (tokens == NULL) {
         sendErrorResponse(400, "Bad Request");
         return req;
     }
     std::string path = "/";
 
-    if (tokens[1]) {
+    if (!tokens[1].empty()) {//if (tokens[1]) {
         path = tokens[1];
         path.erase(path.find_last_not_of(" \t\r\n") + 1);
     }
@@ -125,17 +126,17 @@ Request Client::parseRequest(char* buffer) {
     if (std::string(tokens[0]) == "POST") {
         req.formatPost(tokens[1]);
     } else if (std::string(tokens[0]) == "DELETE") {
-        if (tokens[1]) {
+        if (!tokens[1].empty()) {//if (tokens[1]) {
             req.formatDelete(path);
         } else {
             sendErrorResponse(400, "Bad Request - Missing path");
         }
     } else if (std::string(tokens[0]) == "GET" || std::string(tokens[0]) == "curl") {
-        if (tokens[1]) {
+        if (!tokens[1].empty()) {//if (tokens[1]) {
             
             if (req.formatGet(path) == 1) {
                 sendErrorResponse(403, "Bad request\n");
-                freeTokens(tokens);
+                // freeTokens(tokens);
                 return req;
             }
         } else {
@@ -143,7 +144,7 @@ Request Client::parseRequest(char* buffer) {
         }
     } else {
         sendErrorResponse(403, "Bad request\n");
-        freeTokens(tokens);
+        // freeTokens(tokens);
         std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd << ": 403 Bad request\n" << RESET;
         req.setMethod("BAD");
         return req;
@@ -153,7 +154,7 @@ Request Client::parseRequest(char* buffer) {
         req.setPath("/" + req.getPath());
     }
     
-    freeTokens(tokens);
+    // freeTokens(tokens);
     
     return req;
 }

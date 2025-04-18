@@ -52,7 +52,7 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-		const Config&	getConfig() const;
+		Config&			getConfig() const;
 
     private:
         Server                  *_server;

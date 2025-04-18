@@ -48,11 +48,14 @@ void Config::printConfig() {
 		std::cout << "\tport: " << _config.port << std::endl;
 	if (!_config.servName.empty())
 		std::cout << "\tserver_name: " << _config.servName << std::endl;
-	std::map<int, std::string>::iterator it = _config.errPages.begin();
+	std::map<std::vector<int>, std::string>::iterator it = _config.errPages.begin();
 	if (it != _config.errPages.end()) {
 		std::cout << "\terror_page:" << std::endl;
 		while (it != _config.errPages.end()) {
-			std::cout << "\t\t" << it->first << " " << it->second << std::endl;
+			std::cout << "\t\t";
+			for (size_t i = 0; i < it->first.size(); i++)
+				std::cout << it->first[i] << " ";
+			std::cout << it->second << std::endl;
 			++it;
 		}
 	}

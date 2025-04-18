@@ -112,9 +112,9 @@ void Webserv::removeFromPoll(size_t index) {
     _pfds.erase(_pfds.begin() + index);
 }
 
-// const Config& Webserv::getConfig() const {
-// 	return *_config;
-// }
+Config& Webserv::getConfig() const {
+	return *_config;
+}
 
 int Webserv::run() {
     // Initialize server
