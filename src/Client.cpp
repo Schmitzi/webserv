@@ -465,7 +465,7 @@ int Client::handleMultipartPost(Request& req) {
     std::string successMsg = "File uploaded successfully: " + filename;
     std::string response = "HTTP/1.1 200 OK\r\n";
     response += "Content-Type: text/plain\r\n";
-    response += "Content-Length: " + ft_itoa(successMsg.length()) + "\r\n";
+	response += "Content-Length: " + tostring(successMsg.length()) + "\r\n";
     response += "Server: WebServ/1.0\r\n";
     response += "Connection: keep-alive\r\n";
     response += "\r\n";
@@ -542,9 +542,9 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     
     response += "Content-Type: " + contentType + "\r\n";
     if (req.getMethod() == "POST") {
-        response += "Content-Length: " + std::string(ft_itoa(req.getQuery().length())) + "\r\n";
+        response += "Content-Length: " + std::string(tostring(req.getQuery().length())) + "\r\n";
     } else {
-        response += "Content-Length: " + std::string(ft_itoa(req.getBody().length())) + "\r\n";
+        response += "Content-Length: " + std::string(tostring(req.getBody().length())) + "\r\n";
     }
     response += "Server: WebServ/1.0\r\n";
     response += "Connection: " + connect;
@@ -559,9 +559,9 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
 
 void Client::sendErrorResponse(int statusCode, const std::string& message) {
     // Create a more complete HTTP response with all required headers
-    std::string response = "HTTP/1.1 " + ft_itoa(statusCode) + " " + message + "\r\n";
+    std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + message + "\r\n";
     response += "Content-Type: text/plain\r\n";
-    response += "Content-Length: " + ft_itoa(message.length()) + "\r\n";
+    response += "Content-Length: " + tostring(message.length()) + "\r\n";
     response += "Server: WebServ/1.0\r\n";
     response += "Connection: close\r\n";
     response += "\r\n";
