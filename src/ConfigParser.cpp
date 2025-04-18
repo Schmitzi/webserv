@@ -43,6 +43,14 @@ void ConfigParser::printAllConfigs() {
 	}
 }
 
+bool ConfigParser::onlyDigits(const std::string& s) {
+	for (size_t i = 0; i < s.size(); i++) {
+		if (!isdigit(s[i]))
+			return false;
+	}
+	return true;
+}
+
 bool ConfigParser::whiteLine(std::string& line) {
 	if (line.empty())
 		return true;
@@ -294,12 +302,30 @@ void ConfigParser::setServerLevel(size_t& i, std::vector<std::string>& s, struct
 			}
 			else if (s[0] == "error_page") {
 				std::string site;
-				for (size_t j = 2; j < s.size(); j += 2) {
-					site = s[j].substr(0, s[j].size());
-					// if (!isValidPath(site))
-					// 	throw configException("Error: Invalid path (error_page) -> " + site);
-					serv.errPages.insert(std::pair<int, std::string>(atoi(s[j - 1].c_str()), site));
+				int err;
+				std::vector<int> errCodes;
+				bool waitingForPath = true;
+				for (size_t j = 1; j < s.size(); j++) {
+					if (onlyDigits(s[j])) {
+						err = atoi(s[j].c_str());
+						if (err < 400 || err > 599)
+							throw configException("Error: Invalid error status code.");
+						errCodes.push_back(err);
+						waitingForPath = true;
+					}
+					else if (waitingForPath == true && !onlyDigits(s[j]) && !errCodes.empty()) {
+						site = s[j].substr(0, s[j].size());
+						// if (!isValidPath(site))
+						// 	throw configException("Error: Invalid path (error_page) -> " + site);
+						serv.errPages.insert(std::pair<std::vector<int>, std::string>(errCodes, site));
+						errCodes.clear();
+						waitingForPath = false;
+					}
+					else
+						throw configException("Error: invalid error pages.");
 				}
+				if (waitingForPath == true)
+					throw configException("Error: found error status code without path.");
 			}
 			else if (s[0] == "client_max_body_size") {
 				serv.maxRequestSize = s[1];

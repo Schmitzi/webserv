@@ -30,7 +30,7 @@ struct serverLevel {
 	std::string									rootServ;//root
 	std::string									indexFile;
 	std::string									servName;//server_name
-	std::map<int, std::string>					errPages;//error_page
+	std::map<std::vector<int>, std::string>		errPages;//error_page
 	std::string									maxRequestSize;//client_max_body_size
 	size_t										requestLimit;//converted maxRequestSize
 	// data_directory?
@@ -49,6 +49,7 @@ class ConfigParser {
 		void printAllConfigs();
 
 		//small checks and skipping stuff
+		bool onlyDigits(const std::string& s);
 		bool whiteLine(std::string& line);
 		bool checkSemicolon(std::string& line);
 		std::string skipComments(std::string& s);
