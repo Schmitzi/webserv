@@ -84,6 +84,12 @@ bool ConfigParser::isValidPath(const std::string& path) {
 	return true;
 }
 
+bool ConfigParser::isValidRedirectPath(const std::string& path) {
+	if (path.empty() || (path[0] != '/' && path.find("http") != 0))
+		return false;
+	return true;
+}
+
 bool ConfigParser::isValidDir(const std::string& path) {
     struct stat info;
     if (stat(path.c_str(), &info) != 0 || !S_ISDIR(info.st_mode) || access(path.c_str(), R_OK | X_OK) != 0)
@@ -252,8 +258,8 @@ void ConfigParser::setLocationLevel(size_t& i, std::vector<std::string>& s, stru
 					loc.autoindex = true;
 			}
 			else if (s[0] == "redirect") {
-				// if (!isValidPath(s[1]))
-				// 	throw configException("Error: invalid path (redirect) -> " + s[1]);
+				if (!isValidRedirectPath(s[1]))
+					throw configException("Error: invalid path (redirect) -> " + s[1]);
 				loc.redirectionHTTP = s[1];
 			}
 			else if (s[0] == "cgi_pass") {
@@ -281,7 +287,7 @@ void ConfigParser::setServerLevel(size_t& i, std::vector<std::string>& s, struct
 			return;
 		}
 		if (!whiteLine(conf[i])) {
-			if (!checkSemicolon(conf[i]))
+			if (!checkSemicolon(conf[i]))//TODO: extract and make new function for this?
 				throw configException("Error: no semicolon found (serverLevel)");
 			conf[i] = conf[i].substr(0, conf[i].size() - 1);
 			s = split(conf[i]);
