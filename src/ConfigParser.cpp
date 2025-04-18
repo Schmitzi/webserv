@@ -91,8 +91,10 @@ bool ConfigParser::isValidDir(const std::string& path) {
     return true;
 }
 
-bool ConfigParser::isValidName(const std::string& name) {
-	if (name.empty() || name.size() > 253)
+bool ConfigParser::isValidName(const std::string& name) {//TODO: check how server_names work!!
+	if (name.empty())
+		return true;
+	if (name.size() > 253)
 		return false;
 	std::string::const_iterator it = name.begin();
 	std::string label;
@@ -171,8 +173,8 @@ void ConfigParser::checkIndex(struct serverLevel& serv) {
 void ConfigParser::checkConfig(struct serverLevel& serv) {
 	if (serv.port < 0)
 		throw configException("Error: No port specified in config.\n-> server won't bind to any port");
-	if (serv.servName.empty())
-		throw configException("Error: No server_name specified in config.\n-> Virtual hosting may break / default fallback");
+	// if (serv.servName.empty())
+	// 	throw configException("Error: No server_name specified in config.\n-> Virtual hosting may break / default fallback");
 	checkRoot(serv);
 	checkIndex(serv);
 	//TODO: does every serverLevel need at least one location? (->recommended, but not needed, but maybe needed for out server??)

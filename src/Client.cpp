@@ -66,6 +66,8 @@ void Client::displayConnection() {
                 << ":" << ntohs(_addr.sin_port) << RESET << "\n";
 }
 
+//TODO: check for requestLimit?
+
 int Client::recieveData() {
     memset(_buffer, 0, sizeof(_buffer));
     

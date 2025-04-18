@@ -51,7 +51,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         close(_input[0]);
         close(_output[1]);
 
-        if (!req.getBody().empty()) {
+        if (!req.getBody().empty()) {//TODO: check for requestLimit?
             write(_input[1], req.getBody().c_str(), req.getBody().length());
         }
         close(_input[1]);
