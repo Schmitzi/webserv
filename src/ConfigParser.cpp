@@ -16,96 +16,99 @@ ConfigParser::ConfigParser(std::string const &filepath) {
 	parseAndSetConfigs();
 }
 
-ConfigParser::ConfigParser(const ConfigParser& other) {
+ConfigParser::ConfigParser(const ConfigParser &other) {
 	*this = other;
 }
 
-ConfigParser &ConfigParser::operator=(const ConfigParser& other) {
+ConfigParser &ConfigParser::operator=(const ConfigParser &other) {
 	if (this != &other) {
 		_filepath = other._filepath;
 		_storedConfigs = other._storedConfigs;
 		_allConfigs = other._allConfigs;
 	}
-	return *this;
+	return (*this);
 }
 
 ConfigParser::~ConfigParser() {}
 
 /* ************************************************************************************** */
-//EXTRAS
+// EXTRAS
 
 void ConfigParser::printAllConfigs() {
 	for (size_t i = 0; i < _storedConfigs.size(); i++) {
 		std::cout << "config[" << i << "]\n";
-		for (size_t j = 0; j < _storedConfigs[i].size(); j++) {
+		for (size_t j = 0; j < _storedConfigs[i].size(); j++)
 			std::cout << _storedConfigs[i][j] << std::endl;
-		}
 	}
 }
 
-bool ConfigParser::onlyDigits(const std::string& s) {
+bool ConfigParser::onlyDigits(const std::string &s) {
 	for (size_t i = 0; i < s.size(); i++) {
 		if (!isdigit(s[i]))
-			return false;
+			return (false);
 	}
-	return true;
+	return (true);
 }
 
-bool ConfigParser::whiteLine(std::string& line) {
+bool ConfigParser::whiteLine(std::string &line) {
 	if (line.empty())
-		return true;
+		return (true);
 	for (size_t i = 0; i < line.size(); i++) {
 		if (!isspace(line[i]))
-			return false;
+			return (false);
 	}
-	return true;
+	return (true);
 }
 
-bool ConfigParser::checkSemicolon(std::string& line) {
+bool ConfigParser::checkSemicolon(std::string &line) {
 	return line[line.size() - 1] == ';';
 }
 
-std::string ConfigParser::skipComments(std::string& s) {
+std::string ConfigParser::skipComments(std::string &s) {
+	size_t	x;
+
 	std::string ret = s;
-	size_t x;
 	x = s.find("#");
 	if (x != std::string::npos)
 		ret = s.substr(0, x);
 	x = s.find("//");
 	if (x != std::string::npos)
 		ret = s.substr(0, x);
-	return ret;
+	return (ret);
 }
 
-bool ConfigParser::isValidPath(const std::string& path) {
-	struct stat info;
-	if (stat(path.c_str(), &info) != 0 || S_ISDIR(info.st_mode) || access(path.c_str(), R_OK) != 0)
-		return false;
-	return true;
+bool ConfigParser::isValidPath(const std::string &path) {
+	struct stat	info;
+
+	return (stat(path.c_str(), &info) == 0 && !S_ISDIR(info.st_mode) && access(path.c_str(), R_OK) == 0);
 }
 
-bool ConfigParser::isValidRedirectPath(const std::string& path) {
+bool ConfigParser::isValidRedirectPath(const std::string &path) {
 	if (path.empty() || (path[0] != '/' && path.find("http") != 0))
-		return false;
-	return true;
+		return (false);
+	return (true);
 }
 
-bool ConfigParser::isValidDir(const std::string& path) {
-    struct stat info;
-    if (stat(path.c_str(), &info) != 0 || !S_ISDIR(info.st_mode) || access(path.c_str(), R_OK | X_OK) != 0)
-        return false;
-    return true;
+bool ConfigParser::isValidDir(const std::string &path) {
+	struct stat	info;
+
+	if (stat(path.c_str(), &info) != 0 || !S_ISDIR(info.st_mode) || access(path.c_str(), R_OK | X_OK) != 0)
+		return (false);
+	return (true);
 }
 
-bool ConfigParser::isValidName(const std::string& name) {//TODO: check how server_names work!!
+bool ConfigParser::isValidName(const std::string &name) {
+	char c;
+
+	// TODO: check how server_names work!!
 	if (name.empty())
-		return true;
+		return (true);
 	if (name.size() > 253)
-		return false;
+		return (false);
 	std::string::const_iterator it = name.begin();
 	std::string label;
 	for (; it != name.end(); ++it) {
-		char c = *it;
+		c = *it;
 		if (c == '.') {
 			if (label.empty() || label[0] == '-' || label[label.size() - 1] == '-')
 				return false;
@@ -121,7 +124,7 @@ bool ConfigParser::isValidName(const std::string& name) {//TODO: check how serve
 	return true;
 }
 
-bool ConfigParser::isValidIndexFile(const std::string& indexFile) {
+bool ConfigParser::isValidIndexFile(const std::string &indexFile) {
 	if (indexFile.empty() || indexFile.find('/') != std::string::npos || indexFile.find("..") != std::string::npos)
 		return false;
 	// std::string s = "local/" + indexFile;//TODO: how should this be checked?
@@ -132,29 +135,38 @@ bool ConfigParser::isValidIndexFile(const std::string& indexFile) {
 	if (dot == std::string::npos)
 		return false;
 	std::string ext = indexFile.substr(dot);
-	return ext == ".html";//TODO: maybe add more extension checks?
+	return ext == ".html"; // TODO: maybe add more extension checks?
 }
 
+void ConfigParser::parseClientMaxBodySize(struct serverLevel &serv) {
+	size_t multiplier;
+	char unit;
+	size_t num;
 
-void ConfigParser::parseClientMaxBodySize(struct serverLevel& serv) {
-	size_t multiplier = 1;
-	char unit = serv.maxRequestSize[serv.maxRequestSize.size() - 1];
+	multiplier = 1;
+	unit = serv.maxRequestSize[serv.maxRequestSize.size() - 1];
 	std::string numberPart = serv.maxRequestSize;
 	if (!std::isdigit(unit)) {
 		switch (std::tolower(unit)) {
-			case 'k': multiplier = 1024; break;
-			case 'm': multiplier = 1024 * 1024; break;
-			case 'g': multiplier = 1024 * 1024 * 1024; break;
+			case 'k':
+				multiplier = 1024;
+				break ;
+			case 'm':
+				multiplier = 1024 * 1024;
+				break ;
+			case 'g':
+				multiplier = 1024 * 1024 * 1024;
+				break ;
 			default:
 				throw configException("Invalid size unit for client_max_body_size");
 		}
 		numberPart = serv.maxRequestSize.substr(0, serv.maxRequestSize.size() - 1);
 	}
-	size_t num = std::strtoul(numberPart.c_str(), NULL, 10);
+	num = std::strtoul(numberPart.c_str(), NULL, 10);
 	serv.requestLimit = num * multiplier;
 }
 
-void ConfigParser::checkRoot(struct serverLevel& serv) {
+void ConfigParser::checkRoot(struct serverLevel &serv) {
 	if (serv.rootServ.empty()) {
 		std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
 		while (it != serv.locations.end()) {
@@ -165,7 +177,7 @@ void ConfigParser::checkRoot(struct serverLevel& serv) {
 	}
 }
 
-void ConfigParser::checkIndex(struct serverLevel& serv) {
+void ConfigParser::checkIndex(struct serverLevel &serv) {
 	if (serv.indexFile.empty()) {
 		std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
 		while (it != serv.locations.end()) {
@@ -176,30 +188,32 @@ void ConfigParser::checkIndex(struct serverLevel& serv) {
 	}
 }
 
-void ConfigParser::checkConfig(struct serverLevel& serv) {
+void ConfigParser::checkConfig(struct serverLevel &serv) {
 	if (serv.port < 0)
 		throw configException("Error: No port specified in config.\n-> server won't bind to any port");
 	// if (serv.servName.empty())
 	// 	throw configException("Error: No server_name specified in config.\n-> Virtual hosting may break / default fallback");
 	checkRoot(serv);
 	checkIndex(serv);
-	//TODO: does every serverLevel need at least one location? (->recommended, but not needed, but maybe needed for out server??)
+	// TODO: does every serverLevel need at least one location? (->recommended, but not needed, but maybe needed for out server??)
 	// std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
 	// if (it == serv.locations.end())
 	// 	throw configException("Error: no locations specified.\n-> All URL requests fall back to root config");
 }
 
 /* ***************************************************************************************** */
-//SETTERS
+// SETTERS
 
 void ConfigParser::storeConfigs() {
+	int configNum;
+
 	std::ifstream file(_filepath.c_str());
-	if (!file.good()) {
+	if (!file.is_open() || !file.good()) {
 		std::cerr << "Invalid or empty config file." << std::endl;
-		return;
+		return ;
 	}
 	std::string line;
-	int configNum = -1;
+	configNum = -1;
 	while (std::getline(file, line)) {
 		line = skipComments(line);
 		if (!line.empty() && line.find("server {") != std::string::npos) {
@@ -220,8 +234,9 @@ void ConfigParser::storeConfigs() {
 	// printAllConfigs();
 }
 
-void ConfigParser::setLocationLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf) {
+void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string> &s, struct serverLevel &serv, std::vector<std::string> &conf) {
 	struct locationLevel loc;
+
 	loc.autoindex = false;
 	loc.autoindexFound = false;
 	std::string locName;
@@ -229,12 +244,9 @@ void ConfigParser::setLocationLevel(size_t& i, std::vector<std::string>& s, stru
 		locName += " " + s[x];
 	while (i < conf.size()) {
 		if (conf[i].find("}") != std::string::npos)
-			break;
+			break ;
 		else if (!whiteLine(conf[i])) {
-			if (!checkSemicolon(conf[i]))
-				throw configException("Error: no semicolon found (locationLevel)");
-			conf[i] = conf[i].substr(0, conf[i].size() - 1);
-			s = split(conf[i]);
+			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "root") {
 				if (!isValidDir(s[1]))
 					throw configException("Error: invalid directory path (rootLoc) -> " + s[1]);
@@ -280,17 +292,26 @@ void ConfigParser::setLocationLevel(size_t& i, std::vector<std::string>& s, stru
 	serv.locations.insert(std::pair<std::string, struct locationLevel>(locName, loc));
 }
 
-void ConfigParser::setServerLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf) {
+std::vector<std::string> ConfigParser::splitIfSemicolon(std::string &configLine) {
+	std::vector<std::string> s;
+	if (!checkSemicolon(configLine))
+		throw configException("Error: missing semicolon in config");
+	configLine = configLine.substr(0, configLine.size() - 1);
+	s = split(configLine);
+	return s;
+}
+
+void ConfigParser::setServerLevel(size_t &i, std::vector<std::string> &s, struct serverLevel &serv, std::vector<std::string> &conf) {
+	int err;
+	bool waitingForPath;
+
 	while (i < conf.size() && conf[i].find("}") == std::string::npos) {
 		if (conf[i].find("location ") != std::string::npos) {
 			i--;
-			return;
+			return ;
 		}
 		if (!whiteLine(conf[i])) {
-			if (!checkSemicolon(conf[i]))//TODO: extract and make new function for this?
-				throw configException("Error: no semicolon found (serverLevel)");
-			conf[i] = conf[i].substr(0, conf[i].size() - 1);
-			s = split(conf[i]);
+			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "listen")
 				serv.port = std::atoi(s[1].c_str());
 			else if (s[0] == "root") {
@@ -310,9 +331,8 @@ void ConfigParser::setServerLevel(size_t& i, std::vector<std::string>& s, struct
 			}
 			else if (s[0] == "error_page") {
 				std::string site;
-				int err;
 				std::vector<int> errCodes;
-				bool waitingForPath = true;
+				waitingForPath = true;
 				for (size_t j = 1; j < s.size(); j++) {
 					if (onlyDigits(s[j])) {
 						err = atoi(s[j].c_str());
@@ -344,10 +364,13 @@ void ConfigParser::setServerLevel(size_t& i, std::vector<std::string>& s, struct
 	}
 }
 
-void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf) {
+void ConfigParser::setConfigLevels(struct serverLevel &serv, std::vector<std::string> &conf) {
+	bool	bracket;
+	size_t	i;
+
 	std::vector<std::string> s;
-	bool bracket = false;
-	size_t i = 0;
+	bracket = false;
+	i = 0;
 	while (i < conf.size() && bracket == false) {
 		if (!whiteLine(conf[i])) {
 			s = split(conf[i]);
@@ -375,8 +398,8 @@ void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::st
 }
 
 void ConfigParser::parseAndSetConfigs() {
+	struct serverLevel nextConf;
 	for (size_t i = 0; i < _storedConfigs.size(); i++) {
-		struct serverLevel nextConf;
 		nextConf.port = -1;
 		setConfigLevels(nextConf, _storedConfigs[i]);
 		_allConfigs.push_back(nextConf);
@@ -384,7 +407,7 @@ void ConfigParser::parseAndSetConfigs() {
 }
 
 /* *************************************************************************************** */
-//GETTERS
+// GETTERS
 
 std::vector<std::vector<std::string> > ConfigParser::getStoredConfigs() {
 	return _storedConfigs;

@@ -66,6 +66,8 @@ class ConfigParser {
 		void checkRoot(struct serverLevel& serv);
 		void checkIndex(struct serverLevel& serv);
 		void checkConfig(struct serverLevel& serv);
+
+		std::vector<std::string> splitIfSemicolon(std::string& configLine);
 		
 		//setters
 		void storeConfigs();

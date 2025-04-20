@@ -37,7 +37,7 @@ struct serverLevel Config::getConfig() {
 /* ************************************************************************************** */
 //EXTRAS
 
-void Config::printConfig() {
+void Config::printConfig() {//only temporary, for debugging
 	std::cout << "___config___" << std::endl
 	<< "server {" << std::endl;
 	if (!_config.rootServ.empty())
