@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include "../include/Helper.hpp"
+#include "../include/ConfigHelper.hpp"
 
 struct locationLevel {
 	std::string									rootLoc;//root
@@ -38,36 +39,17 @@ struct serverLevel {
 };
 
 class ConfigParser {
+	private:
+		std::string _filepath;
+		std::vector<std::vector<std::string> > _storedConfigs;
+		std::vector<struct serverLevel> _allConfigs;
+
 	public:
 		ConfigParser();
 		ConfigParser(const std::string& filepath);
-		ConfigParser(const ConfigParser& other);
-		ConfigParser &operator=(const ConfigParser& other);
+		ConfigParser(const ConfigParser& copy);
+		ConfigParser &operator=(const ConfigParser& copy);
 		~ConfigParser();
-
-		//extras
-		void printAllConfigs();
-
-		//small checks and skipping stuff
-		bool onlyDigits(const std::string& s);
-		bool whiteLine(std::string& line);
-		bool checkSemicolon(std::string& line);
-		std::string skipComments(std::string& s);
-
-		//check if valid path/dir/file...
-		bool isValidPath(const std::string& path);
-		bool isValidRedirectPath(const std::string &path);
-		bool isValidDir(const std::string &path);
-		bool isValidName(const std::string& name);
-		bool isValidIndexFile(const std::string& indexFile);
-		void parseClientMaxBodySize(struct serverLevel& serv);
-
-		//check if valid config
-		void checkRoot(struct serverLevel& serv);
-		void checkIndex(struct serverLevel& serv);
-		void checkConfig(struct serverLevel& serv);
-
-		std::vector<std::string> splitIfSemicolon(std::string& configLine);
 		
 		//setters
 		void storeConfigs();
@@ -79,12 +61,9 @@ class ConfigParser {
 		//getters
 		std::vector<std::vector<std::string> > getStoredConfigs();
 		std::vector<struct serverLevel> getAllConfigs();
-		
-	private:
 
-		std::string _filepath;
-		std::vector<std::vector<std::string> > _storedConfigs;
-		std::vector<struct serverLevel> _allConfigs;
+		//extras
+		void printAllConfigs();
 };
 
 class configException : public std::exception {

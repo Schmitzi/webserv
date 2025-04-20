@@ -6,7 +6,7 @@
 #    By: lbaumeis <lbaumeis@student.42vienna.com    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/11/22 14:29:42 by mgeiger-          #+#    #+#              #
-#    Updated: 2025/04/15 16:24:31 by lbaumeis         ###   ########.fr        #
+#    Updated: 2025/04/20 17:54:45 by lbaumeis         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -24,6 +24,7 @@ RESET   =   $(shell tput sgr0)
 FILES	=	main \
 			Webserv \
 			Config \
+			ConfigHelper \
 			ConfigParser \
 			Server \
 			Client \

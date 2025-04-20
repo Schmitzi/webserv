@@ -4,12 +4,15 @@
 #include "ConfigParser.hpp"
 
 class ConfigParser;
-
 class Config {
+	private:
+		Config();
+		struct serverLevel _config;
+
     public:
 		Config(ConfigParser confs, size_t nbr = 0);
-		Config(const Config& other);
-		Config &operator=(const Config& other);
+		Config(const Config& copy);
+		Config &operator=(const Config& copy);
 		~Config();
 		
 		//getters
@@ -18,10 +21,6 @@ class Config {
 		
 		//extras
 		void printConfig();
-
-    private:
-		Config();
-        struct serverLevel _config;
 };
 
 #endif
