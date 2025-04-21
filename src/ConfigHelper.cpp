@@ -54,30 +54,50 @@ bool isValidDir(const std::string &path) {
 	return (stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode) && access(path.c_str(), R_OK | X_OK) == 0);
 }
 
-bool isValidName(const std::string &name) {
-	char c;
-
-	// TODO: check how server_names work!!
+bool isValidName(const std::string& name) {
 	if (name.empty())
-		return (true);
+		return true;
 	if (name.size() > 253)
-		return (false);
-	std::string::const_iterator it = name.begin();
+		return false;
+	if (name[0] == '~') {//TODO: should we support regex server_names?
+		std::cerr << "Regex server names not supported" << std::endl;
+		return false;
+	}
+	int starCount = 0;
 	std::string label;
-	for (; it != name.end(); ++it) {
-		c = *it;
+	for (size_t i = 0; i < name.size(); ++i) {
+		char c = name[i];
 		if (c == '.') {
 			if (label.empty() || label[0] == '-' || label[label.size() - 1] == '-')
 				return false;
+			if (label == "*") {
+				++starCount;
+				if (starCount > 1)
+					return false;
+			}
 			label.clear();
 		}
 		else if (isalnum(c) || c == '-')
 			label += c;
+		else if (c == '*') {
+			label += c;
+			if (label != "*")
+				return false;
+		}
 		else
 			return false;
 	}
 	if (label.empty() || label[0] == '-' || label[label.size() - 1] == '-')
 		return false;
+	if (label == "*") {
+		++starCount;
+		if (starCount > 1)
+			return false;
+	}
+	if (starCount == 1) {
+		if (!(name.find("*.") == 0 || name.rfind(".*") == name.size() - 2))
+			return false;
+	}
 	return true;
 }
 
@@ -107,13 +127,13 @@ void parseClientMaxBodySize(struct serverLevel &serv) {
 		switch (std::tolower(unit)) {
 			case 'k':
 				multiplier = 1024;
-				break ;
+				break;
 			case 'm':
 				multiplier = 1024 * 1024;
-				break ;
+				break;
 			case 'g':
 				multiplier = 1024 * 1024 * 1024;
-				break ;
+				break;
 			default:
 				throw configException("Invalid size unit for client_max_body_size");
 		}
@@ -125,12 +145,13 @@ void parseClientMaxBodySize(struct serverLevel &serv) {
 
 void checkRoot(struct serverLevel &serv) {
 	if (serv.rootServ.empty()) {
-		std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
-		while (it != serv.locations.end()) {
-			if (it->second.rootLoc.empty())
-				throw configException("Error: No root for server and locations specified.\n-> Server doesn’t know where to serve files from");
-			++it;
-		}
+		serv.rootServ = "./www";
+		// std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
+		// while (it != serv.locations.end()) {
+		// 	if (it->second.rootLoc.empty())
+		// 		throw configException("Error: No root for server and locations specified.\n-> Server doesn’t know where to serve files from");
+		// 	++it;
+		// }
 	}
 }
 
@@ -146,8 +167,11 @@ void checkIndex(struct serverLevel &serv) {
 }
 
 void checkConfig(struct serverLevel &serv) {
-	if (serv.port < 0)
-		throw configException("Error: No port specified in config.\n-> server won't bind to any port");
+	if (serv.maxRequestSize.empty()) {
+		serv.maxRequestSize = "1M";
+		parseClientMaxBodySize(serv);
+	}
+	// throw configException("Error: No port specified in config.\n-> server won't bind to any port");
 	checkRoot(serv);
 	checkIndex(serv);
 	// if (serv.servName.empty())
@@ -167,7 +191,23 @@ std::vector<std::string> splitIfSemicolon(std::string &configLine) {
 	return s;
 }
 
-void setErrorPages(std::vector<std::string> &s, struct serverLevel &serv) {
+void setPort(std::vector<std::string>& s, struct serverLevel& serv) {
+	std::string ip = "0.0.0.0";
+	int port;
+
+	size_t colon = s[1].find(':');
+	if (colon != std::string::npos) {
+        ip = s[1].substr(0, colon);
+        port = std::atoi(s[1].substr(colon + 1).c_str());
+    } else {
+        port = std::atoi(s[1].c_str());
+	}
+	if (port < 0)//TODO: is this ok?
+		port = 8080;
+	serv.port.push_back(std::pair<std::string, int>(ip, port));
+}
+
+void setErrorPages(std::vector<std::string>& s, struct serverLevel &serv) {
 	std::string site;
 	std::vector<int> errCodes;
 	bool waitingForPath = true;

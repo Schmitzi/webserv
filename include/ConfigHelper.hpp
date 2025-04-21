@@ -31,6 +31,7 @@ void checkIndex(struct serverLevel& serv);
 void checkConfig(struct serverLevel& serv);
 
 std::vector<std::string> splitIfSemicolon(std::string& configLine);
+void setPort(std::vector<std::string>& s, struct serverLevel& serv);
 void setErrorPages(std::vector<std::string>& s, struct serverLevel& serv);
 
 #endif

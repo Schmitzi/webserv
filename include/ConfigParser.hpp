@@ -27,10 +27,10 @@ struct locationLevel {
 };
 
 struct serverLevel {
-	int											port;//listen
+	std::vector<std::pair<std::string, int> >	port;//listen
 	std::string									rootServ;//root
 	std::string									indexFile;
-	std::string									servName;//server_name
+	std::vector<std::string>					servName;//server_name
 	std::map<std::vector<int>, std::string>		errPages;//error_page
 	std::string									maxRequestSize;//client_max_body_size
 	size_t										requestLimit;//converted maxRequestSize

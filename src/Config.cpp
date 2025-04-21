@@ -26,8 +26,8 @@ Config::~Config() {}
 /* ************************************************************************************** */
 //GETTERS
 
-int Config::getPort() {
-	return _config.port;
+int Config::getPort() {//TODO: do this correctly
+	return _config.port[0].second;
 }
 
 struct serverLevel Config::getConfig() {
@@ -44,10 +44,22 @@ void Config::printConfig() {//only temporary, for debugging
 		std::cout << "\troot: " << _config.rootServ << std::endl;
 	if (!_config.indexFile.empty())
 		std::cout << "\tindex: " << _config.indexFile << std::endl;
-	if (_config.port >= 0)
-		std::cout << "\tport: " << _config.port << std::endl;
-	if (!_config.servName.empty())
-		std::cout << "\tserver_name: " << _config.servName << std::endl;
+	if (!_config.port.empty()) {
+		for (size_t i = 0; i < _config.port.size(); i++) {
+			std::cout << "\tport: ";
+			if (_config.port[i].first != "0.0.0.0")
+				std::cout << _config.port[i].first << " ";
+			std::cout << _config.port[i].second << std::endl;
+		}
+	}
+	if (!_config.servName.empty()) {
+		for (size_t i = 0; i < _config.servName.size(); i++) {
+			if (i == 0)
+				std::cout << "\tserver_name:";
+			std::cout << " " << _config.servName[i];
+		}
+		std::cout << std::endl;
+	}
 	std::map<std::vector<int>, std::string>::iterator it = _config.errPages.begin();
 	if (it != _config.errPages.end()) {
 		std::cout << "\terror_page:" << std::endl;

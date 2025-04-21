@@ -78,7 +78,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string> &s, stru
 		else if (!whiteLine(conf[i])) {
 			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "root") {
-				if (!isValidDir(s[1]))
+				if (!s[1].empty() && !isValidDir(s[1]))
 					throw configException("Error: invalid directory path -> " + s[0] + s[1]);
 				loc.rootLoc = s[1];
 			}
@@ -119,6 +119,11 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string> &s, stru
 	}
 	if (conf[i].find("}") == std::string::npos)
 		throw configException("Error: no closing bracket found.");
+	if (loc.methods.empty()) {
+		loc.methods.push_back("GET");
+		loc.methods.push_back("POST");
+		loc.methods.push_back("DELETE");
+	}
 	serv.locations.insert(std::pair<std::string, struct locationLevel>(locName, loc));
 }
 
@@ -131,7 +136,7 @@ void ConfigParser::setServerLevel(size_t &i, std::vector<std::string> &s, struct
 		if (!whiteLine(conf[i])) {
 			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "listen")
-				serv.port = std::atoi(s[1].c_str());
+				setPort(s, serv);
 			else if (s[0] == "root") {
 				if (!isValidDir(s[1]))
 					throw configException("Error: invalid directory path -> " + s[0] + s[1]);
@@ -144,12 +149,16 @@ void ConfigParser::setServerLevel(size_t &i, std::vector<std::string> &s, struct
 			}
 			else if (s[0] == "server_name") {
 				if (!isValidName(s[1]))
-					throw configException("Error: invalid " + s[0] + " -> " + s[1]);
-				serv.servName = s[1];
+					serv.servName[0] = "";	
+				// throw configException("Error: invalid " + s[0] + " -> " + s[1]);
+				else {
+					for (size_t j = 1; j < s.size(); j++)
+						serv.servName.push_back(s[j]);
+				}
 			}
 			else if (s[0] == "error_page")
 				setErrorPages(s, serv);
-			else if (s[0] == "client_max_body_size") {
+			else if (s[0] == "client_max_body_size" && !s[1].empty()) {
 				serv.maxRequestSize = s[1];
 				parseClientMaxBodySize(serv);
 			}
@@ -194,7 +203,6 @@ void ConfigParser::setConfigLevels(struct serverLevel &serv, std::vector<std::st
 void ConfigParser::parseAndSetConfigs() {
 	struct serverLevel nextConf;
 	for (size_t i = 0; i < _storedConfigs.size(); i++) {
-		nextConf.port = -1;
 		setConfigLevels(nextConf, _storedConfigs[i]);
 		_allConfigs.push_back(nextConf);
 	}
