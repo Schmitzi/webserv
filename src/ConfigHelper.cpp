@@ -56,7 +56,7 @@ bool isValidDir(const std::string &path) {
 
 bool isValidName(const std::string& name) {
 	if (name.empty())
-		return true;
+		return true;//TODO: can be empty?
 	if (name.size() > 253)
 		return false;
 	if (name[0] == '~') {//TODO: should we support regex server_names?
@@ -145,13 +145,13 @@ void parseClientMaxBodySize(struct serverLevel &serv) {
 
 void checkRoot(struct serverLevel &serv) {
 	if (serv.rootServ.empty()) {
-		serv.rootServ = "./www";
-		// std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
-		// while (it != serv.locations.end()) {
-		// 	if (it->second.rootLoc.empty())
-		// 		throw configException("Error: No root for server and locations specified.\n-> Server doesn’t know where to serve files from");
-		// 	++it;
-		// }
+		serv.rootServ = "./www";//TODO: should this be the default?
+		std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
+		while (it != serv.locations.end()) {
+			if (it->second.rootLoc.empty())
+				it->second.rootLoc = serv.rootServ;//take default value from server if not specified
+			++it;
+		}
 	}
 }
 
@@ -161,6 +161,14 @@ void checkIndex(struct serverLevel &serv) {
 		while (it != serv.locations.end()) {
 			if (it->second.indexFile.empty())
 				throw configException("Error: No default index for server and locations specified.\n-> Requests to / may return 403 or 404");
+			++it;
+		}
+	}
+	else if (!serv.indexFile.empty()) {
+		std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
+		while (it != serv.locations.end()) {
+			if (it->second.indexFile.empty())
+				it->second.indexFile = serv.indexFile;//take default value from server if not specified
 			++it;
 		}
 	}

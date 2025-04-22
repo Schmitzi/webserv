@@ -14,6 +14,18 @@
 #include "../include/Helper.hpp"
 #include "../include/ConfigHelper.hpp"
 
+/*
+	minimum requirements:
+	server: 
+		-listen
+		-server_name?
+		-root
+		-index
+	location: 
+		-root (default: from server)
+		-index (default: from server)
+*/
+
 struct locationLevel {
 	std::string									rootLoc;//root
 	std::string									indexFile;//index
@@ -43,6 +55,7 @@ class ConfigParser {
 		std::string _filepath;
 		std::vector<std::vector<std::string> > _storedConfigs;
 		std::vector<struct serverLevel> _allConfigs;
+		// std::map<int, std::vector<struct serverLevel*> > _serversSortedByPort;
 
 	public:
 		ConfigParser();
@@ -57,6 +70,7 @@ class ConfigParser {
 		void setServerLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf);
 		void setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf);
 		void parseAndSetConfigs();
+		// void sortByPort(std::vector<struct serverLevel>& confs);
 
 		//getters
 		std::vector<std::vector<std::string> > getStoredConfigs();
@@ -64,6 +78,7 @@ class ConfigParser {
 
 		//extras
 		void printAllConfigs();
+		// void printSortedServers();
 };
 
 class configException : public std::exception {

@@ -118,7 +118,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string> &s, stru
 		i++;
 	}
 	if (conf[i].find("}") == std::string::npos)
-		throw configException("Error: no closing bracket found.");
+		throw configException("Error: no closing bracket found for location.");
 	if (loc.methods.empty()) {
 		loc.methods.push_back("GET");
 		loc.methods.push_back("POST");
@@ -165,22 +165,26 @@ void ConfigParser::setServerLevel(size_t &i, std::vector<std::string> &s, struct
 		}
 		i++;
 	}
+	if (conf[i].find("}") != std::string::npos)
+		i--;
 }
 
-void ConfigParser::setConfigLevels(struct serverLevel &serv, std::vector<std::string> &conf) {
+void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf) {
 	bool	bracket;
 	size_t	i;
 
 	std::vector<std::string> s;
 	bracket = false;
 	i = 0;
-	while (i < conf.size() && bracket == false) {
+	while (i < conf.size()) {
 		if (!whiteLine(conf[i])) {
 			s = split(conf[i]);
 			if (s.back() == "{") {
 				i++;
 				if (s[0] == "server") {
-					if (s[1] != "{")
+					if (s.size() != 2)
+						throw configException("Error: invalid server declaration.");
+					if (s.back() != "{")
 						throw configException("Error: No opening bracket found for server.");
 					setServerLevel(i, s, serv, conf);
 				}
@@ -189,9 +193,16 @@ void ConfigParser::setConfigLevels(struct serverLevel &serv, std::vector<std::st
 						throw configException("Error: No opening bracket found for location.");
 					setLocationLevel(i, s, serv, conf);
 				}
+				else
+					throw configException("Error: something invalid in config.");
 			}
-			else if (s[0] == "}")
+			else if (s.back() == "}") {
+				if (s.size() != 1)
+					throw configException("Error: invalid closing bracket in config.");
+				if (bracket == true)
+					throw configException("Error: Too many closing brackets found.");
 				bracket = true;
+			}
 		}
 		i++;
 	}
@@ -206,6 +217,8 @@ void ConfigParser::parseAndSetConfigs() {
 		setConfigLevels(nextConf, _storedConfigs[i]);
 		_allConfigs.push_back(nextConf);
 	}
+	// sortByPort(_allConfigs);
+	// printSortedServers();
 }
 
 /* *************************************************************************************** */
@@ -229,3 +242,31 @@ void ConfigParser::printAllConfigs() {
 			std::cout << _storedConfigs[i][j] << std::endl;
 	}
 }
+
+// void ConfigParser::sortByPort(std::vector<struct serverLevel>& confs) {
+// 	for (size_t i = 0; i < confs.size(); ++i) {
+// 		for (size_t j = 0; j < confs[i].port.size(); j++) {
+// 			int portNumber = confs[i].port[j].second;
+// 			_serversSortedByPort[portNumber].push_back(&confs[i]);
+// 		}
+// 	}
+// }
+
+// void ConfigParser::printSortedServers() {
+// 	std::cout << "Servers sorted by port:\n";
+// 	for (std::map<int, std::vector<struct serverLevel*> >::iterator it = _serversSortedByPort.begin(); it != _serversSortedByPort.end(); ++it) {
+// 		int port = it->first;
+// 		std::cout << "Port: " << port << "\n";
+// 		std::cout << "  Server Names: ";
+// 		for (size_t i = 0; i < it->second.size(); ++i) {
+// 			struct serverLevel* serv = it->second[i];
+
+// 			if (serv->servName.empty()) std::cout << "(none)";
+// 			for (size_t j = 0; j < serv->servName.size(); j++) {
+// 				std::cout << serv->servName[j];
+// 				if (j < serv->servName.size() - 1) std::cout << ", ";
+// 			}
+// 		}
+// 		std::cout << "\n______________________\n\n";
+// 	}
+// }

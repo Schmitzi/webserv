@@ -45,8 +45,9 @@ void Config::printConfig() {//only temporary, for debugging
 	if (!_config.indexFile.empty())
 		std::cout << "\tindex: " << _config.indexFile << std::endl;
 	if (!_config.port.empty()) {
+		std::cout << "\tport:" << std::endl;
 		for (size_t i = 0; i < _config.port.size(); i++) {
-			std::cout << "\tport: ";
+			std::cout << "\t\t";
 			if (_config.port[i].first != "0.0.0.0")
 				std::cout << _config.port[i].first << " ";
 			std::cout << _config.port[i].second << std::endl;
