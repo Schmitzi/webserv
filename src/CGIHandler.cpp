@@ -69,18 +69,18 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
                 cleanupResources();
                 return result;
             } else {
-                client.sendErrorResponse(500, "CGI Script Execution Failed");
+                client.sendErrorResponse(500, " - CGI Script Execution Failed");
                 cleanupResources();
                 return 1;
             }
         } else {
-            client.sendErrorResponse(500, "CGI Script Terminated Abnormally");
+            client.sendErrorResponse(500, " - CGI Script Terminated Abnormally");
             cleanupResources();
             return 1;
         }
     }
     
-    client.sendErrorResponse(500, "Fork failed");
+    client.sendErrorResponse(500, " - Fork failed");
     cleanupResources();
     return 1;
 }
@@ -285,19 +285,19 @@ Request    CGIHandler::createTempHeader(std::string output) {
 int CGIHandler::doChecks(Client client) {
     if (access(_path.c_str(), F_OK) != 0) {
         std::cerr << "Script does not exist: " << _path << std::endl;
-        client.sendErrorResponse(404, "CGI Script Not Found");
+        client.sendErrorResponse(404, " - CGI Script Not Found");
         return 1;
     }
 
     if (access(_path.c_str(), X_OK) != 0) {
         std::cerr << "Script is not executable: " << _path << std::endl;
-        client.sendErrorResponse(403, "CGI Script Not Executable");
+        client.sendErrorResponse(403, " - CGI Script Not Executable");
         return 1;
     }
 
     if (pipe(_input) < 0 || pipe(_output) < 0) {
         std::cerr << "Pipe creation failed" << std::endl;
-        client.sendErrorResponse(500, "Pipe creation failed");
+        client.sendErrorResponse(500, " - Pipe creation failed");
         return 1;
     }
     return 0;
