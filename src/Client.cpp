@@ -554,6 +554,28 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     return send(_fd, response.c_str(), response.length(), 0);
 }
 
+/*
+void sendHttpError(int error_code, const std::string &msg) {
+    std::string message = "Error " + tostring(error_code);
+    	std::string statusText = getStatusMessage(statusCode);
+    std::ostringstream response;
+
+    response << "HTTP/1.1 " << error_code << " " << message << "\r\n";
+    response << "Content-Type: text/html\r\n";
+    response << "Connection: close\r\n";
+    std::string html_body = "<!DOCTYPE html>"
+                            "<html><head><title>" + message + "</title></head>"
+                            "<body><h1>" + statusText + "</h1>"
+                            "<p>The server encountered an error: " + statusText + " (" + tostring(error_code) + ")</p>"
+                            "</body></html>";
+    response << "Content-Length: " << html_body.size() << "\r\n";
+    response << "\r\n"; // End of headers
+    response << html_body;
+    std::string full_response = response.str();
+    send(_fd, full_response.c_str(), full_response.size(), 0);
+}
+*/
+
 void Client::sendErrorResponse(int statusCode, const std::string& message) {
 	std::string statusText = getStatusMessage(statusCode);
 	(void)message;
