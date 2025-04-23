@@ -6,7 +6,7 @@
 #    By: lbaumeis <lbaumeis@student.42vienna.com    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/11/22 14:29:42 by mgeiger-          #+#    #+#              #
-#    Updated: 2025/04/20 17:54:45 by lbaumeis         ###   ########.fr        #
+#    Updated: 2025/04/23 17:26:45 by lbaumeis         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -32,7 +32,7 @@ FILES	=	main \
 			CGIHandler \
 			ft_split \
 			ft_itoa \
-			Helper
+			Helper \
 
 SRC_DIR = 	src/
 SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))
@@ -60,6 +60,7 @@ clean:
 
 fclean:	clean
 	@$(RM) $(NAME)
+	@rm -rf errorPages/
 	@echo "$(RED)All files cleaned$(RESET)"
 
 re:		fclean all

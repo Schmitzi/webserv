@@ -556,20 +556,48 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
 
 void Client::sendErrorResponse(int statusCode, const std::string& message) {
     // Create a more complete HTTP response with all required headers
-    std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + message + "\r\n";
-    response += "Content-Type: text/plain\r\n";
-    response += "Content-Length: " + tostring(message.length()) + "\r\n";
-    response += "Server: WebServ/1.0\r\n";
-    response += "Connection: close\r\n";
-    response += "\r\n";
-    response += message;  // Add the message as the response body
-    
-    send(_fd, response.c_str(), response.length(), 0);
+    // std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + message + "\r\n";
+    // response += "Content-Type: text/plain\r\n";
+    // response += "Content-Length: " + tostring(message.length()) + "\r\n";
+    // response += "Server: WebServ/1.0\r\n";
+    // response += "Connection: close\r\n";
+    // response += "\r\n";
+    // response += message;  // Add the message as the response body
+    // send(_fd, response.c_str(), response.length(), 0);
+	std::string dir = "errorPages";
+	std::string filePath = dir + "/" + tostring(statusCode) + ".html";
+	struct stat st;
+	if (stat(dir.c_str(), &st) != 0)
+		mkdir(dir.c_str(), 0755);
+	if (access(filePath.c_str(), F_OK) != 0) {
+		std::ofstream out(filePath.c_str());
+		if (!out) return;
+		out << "<!DOCTYPE html>\n"
+			<< "<html>\n<head><title>Error " << statusCode << "</title></head>\n"
+			<< "<body>\n<h1>Error " << statusCode << "</h1>\n"
+			<< "<p>" << message << "</p>\n"
+			<< "<hr>\n<em>WebServ/1.0</em>\n"
+			<< "</body>\n</html>";
+		out.close();
+	}
+	std::ifstream file(filePath.c_str());
+	if (!file) return;
+	std::stringstream buffer;
+	buffer << file.rdbuf();
+	std::string body = buffer.str();
+	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + message + "\r\n";
+	response += "Content-Type: text/html\r\n";
+	response += "Content-Length: " + tostring(body.size()) + "\r\n";
+	response += "Server: WebServ/1.0\r\n";
+	response += "Connection: close\r\n";
+	response += "\r\n";
+	response += body;
+	send(_fd, response.c_str(), response.size(), 0);
 }
 
-void    Client::freeTokens(char **tokens) {
-    for (int i = 0; tokens[i]; i++) {
-        free(tokens[i]);
-    }
-    free(tokens);
-}
+// void    Client::freeTokens(char **tokens) {
+//     for (int i = 0; tokens[i]; i++) {
+//         free(tokens[i]);
+//     }
+//     free(tokens);
+// }
