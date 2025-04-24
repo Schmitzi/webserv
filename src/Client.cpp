@@ -135,7 +135,7 @@ Request Client::parseRequest(char* buffer) {
     } else if (std::string(tokens[0]) == "GET" || std::string(tokens[0]) == "curl") {
         if (!tokens[1].empty()) {
             
-            if (req.formatGet(path) == 1) {
+            if (req.formatGet(path) == 1) {//TODO: formatGet always returns 0?
                 sendErrorResponse(403, "");
                 return req;
             }
@@ -197,7 +197,7 @@ int Client::handleGetRequest(Request& req) {
 
     std::cout << _webserv->getTimeStamp() << "Handling GET request for path: " << req.getPath() << std::endl;
 
-    std::string requestPath = req.getPath();
+    std::string requestPath = req.getPath();//TODO: same as scriptPath?
     if (requestPath == "/" || requestPath.empty()) {
         requestPath = "/index.html";
     }
@@ -251,7 +251,7 @@ int Client::handleGetRequest(Request& req) {
     close(fd);
     
     // Set the body content
-    req.setBody(fileContent + "\r\n");
+    req.setBody(fileContent);// + "\r\n");
 
     // Check for read errors
     if (bytesRead < 0) {
@@ -554,54 +554,49 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     return send(_fd, response.c_str(), response.length(), 0);
 }
 
-/*
-void sendHttpError(int error_code, const std::string &msg) {
-    std::string message = "Error " + tostring(error_code);
-    	std::string statusText = getStatusMessage(statusCode);
-    std::ostringstream response;
+bool Client::send_all(int sockfd, const std::string& data) {
+	size_t total_sent = 0;
+	size_t to_send = data.size();
+	const char* buffer = data.c_str();
 
-    response << "HTTP/1.1 " << error_code << " " << message << "\r\n";
-    response << "Content-Type: text/html\r\n";
-    response << "Connection: close\r\n";
-    std::string html_body = "<!DOCTYPE html>"
-                            "<html><head><title>" + message + "</title></head>"
-                            "<body><h1>" + statusText + "</h1>"
-                            "<p>The server encountered an error: " + statusText + " (" + tostring(error_code) + ")</p>"
-                            "</body></html>";
-    response << "Content-Length: " << html_body.size() << "\r\n";
-    response << "\r\n"; // End of headers
-    response << html_body;
-    std::string full_response = response.str();
-    send(_fd, full_response.c_str(), full_response.size(), 0);
+	while (total_sent < to_send) {
+		ssize_t sent = send(sockfd, buffer + total_sent, to_send - total_sent, 0);
+		if (sent <= 0)
+			return false;
+		total_sent += sent;
+	}
+	return true;
 }
-*/
 
 void Client::sendErrorResponse(int statusCode, const std::string& message) {
-	std::string statusText = getStatusMessage(statusCode);
 	(void)message;
-	// if (!message.empty())
-	// 	statusText += message;//apparantly anything extra in the status text confuses the browser
+	std::string statusText = getStatusMessage(statusCode);
 	std::string dir = "errorPages";
 	std::string filePath = dir + "/" + tostring(statusCode) + ".html";
+	std::string body;
+
 	struct stat st;
 	if (stat(dir.c_str(), &st) != 0)
 		mkdir(dir.c_str(), 0755);
-	if (access(filePath.c_str(), F_OK) != 0) {
-		std::ofstream out(filePath.c_str());
-		if (!out) return;
-		out << "<!DOCTYPE html>\n"
-			<< "<html>\n<head><title>Error " << statusCode << "</title></head>\n"
-			<< "<body>\n<h1>Error " << statusCode << "</h1>\n"
-			<< "<p>" << statusText << "</p>\n"
-			<< "<hr>\n<em>WebServ/1.0</em>\n"
-			<< "</body>\n</html>";
-		out.close();
-	}
 	std::ifstream file(filePath.c_str());
-	if (!file) return;
-	std::stringstream buffer;
-	buffer << file.rdbuf();
-	std::string body = buffer.str();
+	if (file) {
+		std::stringstream buffer;
+		buffer << file.rdbuf();
+		body = buffer.str();
+		file.close();
+	} else {
+		body = "<!DOCTYPE html>\n"
+			"<html>\n<head><title>Error " + tostring(statusCode) + "</title></head>\n"
+			"<body>\n<h1>" + statusText + "</h1>\n"
+			"<p>The server encountered an error: " + statusText + " (" + tostring(statusCode) + ")</p>\n"
+			"<hr>\n<em>WebServ/1.0</em>\n"
+			"</body>\n</html>";
+		std::ofstream out(filePath.c_str());
+		if (out) {
+			out << body;
+			out.close();
+		}
+	}
 	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
 	response += "Content-Type: text/html\r\n";
 	response += "Content-Length: " + tostring(body.size()) + "\r\n";
@@ -609,76 +604,9 @@ void Client::sendErrorResponse(int statusCode, const std::string& message) {
 	response += "Connection: close\r\n";
 	response += "\r\n";
 	response += body;
-	send(_fd, response.c_str(), response.size(), 0);
+	if (!send_all(_fd, response))
+		std::cerr << "Failed to send error response" << std::endl;
 }
-
-/*
-bool send_all(int sockfd, const std::string& data) {
-    size_t total_sent = 0;
-    size_t to_send = data.size();
-    const char* buffer = data.c_str();
-
-    while (total_sent < to_send) {
-        ssize_t sent = send(sockfd, buffer + total_sent, to_send - total_sent, 0);
-        if (sent <= 0) {
-            // You could log or handle specific errno values here
-            return false;
-        }
-        total_sent += sent;
-    }
-    return true;
-}
-
-void Client::sendErrorResponse(int statusCode, const std::string& message) {
-    std::string statusText = getStatusMessage(statusCode);
-    std::string dir = "errorPages";
-    std::string filePath = dir + "/" + tostring(statusCode) + ".html";
-    std::string body;
-
-    // Try to load the error page file
-    struct stat st;
-    if (stat(dir.c_str(), &st) != 0) {
-        mkdir(dir.c_str(), 0755);  // Make directory if missing
-    }
-
-    std::ifstream file(filePath.c_str());
-    if (file) {
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        body = buffer.str();
-        file.close();
-    } else {
-        // Fallback: Generate error page dynamically
-        body = "<!DOCTYPE html>\n"
-               "<html>\n<head><title>Error " + tostring(statusCode) + "</title></head>\n"
-               "<body>\n<h1>" + statusText + "</h1>\n"
-               "<p>The server encountered an error: " + statusText + " (" + tostring(statusCode) + ")</p>\n"
-               "<hr>\n<em>WebServ/1.0</em>\n"
-               "</body>\n</html>";
-        
-        // Save this for future use
-        std::ofstream out(filePath.c_str());
-        if (out) {
-            out << body;
-            out.close();
-        }
-    }
-
-    // Build HTTP response
-    std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
-    response += "Content-Type: text/html\r\n";
-    response += "Content-Length: " + tostring(body.size()) + "\r\n";
-    response += "Server: WebServ/1.0\r\n";
-    response += "Connection: close\r\n";
-    response += "\r\n";
-    response += body;
-
-    // Send safely
-    if (!send_all(_fd, response)) {
-        // Optional: log or handle send failure
-    }
-}
-*/
 
 const std::string Client::getStatusMessage(int code) {
 	for (size_t i = 0; i < sizeof(httpErrors) / sizeof(httpErrors[0]); i++) {

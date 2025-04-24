@@ -92,6 +92,7 @@ class Client {
         int                     handleMultipartPost(Request& req);
         void                    findContentType(Request &req);
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
+		bool					send_all(int sockfd, const std::string& data);
         void                    sendErrorResponse(int statusCode, const std::string& message);
 		const std::string		getStatusMessage(int code);
     private:
