@@ -55,7 +55,7 @@ class ConfigParser {
 		std::string _filepath;
 		std::vector<std::vector<std::string> > _storedConfigs;
 		std::vector<struct serverLevel> _allConfigs;
-		// std::map<int, std::vector<struct serverLevel*> > _serversSortedByPort;
+		std::map<std::pair<std::string, int>, std::vector<struct serverLevel*> > _ipPortToServers;
 
 	public:
 		ConfigParser();
@@ -70,7 +70,7 @@ class ConfigParser {
 		void setServerLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf);
 		void setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf);
 		void parseAndSetConfigs();
-		// void sortByPort(std::vector<struct serverLevel>& confs);
+		void setIpPortToServers();
 
 		//getters
 		std::vector<std::vector<std::string> > getStoredConfigs();
@@ -78,7 +78,6 @@ class ConfigParser {
 
 		//extras
 		void printAllConfigs();
-		// void printSortedServers();
 };
 
 class configException : public std::exception {

@@ -9,16 +9,16 @@
 
 Webserv::Webserv() {  
     _server = new Server();
-    _allConfigs = new ConfigParser();
-	_config = new Config(*_allConfigs);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
-    _config->printConfig();
+    _confParser = new ConfigParser();
+	_config = new Config(*_confParser);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
+    // _config->printConfig();
 	_server->setWebserv(this);
 }
 
 Webserv::Webserv(std::string const &config) {
 	_server = new Server();
-	_allConfigs = new ConfigParser(config);
-	_config = new Config(*_allConfigs);
+	_confParser = new ConfigParser(config);
+	_config = new Config(*_confParser);
 	_server->setWebserv(this);
 }
 
@@ -30,7 +30,7 @@ Webserv::Webserv(Webserv const &other) {
 Webserv &Webserv::operator=(Webserv const &other) {
     if (this != &other) {
 		_server = other._server;
-		_allConfigs = other._allConfigs;
+		_confParser = other._confParser;
 		_config = other._config;
 	}
 	return *this;
@@ -74,8 +74,8 @@ char **Webserv::getEnvironment() const {
 
 int Webserv::setConfig(std::string const filepath) {
     std::cout << getTimeStamp() << "Config found at " << filepath << "\n";
-	_allConfigs = new ConfigParser(filepath);
-	_config = new Config(*_allConfigs);
+	_confParser = new ConfigParser(filepath);
+	_config = new Config(*_confParser);
     return true;
 }
 
@@ -228,3 +228,19 @@ std::string Webserv::getTimeStamp() {
     
     return oss.str();
 }
+
+//TODO: idk, just a try
+// void Webserv::initServers() {
+// 	std::vector<struct serverLevel> confs = _confParser->getAllConfigs();
+// 	for (size_t i = 0; i < confs.size(); i++) {
+// 		Server server;
+// 		std::vector<std::pair<std::string, int> >::iterator it = confs[i].port.begin();
+// 		for (; it != confs[i].port.end(); ++it)
+// 			server.addListenPort(it->first, it->second);
+// 		server.setWebserv(this);
+// 		if (server.openAndListenSockets() != 0)
+// 			return (ft_error("Failed to initialize server"));
+// 		_servers.push_back(server);
+// 	}
+// }
+	

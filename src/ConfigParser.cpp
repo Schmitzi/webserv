@@ -217,8 +217,7 @@ void ConfigParser::parseAndSetConfigs() {
 		setConfigLevels(nextConf, _storedConfigs[i]);
 		_allConfigs.push_back(nextConf);
 	}
-	// sortByPort(_allConfigs);
-	// printSortedServers();
+	setIpPortToServers();
 }
 
 /* *************************************************************************************** */
@@ -243,30 +242,11 @@ void ConfigParser::printAllConfigs() {
 	}
 }
 
-// void ConfigParser::sortByPort(std::vector<struct serverLevel>& confs) {
-// 	for (size_t i = 0; i < confs.size(); ++i) {
-// 		for (size_t j = 0; j < confs[i].port.size(); j++) {
-// 			int portNumber = confs[i].port[j].second;
-// 			_serversSortedByPort[portNumber].push_back(&confs[i]);
-// 		}
-// 	}
-// }
-
-// void ConfigParser::printSortedServers() {
-// 	std::cout << "Servers sorted by port:\n";
-// 	for (std::map<int, std::vector<struct serverLevel*> >::iterator it = _serversSortedByPort.begin(); it != _serversSortedByPort.end(); ++it) {
-// 		int port = it->first;
-// 		std::cout << "Port: " << port << "\n";
-// 		std::cout << "  Server Names: ";
-// 		for (size_t i = 0; i < it->second.size(); ++i) {
-// 			struct serverLevel* serv = it->second[i];
-
-// 			if (serv->servName.empty()) std::cout << "(none)";
-// 			for (size_t j = 0; j < serv->servName.size(); j++) {
-// 				std::cout << serv->servName[j];
-// 				if (j < serv->servName.size() - 1) std::cout << ", ";
-// 			}
-// 		}
-// 		std::cout << "\n______________________\n\n";
-// 	}
-// }
+void ConfigParser::setIpPortToServers() {
+	for (size_t i = 0; i < _allConfigs.size(); ++i) {
+		for (size_t j = 0; j < _allConfigs[i].port.size(); ++j) {
+			std::pair<std::string, int> ipPort = _allConfigs[i].port[j];
+			_ipPortToServers[ipPort].push_back(&_allConfigs[i]);
+		}
+	}
+}

@@ -53,14 +53,15 @@ class Webserv {
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
 		Config&			getConfig() const;
+		// void			initServers();
 
     private:
         Server                  *_server;
         std::vector<Client *>   _clients;
         char                    **_env;
-		ConfigParser			*_allConfigs;
+		ConfigParser			*_confParser;
 		Config					*_config;
-
+		// std::vector<Server> 	_servers;
 
         std::vector<struct pollfd> _pfds;
 

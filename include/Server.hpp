@@ -7,6 +7,7 @@
 #include <cstring>
 #include <iostream>
 #include "Config.hpp"
+// #include <arpa/inet.h>
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -34,13 +35,18 @@ class Server {
         int                 setServerAddr();
         int                 ft_bind();
         int                 ft_listen();
+		// void				addListenPort(const std::string& ip, int port);
+		// std::vector<int>&	getFds();
+		// int					openAndListenSockets();
     private:
-        int                 _fd;
-        struct sockaddr_in  _addr;
-        std::string         _uploadDir;
-        std::string         _webRoot;
-        
-        Webserv             *_webserv;
+        int                 						_fd;
+        struct sockaddr_in  						_addr;
+        std::string         						_uploadDir;
+        std::string         						_webRoot;
+
+        Webserv             						*_webserv;
+		// std::vector<int> 							_fds;
+		// std::vector<std::pair<std::string, int> >	_listenPorts;
 };
 
 #endif
