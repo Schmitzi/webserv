@@ -218,7 +218,7 @@ void ConfigParser::parseAndSetConfigs() {
 		_allConfigs.push_back(nextConf);
 	}
 	setIpPortToServers();
-	printIpPortToServers();
+	// printIpPortToServers();
 }
 
 /* *************************************************************************************** */

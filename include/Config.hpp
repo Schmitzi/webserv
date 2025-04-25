@@ -4,6 +4,7 @@
 #include "ConfigParser.hpp"
 
 class ConfigParser;
+
 class Config {
 	private:
 		Config();

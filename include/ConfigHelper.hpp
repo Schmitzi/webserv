@@ -33,5 +33,6 @@ void checkConfig(struct serverLevel& serv);
 std::vector<std::string> splitIfSemicolon(std::string& configLine);
 void setPort(std::vector<std::string>& s, struct serverLevel& serv);
 void setErrorPages(std::vector<std::string>& s, struct serverLevel& serv);
+struct locationLevel matchLocation(const std::string& uri, const std::map<std::string, struct locationLevel>& locations);
 
 #endif

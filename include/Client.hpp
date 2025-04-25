@@ -8,6 +8,8 @@
 #include "../include/Helper.hpp"
 #include "../include/Request.hpp"
 #include "../include/CGIHandler.hpp"
+#include "../include/ConfigParser.hpp"
+#include "../include/ConfigHelper.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"

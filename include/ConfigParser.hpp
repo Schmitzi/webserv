@@ -15,18 +15,6 @@
 #include "../include/ConfigHelper.hpp"
 #include <algorithm>
 
-/*
-	minimum requirements:
-	server: 
-		-listen
-		-server_name?
-		-root
-		-index
-	location: 
-		-root (default: from server)
-		-index (default: from server)
-*/
-
 struct locationLevel {
 	std::string									rootLoc;//root
 	std::string									indexFile;//index
@@ -42,7 +30,7 @@ struct locationLevel {
 struct serverLevel {
 	std::vector<std::pair<std::string, int> >	port;//listen
 	std::string									rootServ;//root
-	std::string									indexFile;
+	std::string									indexFile;//index
 	std::vector<std::string>					servName;//server_name
 	std::map<std::vector<int>, std::string>		errPages;//error_page
 	std::string									maxRequestSize;//client_max_body_size

@@ -157,7 +157,7 @@ Request Client::parseRequest(char* buffer) {
 }
 
 int Client::processRequest(char *buffer) {
-    Request req = parseRequest(buffer);
+    Request req = parseRequest(buffer);//TODO: maybe use matchLocation(in ConfigHelper)?
     if (req.getMethod() == "BAD") {
         return 1;
     }
@@ -183,7 +183,8 @@ int Client::processRequest(char *buffer) {
 
 int Client::handleGetRequest(Request& req) {
 
-    std::string scriptPath = req.getPath();
+    // std::string scriptPath = matchLocation(req.getPath(), _server->getWebServ().getConfig().getConfig().locations).rootLoc;//TODO: idk what i'm doing, also doesnt work, but i think it should be smth like this? sorry
+	std::string scriptPath = req.getPath();
     std::string fullPath = _server->getWebRoot() + scriptPath;
     
     if (scriptPath.find("../") != std::string::npos) {

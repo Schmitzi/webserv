@@ -175,6 +175,8 @@ void checkIndex(struct serverLevel &serv) {
 }
 
 void checkConfig(struct serverLevel &serv) {
+	if (serv.servName.empty())
+		serv.servName.push_back("");
 	if (serv.maxRequestSize.empty()) {
 		serv.maxRequestSize = "1M";
 		parseClientMaxBodySize(serv);
@@ -182,12 +184,6 @@ void checkConfig(struct serverLevel &serv) {
 	// throw configException("Error: No port specified in config.\n-> server won't bind to any port");
 	checkRoot(serv);
 	checkIndex(serv);
-	// if (serv.servName.empty())
-	// 	throw configException("Error: No server_name specified in config.\n-> Virtual hosting may break / default fallback");
-	// TODO: does every serverLevel need at least one location? (->recommended, but not needed, but maybe needed for out server??)
-	// std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
-	// if (it == serv.locations.end())
-	// 	throw configException("Error: no locations specified.\n-> All URL requests fall back to root config");
 }
 
 std::vector<std::string> splitIfSemicolon(std::string &configLine) {
@@ -242,4 +238,19 @@ void setErrorPages(std::vector<std::string>& s, struct serverLevel &serv) {
 	}
 	if (waitingForPath == true)
 		throw configException("Error: found error status code without path.");
+}
+
+struct locationLevel matchLocation(const std::string& uri, const std::map<std::string, struct locationLevel>& locations) {
+	size_t maxLength = 0;
+	struct locationLevel bestMatch;
+
+	for (std::map<std::string, struct locationLevel>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+		const std::string& rootLoc = it->first;
+		const struct locationLevel& location = it->second;
+		if (uri.find(rootLoc) == 0 && rootLoc.length() > maxLength) {
+			maxLength = rootLoc.length();
+			bestMatch = location;
+		}
+	}
+	return bestMatch;
 }
