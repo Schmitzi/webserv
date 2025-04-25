@@ -212,12 +212,13 @@ void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::st
 }
 
 void ConfigParser::parseAndSetConfigs() {
-	struct serverLevel nextConf;
 	for (size_t i = 0; i < _storedConfigs.size(); i++) {
+		struct serverLevel nextConf;
 		setConfigLevels(nextConf, _storedConfigs[i]);
 		_allConfigs.push_back(nextConf);
 	}
 	setIpPortToServers();
+	printIpPortToServers();
 }
 
 /* *************************************************************************************** */
@@ -246,7 +247,31 @@ void ConfigParser::setIpPortToServers() {
 	for (size_t i = 0; i < _allConfigs.size(); ++i) {
 		for (size_t j = 0; j < _allConfigs[i].port.size(); ++j) {
 			std::pair<std::string, int> ipPort = _allConfigs[i].port[j];
-			_ipPortToServers[ipPort].push_back(&_allConfigs[i]);
+			std::vector<serverLevel*>& servers = _ipPortToServers[ipPort];
+			if (std::find(servers.begin(), servers.end(), &_allConfigs[i]) == servers.end()) {
+				servers.push_back(&_allConfigs[i]);
+			}
 		}
 	}
 }
+
+void ConfigParser::printIpPortToServers() const {
+	for (std::map<std::pair<std::string, int>, std::vector<struct serverLevel*> >::const_iterator it = _ipPortToServers.begin(); it != _ipPortToServers.end(); ++it) {
+		const std::pair<std::string, int>& ipPort = it->first;
+		const std::vector<struct serverLevel*>& servers = it->second;
+
+		std::cout << "IP: " << ipPort.first << ", Port: " << ipPort.second << std::endl;
+		std::cout << "  Associated Servers: " << std::endl;
+
+		for (size_t i = 0; i < servers.size(); ++i) {
+			std::cout << "    - ServerConfig at address: " << servers[i];
+			if (!servers[i]->servName.empty()) {
+				std::cout << " (name: " << servers[i]->servName[0] << ")";
+			}
+			std::cout << std::endl;
+		}
+		std::cout << std::endl;
+	}
+}
+
+

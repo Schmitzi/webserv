@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include "../include/Helper.hpp"
 #include "../include/ConfigHelper.hpp"
+#include <algorithm>
 
 /*
 	minimum requirements:
@@ -78,6 +79,7 @@ class ConfigParser {
 
 		//extras
 		void printAllConfigs();
+		void printIpPortToServers() const;
 };
 
 class configException : public std::exception {
