@@ -9,16 +9,16 @@
 
 Webserv::Webserv() {  
     _server = new Server();
-    _confParser = new ConfigParser();
-	_config = new Config(*_confParser);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
+    _confParser = ConfigParser();
+	_config = Config(_confParser);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
     // _config->printConfig();
 	_server->setWebserv(this);
 }
 
 Webserv::Webserv(std::string const &config) {
 	_server = new Server();
-	_confParser = new ConfigParser(config);
-	_config = new Config(*_confParser);
+	_confParser = ConfigParser(config);
+	_config = Config(_confParser);
 	_server->setWebserv(this);
 }
 
@@ -74,25 +74,24 @@ char **Webserv::getEnvironment() const {
 
 int Webserv::setConfig(std::string const filepath) {
     std::cout << getTimeStamp() << "Config found at " << filepath << "\n";
-	_confParser = new ConfigParser(filepath);
-	_config = new Config(*_confParser);
+	_confParser = ConfigParser(filepath);
+	_config = Config(_confParser);
     return true;
 }
 
 // Add a file descriptor to the poll array
 int Webserv::addToPoll(int fd, short events) {  
-    // Set the socket to non-blocking mode
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1) {
-        ft_error("fcntl F_GETFL failed");
-        return 1;
-    }
+    // Set the socket to non-blocking mode //TODO: already set it to nonblocking in server-openSocket
+    // int flags = fcntl(fd, F_GETFL, 0);
+    // if (flags == -1) {
+    //     ft_error("fcntl F_GETFL failed");
+    //     return 1;
+    // }
     
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-        ft_error("fcntl F_SETFL O_NONBLOCK failed");
-        return 1;
-    }
-    
+    // if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+    //     ft_error("fcntl F_SETFL O_NONBLOCK failed");
+    //     return 1;
+    // }
     // Add to poll array
     struct pollfd temp;
     temp.fd = fd;
@@ -112,8 +111,8 @@ void Webserv::removeFromPoll(size_t index) {
     _pfds.erase(_pfds.begin() + index);
 }
 
-Config& Webserv::getConfig() const {
-	return *_config;
+Config Webserv::getConfig() const {
+	return _config;
 }
 
 int Webserv::run() {
@@ -123,7 +122,7 @@ int Webserv::run() {
         return 1;
     }
 	
-	int port = _config->getPort();
+	int port = _config.getPort();
 	if (port == -1)
 		std::cerr << "No port found in config..\n";
 	else {

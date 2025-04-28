@@ -19,7 +19,9 @@
 #include <signal.h>
 #include <map>
 #include <string>
-#include "../include/Helper.hpp"
+#include "Helper.hpp"
+#include "Config.hpp"
+#include "ConfigParser.hpp"
 
 class Server;
 class Client;
@@ -52,15 +54,15 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-		Config&			getConfig() const;
+		Config			getConfig() const;
 		// void			initServers();
 
     private:
         Server                  *_server;
         std::vector<Client *>   _clients;
         char                    **_env;
-		ConfigParser			*_confParser;
-		Config					*_config;
+		ConfigParser			_confParser;
+		Config					_config;
 		// std::vector<Server> 	_servers;
 
         std::vector<struct pollfd> _pfds;

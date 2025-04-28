@@ -7,8 +7,8 @@
 #include <cstdlib>
 #include <fcntl.h>
 #include <cerrno>
-#include "../include/Request.hpp"
-#include "../include/Helper.hpp"
+#include "Request.hpp"
+#include "Helper.hpp"
 
 class Client;
 

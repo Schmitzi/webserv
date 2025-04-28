@@ -46,7 +46,7 @@ void    Server::setFd(int const fd) {
 }
 
 int Server::openSocket() { // Create a TCP socket
-    _fd = socket(AF_INET, SOCK_STREAM, 0);
+    _fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);//TODO: added SOCK_NONBLOCK because we shouldnt use fcntl
     if (_fd < 0) {
         _webserv->ft_error("Socket creation error");
         return 1;
@@ -69,7 +69,6 @@ int Server::setServerAddr() { // Set up server address
     memset(&_addr, 0, sizeof(_addr));
     _addr.sin_family = AF_INET;          // IPv4 Internet Protocol
     _addr.sin_addr.s_addr = INADDR_ANY;  // Accept connections on any interface
-    // _addr.sin_port = htons(8080);        // Port 8080 (pull port from config)
 	_addr.sin_port = htons(getWebServ().getConfig().getPort());
     return 0;
 }
@@ -100,7 +99,7 @@ int Server::ft_listen() { // Listen for connections
 // 		int port = it->second;
 
 // 		// Create the socket
-// 		int listenFd = socket(AF_INET, SOCK_STREAM, 0);
+// 		int listenFd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 // 		if (listenFd < 0) {
 // 			_webserv->ft_error("Socket creation error");
 // 			return 1;

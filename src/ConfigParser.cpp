@@ -25,6 +25,7 @@ ConfigParser &ConfigParser::operator=(const ConfigParser& copy) {
 		_filepath = copy._filepath;
 		_storedConfigs = copy._storedConfigs;
 		_allConfigs = copy._allConfigs;
+		_ipPortToServers = copy._ipPortToServers;
 	}
 	return (*this);
 }
@@ -38,10 +39,8 @@ void ConfigParser::storeConfigs() {
 	int configNum;
 
 	std::ifstream file(_filepath.c_str());
-	if (!file.is_open() || !file.good()) {
-		std::cerr << "Invalid or empty config file." << std::endl;
-		return ;
-	}
+	if (!file.is_open() || !file.good())
+		throw configException("Error: Invalid or empty config file.");
 	std::string line;
 	configNum = -1;
 	while (std::getline(file, line)) {
@@ -61,112 +60,49 @@ void ConfigParser::storeConfigs() {
 				goto nextConfig;
 		}
 	}
-	// printAllConfigs();
 }
 
-void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string> &s, struct serverLevel &serv, std::vector<std::string> &conf) {
+void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, struct serverLevel &serv, std::vector<std::string> &conf) {
 	struct locationLevel loc;
-
-	loc.autoindex = false;
-	loc.autoindexFound = false;
-	std::string locName;
-	for (size_t x = 1; x < s.size() && s[x] != "{"; x++)
-		locName += " " + s[x];
+	initLocLevel(s, loc);
 	while (i < conf.size()) {
-		if (conf[i].find("}") != std::string::npos)
-			break ;
+		if (conf[i].find("}") != std::string::npos) break;
 		else if (!whiteLine(conf[i])) {
 			s = splitIfSemicolon(conf[i]);
-			if (s[0] == "root") {
-				if (!s[1].empty() && !isValidDir(s[1]))
-					throw configException("Error: invalid directory path -> " + s[0] + s[1]);
-				loc.rootLoc = s[1];
-			}
-			else if (s[0] == "index") {
-				if (!isValidIndexFile(s[1]))
-					throw configException("Error: invalid path -> " + s[0] + s[1]);
-				loc.indexFile = s[1];
-			}
-			else if (s[0] == "methods") {
-				for (size_t m = 1; m < s.size(); m++) {
-					if (s[m] != "GET" && s[m] != "DELETE" && s[m] != "POST")
-						throw configException("Error: Invalid method found: " + s[m]);
-					loc.methods.push_back(s[m]);
-				}
-			}
-			else if (s[0] == "autoindex") {
-				loc.autoindexFound = true;
-				if (s[1] == "on")
-					loc.autoindex = true;
-			}
-			else if (s[0] == "redirect") {
-				if (!isValidRedirectPath(s[1]))
-					throw configException("Error: invalid path -> " + s[0] + s[1]);
-				loc.redirectionHTTP = s[1];
-			}
-			else if (s[0] == "cgi_pass") {
-				if (!isValidDir(s[1]))
-					throw configException("Error: invalid directory path -> " + s[0] + s[1]);
-				loc.cgiProcessorPath = s[1];
-			}
-			else if (s[0] == "upload_store") {
-				if (!isValidDir(s[1]))
-					throw configException("Error: invalid directory path -> " + s[0] + s[1]);
-				loc.uploadDirPath = s[1];
-			}
+			if (s[0] == "root") setRootLoc(loc, s);
+			else if (s[0] == "index") setLocIndexFile(loc, s);
+			else if (s[0] == "methods") setMethods(loc, s);
+			else if (s[0] == "autoindex") setAutoindex(loc, s);
+			else if (s[0] == "redirect") setRedirection(loc, s);
+			else if (s[0] == "cgi_pass") setCgiProcessorPath(loc, s);
+			else if (s[0] == "upload_store") setUploadDirPath(loc, s);
 		}
 		i++;
 	}
 	if (conf[i].find("}") == std::string::npos)
 		throw configException("Error: no closing bracket found for location.");
-	if (loc.methods.empty()) {
-		loc.methods.push_back("GET");
-		loc.methods.push_back("POST");
-		loc.methods.push_back("DELETE");
-	}
-	serv.locations.insert(std::pair<std::string, struct locationLevel>(locName, loc));
+	checkMethods(loc);
+	serv.locations.insert(std::pair<std::string, struct locationLevel>(loc.locName, loc));
 }
 
 void ConfigParser::setServerLevel(size_t &i, std::vector<std::string> &s, struct serverLevel &serv, std::vector<std::string> &conf) {
 	while (i < conf.size() && conf[i].find("}") == std::string::npos) {
 		if (conf[i].find("location ") != std::string::npos) {
 			i--;
-			return ;
+			return;
 		}
 		if (!whiteLine(conf[i])) {
 			s = splitIfSemicolon(conf[i]);
-			if (s[0] == "listen")
-				setPort(s, serv);
-			else if (s[0] == "root") {
-				if (!isValidDir(s[1]))
-					throw configException("Error: invalid directory path -> " + s[0] + s[1]);
-				serv.rootServ = s[1];
-			}
-			else if (s[0] == "index") {
-				if (!isValidIndexFile(s[1]))
-					throw configException("Error: invalid path -> " + s[0] + s[1]);
-				serv.indexFile = s[1];
-			}
-			else if (s[0] == "server_name") {
-				if (!isValidName(s[1]))
-					serv.servName[0] = "";	
-				// throw configException("Error: invalid " + s[0] + " -> " + s[1]);
-				else {
-					for (size_t j = 1; j < s.size(); j++)
-						serv.servName.push_back(s[j]);
-				}
-			}
-			else if (s[0] == "error_page")
-				setErrorPages(s, serv);
-			else if (s[0] == "client_max_body_size" && !s[1].empty()) {
-				serv.maxRequestSize = s[1];
-				parseClientMaxBodySize(serv);
-			}
+			if (s[0] == "listen") setPort(s, serv);
+			else if (s[0] == "root") setRootServ(serv, s);
+			else if (s[0] == "index") setServIndexFile(serv, s);
+			else if (s[0] == "server_name") setServName(serv, s);
+			else if (s[0] == "error_page") setErrorPages(s, serv);
+			else if (s[0] == "client_max_body_size") setMaxRequestSize(serv, s);
 		}
 		i++;
 	}
-	if (conf[i].find("}") != std::string::npos)
-		i--;
+	if (conf[i].find("}") != std::string::npos) i--;
 }
 
 void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf) {
@@ -181,28 +117,11 @@ void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::st
 			s = split(conf[i]);
 			if (s.back() == "{") {
 				i++;
-				if (s[0] == "server") {
-					if (s.size() != 2)
-						throw configException("Error: invalid server declaration.");
-					if (s.back() != "{")
-						throw configException("Error: No opening bracket found for server.");
-					setServerLevel(i, s, serv, conf);
-				}
-				else if (s[0] == "location") {
-					if (s.back() != "{")
-						throw configException("Error: No opening bracket found for location.");
-					setLocationLevel(i, s, serv, conf);
-				}
-				else
-					throw configException("Error: something invalid in config.");
+				if (foundServer(s)) setServerLevel(i, s, serv, conf);
+				else if (foundLocation(s)) setLocationLevel(i, s, serv, conf);
+				else throw configException("Error: something invalid in config.");
 			}
-			else if (s.back() == "}") {
-				if (s.size() != 1)
-					throw configException("Error: invalid closing bracket in config.");
-				if (bracket == true)
-					throw configException("Error: Too many closing brackets found.");
-				bracket = true;
-			}
+			else if (s.back() == "}") checkBracket(s, bracket);
 		}
 		i++;
 	}

@@ -7,10 +7,10 @@ class ConfigParser;
 
 class Config {
 	private:
-		Config();
 		struct serverLevel _config;
-
+	
     public:
+		Config();
 		Config(ConfigParser confs, size_t nbr = 0);
 		Config(const Config& copy);
 		Config &operator=(const Config& copy);

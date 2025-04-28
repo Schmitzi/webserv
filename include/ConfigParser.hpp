@@ -11,15 +11,16 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include "../include/Helper.hpp"
-#include "../include/ConfigHelper.hpp"
+#include "Helper.hpp"
+#include "ConfigHelper.hpp"
 #include <algorithm>
 
 struct locationLevel {
+	std::string									locName;//location
 	std::string									rootLoc;//root
 	std::string									indexFile;//index
 	std::vector<std::string>					methods;//methods
-	bool										autoindexFound;
+	bool										autoindexFound;//TODO: can be deleted, just for printing in config.cpp
 	bool										autoindex;//autoindex
 	std::string									redirectionHTTP;//redirect
 	std::string									cgiProcessorPath;//cgi_pass
@@ -35,7 +36,6 @@ struct serverLevel {
 	std::map<std::vector<int>, std::string>		errPages;//error_page
 	std::string									maxRequestSize;//client_max_body_size
 	size_t										requestLimit;//converted maxRequestSize
-	// data_directory?
 	std::map<std::string, struct locationLevel>	locations;//location
 };
 
