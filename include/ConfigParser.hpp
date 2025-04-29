@@ -10,10 +10,9 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <stdlib.h>
+#include <algorithm>
 #include "Helper.hpp"
 #include "ConfigHelper.hpp"
-#include <algorithm>
 
 struct locationLevel {
 	std::string									locName;//location
@@ -25,7 +24,6 @@ struct locationLevel {
 	std::string									redirectionHTTP;//redirect
 	std::string									cgiProcessorPath;//cgi_pass
 	std::string									uploadDirPath;//upload_store
-	//return(=redirect?), limit_except(=methods?)
 };
 
 struct serverLevel {
@@ -58,8 +56,8 @@ class ConfigParser {
 		void setLocationLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf);
 		void setServerLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf);
 		void setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf);
-		void parseAndSetConfigs();
 		void setIpPortToServers();
+		void parseAndSetConfigs();
 
 		//getters
 		std::vector<std::vector<std::string> > getStoredConfigs();

@@ -6,7 +6,7 @@
 #    By: lbaumeis <lbaumeis@student.42vienna.com    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/11/22 14:29:42 by mgeiger-          #+#    #+#              #
-#    Updated: 2025/04/28 16:49:38 by lbaumeis         ###   ########.fr        #
+#    Updated: 2025/04/29 15:05:15 by lbaumeis         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -26,6 +26,8 @@ FILES	=	main \
 			Config \
 			ConfigHelper \
 			ConfigParser \
+			ConfigValidator \
+			ErrorResponse \
 			Server \
 			Client \
 			Request \

@@ -46,6 +46,14 @@ void Client::setServer(Server *server) {
     _server = server;
 }
 
+Webserv &Client::getWebserv() {
+	return *_webserv;
+}
+
+Server &Client::getServer() {
+	return *_server;
+}
+
 int Client::acceptConnection() {
     _addrLen = sizeof(_addr);
     _fd = accept(_server->getFd(), (struct sockaddr *)&_addr, &_addrLen);
@@ -571,33 +579,10 @@ bool Client::send_all(int sockfd, const std::string& data) {
 
 void Client::sendErrorResponse(int statusCode, const std::string& message) {
 	(void)message;
-	std::string statusText = getStatusMessage(statusCode);
-	std::string dir = "errorPages";
-	std::string filePath = dir + "/" + tostring(statusCode) + ".html";
 	std::string body;
-
-	struct stat st;
-	if (stat(dir.c_str(), &st) != 0)
-		mkdir(dir.c_str(), 0755);
-	std::ifstream file(filePath.c_str());
-	if (file) {
-		std::stringstream buffer;
-		buffer << file.rdbuf();
-		body = buffer.str();
-		file.close();
-	} else {
-		body = "<!DOCTYPE html>\n"
-			"<html>\n<head><title>Error " + tostring(statusCode) + "</title></head>\n"
-			"<body>\n<h1>" + statusText + "</h1>\n"
-			"<p>The server encountered an error: " + statusText + " (" + tostring(statusCode) + ")</p>\n"
-			"<hr>\n<em>WebServ/1.0</em>\n"
-			"</body>\n</html>";
-		std::ofstream out(filePath.c_str());
-		if (out) {
-			out << body;
-			out.close();
-		}
-	}
+	std::string statusText = getStatusMessage(statusCode);
+	Webserv &webserv = getWebserv();
+	resolveErrorResponse(statusCode, webserv, statusText, body);
 	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
 	response += "Content-Type: text/html\r\n";
 	response += "Content-Length: " + tostring(body.size()) + "\r\n";
@@ -609,10 +594,4 @@ void Client::sendErrorResponse(int statusCode, const std::string& message) {
 		std::cerr << "Failed to send error response" << std::endl;
 }
 
-const std::string Client::getStatusMessage(int code) {
-	for (size_t i = 0; i < sizeof(httpErrors) / sizeof(httpErrors[0]); i++) {
-		if (httpErrors[i].code == code)
-			return httpErrors[i].message;
-	}
-	return "Unknown Status Code";
-}
+

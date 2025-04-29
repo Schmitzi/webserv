@@ -130,6 +130,18 @@ void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::st
 	checkConfig(serv);
 }
 
+void ConfigParser::setIpPortToServers() {
+	for (size_t i = 0; i < _allConfigs.size(); ++i) {
+		for (size_t j = 0; j < _allConfigs[i].port.size(); ++j) {
+			std::pair<std::string, int> ipPort = _allConfigs[i].port[j];
+			std::vector<serverLevel*>& servers = _ipPortToServers[ipPort];
+			if (std::find(servers.begin(), servers.end(), &_allConfigs[i]) == servers.end()) {
+				servers.push_back(&_allConfigs[i]);
+			}
+		}
+	}
+}
+
 void ConfigParser::parseAndSetConfigs() {
 	for (size_t i = 0; i < _storedConfigs.size(); i++) {
 		struct serverLevel nextConf;
@@ -159,18 +171,6 @@ void ConfigParser::printAllConfigs() {
 		std::cout << "config[" << i << "]\n";
 		for (size_t j = 0; j < _storedConfigs[i].size(); j++)
 			std::cout << _storedConfigs[i][j] << std::endl;
-	}
-}
-
-void ConfigParser::setIpPortToServers() {
-	for (size_t i = 0; i < _allConfigs.size(); ++i) {
-		for (size_t j = 0; j < _allConfigs[i].port.size(); ++j) {
-			std::pair<std::string, int> ipPort = _allConfigs[i].port[j];
-			std::vector<serverLevel*>& servers = _ipPortToServers[ipPort];
-			if (std::find(servers.begin(), servers.end(), &_allConfigs[i]) == servers.end()) {
-				servers.push_back(&_allConfigs[i]);
-			}
-		}
 	}
 }
 
