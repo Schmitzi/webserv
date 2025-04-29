@@ -7,25 +7,30 @@ const struct locationLevel* matchLocation(const std::string& uri, const struct s
 	std::map<std::string, struct locationLevel>::const_iterator it = serv.locations.begin();
 	for (; it != serv.locations.end(); ++it) {
 		const struct locationLevel& loc = it->second;
-		if (uri.find(loc.locName) == 0 && loc.locName.size() > longestMatch) {
+		if (uri.find(loc.rootLoc) == 0 && loc.rootLoc.size() > longestMatch) {
 			bestMatch = &loc;
-			longestMatch = loc.locName.size();
+			longestMatch = loc.rootLoc.size();
 		}
 	}
 	return bestMatch;
 }
 
-
 std::string resolveFilePathFromUri(const std::string& uri, const struct serverLevel& serv) {
 	const struct locationLevel* loc = matchLocation(uri, serv);
-	if (!loc)
-		return "/" + uri;
+	if (!loc) {
+		std::cout << "Location not found for URI: " << uri << std::endl;
+		if (uri[0] == '/')
+			return uri;
+		else
+			return "/" + uri;
+	}
 	std::string root = loc->rootLoc;
 	std::string locationPath = loc->locName;
 	std::string relativeUri = uri.substr(locationPath.size());
-	if (!root.empty() && root[root.size() - 1] == '/' && !relativeUri.empty() && relativeUri[0] == '/') {
+	if (!root.empty() && root[root.size() - 1] == '/')
+		root = root.substr(0, root.size() - 1);
+	if (!relativeUri.empty() && relativeUri[0] == '/')
 		relativeUri = relativeUri.substr(1);
-	}
 	return root + "/" + relativeUri;
 }
 
@@ -42,9 +47,10 @@ void resolveErrorResponse(int statusCode, Webserv& webserv, std::string& statusT
 	std::string dir = "errorPages";
 	std::map<std::vector<int>, std::string> errorPages = webserv.getConfig().getConfig().errPages;
 	std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
-	for (; it != errorPages.end(); ++it) {
+	while (it != errorPages.end()) {
 		if (it->first[0] == statusCode)
 			break;
+		++it;
 	}
 	std::string filePath;
 	if (it != errorPages.end()) {

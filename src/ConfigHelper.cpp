@@ -123,13 +123,13 @@ void checkBracket(std::vector<std::string>& s, bool& bracket) {
 
 void setRootLoc(struct locationLevel& loc, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidDir(s[1]))
-		throw configException("Error: invalid directory path -> " + s[0] + s[1]);
+		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
 	loc.rootLoc = s[1];
 }
 
 void setLocIndexFile(struct locationLevel& loc, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidIndexFile(s[1]))
-		throw configException("Error: invalid path -> " + s[0] + s[1]);
+		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
 	loc.indexFile = s[1];
 }
 

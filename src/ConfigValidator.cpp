@@ -162,6 +162,9 @@ void checkMethods(struct locationLevel& loc) {
 void initLocLevel(std::vector<std::string>& s, struct locationLevel& loc) {
 	loc.autoindex = false;
 	loc.autoindexFound = false;
-	for (size_t x = 1; x < s.size() && s[x] != "{"; x++)
-		loc.locName += " " + s[x];
+	for (size_t x = 1; x < s.size() && s[x] != "{"; x++) {
+		loc.locName += s[x];
+		if (x < s.size() - 1 && s[x + 1] != "{")
+			loc.locName += " ";
+	}
 }
