@@ -30,7 +30,7 @@ int Config::getPort() {//TODO: do this correctly
 	return _config.port[0].second;
 }
 
-struct serverLevel Config::getConfig() {
+serverLevel Config::getConfig() {
 	return _config;
 }
 
@@ -74,7 +74,7 @@ void Config::printConfig() {//only temporary, for debugging
 	}
 	if (!_config.maxRequestSize.empty())
 		std::cout << "\tclient_max_body_size: " << _config.maxRequestSize << std::endl << std::endl;
-	std::map<std::string, struct locationLevel>::iterator its = _config.locations.begin();
+	std::map<std::string, locationLevel>::iterator its = _config.locations.begin();
 	while (its != _config.locations.end()) {
 		std::cout << "\tlocation " << its->first << " {" << std::endl;
 		if (!its->second.rootLoc.empty())

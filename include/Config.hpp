@@ -7,7 +7,7 @@ class ConfigParser;
 
 class Config {
 	private:
-		struct serverLevel _config;
+		serverLevel _config;
 	
     public:
 		Config();
@@ -18,7 +18,7 @@ class Config {
 		
 		//getters
 		int getPort();
-		struct serverLevel getConfig();
+		serverLevel getConfig();
 		
 		//extras
 		void printConfig();

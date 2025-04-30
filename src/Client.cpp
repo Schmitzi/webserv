@@ -122,7 +122,7 @@ Request Client::parseRequest(char* buffer) {
     std::vector<std::string> tokens = split(buffer);
     
     if (tokens.empty()) {
-        sendErrorResponse(400, "");
+        sendErrorResponse(400);//, "");
         return req;
     }
     std::string path = "/";
@@ -138,20 +138,20 @@ Request Client::parseRequest(char* buffer) {
         if (!tokens[1].empty()) {
             req.formatDelete(path);
         } else {
-            sendErrorResponse(400, " - Missing path");
+            sendErrorResponse(400);//, " - Missing path");
         }
     } else if (std::string(tokens[0]) == "GET" || std::string(tokens[0]) == "curl") {
         if (!tokens[1].empty()) {
             
             if (req.formatGet(path) == 1) {//TODO: formatGet always returns 0?
-                sendErrorResponse(403, "");
+                sendErrorResponse(403);//, "");
                 return req;
             }
         } else {
             req.formatGet("/index.html");
         }
     } else {
-        sendErrorResponse(403, "");
+        sendErrorResponse(403);//, "");
         std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd << ": 403 Bad request\n" << RESET;//TODO: 400 is bad request, 403 is forbidden
         req.setMethod("BAD");
         return req;
@@ -165,7 +165,7 @@ Request Client::parseRequest(char* buffer) {
 }
 
 int Client::processRequest(char *buffer) {
-    Request req = parseRequest(buffer);//TODO: maybe use matchLocation(in ConfigHelper)?
+    Request req = parseRequest(buffer);
     if (req.getMethod() == "BAD") {
         return 1;
     }
@@ -184,19 +184,18 @@ int Client::processRequest(char *buffer) {
     } else if (req.getMethod() == "DELETE") {
         return handleDeleteRequest(req);
     } else {
-        sendErrorResponse(405, "");
+        sendErrorResponse(405);//, "");
         return 1;
     }
 }
 
 int Client::handleGetRequest(Request& req) {
 
-    // std::string scriptPath = matchLocation(req.getPath(), _server->getWebServ().getConfig().getConfig().locations).rootLoc;//TODO: idk what i'm doing, also doesnt work, but i think it should be smth like this? sorry
 	std::string scriptPath = req.getPath();
     std::string fullPath = _server->getWebRoot() + scriptPath;
     
     if (scriptPath.find("../") != std::string::npos) {
-        sendErrorResponse(403, "");
+        sendErrorResponse(403);//, "");
         return 1;
     }
 
@@ -226,14 +225,14 @@ int Client::handleGetRequest(Request& req) {
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
         std::cout << _webserv->getTimeStamp() << "File not found: " << fullPath << "\n";
-        sendErrorResponse(404, "");
+        sendErrorResponse(404);//, "");
         return 1;
     }
 
 
     if (!S_ISREG(fileStat.st_mode)) {
         std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
-        sendErrorResponse(403, "");
+        sendErrorResponse(403);//, "");
         return 1;
     }
 
@@ -241,7 +240,7 @@ int Client::handleGetRequest(Request& req) {
     int fd = open(fullPath.c_str(), O_RDONLY);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file: " << fullPath << std::endl;
-        sendErrorResponse(500, "");
+        sendErrorResponse(500);//, "");
         return 1;
     }
 
@@ -253,10 +252,16 @@ int Client::handleGetRequest(Request& req) {
     ssize_t bytesRead;
     std::string fileContent;
     
-    while ((bytesRead = read(fd, buffer, sizeof(buffer) - 1)) > 0) {
+    while ((bytesRead = read(fd, buffer, sizeof(buffer) - 1)) > 0) {// && //TODO: does this check work here?
+		//    fileContent.length() < getWebserv().getConfig().getConfig().requestLimit) {
         buffer[bytesRead] = '\0';
         fileContent += buffer;
     }
+	// if (fileContent.length() >= getWebserv().getConfig().getConfig().requestLimit) {
+    //     sendErrorResponse(413);//, "");//Payload Too Large
+    //     return 1;
+	// }
+    
     close(fd);
     
     // Set the body content
@@ -265,7 +270,7 @@ int Client::handleGetRequest(Request& req) {
     // Check for read errors
     if (bytesRead < 0) {
         std::cout << "Error reading file: " << fullPath << std::endl;
-        sendErrorResponse(500, "");
+        sendErrorResponse(500);//, "");
         return 1;
     }
 
@@ -297,7 +302,7 @@ int Client::handlePostRequest(Request& req) {
     }
 
     if (req.getPath().find("../") != std::string::npos) {
-        sendErrorResponse(403, "");
+        sendErrorResponse(403);//, "");
         return 1;
     }
 
@@ -306,7 +311,7 @@ int Client::handlePostRequest(Request& req) {
     int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file for writing: " << uploadPath << std::endl;
-        sendErrorResponse(500, "");
+        sendErrorResponse(500);//, "");
         return 1;
     }
 
@@ -318,7 +323,7 @@ int Client::handlePostRequest(Request& req) {
 
     if (bytesWritten < 0) {
         std::cout << "Failed to write to file" << "\n";
-        sendErrorResponse(500, "");
+        sendErrorResponse(500);//, "");
         return 1;
     }
 
@@ -341,7 +346,7 @@ int Client::handleDeleteRequest(Request& req) {
     }
 
     if (unlink(fullPath.c_str()) != 0) {
-        sendErrorResponse(403, "");
+        sendErrorResponse(403);//, "");
         return 1;
     }
 
@@ -355,7 +360,7 @@ int Client::handleMultipartPost(Request& req) {
     
     if (boundary.empty()) {
         std::cout << "Error: No boundary found for multipart/form-data request" << std::endl;
-        sendErrorResponse(400, " - No Boundary");
+        sendErrorResponse(400);//, " - No Boundary");
         return 1;
     }
     
@@ -368,7 +373,7 @@ int Client::handleMultipartPost(Request& req) {
     size_t boundaryPos = raw.find(fullBoundary);
     if (boundaryPos == std::string::npos) {
         std::cout << "Error: Boundary not found in request body" << std::endl;
-        sendErrorResponse(400, " - Invalid Format");
+        sendErrorResponse(400);//, " - Invalid Format");
         return 1;
     }
     
@@ -376,7 +381,7 @@ int Client::handleMultipartPost(Request& req) {
     size_t dispositionPos = raw.find("Content-Disposition:", boundaryPos);
     if (dispositionPos == std::string::npos) {
         std::cout << "Error: Content-Disposition not found" << std::endl;
-        sendErrorResponse(400, " - Invalid Format");
+        sendErrorResponse(400);//, " - Invalid Format");
         return 1;
     }
     
@@ -384,7 +389,7 @@ int Client::handleMultipartPost(Request& req) {
     size_t filenamePos = raw.find("filename=\"", dispositionPos);
     if (filenamePos == std::string::npos) {
         std::cout << "Error: Filename not found in Content-Disposition" << std::endl;
-        sendErrorResponse(400, " - No Filename");
+        sendErrorResponse(400);//, " - No Filename");
         return 1;
     }
     
@@ -392,7 +397,7 @@ int Client::handleMultipartPost(Request& req) {
     size_t filenameEnd = raw.find("\"", filenamePos);
     if (filenameEnd == std::string::npos) {
         std::cout << "Error: Invalid filename format" << std::endl;
-        sendErrorResponse(400, " - Invalid Format");
+        sendErrorResponse(400);//, " - Invalid Format");
         return 1;
     }
     
@@ -405,7 +410,7 @@ int Client::handleMultipartPost(Request& req) {
         headersEnd = raw.find("\n\n", filenameEnd);
         if (headersEnd == std::string::npos) {
             std::cout << "Error: Headers end not found" << std::endl;
-            sendErrorResponse(400, " - Invalid Format");
+            sendErrorResponse(400);//, " - Invalid Format");
             return 1;
         }
         headersEnd += 2; // Skip \n\n
@@ -417,7 +422,7 @@ int Client::handleMultipartPost(Request& req) {
     size_t contentEnd = raw.find(fullBoundary, headersEnd);
     if (contentEnd == std::string::npos) {
         std::cout << "Error: End boundary not found" << std::endl;
-        sendErrorResponse(400, " - Invalid Format");
+        sendErrorResponse(400);//, " - Invalid Format");
         return 1;
     }
     
@@ -433,7 +438,6 @@ int Client::handleMultipartPost(Request& req) {
             break;
         }
     }
-    
     std::cout << "Extracted file content: [" << fileContent << "]" << std::endl;
     
     // Create upload directory if it doesn't exist
@@ -441,7 +445,7 @@ int Client::handleMultipartPost(Request& req) {
     if (stat(_server->getUploadDir().c_str(), &st) != 0) {
         if (mkdir(_server->getUploadDir().c_str(), 0755) != 0) {
             std::cout << "Error: Failed to create upload directory" << std::endl;
-            sendErrorResponse(500, "");
+            sendErrorResponse(500);//, "");
             return 1;
         }
     }
@@ -452,7 +456,7 @@ int Client::handleMultipartPost(Request& req) {
     if (fd < 0) {
         std::cout << "Error: Failed to open file for writing: " << uploadPath << std::endl;
         std::cout << "Error details: " << strerror(errno) << std::endl;
-        sendErrorResponse(500, "");
+        sendErrorResponse(500);//, "");
         return 1;
     }
     
@@ -463,7 +467,7 @@ int Client::handleMultipartPost(Request& req) {
     
     if (bytesWritten < 0) {
         std::cout << "Error: Failed to write to file: " << strerror(errno) << std::endl;
-        sendErrorResponse(500, "");
+        sendErrorResponse(500);//, "");
         return 1;
     }
     
@@ -537,8 +541,11 @@ void Client::findContentType(Request& req) {
     }
 }
 
-ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
-    std::string response = "HTTP/1.1 200 OK\r\n";
+ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {//TODO: get actual statuscode?
+    int statusCode = 200;
+	std::string statusText = getStatusMessage(statusCode);
+	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+	// std::string response = "HTTP/1.1 200 OK\r\n";
     
     // Get proper content type based on file extension
     std::string contentType = req.getContentType();
@@ -577,8 +584,7 @@ bool Client::send_all(int sockfd, const std::string& data) {
 	return true;
 }
 
-void Client::sendErrorResponse(int statusCode, const std::string& message) {
-	(void)message;
+void Client::sendErrorResponse(int statusCode) {
 	std::string body;
 	std::string statusText = getStatusMessage(statusCode);
 	Webserv &webserv = getWebserv();

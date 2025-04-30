@@ -80,7 +80,7 @@ bool isValidIndexFile(const std::string &indexFile) {
 	return ext == ".html"; // TODO: maybe add more extension checks?
 }
 
-void parseClientMaxBodySize(struct serverLevel &serv) {
+void parseClientMaxBodySize(serverLevel &serv) {
 	size_t multiplier;
 	char unit;
 	size_t num;
@@ -108,10 +108,10 @@ void parseClientMaxBodySize(struct serverLevel &serv) {
 	serv.requestLimit = num * multiplier;
 }
 
-void checkRoot(struct serverLevel &serv) {
+void checkRoot(serverLevel &serv) {
 	if (serv.rootServ.empty()) {
 		serv.rootServ = "./www";//TODO: should this be the default?
-		std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
+		std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 		while (it != serv.locations.end()) {
 			if (it->second.rootLoc.empty())
 				it->second.rootLoc = serv.rootServ;//take default value from server if not specified
@@ -120,9 +120,9 @@ void checkRoot(struct serverLevel &serv) {
 	}
 }
 
-void checkIndex(struct serverLevel &serv) {
+void checkIndex(serverLevel &serv) {
 	if (serv.indexFile.empty()) {
-		std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
+		std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 		while (it != serv.locations.end()) {
 			if (it->second.indexFile.empty())
 				throw configException("Error: No default index for server and locations specified.\n-> Requests to / may return 403 or 404");
@@ -130,7 +130,7 @@ void checkIndex(struct serverLevel &serv) {
 		}
 	}
 	else if (!serv.indexFile.empty()) {
-		std::map<std::string, struct locationLevel>::iterator it = serv.locations.begin();
+		std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 		while (it != serv.locations.end()) {
 			if (it->second.indexFile.empty())
 				it->second.indexFile = serv.indexFile;//take default value from server if not specified
@@ -139,7 +139,7 @@ void checkIndex(struct serverLevel &serv) {
 	}
 }
 
-void checkConfig(struct serverLevel &serv) {
+void checkConfig(serverLevel &serv) {
 	if (serv.servName.empty())
 		serv.servName.push_back("");
 	if (serv.maxRequestSize.empty()) {
@@ -151,7 +151,7 @@ void checkConfig(struct serverLevel &serv) {
 	checkIndex(serv);
 }
 
-void checkMethods(struct locationLevel& loc) {
+void checkMethods(locationLevel& loc) {
 	if (loc.methods.empty()) {
 		loc.methods.push_back("GET");
 		loc.methods.push_back("POST");
@@ -159,7 +159,7 @@ void checkMethods(struct locationLevel& loc) {
 	}
 }
 
-void initLocLevel(std::vector<std::string>& s, struct locationLevel& loc) {
+void initLocLevel(std::vector<std::string>& s, locationLevel& loc) {
 	loc.autoindex = false;
 	loc.autoindexFound = false;
 	for (size_t x = 1; x < s.size() && s[x] != "{"; x++) {

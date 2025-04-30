@@ -5,6 +5,9 @@
 #include "ConfigValidator.hpp"
 #include "ConfigParser.hpp"
 
+struct serverLevel;
+struct locationLevel;
+
 bool onlyDigits(const std::string& s);
 bool whiteLine(std::string& line);
 bool checkSemicolon(std::string& line);
@@ -17,20 +20,20 @@ bool foundLocation(std::vector<std::string>& s);
 void checkBracket(std::vector<std::string>& s, bool& bracket);
 
 //set Location Level
-void setRootLoc(struct locationLevel& loc, std::vector<std::string>& s);
-void setLocIndexFile(struct locationLevel& loc, std::vector<std::string>& s);
-void setMethods(struct locationLevel& loc, std::vector<std::string>& s);
-void setAutoindex(struct locationLevel& loc, std::vector<std::string>& s);
-void setRedirection(struct locationLevel& loc, std::vector<std::string>& s);
-void setCgiProcessorPath(struct locationLevel& loc, std::vector<std::string>& s);
-void setUploadDirPath(struct locationLevel& loc, std::vector<std::string>& s);
+void setRootLoc(locationLevel& loc, std::vector<std::string>& s);
+void setLocIndexFile(locationLevel& loc, std::vector<std::string>& s);
+void setMethods(locationLevel& loc, std::vector<std::string>& s);
+void setAutoindex(locationLevel& loc, std::vector<std::string>& s);
+void setRedirection(locationLevel& loc, std::vector<std::string>& s);
+void setCgiProcessorPath(locationLevel& loc, std::vector<std::string>& s);
+void setUploadDirPath(locationLevel& loc, std::vector<std::string>& s);
 
 //set Server Level
-void setPort(std::vector<std::string>& s, struct serverLevel& serv);
-void setRootServ(struct serverLevel& serv, std::vector<std::string>& s);
-void setServIndexFile(struct serverLevel& serv, std::vector<std::string>& s);
-void setServName(struct serverLevel& serv, std::vector<std::string>& s);
-void setErrorPages(std::vector<std::string>& s, struct serverLevel& serv);
-void setMaxRequestSize(struct serverLevel& serv, std::vector<std::string>& s);
+void setPort(std::vector<std::string>& s, serverLevel& serv);
+void setRootServ(serverLevel& serv, std::vector<std::string>& s);
+void setServIndexFile(serverLevel& serv, std::vector<std::string>& s);
+void setServName(serverLevel& serv, std::vector<std::string>& s);
+void setErrorPages(std::vector<std::string>& s, serverLevel& serv);
+void setMaxRequestSize(serverLevel& serv, std::vector<std::string>& s);
 
 #endif

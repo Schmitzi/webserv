@@ -10,7 +10,7 @@
 #include "CGIHandler.hpp"
 #include "ConfigParser.hpp"
 #include "ConfigHelper.hpp"
-#include "ErrorResponse.hpp"
+#include "Response.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -49,7 +49,7 @@ class Client {
         void                    findContentType(Request &req);
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
 		bool					send_all(int sockfd, const std::string& data);
-        void                    sendErrorResponse(int statusCode, const std::string& message);
+        void                    sendErrorResponse(int statusCode);
 		
     private:
         struct sockaddr_in  		_addr;

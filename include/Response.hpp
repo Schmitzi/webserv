@@ -1,5 +1,5 @@
-#ifndef ERRORRESPONSE_HPP
-#define ERRORRESPONSE_HPP
+#ifndef RESPONSE_HPP
+#define RESPONSE_HPP
 
 #include <iostream>
 #include "ConfigParser.hpp"
@@ -54,9 +54,10 @@ static const HttpErrorFormat httpErrors[] = {
 	#undef X
 };
 
-const struct locationLevel*	matchLocation(const std::string& uri, const struct serverLevel& serv);
-std::string					resolveFilePathFromUri(const std::string& uri, const struct serverLevel& serv);
+const locationLevel*		matchLocation(const std::string& uri, const serverLevel& serv);
+std::string					resolveFilePathFromUri(const std::string& uri, const serverLevel& serv);
 const std::string			getStatusMessage(int code);
 void						resolveErrorResponse(int statusCode, Webserv& webserv, std::string& statusText, std::string& body);
+
 
 #endif

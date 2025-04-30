@@ -62,8 +62,8 @@ void ConfigParser::storeConfigs() {
 	}
 }
 
-void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, struct serverLevel &serv, std::vector<std::string> &conf) {
-	struct locationLevel loc;
+void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serverLevel &serv, std::vector<std::string> &conf) {
+	locationLevel loc;
 	initLocLevel(s, loc);
 	while (i < conf.size()) {
 		if (conf[i].find("}") != std::string::npos) break;
@@ -82,10 +82,10 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, stru
 	if (conf[i].find("}") == std::string::npos)
 		throw configException("Error: no closing bracket found for location.");
 	checkMethods(loc);
-	serv.locations.insert(std::pair<std::string, struct locationLevel>(loc.locName, loc));
+	serv.locations.insert(std::pair<std::string, locationLevel>(loc.locName, loc));
 }
 
-void ConfigParser::setServerLevel(size_t &i, std::vector<std::string> &s, struct serverLevel &serv, std::vector<std::string> &conf) {
+void ConfigParser::setServerLevel(size_t &i, std::vector<std::string> &s, serverLevel &serv, std::vector<std::string> &conf) {
 	while (i < conf.size() && conf[i].find("}") == std::string::npos) {
 		if (conf[i].find("location ") != std::string::npos) {
 			i--;
@@ -105,7 +105,7 @@ void ConfigParser::setServerLevel(size_t &i, std::vector<std::string> &s, struct
 	if (conf[i].find("}") != std::string::npos) i--;
 }
 
-void ConfigParser::setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf) {
+void ConfigParser::setConfigLevels(serverLevel& serv, std::vector<std::string>& conf) {
 	bool	bracket;
 	size_t	i;
 
@@ -144,7 +144,7 @@ void ConfigParser::setIpPortToServers() {
 
 void ConfigParser::parseAndSetConfigs() {
 	for (size_t i = 0; i < _storedConfigs.size(); i++) {
-		struct serverLevel nextConf;
+		serverLevel nextConf;
 		setConfigLevels(nextConf, _storedConfigs[i]);
 		_allConfigs.push_back(nextConf);
 	}
@@ -159,7 +159,7 @@ std::vector<std::vector<std::string> > ConfigParser::getStoredConfigs() {
 	return _storedConfigs;
 }
 
-std::vector<struct serverLevel> ConfigParser::getAllConfigs() {
+std::vector<serverLevel> ConfigParser::getAllConfigs() {
 	return _allConfigs;
 }
 
@@ -175,9 +175,9 @@ void ConfigParser::printAllConfigs() {
 }
 
 void ConfigParser::printIpPortToServers() const {
-	for (std::map<std::pair<std::string, int>, std::vector<struct serverLevel*> >::const_iterator it = _ipPortToServers.begin(); it != _ipPortToServers.end(); ++it) {
+	for (std::map<std::pair<std::string, int>, std::vector<serverLevel*> >::const_iterator it = _ipPortToServers.begin(); it != _ipPortToServers.end(); ++it) {
 		const std::pair<std::string, int>& ipPort = it->first;
-		const std::vector<struct serverLevel*>& servers = it->second;
+		const std::vector<serverLevel*>& servers = it->second;
 
 		std::cout << "IP: " << ipPort.first << ", Port: " << ipPort.second << std::endl;
 		std::cout << "  Associated Servers: " << std::endl;

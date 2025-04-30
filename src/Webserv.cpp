@@ -230,7 +230,7 @@ std::string Webserv::getTimeStamp() {
 
 //TODO: idk, just a try
 // void Webserv::initServers() {
-// 	std::vector<struct serverLevel> confs = _confParser->getAllConfigs();
+// 	std::vector<serverLevel> confs = _confParser->getAllConfigs();
 // 	for (size_t i = 0; i < confs.size(); i++) {
 // 		Server server;
 // 		std::vector<std::pair<std::string, int> >::iterator it = confs[i].port.begin();

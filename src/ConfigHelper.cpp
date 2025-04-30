@@ -44,7 +44,7 @@ std::vector<std::string> splitIfSemicolon(std::string &configLine) {
 	return s;
 }
 
-void setPort(std::vector<std::string>& s, struct serverLevel& serv) {
+void setPort(std::vector<std::string>& s, serverLevel& serv) {
 	std::string ip = "0.0.0.0";
 	int port;
 
@@ -60,7 +60,7 @@ void setPort(std::vector<std::string>& s, struct serverLevel& serv) {
 	serv.port.push_back(std::pair<std::string, int>(ip, port));
 }
 
-void setErrorPages(std::vector<std::string>& s, struct serverLevel &serv) {
+void setErrorPages(std::vector<std::string>& s, serverLevel &serv) {
 	std::string site;
 	std::vector<int> errCodes;
 	bool waitingForPath = true;
@@ -121,19 +121,19 @@ void checkBracket(std::vector<std::string>& s, bool& bracket) {
 
 /* ____________________________set Location Level____________________________ */
 
-void setRootLoc(struct locationLevel& loc, std::vector<std::string>& s) {
+void setRootLoc(locationLevel& loc, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidDir(s[1]))
 		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
 	loc.rootLoc = s[1];
 }
 
-void setLocIndexFile(struct locationLevel& loc, std::vector<std::string>& s) {
+void setLocIndexFile(locationLevel& loc, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidIndexFile(s[1]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
 	loc.indexFile = s[1];
 }
 
-void setMethods(struct locationLevel& loc, std::vector<std::string>& s) {
+void setMethods(locationLevel& loc, std::vector<std::string>& s) {
 	for (size_t i = 1; i < s.size(); i++) {
 		if (s[i] == "GET" || s[i] == "POST" || s[i] == "DELETE")
 			loc.methods.push_back(s[i]);
@@ -142,7 +142,7 @@ void setMethods(struct locationLevel& loc, std::vector<std::string>& s) {
 	}
 }
 
-void setAutoindex(struct locationLevel& loc, std::vector<std::string>& s) {
+void setAutoindex(locationLevel& loc, std::vector<std::string>& s) {
 	loc.autoindexFound = true;
 	if (s[1] == "on")
 		loc.autoindex = true;
@@ -152,19 +152,19 @@ void setAutoindex(struct locationLevel& loc, std::vector<std::string>& s) {
 		throw configException("Error: invalid autoindex value -> " + s[1]);
 }
 
-void setRedirection(struct locationLevel& loc, std::vector<std::string>& s) {
+void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidRedirectPath(s[1]))
 		throw configException("Error: invalid path -> " + s[0] + s[1]);
 	loc.redirectionHTTP = s[1];
 }
 
-void setCgiProcessorPath(struct locationLevel& loc, std::vector<std::string>& s) {
+void setCgiProcessorPath(locationLevel& loc, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidDir(s[1]))
 		throw configException("Error: invalid directory path -> " + s[0] + s[1]);
 	loc.cgiProcessorPath = s[1];
 }
 
-void setUploadDirPath(struct locationLevel& loc, std::vector<std::string>& s) {
+void setUploadDirPath(locationLevel& loc, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidDir(s[1]))
 		throw configException("Error: invalid directory path -> " + s[0] + s[1]);
 	loc.uploadDirPath = s[1];
@@ -172,19 +172,19 @@ void setUploadDirPath(struct locationLevel& loc, std::vector<std::string>& s) {
 
 /* ____________________________set Server Level____________________________ */
 
-void setRootServ(struct serverLevel& serv, std::vector<std::string>& s) {
+void setRootServ(serverLevel& serv, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidDir(s[1]))
 		throw configException("Error: invalid directory path -> " + s[0] + s[1]);
 	serv.rootServ = s[1];
 }
 
-void setServIndexFile(struct serverLevel& serv, std::vector<std::string>& s) {
+void setServIndexFile(serverLevel& serv, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidIndexFile(s[1]))
 		throw configException("Error: invalid path -> " + s[0] + s[1]);
 	serv.indexFile = s[1];
 }
 
-void setServName(struct serverLevel& serv, std::vector<std::string>& s) {
+void setServName(serverLevel& serv, std::vector<std::string>& s) {
 	if (!isValidName(s[1]))
 		serv.servName[0] = "";	
 		// throw configException("Error: invalid " + s[0] + " -> " + s[1]);
@@ -194,7 +194,7 @@ void setServName(struct serverLevel& serv, std::vector<std::string>& s) {
 	}
 }
 
-void setMaxRequestSize(struct serverLevel& serv, std::vector<std::string>& s) {
+void setMaxRequestSize(serverLevel& serv, std::vector<std::string>& s) {
 	if (s.size() != 2)
 		throw configException("Error: invalid client_max_body_size -> " + s[0] + s[1]);
 	if (!onlyDigits(s[1]) && s[1].find_first_not_of("0123456789kKmMgG") != std::string::npos)

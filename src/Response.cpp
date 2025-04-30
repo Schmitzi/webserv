@@ -1,12 +1,12 @@
-#include "../include/ErrorResponse.hpp"
+#include "../include/Response.hpp"
 
-const struct locationLevel* matchLocation(const std::string& uri, const struct serverLevel& serv) {
-	const struct locationLevel* bestMatch = NULL;
+const locationLevel* matchLocation(const std::string& uri, const serverLevel& serv) {
+	const locationLevel* bestMatch = NULL;
 	size_t longestMatch = 0;
 
-	std::map<std::string, struct locationLevel>::const_iterator it = serv.locations.begin();
+	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
 	for (; it != serv.locations.end(); ++it) {
-		const struct locationLevel& loc = it->second;
+		const locationLevel& loc = it->second;
 		if (uri.find(loc.rootLoc) == 0 && loc.rootLoc.size() > longestMatch) {
 			bestMatch = &loc;
 			longestMatch = loc.rootLoc.size();
@@ -15,8 +15,8 @@ const struct locationLevel* matchLocation(const std::string& uri, const struct s
 	return bestMatch;
 }
 
-std::string resolveFilePathFromUri(const std::string& uri, const struct serverLevel& serv) {
-	const struct locationLevel* loc = matchLocation(uri, serv);
+std::string resolveFilePathFromUri(const std::string& uri, const serverLevel& serv) {
+	const locationLevel* loc = matchLocation(uri, serv);
 	if (!loc) {
 		std::cout << "Location not found for URI: " << uri << std::endl;
 		if (uri[0] == '/')
@@ -81,3 +81,5 @@ void resolveErrorResponse(int statusCode, Webserv& webserv, std::string& statusT
 		}
 	}
 }
+
+

@@ -4,17 +4,20 @@
 #include "Helper.hpp"
 #include "ConfigParser.hpp"
 
+struct serverLevel;
+struct locationLevel;
+
 bool isValidPath(const std::string& path);
 bool isValidRedirectPath(const std::string &path);
 bool isValidDir(const std::string &path);
 bool isValidName(const std::string& name);
 bool isValidIndexFile(const std::string& indexFile);
-void parseClientMaxBodySize(struct serverLevel& serv);
+void parseClientMaxBodySize(serverLevel& serv);
 
-void checkRoot(struct serverLevel& serv);
-void checkIndex(struct serverLevel& serv);
-void checkConfig(struct serverLevel& serv);
-void checkMethods(struct locationLevel& loc);
-void initLocLevel(std::vector<std::string>& s, struct locationLevel& loc);
+void checkRoot(serverLevel& serv);
+void checkIndex(serverLevel& serv);
+void checkConfig(serverLevel& serv);
+void checkMethods(locationLevel& loc);
+void initLocLevel(std::vector<std::string>& s, locationLevel& loc);
 
 #endif

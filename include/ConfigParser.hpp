@@ -34,15 +34,15 @@ struct serverLevel {
 	std::map<std::vector<int>, std::string>		errPages;//error_page
 	std::string									maxRequestSize;//client_max_body_size
 	size_t										requestLimit;//converted maxRequestSize
-	std::map<std::string, struct locationLevel>	locations;//location
+	std::map<std::string, locationLevel>	locations;//location
 };
 
 class ConfigParser {
 	private:
 		std::string _filepath;
 		std::vector<std::vector<std::string> > _storedConfigs;
-		std::vector<struct serverLevel> _allConfigs;
-		std::map<std::pair<std::string, int>, std::vector<struct serverLevel*> > _ipPortToServers;
+		std::vector<serverLevel> _allConfigs;
+		std::map<std::pair<std::string, int>, std::vector<serverLevel*> > _ipPortToServers;
 
 	public:
 		ConfigParser();
@@ -53,15 +53,15 @@ class ConfigParser {
 		
 		//setters
 		void storeConfigs();
-		void setLocationLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf);
-		void setServerLevel(size_t& i, std::vector<std::string>& s, struct serverLevel& serv, std::vector<std::string>& conf);
-		void setConfigLevels(struct serverLevel& serv, std::vector<std::string>& conf);
+		void setLocationLevel(size_t& i, std::vector<std::string>& s, serverLevel& serv, std::vector<std::string>& conf);
+		void setServerLevel(size_t& i, std::vector<std::string>& s, serverLevel& serv, std::vector<std::string>& conf);
+		void setConfigLevels(serverLevel& serv, std::vector<std::string>& conf);
 		void setIpPortToServers();
 		void parseAndSetConfigs();
 
 		//getters
 		std::vector<std::vector<std::string> > getStoredConfigs();
-		std::vector<struct serverLevel> getAllConfigs();
+		std::vector<serverLevel> getAllConfigs();
 
 		//extras
 		void printAllConfigs();
