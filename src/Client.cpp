@@ -443,6 +443,7 @@ int Client::handleMultipartPost(Request& req) {
     // Create upload directory if it doesn't exist
     struct stat st;
     if (stat(_server->getUploadDir().c_str(), &st) != 0) {
+		std::cout << "Creating upload directory: " << _server->getUploadDir() << std::endl;
         if (mkdir(_server->getUploadDir().c_str(), 0755) != 0) {
             std::cout << "Error: Failed to create upload directory" << std::endl;
             sendErrorResponse(500);//, "");

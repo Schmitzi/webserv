@@ -34,7 +34,7 @@ struct serverLevel {
 	std::map<std::vector<int>, std::string>		errPages;//error_page
 	std::string									maxRequestSize;//client_max_body_size
 	size_t										requestLimit;//converted maxRequestSize
-	std::map<std::string, locationLevel>	locations;//location
+	std::map<std::string, locationLevel>		locations;//location
 };
 
 class ConfigParser {

@@ -35,8 +35,6 @@ class Server {
         int                 setServerAddr();
         int                 ft_bind();
         int                 ft_listen();
-		// void				addListenPort(const std::string& ip, int port);
-		// std::vector<int>&	getFds();
 		// int					openAndListenSockets();
     private:
         int                 						_fd;
@@ -45,8 +43,6 @@ class Server {
         std::string         						_webRoot;
 
         Webserv             						*_webserv;
-		// std::vector<int> 							_fds;
-		// std::vector<std::pair<std::string, int> >	_listenPorts;
 };
 
 #endif

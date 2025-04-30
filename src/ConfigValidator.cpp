@@ -1,8 +1,22 @@
 #include "../include/ConfigValidator.hpp"
 
+std::string getAbsPath(std::string& path) {
+	if (path.empty())
+		return (".");
+	if (path[0] == '/')
+		return (path);
+	std::string absPath = getcwd(NULL, 0);
+	if (absPath.empty())
+		return (".");
+	absPath += "/" + path;
+	if (absPath[absPath.size() - 1] == '/')
+		absPath = absPath.substr(0, absPath.size() - 1);
+	return (absPath);
+}
+
 bool isValidPath(const std::string &path) {
 	struct stat	info;
-
+	
 	return (stat(path.c_str(), &info) == 0 && !S_ISDIR(info.st_mode) && access(path.c_str(), R_OK) == 0);
 }
 
@@ -16,7 +30,7 @@ bool isValidRedirectPath(const std::string &path) {
 bool isValidDir(const std::string &path) {
 	struct stat	info;
 
-	return (stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode) && access(path.c_str(), R_OK | X_OK) == 0);
+	return (stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode) && access(path.c_str(), R_OK) == 0);
 }
 
 bool isValidName(const std::string& name) {

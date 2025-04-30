@@ -76,6 +76,7 @@ void setErrorPages(std::vector<std::string>& s, serverLevel &serv) {
 		}
 		else if (waitingForPath == true && !onlyDigits(s[j]) && !errCodes.empty()) {
 			site = s[j].substr(0, s[j].size());
+			site = getAbsPath(site);
 			// if (!isValidPath(site))
 			// 	throw configException("Error: Invalid path (error_page) -> " + site);
 			serv.errPages.insert(std::pair<std::vector<int>, std::string>(errCodes, site));
@@ -122,15 +123,17 @@ void checkBracket(std::vector<std::string>& s, bool& bracket) {
 /* ____________________________set Location Level____________________________ */
 
 void setRootLoc(locationLevel& loc, std::vector<std::string>& s) {
-	if (!s[1].empty() && !isValidDir(s[1]))
+	std::string path = getAbsPath(s[1]);
+	if (!path.empty() && !isValidDir(path))
 		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
-	loc.rootLoc = s[1];
+	loc.rootLoc = path;
 }
 
 void setLocIndexFile(locationLevel& loc, std::vector<std::string>& s) {
-	if (!s[1].empty() && !isValidIndexFile(s[1]))
+	std::string path = getAbsPath(s[1]);
+	if (!path.empty() && !isValidIndexFile(s[1]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
-	loc.indexFile = s[1];
+	loc.indexFile = path;
 }
 
 void setMethods(locationLevel& loc, std::vector<std::string>& s) {
@@ -154,40 +157,41 @@ void setAutoindex(locationLevel& loc, std::vector<std::string>& s) {
 
 void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidRedirectPath(s[1]))
-		throw configException("Error: invalid path -> " + s[0] + s[1]);
+		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
 	loc.redirectionHTTP = s[1];
 }
 
 void setCgiProcessorPath(locationLevel& loc, std::vector<std::string>& s) {
-	if (!s[1].empty() && !isValidDir(s[1]))
-		throw configException("Error: invalid directory path -> " + s[0] + s[1]);
-	loc.cgiProcessorPath = s[1];
+	std::string path = getAbsPath(s[1]);
+	if (!path.empty() && !isValidDir(path))
+		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
+	loc.cgiProcessorPath = path;
 }
 
 void setUploadDirPath(locationLevel& loc, std::vector<std::string>& s) {
-	if (!s[1].empty() && !isValidDir(s[1]))
-		throw configException("Error: invalid directory path -> " + s[0] + s[1]);
-	loc.uploadDirPath = s[1];
+	std::string path = getAbsPath(s[1]);
+	if (!path.empty() && !isValidDir(path))
+		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
+	loc.uploadDirPath = path;
 }
 
 /* ____________________________set Server Level____________________________ */
 
 void setRootServ(serverLevel& serv, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidDir(s[1]))
-		throw configException("Error: invalid directory path -> " + s[0] + s[1]);
+		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
 	serv.rootServ = s[1];
 }
 
 void setServIndexFile(serverLevel& serv, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidIndexFile(s[1]))
-		throw configException("Error: invalid path -> " + s[0] + s[1]);
+		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
 	serv.indexFile = s[1];
 }
 
 void setServName(serverLevel& serv, std::vector<std::string>& s) {
 	if (!isValidName(s[1]))
 		serv.servName[0] = "";	
-		// throw configException("Error: invalid " + s[0] + " -> " + s[1]);
 	else {
 		for (size_t j = 1; j < s.size(); j++)
 			serv.servName.push_back(s[j]);

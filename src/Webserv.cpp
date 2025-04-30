@@ -11,7 +11,6 @@ Webserv::Webserv() {
     _server = new Server();
     _confParser = ConfigParser();
 	_config = Config(_confParser);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
-    // _config->printConfig();
 	_server->setWebserv(this);
 }
 
@@ -23,13 +22,17 @@ Webserv::Webserv(std::string const &config) {
 }
 
 Webserv::Webserv(Webserv const &other) {
-	std::cout << "Webserv copy constructed" << std::endl;
 	*this = other;
 }
 
 Webserv &Webserv::operator=(Webserv const &other) {
     if (this != &other) {
 		_server = other._server;
+		for (size_t i = 0; i < other._clients.size(); i++)
+			_clients.push_back(other._clients[i]);
+		_env = other._env;
+		for (size_t i = 0; i < other._pfds.size(); i++)
+			_pfds.push_back(other._pfds[i]);
 		_confParser = other._confParser;
 		_config = other._config;
 	}

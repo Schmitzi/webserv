@@ -38,7 +38,6 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
             std::cerr << "dup2 failed\n";
             exit(1);
         }
-        
         close(_input[0]);
         close(_output[1]);
         
@@ -90,8 +89,18 @@ int CGIHandler::processScriptOutput(Client &client) {
     char buffer[4096];
     int totalBytesRead = 0;
     
-    int flags = fcntl(_output[0], F_GETFL, 0);
-    fcntl(_output[0], F_SETFL, flags | O_NONBLOCK);
+    // int flags = fcntl(_output[0], F_GETFL, 0);
+    // fcntl(_output[0], F_SETFL, flags | O_NONBLOCK);
+	/*
+		Use select(), poll(), or epoll() on blocking FDs
+		The key is that read() or write() will not block if you check with select() or poll() first.
+		So, you can:
+    	Create a regular blocking pipe with pipe()
+    	Use select() (or poll()/epoll()) to monitor the read or write end
+    	Only call read() when select() says it's readable
+    	Only call write() when select() says it's writable
+		This allows you to avoid blocking even though the FDs themselves are in blocking mode.
+	*/
     
     fd_set readfds;
     
@@ -100,7 +109,7 @@ int CGIHandler::processScriptOutput(Client &client) {
     
     int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, 0); //
     
-    if (selectResult > 0) {
+    if (selectResult > 0 && FD_ISSET(_output[0], &readfds)) {
         ssize_t bytesRead;
         while ((bytesRead = read(_output[0], buffer, sizeof(buffer) - 1)) > 0) {
             buffer[bytesRead] = '\0';
@@ -131,8 +140,7 @@ int CGIHandler::processScriptOutput(Client &client) {
     // Parse CGI output
     Request temp = createTempHeader(output);
     
-	_client->sendResponse(temp, "keep-alive", temp.getBody());
-	// _client->sendResponse(temp, 200, "keep-alive");//TODO: check what it returns?
+	_client->sendResponse(temp, "keep-alive", temp.getBody());//TODO: check return value?
     return 0;
 }
 

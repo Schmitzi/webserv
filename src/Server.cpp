@@ -21,10 +21,6 @@ int &Server::getFd() {
     return _fd;
 }
 
-// std::vector<int>& Server::getFds() {
-// 	return _fds;
-// }
-
 std::string const &Server::getUploadDir() {
     return _uploadDir;
 }
@@ -33,12 +29,15 @@ std::string const   &Server::getWebRoot() {
     return _webRoot;
 }
 
-// void Server::addListenPort(const std::string& ip, int port) {
-// 	_listenPorts.push_back(std::pair<std::string, int>(ip, port));
-// }
-
 void Server::setWebserv(Webserv* webserv) {
     _webserv = webserv;
+	std::string root = webserv->getConfig().getConfig().rootServ;
+	if (!root.empty())
+		_webRoot = root;
+	std::string upload = webserv->getConfig().getConfig().locations["/upload"].uploadDirPath;
+	if (!upload.empty())
+		_uploadDir = upload;
+	//TODO: use all the locations-> each one can have a different rootLoc, uploadDirPath etc.
 }
 
 void    Server::setFd(int const fd) {
@@ -46,7 +45,7 @@ void    Server::setFd(int const fd) {
 }
 
 int Server::openSocket() { // Create a TCP socket
-    _fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);//TODO: added SOCK_NONBLOCK because we shouldnt use fcntl
+    _fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);//added SOCK_NONBLOCK because we shouldnt use fcntl
     if (_fd < 0) {
         _webserv->ft_error("Socket creation error");
         return 1;
