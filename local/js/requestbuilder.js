@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function() {
         responseOutput.textContent = 'Sending request...';
         
         // Parse the request text to extract method and path
-        const parts = requestText.split(' ');
+        const parts = requestText.split(' ');//TODO: even if i comment out the default values it still always gives me a GET request, even if i put in "PUT" or "idk"?? so confused, where else does GET set as the default value?
         let method = 'GET'; // Default method
         let path = '/';     // Default path
         let hasQueryParams = false;

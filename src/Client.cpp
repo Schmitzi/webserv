@@ -110,7 +110,6 @@ Request Client::parseRequest(char* buffer) {
                        buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
         buffer[--len] = '\0';
     }
-
     std::string input(buffer);
 
     findContentType(req);
@@ -118,29 +117,43 @@ Request Client::parseRequest(char* buffer) {
     if (input.empty()) {
         return req;
     }
-    
     std::vector<std::string> tokens = split(buffer);
-    
+
     if (tokens.empty()) {
         sendErrorResponse(400);//, "");
         return req;
     }
-    std::string path = "/";
+    std::string path = "/";//TODO: try to matchLocation
+	serverLevel serverStruct = getWebserv().getConfig().getConfig();
+	std::vector<std::string> allowedMethods = serverStruct.locations[path].methods;//TODO: get actual path
+	if (allowedMethods.empty()) {
+		sendErrorResponse(405);//, "");
+		return req;
+	}
+	bool methodAllowed = false;
+	std::cout << "GOING IN!" << std::endl;
+	for (size_t i = 0; i < allowedMethods.size(); i++) {
+		if (tokens[0] == allowedMethods[i]) {
+			methodAllowed = true;
+			std::cout << "Method allowed: " << tokens[0] << std::endl;
+			break;
+		}
+	}
 
     if (!tokens[1].empty()) {
         path = tokens[1];
         path.erase(path.find_last_not_of(" \t\r\n") + 1);
     }
-    
-    if (std::string(tokens[0]) == "POST") {
+
+    if (tokens[0] == "POST" && methodAllowed) {
         req.formatPost(tokens[1]);
-    } else if (std::string(tokens[0]) == "DELETE") {
+    } else if (tokens[0] == "DELETE" && methodAllowed) {
         if (!tokens[1].empty()) {
             req.formatDelete(path);
         } else {
             sendErrorResponse(400);//, " - Missing path");
         }
-    } else if (std::string(tokens[0]) == "GET" || std::string(tokens[0]) == "curl") {
+    } else if ((tokens[0] == "GET" && methodAllowed) || tokens[0] == "curl") {
         if (!tokens[1].empty()) {
             
             if (req.formatGet(path) == 1) {//TODO: formatGet always returns 0?
