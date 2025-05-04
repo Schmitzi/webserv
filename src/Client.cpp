@@ -67,15 +67,12 @@ void Client::displayConnection() {
 }
 
 int Client::recieveData() {
-    // Larger buffer for multipart uploads
-    char buffer[1024 * 1024];
-    memset(buffer, 0, sizeof(buffer));
+    char buffer[1024 * 1024];  // SEt buffer to 1MB
+    //memset(buffer, 0, sizeof(buffer));
     
-    // Receive data
     int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, 0);
     
     if (bytesRead > 0) {
-        // Append to request buffer
         _requestBuffer.append(buffer, bytesRead);
 
         if (_requestBuffer.length() > MAX_BUFFER_SIZE) {
@@ -89,27 +86,44 @@ int Client::recieveData() {
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
 
+        std::cout << BLUE << _requestBuffer << RESET << "\n";
         // Handle multipart uploads separately
         if (_requestBuffer.find("multipart/form-data") != std::string::npos) {
-            Request req;
+            Request req(_requestBuffer);
+
+            std::cout << RED << "TEst OUtput\n" << RESET;
+            std::cout << BLUE << "Method: "  << req.getMethod() << "\n";
+            std::cout << "Path: "  << req.getPath() << "\n";
+            std::cout << "Content Type: "  << req.getContentType() << "\n";
+            std::cout << "Boundary: "  << req.getBoundary() << "\n";
+            std::cout << "Version: "  << req.getVersion() << "\n";
+            std::cout << "Query: "  << req.getQuery() << "\n";
+            std::cout << "Body: "  << req.getBody() << "\n" << RESET;
+
+            // std::map<std::string, std::string> temp = mapSplit(split(_requestBuffer, '\n'));
+            // req.setHeader(temp);
             
-            size_t boundaryPos = _requestBuffer.find("boundary=");
-            if (boundaryPos != std::string::npos) {
-                size_t boundaryEnd = _requestBuffer.find("\r\n", boundaryPos);
-                if (boundaryEnd == std::string::npos) {
-                    boundaryEnd = _requestBuffer.length();
-                }
-                std::string boundary = _requestBuffer.substr(
-                    boundaryPos + 9, 
-                    boundaryEnd - (boundaryPos + 9)
-                );
-                // Remove quotes if present
-                if (boundary[0] == '"') {
-                    boundary = boundary.substr(1, boundary.length() - 2);
-                }
-                req.setBoundary(boundary);
-                req.setContentType("multipart/form-data; boundary=" + boundary);
-            }
+            // if (req.getHeaders().find("boundary=") != std::string::npos) {
+
+            // }
+
+            // size_t boundaryPos = _requestBuffer.find("boundary=");
+            // if (boundaryPos != std::string::npos) {
+            //     size_t boundaryEnd = _requestBuffer.find("\r\n", boundaryPos);
+            //     if (boundaryEnd == std::string::npos) {
+            //         boundaryEnd = _requestBuffer.length();
+            //     }
+            //     std::string boundary = _requestBuffer.substr(
+            //         boundaryPos + 9, 
+            //         boundaryEnd - (boundaryPos + 9)
+            //     );
+            //     // Remove quotes if present
+            //     if (boundary[0] == '"') {
+            //         boundary = boundary.substr(1, boundary.length() - 2);
+            //     }
+            //     req.setBoundary(boundary);
+            //     req.setContentType("multipart/form-data; boundary=" + boundary);
+            // }
             
             int result = handleMultipartPost(req);
             
@@ -149,7 +163,7 @@ int Client::recieveData() {
 }
 
 Request Client::parseRequest(char* buffer) {
-    Request req;
+    Request req(buffer);
 
     // Safely convert buffer to std::string
     std::string input;
@@ -428,7 +442,7 @@ int Client::handleDeleteRequest(Request& req) {
 
 int Client::handleMultipartPost(Request& req) {
     std::string& raw = _requestBuffer;
-    std::string boundary = req.getBoundary();
+    std::string boundary = req.getBoundary();    
     
     if (boundary.empty()) {
         std::cout << "Error: No boundary found for multipart/form-data request" << std::endl;
@@ -443,15 +457,15 @@ int Client::handleMultipartPost(Request& req) {
     std::vector<std::string> lines = split(raw, '\n');
     std::map<std::string, std::string> headers = mapSplit(lines);
     
-    std::string contentDisposition = headers["Content-Disposition"];
+    // std::string contentDisposition = headers["Content-Disposition"];
     std::string filename;
     
-    size_t filenamePos = contentDisposition.find("filename=\"");
+    size_t filenamePos = req.getContentDisp().find("filename=\"");
     if (filenamePos != std::string::npos) {
         filenamePos += 10; // Skip 'filename="'
-        size_t filenameEnd = contentDisposition.find("\"", filenamePos);
+        size_t filenameEnd = req.getContentDisp().find("\"", filenamePos);
         if (filenameEnd != std::string::npos) {
-            filename = contentDisposition.substr(filenamePos, filenameEnd - filenamePos);
+            req.setFileName(req.getContentDisp().substr(filenamePos, filenameEnd - filenamePos));
         }
     }
     
@@ -474,6 +488,8 @@ int Client::handleMultipartPost(Request& req) {
     } else {
         contentStart += 4;
     }
+
+    std::cout << RED << "TEST\n" << RESET;
     
     // Create upload directory if it doesn't exist
     struct stat st;
@@ -584,7 +600,6 @@ void Client::findContentType(Request& req) {
     std::string contentType = raw.substr(start, end - start);
     req.setContentType(contentType); // Store the full Content-Type
     
-    //std::cout << "Found Content-Type: [" << contentType << "]" << std::endl;
     
     // Check for boundary parameter
     size_t boundaryPos = contentType.find("; boundary=");
@@ -597,7 +612,6 @@ void Client::findContentType(Request& req) {
             boundary = boundary.substr(0, quotePos);
         }
         
-        //std::cout << "Boundary: [" << boundary << "]" << std::endl;
         
         if (boundary.empty()) {
             std::cout << "Warning: Empty boundary found" << std::endl;
