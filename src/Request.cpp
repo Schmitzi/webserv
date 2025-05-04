@@ -1,56 +1,28 @@
 #include "../include/Request.hpp"
 
-Request::Request() {
-    _headers._method = "GET";
-    _headers._path = "/";
-    _headers._contentType = "text/html";
-    _headers._version = "HTTP/1.1";
-    _headers._body = "";
-    _headers._query = "";
-    _headers._boundary = ""; 
+Request::Request() : 
+    _method("GET"),
+    _path("/"),
+    _contentType(""),
+    _version("HTTP/1.1"),
+    _headers(),
+    _body(""),
+    _query(""),
+    _boundary("")
+{
 }
 
-
-Request::Request(std::string const buffer) {
-    std::vector<std::string> header = split(buffer, '\n');
-    std::map<std::string, std::string> temp = mapSplit(header);
-    std::vector<std::string> request = split(header[0], ' ');
-    if (!request[0].empty()) 
-        _headers._method = request[0];
-    else
-        _headers._method = "GET";
-    
-    if (!request[1].empty())  {
-        if (request[1].find("?") != std::string::npos) {
-            _headers._path = request[1].substr(0, request[1].find("?"));
-            _headers._query = request[1].substr(request[1].find("?"), request[1].length());
-        } else {
-            _headers._path = request[1];
-            _headers._query = "";
-        }
-    } else {
-        _headers._path = "/";
-    }
-    if (!request[2].empty()) {
-        _headers._version = request[2];
-    } else {
-        _headers._version = "HTTP/1.1";
-    }
-    for (size_t i = 0; i < header.size(); i++) {
-        //  "Content-Type: multipart/form-data"
-        if (header[i].substr(0, 14) == "Content-Type: ") {
-            if (header[i].find("boundary=") != std::string::npos) {
-                _headers._boundary = header[i].substr(45, header[i].length());
-                _headers._contentType = header[i].substr(14, 34);
-            } else {
-                _headers._boundary = "";
-                _headers._contentType = header[i].substr(14, header[i].length());
-            }
-            break ;
-        }
-    }
-    _headers._body = "";
-    _headers._contentDisp = temp["Content-Disposition"];
+Request::Request(const std::string& rawRequest) : 
+    _method("GET"),
+    _path("/"),
+    _contentType(""),
+    _version("HTTP/1.1"),
+    _headers(),
+    _body(""),
+    _query(""),
+    _boundary("")
+{
+    parse(rawRequest);
 }
 
 Request::~Request() {
@@ -58,112 +30,171 @@ Request::~Request() {
 }
 
 std::string const &Request::getPath() {
-    return _headers._path;
+    return _path;
 }
 
 std::string const &Request::getMethod() {
-    return _headers._method;
+    return _method;
 }
 
 std::string const &Request::getVersion() {
-    return _headers._version;
+    return _version;
 }
 
 std::string const &Request::getBody() {
-    return _headers._body;
+    return _body;
 }
 
 std::string const &Request::getContentType() {
-    return _headers._contentType;
+    return _contentType;
 }
 
 std::string const &Request::getQuery() {
-    return _headers._query;
+    return _query;
 }
 
 std::string const &Request::getBoundary() {
-    return _headers._boundary;
+    return _boundary;
 }
 
-std::string const &Request::getContentDisp() {
-    return _headers._contentDisp;
-}
-
-// std::map<std::string, std::string>::getHeaders() {
-//     return _headers;
-// }
-
-void    Request::setMethod(std::string const method) {
-    _headers._method = method;
-}
-
-void    Request::setPath(std::string const path) {
-    _headers._path = path;
-}
-
-void    Request::setVersion(std::string const version) {
-    _headers._version = version;
+std::map<std::string, std::string> &Request::getHeaders() {
+    return _headers;
 }
 
 void    Request::setBody(std::string const body) {
-    _headers._body = body;
-}
-
-void    Request::setQuery(std::string const query) {
-    _headers._query = query;
+    _body = body;
 }
 
 void    Request::setContentType(std::string const content) {
-    _headers._contentType = content;
+    _contentType = content;
 }
-
-void    Request::setBoundary(std::string boundary) {
-    _headers._boundary = boundary;
-}
-
 void    Request::setHeader(std::map<std::string, std::string> map) {
-    (void)map;
-    // _headers = map;
-
+    _headers = map;
 }
 
-void    Request::setFileName(std::string const filename) {
-    _headers._fileName = filename;
-}
+void Request::parse(const std::string& rawRequest) {
+    if (rawRequest.empty()) {
+        _method = "BAD";
+        return;
+    }
 
-void Request::formatPost(std::string const target) {  
-    setMethod("POST");
-    setVersion("HTTP/1.1");
+    // Find headers and body
+    size_t headerEnd = rawRequest.find("\r\n\r\n");
+    if (headerEnd == std::string::npos) {
+        headerEnd = rawRequest.find("\n\n");
+        if (headerEnd == std::string::npos) {
+            headerEnd = rawRequest.length();
+        } else {
+            headerEnd += 2;
+        }
+    } else {
+        headerEnd += 4;
+    }
+
+    std::string headerSection = rawRequest.substr(0, headerEnd);
+    if (headerEnd < rawRequest.length()) {
+        _body = rawRequest.substr(headerEnd);
+    }
+
+    std::istringstream iss(headerSection);
+    std::string requestLine;
+    std::getline(iss, requestLine);
+
+    size_t end = requestLine.find_last_not_of(" \t\r\n");
+    if (end != std::string::npos) {
+        requestLine = requestLine.substr(0, end + 1);
+    }
+
+    std::istringstream lineStream(requestLine);
+    std::string target;
+    lineStream >> _method >> target >> _version;
+
+    if (_method.empty() || target.empty()) {
+        _method = "BAD";
+        return;
+    }
+
     size_t queryPos = target.find('?');
     if (queryPos != std::string::npos) {
-        setPath(target.substr(0, queryPos));
-        setQuery(target.substr(queryPos + 1));
+        _path = target.substr(0, queryPos);
+        _query = target.substr(queryPos + 1);
     } else {
-        setPath(target);
-        setQuery("");
+        _path = target;
+        _query = "";
+    }
+
+    if (_path.empty() || _path[0] != '/') {
+        _path = "/" + _path;
+    }
+
+    if (_path == "/" && _method == "GET") {
+        _path = "/index.html";
+    }
+
+    end = _path.find_last_not_of(" \t\r\n");
+    if (end != std::string::npos) {
+        _path = _path.substr(0, end + 1);
+    }
+
+    if (_method != "GET" && _method != "POST" && _method != "DELETE") {
+        _method = "BAD";
+        return;
+    }
+
+    parseHeaders(headerSection);
+
+    parseContentType();
+
+    if (_method == "DELETE" && _path.find("upload/") != 0) {
+        _path = "upload/" + _path;
     }
 }
 
-void    Request::formatDelete(std::string const token) {
-    setMethod("DELETE");
-    setVersion("HTTP/1.1");
-    setPath("upload/" + token);
+void Request::parseHeaders(const std::string& headerSection) {
+    std::istringstream iss(headerSection);
+    std::string line;
+    
+    std::getline(iss, line);
+    
+    while (std::getline(iss, line) && !line.empty() && line != "\r") {
+        size_t colonPos = line.find(':');
+        if (colonPos != std::string::npos) {
+            std::string key = line.substr(0, colonPos);
+            std::string value = line.substr(colonPos + 1);
+            
+            key.erase(0, key.find_first_not_of(" \t"));
+            key.erase(key.find_last_not_of(" \t\r\n") + 1);
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t\r\n") + 1);
+            
+            _headers[key] = value;
+        }
+    }
 }
 
-int Request::formatGet(std::string const token) {
-    setMethod("GET");
-    setVersion("HTTP/1.1");
-    
-    size_t queryPos = token.find('?');
-    if (queryPos != std::string::npos) {
-        setPath(token.substr(0, queryPos));
-        setQuery(token.substr(queryPos + 1));
-    } else {
-        setPath(token);
-        setQuery("");
+void Request::parseContentType() {
+    std::map<std::string, std::string>::iterator it = _headers.find("Content-Type");
+    if (it != _headers.end()) {
+        _contentType = it->second;
+        
+        if (_contentType.find("multipart/form-data") != std::string::npos) {
+            size_t boundaryPos = _contentType.find("boundary=");
+            if (boundaryPos != std::string::npos) {
+                std::string boundary = _contentType.substr(boundaryPos + 9);
+                
+                if (!boundary.empty() && boundary[0] == '"') {
+                    size_t endQuote = boundary.find('"', 1);
+                    if (endQuote != std::string::npos) {
+                        boundary = boundary.substr(1, endQuote - 1);
+                    }
+                }
+                
+                _boundary = boundary;
+            }
+        }
+    } else if (_method == "POST") {
+        _contentType = "application/octet-stream";
     }
-    
-    return 0;
 }
 
 std::string Request::getMimeType(std::string const &path) {

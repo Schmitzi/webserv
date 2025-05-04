@@ -28,8 +28,11 @@ FILES	=	main \
 			Client \
 			Request \
 			CGIHandler \
-			ft_split \
-			ft_itoa
+			Multipart \
+			ConfigHelper \
+			ConfigParser \
+			ConfigValidator \
+			Helper
 
 SRC_DIR = 	src/
 SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))

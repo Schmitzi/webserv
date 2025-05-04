@@ -7,27 +7,29 @@
 
 Webserv::Webserv() {  
     _server = new Server();
-    _config = new Config("config/default.conf");
-    
-    _server->setWebserv(this);
-    //std::cout << "Webserv constructed" << std::endl;
+    _confParser = ConfigParser();
+	_config = Config(_confParser);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
+	_server->setWebserv(this);
 }
 
 Webserv::Webserv(std::string const &config) {
-	// (void) config;
-	*_config = Config(config);
-}
-
-Webserv::Webserv(Webserv const &other) {
-	std::cout << "Webserv copy constructed" << std::endl;
-    // (void) other;
-	// _config = other._config;
-	*this = other;
+	_server = new Server();
+	_confParser = ConfigParser(config);
+	_config = Config(_confParser);
+	_server->setWebserv(this);
 }
 
 Webserv &Webserv::operator=(Webserv const &other) {
-    // (void) other;
-    _config = other._config;
+    if (this != &other) {
+		_server = other._server;
+		for (size_t i = 0; i < other._clients.size(); i++)
+			_clients.push_back(other._clients[i]);
+		_env = other._env;
+		for (size_t i = 0; i < other._pfds.size(); i++)
+			_pfds.push_back(other._pfds[i]);
+		_confParser = other._confParser;
+		_config = other._config;
+	}
 	return *this;
 }
 
@@ -69,25 +71,13 @@ char **Webserv::getEnvironment() const {
 
 int Webserv::setConfig(std::string const filepath) {
     std::cout << getTimeStamp() << "Config found at " << filepath << "\n";
-	_config = new Config(filepath);
+	_confParser = ConfigParser(filepath);
+	_config = Config(_confParser);
     return true;
 }
 
 // Add a file descriptor to the poll array
 int Webserv::addToPoll(int fd, short events) {  
-    // Set the socket to non-blocking mode
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1) {
-        ft_error("fcntl F_GETFL failed");
-        return 1;
-    }
-    
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-        ft_error("fcntl F_SETFL O_NONBLOCK failed");
-        return 1;
-    }
-    
-    // Add to poll array
     struct pollfd temp;
     temp.fd = fd;
     temp.events = events;
@@ -106,8 +96,8 @@ void Webserv::removeFromPoll(size_t index) {
     _pfds.erase(_pfds.begin() + index);
 }
 
-const Config& Webserv::getConfig() const {
-	return *_config;
+Config Webserv::getConfig() const {
+	return _config;
 }
 
 int Webserv::run() {
@@ -117,10 +107,13 @@ int Webserv::run() {
         return 1;
     }
 	
-	std::string port = getConfig().getConfigValue("port");
-	if (port.empty())
+	int port = _config.getPort();
+	if (port == -1)
 		std::cerr << "No port found in config..\n";
-    printMsg("Server is listening on port", GREEN, port);
+	else {
+		std::string p = tostring(port);
+    	printMsg("Server is listening on port", GREEN, p);
+	}
 
     // Initialize poll array with server socket
     addToPoll(_server->getFd(), POLLIN);

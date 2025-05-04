@@ -160,7 +160,7 @@ void CGIHandler::prepareEnv(Request &req) {
     tempEnv.push_back("REQUEST_METHOD=" + req.getMethod());
     tempEnv.push_back("QUERY_STRING=" + req.getQuery());
     tempEnv.push_back("CONTENT_TYPE=" + req.getContentType());
-    tempEnv.push_back("CONTENT_LENGTH=" + ft_itoa(req.getBody().length()));
+    tempEnv.push_back("CONTENT_LENGTH=" + tostring(req.getBody().length()));
     tempEnv.push_back("SCRIPT_NAME=" + req.getPath());
     tempEnv.push_back("SERVER_SOFTWARE=WebServ/1.0");
 
@@ -179,7 +179,6 @@ void CGIHandler::prepareEnv(Request &req) {
     }
 
     if (ext == "php") {
-        // Whitelist of possible PHP locations
         static const char* phpLocations[] = {
             "/usr/bin/php",
             "/run/current-system/sw/bin/php",
@@ -195,7 +194,6 @@ void CGIHandler::prepareEnv(Request &req) {
             }
         }
         
-        // Use env as fallback
         if (phpPath == "/usr/bin/env") {
             _args = new char*[4];
             _args[0] = strdup(phpPath.c_str());
@@ -224,7 +222,6 @@ void CGIHandler::prepareEnv(Request &req) {
         }
     }
     else if (ext == "pl") {
-        // Whitelist of possible Perl locations
         static const char* perlLocations[] = {
             "/usr/bin/perl",
             "/run/current-system/sw/bin/perl",
@@ -240,7 +237,6 @@ void CGIHandler::prepareEnv(Request &req) {
             }
         }
         
-        // Use env as fallback
         if (perlPath == "/usr/bin/env") {
             _args = new char*[4];
             _args[0] = strdup(perlPath.c_str());

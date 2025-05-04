@@ -8,6 +8,8 @@
 #include "../include/Helper.hpp"
 #include "../include/Request.hpp"
 #include "../include/CGIHandler.hpp"
+#include "../include/Multipart.hpp"
+#include "../include/Config.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -43,12 +45,11 @@ class Client {
         int                     handlePostRequest(Request& req);
         int                     handleDeleteRequest(Request& req);
         int                     handleMultipartPost(Request& req);
-
-        int                     handleChunkedUpload(char* buffer, ssize_t bytesRead);
-        void                    resetUploadState();
-        void                    findContentType(Request &req);
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
         void                    sendErrorResponse(int statusCode, const std::string& message);
+        bool                    ensureUploadDirectory();
+        bool                    saveFile(const std::string& filename, const std::string& content);
+        Server*                 matchServerByHost(const std::string& host);
         void                    freeTokens(char **tokens);
     private:
         struct sockaddr_in  _addr;

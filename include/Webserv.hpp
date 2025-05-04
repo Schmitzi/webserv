@@ -18,12 +18,15 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <map>
-#include "../include/Helper.hpp"
+#include <string>
+#include "Helper.hpp"
+#include "ConfigValidator.hpp"
+#include "ConfigParser.hpp"
+#include "Config.hpp"
 
 // Forward declarations
 class Server;
 class Client;
-class Config;
 
 // COLOURS
 #define BLUE    "\33[34m"
@@ -49,17 +52,21 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-        const Config&   getConfig() const; 
+        Config			getConfig() const;
+        // void			initServers();
 
     private:
         Server                  *_server;
         std::vector<Client *>   _clients;
         char                    **_env;
-        Config                  *_config;
+        ConfigParser			_confParser;
+        Config					_config;
+        // std::vector<Server> 	_servers;
 
         std::vector<struct pollfd> _pfds;
 
         // Polling
+
         int             addToPoll(int fd, short events);
         void            removeFromPoll(size_t index);
 };
