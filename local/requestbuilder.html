@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HTTP Request Builder</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        /* Ensure responses don't overlap on small screens */
+        @media (max-width: 768px) {
+            .response-container {
+                display: flex;
+                flex-direction: column;
+            }
+            .response-output {
+                margin-top: 1rem;
+                max-height: 200px;
+                overflow-y: auto;
+            }
+        }
+    </style>
 </head>
 <body class="bg-gray-100 flex flex-col min-h-screen">
     <div class="container mx-auto px-4 py-8 flex-grow">
@@ -26,7 +40,7 @@
                     </div>
                     
                     <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-2">Custom Block</h3>
-                    <div class="flex space-x-2">
+                    <form id="custom-block-form" class="flex space-x-2">
                         <input 
                             type="text" 
                             id="custom-input" 
@@ -34,18 +48,19 @@
                             class="flex-grow p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                         <button 
+                            type="submit"
                             id="add-custom" 
                             class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300"
                         >
                             Add
                         </button>
-                    </div>
+                    </form>
                 </div>
                 
                 <div class="w-full md:w-2/3">
                     <div 
                         id="drop-zone" 
-                        class="drop-zone bg-gray-100 border-2 border-dashed border-gray-300 p-6 rounded-lg min-h-[200px] flex items-center justify-center"
+                        class="drop-zone bg-gray-100 border-2 border-dashed border-gray-300 p-6 rounded-lg min-h-[200px] flex items-center justify-center flex-wrap"
                     >
                         <div class="text-gray-500 text-center">Drag blocks here to build your request</div>
                     </div>
@@ -65,17 +80,17 @@
                         </button>
                     </div>
                     
-                    <div class="mt-6">
+                    <div class="mt-6 response-container">
                         <div 
                             id="request-output" 
-                            class="bg-gray-50 p-4 rounded-lg mb-4 font-mono text-sm"
+                            class="bg-gray-50 p-4 rounded-lg mb-4 font-mono text-sm response-output"
                         >
                             # HTTP request will appear here
                         </div>
                         
                         <div 
                             id="response-output" 
-                            class="bg-gray-50 p-4 rounded-lg font-mono text-sm"
+                            class="bg-gray-50 p-4 rounded-lg font-mono text-sm response-output"
                         >
                             # Server response will appear here
                         </div>

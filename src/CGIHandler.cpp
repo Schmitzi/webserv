@@ -182,6 +182,7 @@ void CGIHandler::prepareEnv(Request &req) {
         // Whitelist of possible PHP locations
         static const char* phpLocations[] = {
             "/usr/bin/php",
+            "/etc/profiles/per-user/schmitzi/bin/php",
             "/run/current-system/sw/bin/php",
             "/usr/local/bin/php",
             NULL
