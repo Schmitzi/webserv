@@ -69,18 +69,18 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
                 cleanupResources();
                 return result;
             } else {
-                client.sendErrorResponse(500, "CGI Script Execution Failed");
+                client.sendErrorResponse(500);
                 cleanupResources();
                 return 1;
             }
         } else {
-            client.sendErrorResponse(500, "CGI Script Terminated Abnormally");
+            client.sendErrorResponse(500);
             cleanupResources();
             return 1;
         }
     }
     
-    client.sendErrorResponse(500, "Fork failed");
+    client.sendErrorResponse(500);
     cleanupResources();
     return 1;
 }
@@ -179,6 +179,7 @@ void CGIHandler::prepareEnv(Request &req) {
     }
 
     if (ext == "php") {
+        // Whitelist of possible PHP locations
         static const char* phpLocations[] = {
             "/usr/bin/php",
             "/run/current-system/sw/bin/php",
@@ -194,6 +195,7 @@ void CGIHandler::prepareEnv(Request &req) {
             }
         }
         
+        // Use env as fallback
         if (phpPath == "/usr/bin/env") {
             _args = new char*[4];
             _args[0] = strdup(phpPath.c_str());
@@ -222,6 +224,7 @@ void CGIHandler::prepareEnv(Request &req) {
         }
     }
     else if (ext == "pl") {
+        // Whitelist of possible Perl locations
         static const char* perlLocations[] = {
             "/usr/bin/perl",
             "/run/current-system/sw/bin/perl",
@@ -237,6 +240,7 @@ void CGIHandler::prepareEnv(Request &req) {
             }
         }
         
+        // Use env as fallback
         if (perlPath == "/usr/bin/env") {
             _args = new char*[4];
             _args[0] = strdup(perlPath.c_str());
@@ -369,19 +373,19 @@ Request    CGIHandler::createTempHeader(std::string output) {
 int CGIHandler::doChecks(Client client) {
     if (access(_path.c_str(), F_OK) != 0) {
         std::cerr << "Script does not exist: " << _path << std::endl;
-        client.sendErrorResponse(404, "CGI Script Not Found");
+        client.sendErrorResponse(404);
         return 1;
     }
 
     if (access(_path.c_str(), X_OK) != 0) {
         std::cerr << "Script is not executable: " << _path << std::endl;
-        client.sendErrorResponse(403, "CGI Script Not Executable");
+        client.sendErrorResponse(403);
         return 1;
     }
 
     if (pipe(_input) < 0 || pipe(_output) < 0) {
         std::cerr << "Pipe creation failed" << std::endl;
-        client.sendErrorResponse(500, "Pipe creation failed");
+        client.sendErrorResponse(500);
         return 1;
     }
     return 0;

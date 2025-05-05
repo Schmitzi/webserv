@@ -19,6 +19,10 @@ Webserv::Webserv(std::string const &config) {
 	_server->setWebserv(this);
 }
 
+Webserv::Webserv(Webserv const &other) {
+	*this = other;
+}
+
 Webserv &Webserv::operator=(Webserv const &other) {
     if (this != &other) {
 		_server = other._server;
@@ -78,6 +82,7 @@ int Webserv::setConfig(std::string const filepath) {
 
 // Add a file descriptor to the poll array
 int Webserv::addToPoll(int fd, short events) {  
+    // Add to poll array
     struct pollfd temp;
     temp.fd = fd;
     temp.events = events;

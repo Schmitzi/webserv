@@ -4,9 +4,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <map>
-#include <string>
 #include <sstream>
-#include <algorithm>
 
 class Request {
     public:
@@ -22,13 +20,20 @@ class Request {
         std::string const &getBoundary();
         std::map<std::string, std::string> &getHeaders();
         std::string getMimeType(std::string const &path);
+        void    setMethod(std::string const method);
+        void    setPath(std::string const path);
+        void    setVersion(std::string const version);
         void    setBody(std::string const body);
+        void    setQuery(std::string const query);
         void    setContentType(std::string const content);
+        void    setBoundary(std::string boundary);
         void    setHeader(std::map<std::string, std::string> map);
+        void    formatPost(std::string const target);
+        void    formatDelete(std::string const token);
+        int     formatGet(std::string const token);
         void    parse(const std::string& rawRequest);
         void    parseHeaders(const std::string& headerSection);
         void    parseContentType();
-        void    buildBuffer();
     private:
         std::string                         _method;
         std::string                         _path;

@@ -29,10 +29,11 @@ FILES	=	main \
 			Request \
 			CGIHandler \
 			Multipart \
+			Helper \
 			ConfigHelper \
 			ConfigParser \
 			ConfigValidator \
-			Helper
+			Response
 
 SRC_DIR = 	src/
 SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))

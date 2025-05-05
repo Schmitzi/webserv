@@ -5,26 +5,6 @@ Server::Server() : _uploadDir("local/upload/"), _webRoot("local"), _webserv(NULL
 
 }
 
-Server::Server(const Server& other) : 
-    _fd(other._fd),
-    _addr(other._addr),
-    _uploadDir(other._uploadDir),
-    _webRoot(other._webRoot),
-    _webserv(other._webserv)
-{
-}
-
-Server& Server::operator=(const Server& other) {
-    if (this != &other) {
-        _uploadDir = other._uploadDir;
-        _webRoot = other._webRoot;
-        _webserv = other._webserv;
-        _fd = other._fd;
-        _addr = other._addr;
-    }
-    return *this;
-}
-
 Server::~Server()  {
 
 }
@@ -77,22 +57,12 @@ int Server::setOptional() { // Optional: set socket options to reuse address
     return 0;
 }
 
-void Server::setConfig(Config* config) {
-    _config = config;
-    
-    // Set up server properties from config
-    serverLevel serverConf = config->getConfig();
-    if (!serverConf.rootServ.empty())
-        _webRoot = serverConf.rootServ;
-    
-    // Handle upload directories from locations
-    std::map<std::string, locationLevel>::iterator it = serverConf.locations.find("/upload");
-    if (it != serverConf.locations.end() && !it->second.uploadDirPath.empty())
-        _uploadDir = it->second.uploadDirPath;
-}
-
-Config* Server::getConfig() const {
-    return _config;
+int Server::setServerAddr() { // Set up server address
+    memset(&_addr, 0, sizeof(_addr));
+    _addr.sin_family = AF_INET;          // IPv4 Internet Protocol
+    _addr.sin_addr.s_addr = INADDR_ANY;  // Accept connections on any interface
+    _addr.sin_port = htons(8080);        // Port 8080 (pull port from config)
+    return 0;
 }
 
 int Server::ft_bind() { // Bind socket to address
@@ -110,13 +80,5 @@ int Server::ft_listen() { // Listen for connections
         close(_fd);
         return 1;
     }
-    return 0;
-}
-
-int Server::setServerAddr() {
-    memset(&_addr, 0, sizeof(_addr));
-    _addr.sin_family = AF_INET;          // IPv4 Internet Protocol
-    _addr.sin_addr.s_addr = INADDR_ANY;  // Accept connections on any interface
-    _addr.sin_port = htons(getWebServ().getConfig().getPort());
     return 0;
 }

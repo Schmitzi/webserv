@@ -1,15 +1,6 @@
 #include "../include/Request.hpp"
 
-Request::Request() : 
-    _method("GET"),
-    _path("/"),
-    _contentType(""),
-    _version("HTTP/1.1"),
-    _headers(),
-    _body(""),
-    _query(""),
-    _boundary("")
-{
+Request::Request() : _method("GET"), _path("/"), _version("HTTP/1.1"), _body("") {
 }
 
 Request::Request(const std::string& rawRequest) : 
@@ -61,15 +52,71 @@ std::map<std::string, std::string> &Request::getHeaders() {
     return _headers;
 }
 
+void    Request::setMethod(std::string const method) {
+    _method = method;
+}
+
+void    Request::setPath(std::string const path) {
+    _path = path;
+}
+
+void    Request::setVersion(std::string const version) {
+    _version = version;
+}
+
 void    Request::setBody(std::string const body) {
     _body = body;
+}
+
+void    Request::setQuery(std::string const query) {
+    _query = query;
 }
 
 void    Request::setContentType(std::string const content) {
     _contentType = content;
 }
+
+void    Request::setBoundary(std::string boundary) {
+    _boundary = boundary;
+}
+
 void    Request::setHeader(std::map<std::string, std::string> map) {
     _headers = map;
+}
+
+void Request::formatPost(std::string const target) {  
+    setMethod("POST");
+    setVersion("HTTP/1.1");
+    size_t queryPos = target.find('?');
+    if (queryPos != std::string::npos) {
+        setPath(target.substr(0, queryPos));
+        setQuery(target.substr(queryPos + 1));
+    } else {
+        setPath(target);
+        setQuery("");
+    }
+}
+
+void    Request::formatDelete(std::string const token) {
+    setMethod("DELETE");
+    setVersion("HTTP/1.1");
+    setPath("upload/" + token);
+}
+
+int Request::formatGet(std::string const token) {
+    setMethod("GET");
+    setVersion("HTTP/1.1");
+    
+    size_t queryPos = token.find('?');
+    if (queryPos != std::string::npos) {
+        setPath(token.substr(0, queryPos));
+        setQuery(token.substr(queryPos + 1));
+    } else {
+        setPath(token);
+        setQuery("");
+    }
+    
+    return 0;
 }
 
 void Request::parse(const std::string& rawRequest) {
@@ -227,8 +274,4 @@ std::string Request::getMimeType(std::string const &path) {
         return "image/x-icon";
     
     return "text/plain"; // Default
-}
-
-void Request::buildBuffer() {
-    
 }

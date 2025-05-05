@@ -5,11 +5,11 @@
 #include <iostream>
 #include <cstring>
 #include <map>
+#include "../include/Response.hpp"
 #include "../include/Helper.hpp"
 #include "../include/Request.hpp"
 #include "../include/CGIHandler.hpp"
 #include "../include/Multipart.hpp"
-#include "../include/Config.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -33,6 +33,8 @@ class Client {
         int                     &getFd();
         unsigned char           &getIP();
         char                    &getBuffer();
+        Webserv					&getWebserv();
+        Server					&getServer();
         void                    setWebserv(Webserv *webserv);
         void                    setServer(Server *server);
         int                     acceptConnection();
@@ -45,11 +47,15 @@ class Client {
         int                     handlePostRequest(Request& req);
         int                     handleDeleteRequest(Request& req);
         int                     handleMultipartPost(Request& req);
-        ssize_t                 sendResponse(Request req, std::string connect, std::string body);
-        void                    sendErrorResponse(int statusCode, const std::string& message);
         bool                    ensureUploadDirectory();
         bool                    saveFile(const std::string& filename, const std::string& content);
-        Server*                 matchServerByHost(const std::string& host);
+
+        int                     handleChunkedUpload(char* buffer, ssize_t bytesRead);
+        void                    resetUploadState();
+        void                    findContentType(Request &req);
+        ssize_t                 sendResponse(Request req, std::string connect, std::string body);
+        void                    sendErrorResponse(int statusCode);
+        bool					send_all(int sockfd, const std::string& data);
         void                    freeTokens(char **tokens);
     private:
         struct sockaddr_in  _addr;

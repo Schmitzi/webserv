@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT DOOMS! 🕹</title>
+    <link rel="stylesheet" type="text/css" href="./doom/style.css">
+    <link rel="stylesheet" type="text/css" href="./doom/styles/button.css">
+</head>
+
+<body>
+    <div class="container">
+        <div id="dosbox"></div>
+        <button class="wrapper" onclick="dosbox.requestFullScreen();">
+            <a><span>FULLSCREEN</span></a>
+        </button>
+    </div>
+    <!-- Direct load of CDN version to avoid CORS -->
+    <script src="https://js-dos.com/cdn/js-dos-api.js"></script>
+    
+    <script type="text/javascript">
+        var dosbox = new Dosbox({
+            id: "dosbox",
+            onload: function (dosbox) {
+                dosbox.run("https://js-dos.com/cdn/upload/DOOM-@evilution.zip", "./DOOM.EXE");
+                dosbox.run(-c, "mount c .")
+            },
+            onrun: function (dosbox, app) {
+                console.log("App '" + app + "' is running!");
+            }
+        });
+    </script>
+</body>
+
+</html>

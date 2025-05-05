@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <cstring>
 #include <iostream>
-#include <arpa/inet.h>
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -14,15 +13,12 @@
 #define WHITE   "\33[97m"
 #define RESET   "\33[0m" // No Colour
 
-// Forward declarations
+// Forward declaration
 class Webserv;
-class Config;
 
 class Server {
     public:
         Server();
-        Server(const Server& other);
-        Server& operator=(const Server& other);
         ~Server();
         
         Webserv             &getWebServ();
@@ -31,9 +27,7 @@ class Server {
         std::string const   &getUploadDir();
         std::string const   &getWebRoot();
         void                setFd(int const fd);
-        void                setWebserv(Webserv* webserv);
-        void                setConfig(Config* config);
-        Config*             getConfig() const;
+        void                setWebserv(Webserv* webserv); // Add a setter for the webserv pointer
         int                 openSocket();
         int                 setOptional();
         int                 setServerAddr();
@@ -44,8 +38,8 @@ class Server {
         struct sockaddr_in  _addr;
         std::string         _uploadDir;
         std::string         _webRoot;
+        
         Webserv             *_webserv;
-        Config              *_config;
 };
 
 #endif

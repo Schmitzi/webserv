@@ -15,11 +15,7 @@ Client::Client(Webserv &other) {
 }
 
 Client::~Client() {
-    if (_fd >= 0) {
-        close(_fd);
-        _fd = -1;
-    }
-    _requestBuffer.clear();
+
 }
 
 struct sockaddr_in  &Client::getAddr() {
@@ -50,6 +46,14 @@ void Client::setServer(Server *server) {
     _server = server;
 }
 
+Webserv &Client::getWebserv() {
+	return *_webserv;
+}
+
+Server &Client::getServer() {
+	return *_server;
+}
+
 int Client::acceptConnection() {
     _addrLen = sizeof(_addr);
     _fd = accept(_server->getFd(), (struct sockaddr *)&_addr, &_addrLen);
@@ -71,17 +75,20 @@ void Client::displayConnection() {
 }
 
 int Client::recieveData() {
+    // Larger buffer for multipart uploads
     char buffer[1024 * 1024];
     memset(buffer, 0, sizeof(buffer));
     
+    // Receive data
     int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, 0);
     
     if (bytesRead > 0) {
+        // Append to request buffer
         _requestBuffer.append(buffer, bytesRead);
 
         if (_requestBuffer.length() > MAX_BUFFER_SIZE) {
             std::cout << "Buffer size exceeded maximum limit" << std::endl;
-            sendErrorResponse(413, "File Too Large");
+            sendErrorResponse(413);
             _requestBuffer.clear();
             return 1;
         }
@@ -90,31 +97,44 @@ int Client::recieveData() {
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
 
-        Request req(_requestBuffer);
-        
-        if (req.getMethod() == "BAD") {
-            sendErrorResponse(400, "Bad Request");
-            _requestBuffer.clear();
-            return 1;
-        }
+        if (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
+        _requestBuffer.find("\n\n") != std::string::npos) {
 
-        if (req.getContentType().find("multipart/form-data") != std::string::npos) {
-            int result = handleMultipartPost(req);
-            
-            if (result != -1) {
+            Request req(_requestBuffer);
+        
+            if (req.getMethod() == "BAD") {
+                std::cout << RED << _webserv->getTimeStamp() 
+                        << "Bad request format" << RESET << std::endl;
+                sendErrorResponse(400);
                 _requestBuffer.clear();
-                return result;
+                return 1;
             }
-            return 0;
-        }
+            // Handle multipart uploads separately
+            if (req.getContentType().find("multipart/form-data") != std::string::npos) {
+                int result = handleMultipartPost(req);
+                
+                if (result != -1) {
+                    return result;
+                }
+                
+                // If partial upload, wait for more data
+                return 0;
+            }
 
-        int processResult = processRequest(const_cast<char*>(_requestBuffer.c_str()));
-        
-        if (processResult != -1) {
-            _requestBuffer.clear();
-        }
+            // Create a copy of the buffer for processing
+            std::string tempBuffer = _requestBuffer;
 
-        return processResult;
+            // Try processing the request
+            int processResult = processRequest(const_cast<char*>(tempBuffer.c_str()));
+            
+            // If fully processed, clear the buffer
+            if (processResult != -1) {
+                _requestBuffer.clear();
+            }
+
+            return processResult;
+        }
+        return 0;
     } 
     else if (bytesRead == 0) {
         std::cout << RED << _webserv->getTimeStamp() 
@@ -128,6 +148,7 @@ int Client::recieveData() {
             return (_webserv->ft_error("recv() failed"), 1);
         }
     }
+
 }
 
 Request Client::parseRequest(char* buffer) {
@@ -140,7 +161,7 @@ Request Client::parseRequest(char* buffer) {
     Request req(input);
 
     if (req.getMethod() == "BAD") {
-        sendErrorResponse(400, "Bad Request");
+        sendErrorResponse(400);
     }
 
     return req;
@@ -166,7 +187,7 @@ int Client::processRequest(char *buffer) {
     } else if (req.getMethod() == "DELETE") {
         return handleDeleteRequest(req);
     } else {
-        sendErrorResponse(405, "Method Not Allowed");
+        sendErrorResponse(405);
         return 1;
     }
 }
@@ -177,7 +198,7 @@ int Client::handleGetRequest(Request& req) {
     std::string fullPath = _server->getWebRoot() + scriptPath;
     
     if (scriptPath.find("../") != std::string::npos) {
-        sendErrorResponse(403, "Forbidden");
+        sendErrorResponse(403);
         return 1;
     }
 
@@ -207,14 +228,14 @@ int Client::handleGetRequest(Request& req) {
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
         std::cout << _webserv->getTimeStamp() << "File not found: " << fullPath << "\n";
-        sendErrorResponse(404, "Not Found");
+        sendErrorResponse(404);
         return 1;
     }
 
 
     if (!S_ISREG(fileStat.st_mode)) {
         std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
-        sendErrorResponse(403, "Forbidden");
+        sendErrorResponse(403);
         return 1;
     }
 
@@ -222,7 +243,7 @@ int Client::handleGetRequest(Request& req) {
     int fd = open(fullPath.c_str(), O_RDONLY);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file: " << fullPath << std::endl;
-        sendErrorResponse(500, "Internal Server Error");
+        sendErrorResponse(500);
         return 1;
     }
 
@@ -246,7 +267,7 @@ int Client::handleGetRequest(Request& req) {
     // Check for read errors
     if (bytesRead < 0) {
         std::cout << "Error reading file: " << fullPath << std::endl;
-        sendErrorResponse(500, "Internal Server Error");
+        sendErrorResponse(500);
         return 1;
     }
 
@@ -278,7 +299,7 @@ int Client::handlePostRequest(Request& req) {
     }
 
     if (req.getPath().find("../") != std::string::npos) {
-        sendErrorResponse(403, "Forbidden");
+        sendErrorResponse(403);
         return 1;
     }
 
@@ -287,7 +308,7 @@ int Client::handlePostRequest(Request& req) {
     int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file for writing: " << uploadPath << std::endl;
-        sendErrorResponse(500, "Internal Server Error");
+        sendErrorResponse(500);
         return 1;
     }
 
@@ -299,7 +320,7 @@ int Client::handlePostRequest(Request& req) {
 
     if (bytesWritten < 0) {
         std::cout << "Failed to write to file" << "\n";
-        sendErrorResponse(500, "Internal Server Error");
+        sendErrorResponse(500);
         return 1;
     }
 
@@ -322,7 +343,7 @@ int Client::handleDeleteRequest(Request& req) {
     }
 
     if (unlink(fullPath.c_str()) != 0) {
-        sendErrorResponse(403, "Forbidden");
+        sendErrorResponse(403);
         return 1;
     }
 
@@ -334,20 +355,20 @@ int Client::handleMultipartPost(Request& req) {
     std::string boundary = req.getBoundary();
     
     if (boundary.empty()) {
-        sendErrorResponse(400, "Bad Request - No Boundary");
+        sendErrorResponse(400);
         return 1;
     }
     
     Multipart parser(_requestBuffer, boundary);
     
     if (!parser.parse()) {
-        sendErrorResponse(400, "Bad Request - Invalid Format");
+        sendErrorResponse(400);
         return 1;
     }
     
     std::string filename = parser.getFilename();
     if (filename.empty()) {
-        sendErrorResponse(400, "Bad Request - No Filename");
+        sendErrorResponse(400);
         return 1;
     }
     
@@ -357,12 +378,12 @@ int Client::handleMultipartPost(Request& req) {
     }
     
     if (!ensureUploadDirectory()) {
-        sendErrorResponse(500, "Internal Server Error");
+        sendErrorResponse(500);
         return 1;
     }
     
     if (!saveFile(filename, fileContent)) {
-        sendErrorResponse(500, "Internal Server Error");
+        sendErrorResponse(500);
         return 1;
     }
     
@@ -370,51 +391,6 @@ int Client::handleMultipartPost(Request& req) {
     sendResponse(req, "keep-alive", successMsg);
     
     return 0;
-}
-
-ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
-    std::string response = "HTTP/1.1 200 OK\r\n";
-    
-    // Get the correct content type based on the file extension
-    std::string contentType = req.getMimeType(req.getPath());
-    
-    response += "Content-Type: " + contentType + "\r\n";
-    
-    // Handle content length
-    size_t contentLength;
-    if (!body.empty()) {
-        contentLength = body.length();
-    } else {
-        contentLength = req.getBody().length();
-    }
-    
-    response += "Content-Length: " + tostring(contentLength) + "\r\n";
-    response += "Server: WebServ/1.0\r\n";
-    response += "Connection: " + connect + "\r\n";
-    response += "\r\n";
-    
-    if (!body.empty()) {
-        response += body;
-    } else {
-        response += req.getBody();
-    }
-    
-    // Debug output
-    std::cout << "Sending response with Content-Type: " << contentType << std::endl;
-    
-    return send(_fd, response.c_str(), response.length(), 0);
-}
-
-void Client::sendErrorResponse(int statusCode, const std::string& message) {
-    std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + message + "\r\n";
-    response += "Content-Type: text/plain\r\n";
-    response += "Content-Length: " + tostring(message.length()) + "\r\n";
-    response += "Server: WebServ/1.0\r\n";
-    response += "Connection: close\r\n";
-    response += "\r\n";
-    response += message;
-    
-    send(_fd, response.c_str(), response.length(), 0);
 }
 
 bool Client::ensureUploadDirectory() {
@@ -449,6 +425,116 @@ bool Client::saveFile(const std::string& filename, const std::string& content) {
     return true;
 }
 
+void Client::findContentType(Request& req) {
+    std::string raw(_buffer);
+    size_t start = raw.find("Content-Type: ");
+    
+    if (start == std::string::npos) {
+        // Content-Type header not found
+        if (raw.find("POST") == 0) {
+            std::cout << "Warning: POST request without Content-Type header" << std::endl;
+            req.setContentType("application/octet-stream");
+        }
+        return;
+    }
+    
+    // Extract the full Content-Type header value
+    start += 14; // Skip "Content-Type: "
+    size_t end = raw.find("\r\n", start);
+    if (end == std::string::npos) {
+        end = raw.find("\n", start);
+        if (end == std::string::npos) {
+            end = raw.length();
+        }
+    }
+    
+    // Get the complete Content-Type value
+    std::string contentType = raw.substr(start, end - start);
+    req.setContentType(contentType); // Store the full Content-Type
+    
+    //std::cout << "Found Content-Type: [" << contentType << "]" << std::endl;
+    
+    // Check for boundary parameter
+    size_t boundaryPos = contentType.find("; boundary=");
+    if (boundaryPos != std::string::npos) {
+        std::string boundary = contentType.substr(boundaryPos + 11); // +11 for "; boundary="
+        
+        // Clean up boundary if needed
+        size_t quotePos = boundary.find("\"");
+        if (quotePos != std::string::npos) {
+            boundary = boundary.substr(0, quotePos);
+        }
+        
+        //std::cout << "Boundary: [" << boundary << "]" << std::endl;
+        
+        if (boundary.empty()) {
+            std::cout << "Warning: Empty boundary found" << std::endl;
+        }
+        
+        // Store the boundary
+        req.setBoundary(boundary);
+        
+        // Verify the boundary was set correctly
+        //std::cout << "Stored boundary: [" << req.getBoundary() << "]" << std::endl;
+    }
+}
+
+ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
+    std::string response = "HTTP/1.1 200 OK\r\n";
+    
+    // Get proper content type based on file extension
+    std::string contentType = req.getContentType();
+    if (contentType.find("multipart") == std::string::npos) {
+        contentType = req.getMimeType(req.getPath());
+    }
+    
+    response += "Content-Type: " + contentType + "\r\n";
+    if (req.getMethod() == "POST") {
+        response += "Content-Length: " + std::string(tostring(req.getQuery().length())) + "\r\n";
+    } else {
+        response += "Content-Length: " + std::string(tostring(req.getBody().length())) + "\r\n";
+    }
+    response += "Server: WebServ/1.0\r\n";
+    response += "Connection: " + connect;
+    response += "Access-Control-Allow-Origin: *";
+    response += "\r\n\r\n";
+    if (!body.empty()) {
+        response += req.getBody();
+        response += "\r\n\r\n";
+    }
+    
+    return send(_fd, response.c_str(), response.length(), 0);
+}
+
+bool Client::send_all(int sockfd, const std::string& data) {
+	size_t total_sent = 0;
+	size_t to_send = data.size();
+	const char* buffer = data.c_str();
+
+	while (total_sent < to_send) {
+		ssize_t sent = send(sockfd, buffer + total_sent, to_send - total_sent, 0);
+		if (sent <= 0)
+			return false;
+		total_sent += sent;
+	}
+	return true;
+}
+
+void Client::sendErrorResponse(int statusCode) {
+	std::string body;
+	std::string statusText = getStatusMessage(statusCode);
+	Webserv &webserv = getWebserv();
+	resolveErrorResponse(statusCode, webserv, statusText, body);
+	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+	response += "Content-Type: text/html\r\n";
+	response += "Content-Length: " + tostring(body.size()) + "\r\n";
+	response += "Server: WebServ/1.0\r\n";
+	response += "Connection: close\r\n";
+	response += "\r\n";
+	response += body;
+	if (!send_all(_fd, response))
+		std::cerr << "Failed to send error response" << std::endl;
+}
 
 void    Client::freeTokens(char **tokens) {
     for (int i = 0; tokens[i]; i++) {
