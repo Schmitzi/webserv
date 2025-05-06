@@ -10,6 +10,9 @@ Client::Client(Webserv &other) {
     setWebserv(&other);
     setServer(&other.getServer());
 
+    Config *temp = new Config(_webserv->getConfig());
+    setConfig(temp->getConfig());
+    delete temp;
     _cgi.setClient(*this);
     _cgi.setServer(*_server);
     _cgi.setConfig(_webserv->getConfig());
@@ -53,6 +56,10 @@ Webserv &Client::getWebserv() {
 
 Server &Client::getServer() {
 	return *_server;
+}
+
+void    Client::setConfig(serverLevel config) {
+    _config = config;
 }
 
 int Client::acceptConnection() {
@@ -194,7 +201,6 @@ int Client::processRequest(char *buffer) {
 }
 
 int Client::handleGetRequest(Request& req) {
-
     std::string scriptPath = req.getPath();
     std::string fullPath = _server->getWebRoot() + scriptPath;
     
@@ -202,44 +208,45 @@ int Client::handleGetRequest(Request& req) {
         sendErrorResponse(403);
         return 1;
     }
-
+    
     if (_cgi.isCGIScript(scriptPath)) {
         return _cgi.executeCGI(*this, req, fullPath);
     }
-
+    
     std::cout << _webserv->getTimeStamp() << "Handling GET request for path: " << req.getPath() << std::endl;
-
+    
     std::string requestPath = req.getPath();
     if (requestPath == "/" || requestPath.empty()) {
         requestPath = "/index.html";
     }
-
+    
     size_t end = requestPath.find_last_not_of(" \t\r\n");
-
     if (end != std::string::npos) {
         requestPath = requestPath.substr(0, end + 1);
     }
-
+    
     // Construct full file path
     fullPath = _server->getWebRoot() + requestPath;
-
     std::cout << _webserv->getTimeStamp() << "Full file path: " << fullPath << "\n";
-
-    // Check if file exists and is regular file
+    
+    // Check if file exists
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
         std::cout << _webserv->getTimeStamp() << "File not found: " << fullPath << "\n";
         sendErrorResponse(404);
         return 1;
     }
-
-
-    if (!S_ISREG(fileStat.st_mode)) {
+    
+    // Check if it's a directory
+    if (S_ISDIR(fileStat.st_mode) && _config.locations.autoindex == true) {
+        return createDirList(fullPath, requestPath);
+    } else if (!S_ISREG(fileStat.st_mode)) {
+        // Not a regular file or directory
         std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
         sendErrorResponse(403);
         return 1;
     }
-
+    
     // Open file with additional error checking
     int fd = open(fullPath.c_str(), O_RDONLY);
     if (fd < 0) {
@@ -247,15 +254,14 @@ int Client::handleGetRequest(Request& req) {
         sendErrorResponse(500);
         return 1;
     }
-
+    
     // Clear any previous body content
     req.setBody("");
-
+    
     // Read file contents
     char buffer[4096];
     ssize_t bytesRead;
     std::string fileContent;
-    
     while ((bytesRead = read(fd, buffer, sizeof(buffer) - 1)) > 0) {
         buffer[bytesRead] = '\0';
         fileContent += buffer;
@@ -264,18 +270,122 @@ int Client::handleGetRequest(Request& req) {
     
     // Set the body content
     req.setBody(fileContent + "\r\n");
-
+    
     // Check for read errors
     if (bytesRead < 0) {
         std::cout << "Error reading file: " << fullPath << std::endl;
         sendErrorResponse(500);
         return 1;
     }
-
+    
     sendResponse(req, "keep-alive", req.getBody());
-
     std::cout << GREEN << _webserv->getTimeStamp() << "\nSuccessfully sent file: " << fullPath << std::endl;
     return 0;
+}
+
+int    Client::createDirList(std::string fullPath, std::string requestPath) {
+    // Check for index file
+    std::string indexPath = fullPath + "/index.html";
+    struct stat indexStat;
+    
+    if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
+        // Index file exists, serve it
+        fullPath = indexPath;
+    } else {
+        // Check if autoindex is enabled for this location
+        bool autoindexEnabled = true; // Replace with actual check from your config
+        
+        if (autoindexEnabled) {
+            // Generate directory listing
+            std::string dirListing = showDir(fullPath, requestPath);
+            if (dirListing.empty()) {
+                sendErrorResponse(403);
+                return 1;
+            }
+            
+            // Send directory listing as response
+            std::string response = "HTTP/1.1 200 OK\r\n";
+            response += "Content-Type: text/html\r\n";
+            response += "Content-Length: " + tostring(dirListing.length()) + "\r\n";
+            response += "Connection: keep-alive\r\n";
+            response += "\r\n";
+            response += dirListing;
+            send(_fd, response.c_str(), response.length(), 0);
+            std::cout << GREEN << _webserv->getTimeStamp() << "\nSuccessfully sent directory listing: " << fullPath << std::endl;
+            return 0;
+        } else {
+            // Autoindex disabled
+            sendErrorResponse(403);
+            return 1;
+        }
+    }
+    return 1;
+}
+
+std::string Client::showDir(const std::string& dirPath, const std::string& requestUri) {
+    DIR* dir = opendir(dirPath.c_str());
+    if (!dir) {
+        return ""; // Return empty string if directory can't be opened
+    }
+    
+    // Create a more attractive HTML with styling
+    std::string html = "<!DOCTYPE html>\n"
+        "<html>\n"
+        "<head>\n"
+        "    <title>Index of " + requestUri + "</title>\n"
+        "    <style>\n"
+        "        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }\n"
+        "        h1 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }\n"
+        "        ul { list-style-type: none; padding: 0; }\n"
+        "        li { padding: 8px; border-bottom: 1px solid #f2f2f2; }\n"
+        "        li:hover { background-color: #f8f8f8; }\n"
+        "        a { text-decoration: none; color: #0366d6; }\n"
+        "        a:hover { text-decoration: underline; }\n"
+        "        .header { background-color: #f4f4f4; padding: 10px; margin-bottom: 20px; border-radius: 4px; }\n"
+        "        .server-info { font-size: 12px; color: #777; margin-top: 20px; }\n"
+        "    </style>\n"
+        "</head>\n"
+        "<body>\n"
+        "    <div class=\"header\">\n"
+        "        <h1>Index of " + requestUri + "</h1>\n"
+        "    </div>\n"
+        "    <ul>\n";
+    
+    // Add parent directory link if not at root
+    if (requestUri != "/") {
+        html += "        <li><a href=\"../\">Parent Directory</a></li>\n";
+    }
+    
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        std::string name = entry->d_name;
+        
+        // Skip . and .. entries
+        if (name == "." || name == "..") {
+            continue;
+        }
+        
+        // Check if it's a directory
+        std::string entryPath = dirPath + "/" + name;
+        struct stat entryStat;
+        if (stat(entryPath.c_str(), &entryStat) == 0) {
+            if (S_ISDIR(entryStat.st_mode)) {
+                name += "/"; // Add trailing slash for directories
+            }
+        }
+        
+        html += "        <li><a href=\"" + name + "\">" + name + "</a></li>\n";
+    }
+    
+    html += "    </ul>\n"
+        "    <div class=\"server-info\">\n"
+        "        <p>WebServ 1.0</p>\n"
+        "    </div>\n"
+        "</body>\n"
+        "</html>";
+        
+    closedir(dir);
+    return html;
 }
 
 std::string Client::extractFileName(const std::string& path) {

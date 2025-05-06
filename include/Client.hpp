@@ -5,11 +5,14 @@
 #include <iostream>
 #include <cstring>
 #include <map>
+#include <dirent.h>
 #include "../include/Response.hpp"
 #include "../include/Helper.hpp"
 #include "../include/Request.hpp"
 #include "../include/CGIHandler.hpp"
 #include "../include/Multipart.hpp"
+#include "../include/Config.hpp"
+#include "../include/ConfigParser.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -22,6 +25,8 @@
 // Forward declarations
 class Webserv;
 class Server;
+struct serverLevel;
+struct locationLevel;
 
 class Client {
     public:
@@ -37,6 +42,7 @@ class Client {
         Server					&getServer();
         void                    setWebserv(Webserv *webserv);
         void                    setServer(Server *server);
+        void                    setConfig(serverLevel config);
         int                     acceptConnection();
         void                    displayConnection();
         int                     recieveData();
@@ -49,6 +55,8 @@ class Client {
         int                     handleMultipartPost(Request& req);
         bool                    ensureUploadDirectory();
         bool                    saveFile(const std::string& filename, const std::string& content);
+        int                     createDirList(std::string fullPath, std::string requestPath);
+        std::string             showDir(const std::string& dirPath, const std::string& requestUri);
 
         void                    findContentType(Request &req);
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
@@ -66,6 +74,7 @@ class Client {
         Webserv             *_webserv;
         Server              *_server;
         CGIHandler          _cgi;
+        serverLevel         _config;
 };
 
 //create buffer
