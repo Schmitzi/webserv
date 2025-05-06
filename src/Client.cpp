@@ -10,8 +10,9 @@ Client::Client(Webserv &other) {
     setWebserv(&other);
     setServer(&other.getServer());
 
-    _cgi.setPythonPath(other.getEnvironment());
     _cgi.setClient(*this);
+    _cgi.setServer(*_server);
+    _cgi.setConfig(_webserv->getConfig());
 }
 
 Client::~Client() {

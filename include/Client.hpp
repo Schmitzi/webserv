@@ -50,8 +50,6 @@ class Client {
         bool                    ensureUploadDirectory();
         bool                    saveFile(const std::string& filename, const std::string& content);
 
-        int                     handleChunkedUpload(char* buffer, ssize_t bytesRead);
-        void                    resetUploadState();
         void                    findContentType(Request &req);
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
         void                    sendErrorResponse(int statusCode);
