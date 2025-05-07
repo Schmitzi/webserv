@@ -272,6 +272,7 @@ std::string Request::getMimeType(std::string const &path) {
         return "image/svg+xml";
     if (ext == "ico")
         return "image/x-icon";
+        //return "image/vnd.microsoft.icon";
     
     return "text/plain"; // Default
 }

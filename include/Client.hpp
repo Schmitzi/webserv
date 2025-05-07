@@ -43,18 +43,21 @@ class Client {
         void                    setWebserv(Webserv *webserv);
         void                    setServer(Server *server);
         void                    setConfig(serverLevel config);
+        void                    setAutoIndex();
         int                     acceptConnection();
         void                    displayConnection();
         int                     recieveData();
         int                     processRequest(char *buffer);
         Request                 parseRequest(char* buffer);
         int                     handleGetRequest(Request& req);
+        int                     buildBody(Request &req, std::string fullPath);
         std::string             extractFileName(const std::string& path);
         int                     handlePostRequest(Request& req);
         int                     handleDeleteRequest(Request& req);
         int                     handleMultipartPost(Request& req);
         bool                    ensureUploadDirectory();
         bool                    saveFile(const std::string& filename, const std::string& content);
+        int                     viewDirectory(std::string fullPath, std::string requestPath);
         int                     createDirList(std::string fullPath, std::string requestPath);
         std::string             showDir(const std::string& dirPath, const std::string& requestUri);
 
@@ -70,6 +73,7 @@ class Client {
         unsigned char       *_ip;
         char                _buffer[16384];
         std::string         _requestBuffer;
+        bool                _autoindex;
         
         Webserv             *_webserv;
         Server              *_server;
