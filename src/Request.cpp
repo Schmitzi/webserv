@@ -250,7 +250,7 @@ std::string Request::getMimeType(std::string const &path) {
     
     if (dotPos != std::string::npos) {
         ext = path.substr(dotPos + 1);
-    } else if (path == "/") {
+    } else if (path == "/" || path.empty()) {
         return "text/html";
     } else {
         return "text/plain";
@@ -271,8 +271,7 @@ std::string Request::getMimeType(std::string const &path) {
     if (ext == "svg")
         return "image/svg+xml";
     if (ext == "ico")
-        return "image/x-icon";
-        //return "image/vnd.microsoft.icon";
+        return "image/vnd.microsoft.icon";
     
     return "text/plain"; // Default
 }

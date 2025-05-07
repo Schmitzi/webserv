@@ -191,6 +191,8 @@ int Client::processRequest(char *buffer) {
         return 1;
     }
 
+    std::cout << GREEN << "New Request\n" << RESET;
+
     // Debug print
     std::cout << BLUE <<  _webserv->getTimeStamp() << "\n";
     std::cout << "Parsed Request:" << "\n";
@@ -211,83 +213,77 @@ int Client::processRequest(char *buffer) {
 }
 
 int Client::handleGetRequest(Request& req) {
-    std::string scriptPath = req.getPath();
-    std::string fullPath = _server->getWebRoot() + scriptPath;
+    std::string requestPath = req.getPath();
     
     // Check for path traversal attempts
-    if (scriptPath.find("../") != std::string::npos) {
+    if (requestPath.find("../") != std::string::npos) {
         sendErrorResponse(403);
         return 1;
     }
     
-    // Check if it's a CGI script
-    if (_cgi.isCGIScript(scriptPath)) {
-        return _cgi.executeCGI(*this, req, fullPath);
+    // Separate file browser functionality from regular web serving
+    if (isFileBrowserRequest(requestPath)) {
+        return handleFileBrowserRequest(req, requestPath);
+    } else {
+        return handleRegularRequest(req, requestPath);
     }
-    
-    std::cout << _webserv->getTimeStamp() << "Handling GET request for path: " << req.getPath() << std::endl;
-    
-    std::string requestPath = req.getPath();
-    
-    // Special case for directory listing with /local/ prefix
-    if (requestPath.length() >= 7 && requestPath.substr(0, 7) == "/local/") {
-        std::string actualPath = requestPath.substr(6); // Remove the /local prefix
+}
+
+bool Client::isFileBrowserRequest(const std::string& path) {
+    return (path.length() >= 6 && path.substr(0, 6) == "/root/") || 
+           (path == "/root");
+}
+
+int Client::handleFileBrowserRequest(Request& req, const std::string& requestPath) {
+    std::cout << RED << "DIR!\n" << RESET;
+    if (requestPath == "/root" || requestPath == "/root/") {
+        // Root directory listing
+        std::string rootPath = _server->getWebRoot();
+        return createDirList(rootPath, "/");
+    } else {
+        // Sub-directory or file within root/
+        std::string actualPath = requestPath.substr(5); // Remove the /root prefix
         std::string actualFullPath = _server->getWebRoot() + actualPath;
         
-        struct stat dirStat;
-        if (stat(actualFullPath.c_str(), &dirStat) == 0 && S_ISDIR(dirStat.st_mode)) {
-            return createDirList(actualFullPath, actualPath);
-        } 
-        else if (_autoindex == true) {
-            buildBody(req, actualFullPath);
-            std::string response = "HTTP/1.1 200 OK\r\n";
-    
-            // Get proper content type based on file extension
-            std::string contentType = req.getContentType();
-            if (contentType.find("multipart") == std::string::npos) {
-                contentType = req.getMimeType(req.getPath());
-            }
-            std::cout << contentType << "\n";
-            if (contentType == "image/jpeg" || contentType == "image/png" || contentType == "image/x-icon") {
-                response += "Content-Type: " + contentType + "\r\n";
-            } else {
-                response += "Content-Type: text/plain\r\n";
-            }
-            response += "Content-Length: " + std::string(tostring(req.getBody().length())) + "\r\n";
-            response += "Server: WebServ/1.0\r\n";
-            response += "Connection: keep-alive\r\n";
-            response += "Access-Control-Allow-Origin: *\r\n\r\n";
-            if (!req.getBody().empty()) {
-                response += req.getBody();
-                response += "\r\n";
-            }
-            std::cout << RED << response << RESET << "\n";
-            
-            std::cout << GREEN << _webserv->getTimeStamp() << "Successfully sent file: " << actualFullPath << RESET << std::endl;
-            return send(_fd, response.c_str(), response.length(), 0);
-        } 
-        else {
-            std::cout << RED << "Woops\n" << RESET;
+        struct stat fileStat;
+        if (stat(actualFullPath.c_str(), &fileStat) != 0) {
+            std::cout << _webserv->getTimeStamp() << "File not found: " << actualFullPath << "\n";
             sendErrorResponse(404);
             return 1;
         }
+        
+        if (S_ISDIR(fileStat.st_mode)) {
+            // If it's a directory, show directory listing
+            return createDirList(actualFullPath, actualPath);
+        } else if (S_ISREG(fileStat.st_mode)) {
+            // If it's a regular file, serve it
+            if (buildBody(req, actualFullPath) == 1) {
+                return 1;
+            }
+            
+            // Set proper content type and serve the file
+            req.setContentType(req.getMimeType(actualFullPath));
+            sendResponse(req, "keep-alive", req.getBody());
+            std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served file from browser: " 
+                    << actualFullPath << RESET << std::endl;
+            return 0;
+        } else {
+            // Not a regular file or directory
+            std::cout << _webserv->getTimeStamp() << "Not a regular file or directory: " << actualFullPath << std::endl;
+            sendErrorResponse(403);
+            return 1;
+        }
     }
+}
+
+int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
+    std::cout << GREEN << "Regular\n" << RESET;
+    std::string fullPath = _server->getWebRoot() + requestPath;
     
-    // Special case for root directory listing
-    if (requestPath == "/local" || requestPath == "/local/") {
-        std::string rootPath = _server->getWebRoot();
-        return createDirList(rootPath, "/");
+    // Check if it's a CGI script
+    if (_cgi.isCGIScript(requestPath)) {
+        return _cgi.executeCGI(*this, req, fullPath);
     }
-    
-    // Trim trailing whitespace
-    size_t end = requestPath.find_last_not_of(" \t\r\n");
-    if (end != std::string::npos) {
-        requestPath = requestPath.substr(0, end + 1);
-    }
-    
-    // Construct full file path
-    fullPath = _server->getWebRoot() + requestPath;
-    std::cout << _webserv->getTimeStamp() << "Full file path: " << fullPath << "\n";
     
     // Check if file exists
     struct stat fileStat;
@@ -300,19 +296,33 @@ int Client::handleGetRequest(Request& req) {
     // Check if it's a directory
     if (S_ISDIR(fileStat.st_mode)) {
         return viewDirectory(fullPath, requestPath);
-    }
-    else if (!S_ISREG(fileStat.st_mode)) {
+    } else if (!S_ISREG(fileStat.st_mode)) {
         // Not a regular file or directory
         std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
         sendErrorResponse(403);
         return 1;
     }
-
+    
+    // Build response body from file
     if (buildBody(req, fullPath) == 1) {
         return 1;
     }
+
+    std::string contentType = req.getMimeType(fullPath);
+    
+    if (fullPath.find(".html") != std::string::npos || 
+        requestPath == "/" || 
+        requestPath == "/index.html") {
+        contentType = "text/html";
+    }
+
+    // Set content type based on file extension
+    req.setContentType(req.getMimeType(fullPath));
+
+    
+    // Send response
     sendResponse(req, "keep-alive", req.getBody());
-    std::cout << GREEN << _webserv->getTimeStamp() << "\nSuccessfully sent file: " << fullPath << std::endl;
+    std::cout << GREEN << _webserv->getTimeStamp() << "Successfully sent file: " << fullPath << RESET << std::endl;
     return 0;
 }
 
@@ -491,8 +501,8 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
             parentUri = "/";
         }
         
-        // Create parent directory link with /local/ prefix
-        html += "        <li><a href=\"/local" + parentUri + "\">Parent Directory</a></li>\n";
+        // Create parent directory link with /root/ prefix
+        html += "        <li><a href=\"/rool" + parentUri + "\">Parent Directory</a></li>\n";
     }
     
     struct dirent* entry;
@@ -513,8 +523,8 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
             }
         }
         
-        // Create link with /local/ prefix
-        html += "        <li><a href=\"/local" + requestUri;
+        // Create link with /root/ prefix
+        html += "        <li><a href=\"/root" + requestUri;
         if (requestUri[requestUri.length() - 1] != '/') {
             html += "/";
         }
@@ -642,9 +652,10 @@ int Client::handleMultipartPost(Request& req) {
         return 1;
     }
     
+    std::cout << GREEN << _webserv->getTimeStamp() << "Recieved: " + parser.getFilename() << "\n" << RESET;
     std::string successMsg = "File uploaded successfully: " + filename;
-    sendResponse(req, "keep-alive", successMsg);
-    
+    sendResponse(req, "close", successMsg);
+    std::cout << GREEN << "File transfer ended\n" << RESET;    
     return 0;
 }
 
@@ -676,7 +687,7 @@ bool Client::saveFile(const std::string& filename, const std::string& content) {
         std::cout << "Error: Failed to write to file: " << strerror(errno) << std::endl;
         return false;
     }
-    
+    std::cout << RED << "END\n" << RESET;
     return true;
 }
 
@@ -735,25 +746,43 @@ void Client::findContentType(Request& req) {
 }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
-    (void)body;
+    // Create HTTP response
     std::string response = "HTTP/1.1 200 OK\r\n";
     
     // Get proper content type based on file extension
-    std::string contentType = req.getContentType();
-    if (contentType.find("multipart") == std::string::npos) {
+    std::string contentType;
+    
+    if (req.getPath().empty() || req.getPath() == "/") {
+        contentType = "text/html";
+    } else {
         contentType = req.getMimeType(req.getPath());
     }
     
+    // Set Content-Type header
     response += "Content-Type: " + contentType + "\r\n";
-    response += "Content-Length: " + std::string(tostring(req.getBody().length())) + "\r\n";
+    
+    // Choose which content to use for Content-Length
+    std::string content = req.getBody();
+    if (req.getMethod() == "POST" && body.empty()) {
+        content = req.getQuery();
+    } else if (!body.empty()) {
+        content = body;
+    }
+    
+    // Add remaining headers
+    response += "Content-Length: " + std::string(tostring(content.length())) + "\r\n";
     response += "Server: WebServ/1.0\r\n";
     response += "Connection: " + connect + "\r\n";
     response += "Access-Control-Allow-Origin: *\r\n\r\n";
     
+    // Send headers
     send(_fd, response.c_str(), response.length(), 0);
+    // std::cout << RED << response << "\n";
+    // std::cout << content << "\n" << RESET;
     
-    if (!req.getBody().empty()) {
-        return send(_fd, req.getBody().c_str(), req.getBody().length(), 0);
+    // Send body content if there is any
+    if (!content.empty()) {
+        return send(_fd, content.c_str(), content.length(), 0);
     }
     
     return 0;
