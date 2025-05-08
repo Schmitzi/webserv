@@ -125,12 +125,10 @@ int Webserv::run() {
 
     while (1) {
         // Wait for activity on any socket
-        std::cout << RED << "Waiting\n";
         if (poll(&_pfds[0], _pfds.size(), -1) < 0) {
             ft_error("poll() failed");
             continue;
         }
-        std::cout << "not waiting\n" << RESET;
         
         // Check if server socket has activity (new connection)
         if (_pfds[0].revents & POLLIN) {
@@ -191,7 +189,7 @@ int Webserv::run() {
     return 0;
 }
 
-void    Webserv::ft_error(std::string const msg) {
+void    Webserv::ft_error(std::string const msg) {  // TODO: Check if allowed
     printMsg("Error: " + msg, RED, strerror(errno));
 }
 

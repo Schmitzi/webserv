@@ -3,57 +3,57 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
 ## Core Requirements
 
 ### General Rules
-- [ ] Code must be C++98 compliant (-std=c++98 flag)
-- [ ] Must compile with flags: -Wall -Wextra -Werror
-- [ ] Makefile must include: $(NAME), all, clean, fclean, re
-- [ ] No external libraries or Boost allowed
-- [ ] Program must never crash or exit unexpectedly
-- [ ] No memory leaks
+- [ ] Code must be C++98 compliant (-std=c++98 flag) &#x2611;
+- [ ] Must compile with flags: -Wall -Wextra -Werror &#x2611;
+- [ ] Makefile must include: $(NAME), all, clean, fclean, re &#x2611;
+- [ ] No external libraries or Boost allowed &#x2611;
+- [ ] Program must never crash or exit unexpectedly &#x2611;
+- [ ] No memory leaks &#x2611;
 
 ### Network Architecture
-- [ ] Must use non-blocking sockets
-- [ ] Use only 1 poll() (or equivalent like select, epoll, kqueue) for ALL I/O operations
-- [ ] poll() must monitor both reading and writing
-- [ ] Never perform read/write without going through poll()
+- [ ] Must use non-blocking sockets &#x2611;
+- [ ] Use only 1 poll() (or equivalent like select, epoll, kqueue) for ALL I/O operations &#x2611;
+- [ ] poll() must monitor both reading and writing &#x2611;
+- [ ] Never perform read/write without going through poll() &#x2611;
 - [ ] Cannot check errno after read/write operations
-- [ ] Server must accept an optional configuration file argument
+- [ ] Server must accept an optional configuration file argument &#x2611;
 
 ### HTTP Implementation
-- [ ] Support GET, POST, and DELETE methods
-- [ ] Accurate HTTP response status codes
-- [ ] Serve fully static websites
-- [ ] Handle file uploads
-- [ ] Default error pages if none provided
-- [ ] Compatible with standard web browsers
+- [ ] Support GET, POST, and DELETE methods &#x2611;
+- [ ] Accurate HTTP response status codes &#x2611;
+- [ ] Serve fully static websites &#x2611;
+- [ ] Handle file uploads &#x2611;
+- [ ] Default error pages if none provided &#x2611;
+- [ ] Compatible with standard web browsers &#x2611;
 - [ ] Listen on multiple ports (configured)
-- [ ] Handle multiple clients simultaneously
-- [ ] Clients should never hang indefinitely
+- [ ] Handle multiple clients simultaneously &#x2611;
+- [ ] Clients should never hang indefinitely &#x2611;
 
 ### Features to Implement
-- [ ] Parse and validate HTTP requests
-- [ ] Serve static files with correct MIME types
-- [ ] Handle multipart/form-data uploads
-- [ ] Directory listing (if enabled in config)
-- [ ] HTTP redirects
-- [ ] Client body size limits
-- [ ] CGI execution (at least PHP or Python)
-- [ ] Proper CGI environment variables
+- [ ] Parse and validate HTTP requests &#x2611;
+- [ ] Serve static files with correct MIME types &#x2611;
+- [ ] Handle multipart/form-data uploads &#x2611;
+- [ ] Directory listing (if enabled in config) &#x2611;
+- [ ] HTTP redirects 
+- [ ] Client body size limits &#x2611;
+- [ ] CGI execution (at least PHP or Python) &#x2611;
+- [ ] Proper CGI environment variables &#x2611;
 - [ ] Handle chunked requests for CGI
 
 ### Configuration File Features
 - [ ] Configure port and host for each server
-- [ ] Set server_names
-- [ ] Default server for host:port
-- [ ] Custom error pages
-- [ ] Client body size limits
+- [ ] Set server_names &#x2611;
+- [ ] Default server for host:port &#x2611;
+- [ ] Custom error pages &#x2611;
+- [ ] Client body size limits &#x2611;
 - [ ] Route configuration with:
   - [ ] Accepted HTTP methods per route
-  - [ ] HTTP redirects
-  - [ ] Root directory/file location
-  - [ ] Directory listing enable/disable
+  - [ ] HTTP redirects &#x2611;
+  - [ ] Root directory/file location &#x2611;
+  - [ ] Directory listing enable/disable &#x2611;
   - [ ] Default file for directories
-  - [ ] CGI execution based on file extension
-  - [ ] Upload location configuration
+  - [ ] CGI execution based on file extension &#x2611;
+  - [ ] Upload location configuration 
 
 ### CGI Requirements
 - [ ] Execute CGI with file as first argument
@@ -61,27 +61,23 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
 - [ ] Pass full path as PATH_INFO
 - [ ] Handle chunked requests (unchunk before CGI)
 - [ ] Handle CGI output (chunked responses)
-- [ ] Fork only for CGI execution
-- [ ] Support at least one CGI interpreter (PHP/Python)
+- [ ] Fork only for CGI execution &#x2611;
+- [ ] Support at least one CGI interpreter (PHP/Python) &#x2611;
 
 ### Error Handling
-- [ ] Proper error responses with status codes
-- [ ] Default error pages
-- [ ] Handle malformed requests
-- [ ] Handle file not found
-- [ ] Handle permission errors
-- [ ] Handle CGI errors
+- [ ] Proper error responses with status codes &#x2611;
+- [ ] Default error pages &#x2611;
+- [ ] Handle malformed requests &#x2611;
+- [ ] Handle file not found &#x2611;
+- [ ] Handle permission errors &#x2611;
+- [ ] Handle CGI errors 
 
 ### Testing Requirements
 - [ ] Must remain operational under stress
 - [ ] Compare behavior with NGINX when in doubt
 - [ ] Provide test configuration files
 - [ ] Test with multiple clients
-- [ ] Test with different browsers
-
-### MacOS Specific (if applicable)
-- [ ] Use fcntl() only with F_SETFL, O_NONBLOCK, FD_CLOEXEC flags
-- [ ] File descriptors must be non-blocking
+- [ ] Test with different browsers &#x2611;
 
 ### Bonus Features (only if mandatory part is perfect)
 - [ ] Cookie support

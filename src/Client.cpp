@@ -3,7 +3,7 @@
 #include "../include/Webserv.hpp"
 
 Client::Client() : _webserv(NULL), _server(NULL) {
-
+    std::cout << BLUE << "DEFAULT CONSTRUCT\n" << RESET;
 }
 
 Client::Client(Webserv &other) {
@@ -159,7 +159,7 @@ int Client::recieveData() {
                   << "Client disconnected: " << _fd << RESET << "\n";
         return 1;
     }
-    else { // Error occurred
+    else { // Error occurred TODO: Possible not allowed?
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return 0;
         } else {
@@ -191,14 +191,9 @@ int Client::processRequest(char *buffer) {
         return 1;
     }
 
-    std::cout << GREEN << "New Request\n" << RESET;
-
     // Debug print
-    std::cout << BLUE <<  _webserv->getTimeStamp() << "\n";
-    std::cout << "Parsed Request:" << "\n";
-    std::cout << "Method: " << req.getMethod() << "\n";
-    std::cout << "Path: " << req.getPath() << "\n";
-    std::cout << "Version: " << req.getVersion() << RESET << "\n\n";
+    std::cout << BLUE <<  _webserv->getTimeStamp();
+    std::cout << "Parsed Request: " << RESET << req.getMethod() << " " << req.getPath() << " " << req.getVersion() << RESET << "\n";
 
     if (req.getMethod() == "GET") {
         return handleGetRequest(req);
@@ -214,7 +209,7 @@ int Client::processRequest(char *buffer) {
 
 int Client::handleGetRequest(Request& req) {
     std::string requestPath = req.getPath();
-    
+    std::cout << RED << "Request path: " + req.getPath() + "\n" << RESET;
     // Check for path traversal attempts
     if (requestPath.find("../") != std::string::npos) {
         sendErrorResponse(403);
@@ -222,7 +217,7 @@ int Client::handleGetRequest(Request& req) {
     }
     
     // Separate file browser functionality from regular web serving
-    if (isFileBrowserRequest(requestPath)) {
+    if (_autoindex == true && isFileBrowserRequest(requestPath)) {
         return handleFileBrowserRequest(req, requestPath);
     } else {
         return handleRegularRequest(req, requestPath);
@@ -246,8 +241,9 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         std::string actualFullPath = _server->getWebRoot() + actualPath;
         
         struct stat fileStat;
-        if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-            std::cout << _webserv->getTimeStamp() << "File not found: " << actualFullPath << "\n";
+        if (stat(actualPath.c_str(), &fileStat) != 0) { //actualFullPath
+            std::cout << RED << "THIS!\n" << RESET;
+            std::cout << _webserv->getTimeStamp() << "File not found: " << actualPath << "\n"; //actualFullPath
             sendErrorResponse(404);
             return 1;
         }
@@ -265,7 +261,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
             req.setContentType(req.getMimeType(actualFullPath));
             sendResponse(req, "keep-alive", req.getBody());
             std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served file from browser: " 
-                    << actualFullPath << RESET << std::endl;
+                    << RESET << actualFullPath << std::endl;
             return 0;
         } else {
             // Not a regular file or directory
@@ -277,18 +273,23 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 }
 
 int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
-    std::cout << GREEN << "Regular\n" << RESET;
     std::string fullPath = _server->getWebRoot() + requestPath;
-    
+    std::cout << BLUE << fullPath + "\n" << RESET;
+
+    if (fullPath.find("root") != std::string::npos && _autoindex == false) {
+        std::cout << RED << "Out\n" << RESET;
+        sendErrorResponse(403);
+        return 1;
+    }
     // Check if it's a CGI script
     if (_cgi.isCGIScript(requestPath)) {
         return _cgi.executeCGI(*this, req, fullPath);
     }
-    
+    std::cout << RED << fullPath + "\n" << RESET;
     // Check if file exists
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cout << _webserv->getTimeStamp() << "File not found: " << fullPath << "\n";
+        std::cout << _webserv->getTimeStamp() << "File not found: " << requestPath << "\n"; //fullPath
         sendErrorResponse(404);
         return 1;
     }
@@ -302,7 +303,6 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
         sendErrorResponse(403);
         return 1;
     }
-    
     // Build response body from file
     if (buildBody(req, fullPath) == 1) {
         return 1;
@@ -322,7 +322,7 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     
     // Send response
     sendResponse(req, "keep-alive", req.getBody());
-    std::cout << GREEN << _webserv->getTimeStamp() << "Successfully sent file: " << fullPath << RESET << std::endl;
+    std::cout << GREEN << _webserv->getTimeStamp() << "Successfully sent file: " << RESET << fullPath << std::endl;
     return 0;
 }
 
@@ -390,13 +390,14 @@ int Client::viewDirectory(std::string fullPath, std::string requestPath) {
         } 
         // If autoindex is disabled, try to serve index.html
         else {
-            std::string indexPath = fullPath + "/index.html";
+            std::string indexPath = "/local/index.html";
             struct stat indexStat;
             if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
                 // index.html exists, serve it
                 fullPath = indexPath;
             } else {
                 // No autoindex and no index.html, return 403
+                std::cout << RED << "HERE\n" << RESET;
                 std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
                 sendErrorResponse(403);
                 return 1;
@@ -502,7 +503,7 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
         }
         
         // Create parent directory link with /root/ prefix
-        html += "        <li><a href=\"/rool" + parentUri + "\">Parent Directory</a></li>\n";
+        html += "        <li><a href=\"/root" + parentUri + "\">Parent Directory</a></li>\n";
     }
     
     struct dirent* entry;
@@ -639,7 +640,7 @@ int Client::handleMultipartPost(Request& req) {
     
     std::string fileContent = parser.getFileContent();
     if (fileContent.empty() && !parser.isComplete()) {
-        return -1; // Need more data
+        return -1;
     }
     
     if (!ensureUploadDirectory()) {
