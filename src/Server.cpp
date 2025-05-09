@@ -74,7 +74,7 @@ int Server::setServerAddr() { // Set up server address
     memset(&_addr, 0, sizeof(_addr));
     _addr.sin_family = AF_INET;          // IPv4 Internet Protocol
     _addr.sin_addr.s_addr = INADDR_ANY;  // Accept connections on any interface
-    _addr.sin_port = htons(8080);        // Port 8080 (pull port from config)
+    _addr.sin_port = htons(getWebServ().getConfig().getPort());
     return 0;
 }
 

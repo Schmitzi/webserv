@@ -102,7 +102,6 @@ int Client::recieveData() {
     if (bytesRead > 0) {
         // Append to request buffer
         _requestBuffer.append(buffer, bytesRead);
-
         if (_requestBuffer.length() > MAX_BUFFER_SIZE) {
             std::cout << "Buffer size exceeded maximum limit" << std::endl;
             sendErrorResponse(413);
@@ -116,7 +115,6 @@ int Client::recieveData() {
 
         if (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
         _requestBuffer.find("\n\n") != std::string::npos) {
-            std::cout << BLUE << _requestBuffer + "\n" << RESET;
 
             Request req(_requestBuffer);
         
@@ -147,13 +145,11 @@ int Client::recieveData() {
             
             // If fully processed, clear the buffer
             if (processResult != -1) {
-                std::cout << RED << _requestBuffer + "\n" << RESET; 
                 _requestBuffer.clear();
             }
 
             return processResult;
         }
-        std::cout << RED << _requestBuffer + "\n" << RESET;
         return 0;
     } 
     else if (bytesRead == 0) {
@@ -194,8 +190,8 @@ int Client::processRequest(char *buffer) {
     }
 
     // Debug print
-    std::cout << BLUE <<  _webserv->getTimeStamp();
-    std::cout << "Parsed Request: " << RESET << req.getMethod() << " " << req.getPath() << " " << req.getVersion() << RESET << "\n";
+    std::cout <<  _webserv->getTimeStamp();
+    std::cout << "Parsed Request: " << RESET << req.getMethod() << " " << req.getPath() << " " << req.getVersion() << "\n";
 
     if (req.getMethod() == "GET") {
         return handleGetRequest(req);
@@ -282,9 +278,9 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
         return 1;
     }
 
-    // if (handleRedirect(req) == 0) {
-    //     return 1;
-    // }
+    if (handleRedirect(req) == 0) {
+        return 1;
+    }
     
     // Check if it's a CGI script
     if (_cgi.isCGIScript(requestPath)) {
@@ -294,7 +290,6 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     // Check if file exists
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cout << RED << "here\n" << RESET;
         std::cout << _webserv->getTimeStamp() << "File not found: " << fullPath << "\n";
         sendErrorResponse(404);
         return 1;
@@ -504,17 +499,16 @@ int Client::createDirList(std::string fullPath, std::string requestPath) {
     response += "\r\n";
     response += dirListing;
     send(_fd, response.c_str(), response.length(), 0);
-    std::cout << GREEN << _webserv->getTimeStamp() << "\nSuccessfully sent directory listing: " << fullPath << std::endl;
+    std::cout << GREEN << _webserv->getTimeStamp() << "Successfully sent directory listing: " << RESET << fullPath << std::endl;
     return 0;
 }
 
 std::string Client::showDir(const std::string& dirPath, const std::string& requestUri) {
     DIR* dir = opendir(dirPath.c_str());
     if (!dir) {
-        return ""; // Return empty string if directory can't be opened
+        return "";
     }
     
-    // Create a more attractive HTML with styling
     std::string html = "<!DOCTYPE html>\n"
         "<html>\n"
         "<head>\n"
@@ -746,24 +740,18 @@ bool Client::saveFile(const std::string& filename, const std::string& content) {
 }
 
 int    Client::handleRedirect(Request req) {
-    std::cout << RED << "Starting redir\n" << RESET;
-    std::string path = req.getPath(); //.substr(6)
-    std::cout << RED << "Path: " + path + "\n" << RESET;
+    std::string path = req.getPath().substr(1);
     std::map<std::string, locationLevel>::iterator it = _config.locations.begin();
     for ( ; it != _config.locations.end() ; it++) {
-        std::cout << RED << it->first + "\n" << RESET;
-        std::cout << RED << "Second: " + it->second.redirectionHTTP + "\n";
-        if (it->first.find(path) != std::string::npos) {
-            if (path == it->first ) {
-                sendRedirect(301, it->second.redirectionHTTP);
-                return 0;
-            }
+        if (it->first == path) {
+            sendRedirect(301, it->second.redirectionHTTP);
+            return 0;
         }
     }
     return 1;
 }
 
-void    Client::sendRedirect(int statusCode, const std::string& location) {
+void Client::sendRedirect(int statusCode, const std::string& location) {
     std::string statusText;
     if (statusCode == 301) {
         statusText = "Moved Permanently";
@@ -771,21 +759,25 @@ void    Client::sendRedirect(int statusCode, const std::string& location) {
         statusText = "Found";
     }
     
-    std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
-    std::string header = response + "Location: " + location + "\r\n";
-    header += "Content-Type: text/html\r\n";
-    
+    // Create HTML body first
     std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
     body += "<body><h1>" + statusText + "</h1>";
     body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
     
-    body += "Content-Length: " + tostring(body.length()) + "\r\n";
-    body += "Connection: close\r\n\r\n";
-    body = header + body;
-
+    // Create complete response with all headers
+    std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+    response += "Location: " + location + "\r\n";
+    response += "Content-Type: text/html\r\n";
+    response += "Content-Length: " + tostring(body.length()) + "\r\n";
+    response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
+    response += "Pragma: no-cache\r\n";
+    response += "Connection: close\r\n";
+    response += "\r\n"; // Empty line separating headers from body
+    response += body;   // Add the body after headers
     
-    std::cout << BLUE << _webserv->getTimeStamp() << "Sent redirect response" + response + "\n";
-    response += body;
+    std::cout << BLUE << _webserv->getTimeStamp() << "Sent redirect response: " 
+              << statusCode << " " << statusText << " to " << location << "\n";
+    
     send(_fd, response.c_str(), response.length(), 0);
 }
 
@@ -856,6 +848,14 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
         contentType = req.getMimeType(req.getPath());
     }
     
+    // Check for chunked transfer encoding
+    std::map<std::string, std::string> headers = req.getHeaders();
+    bool isChunked = false;
+    std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
+    if (it != headers.end() && it->second.find("chunked") != std::string::npos) {
+        isChunked = true;
+    }
+    
     // Set Content-Type header
     response += "Content-Type: " + contentType + "\r\n";
     
@@ -868,16 +868,51 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     }
     
     // Add remaining headers
-    response += "Content-Length: " + std::string(tostring(content.length())) + "\r\n";
+    if (!isChunked) {
+        response += "Content-Length: " + std::string(tostring(content.length())) + "\r\n";
+    } else {
+        response += "Transfer-Encoding: chunked\r\n";
+    }
+    
     response += "Server: WebServ/1.0\r\n";
     response += "Connection: " + connect + "\r\n";
     response += "Access-Control-Allow-Origin: *\r\n\r\n";
     
     // Send headers
     send(_fd, response.c_str(), response.length(), 0);
+    
     // Send body content if there is any
     if (!content.empty()) {
-        return send(_fd, content.c_str(), content.length(), 0);
+        if (isChunked) {
+            // Format body as chunked if needed
+            const size_t chunkSize = 4096;
+            size_t remaining = content.length();
+            size_t offset = 0;
+            
+            while (remaining > 0) {
+                size_t currentChunkSize = (remaining < chunkSize) ? remaining : chunkSize;
+                
+                // Add chunk header (size in hex)
+                std::stringstream hexStream;
+                hexStream << std::hex << currentChunkSize;
+                std::string chunkHeader = hexStream.str() + "\r\n";
+                send(_fd, chunkHeader.c_str(), chunkHeader.length(), 0);
+                
+                // Add chunk data
+                send(_fd, content.c_str() + offset, currentChunkSize, 0);
+                send(_fd, "\r\n", 2, 0);
+                
+                offset += currentChunkSize;
+                remaining -= currentChunkSize;
+            }
+            
+            // Add terminating chunk
+            send(_fd, "0\r\n\r\n", 5, 0);
+            
+            return content.length(); // Return original content length
+        } else {
+            return send(_fd, content.c_str(), content.length(), 0);
+        }
     }
     
     return 0;
@@ -913,7 +948,7 @@ void Client::sendErrorResponse(int statusCode) {
             buffer << file.rdbuf();
             body = buffer.str();
             file.close();
-            std::cout << BLUE << _webserv->getTimeStamp() << "Sending error page: " << errorPath << RESET << std::endl;
+            std::cout << RED << _webserv->getTimeStamp() << "Sending error page: " << errorPath << RESET << std::endl;
         }
     }
     

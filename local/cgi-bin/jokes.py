@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import random
-import datetime
-import cgi
+import datetime as dt
 
 # Initialize programming jokes database
 jokes = [
@@ -26,7 +25,7 @@ jokes = [
 selected = random.choice(jokes)
 
 # Get current time
-current_time = datetime.datetime.now().strftime("%A, %B %d, %Y at %H:%M:%S")
+current_time = dt.datetime.now().strftime("%A, %B %d, %Y at %H:%M:%S")
 
 # Output HTTP headers
 print("Content-Type: text/html\r\n\r\n")

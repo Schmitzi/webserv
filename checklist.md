@@ -34,11 +34,11 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
 - [ ] Serve static files with correct MIME types &#x2611;
 - [ ] Handle multipart/form-data uploads &#x2611;
 - [ ] Directory listing (if enabled in config) &#x2611;
-- [ ] HTTP redirects 
+- [ ] HTTP redirects &#x2611;
 - [ ] Client body size limits &#x2611;
 - [ ] CGI execution (at least PHP or Python) &#x2611;
 - [ ] Proper CGI environment variables &#x2611;
-- [ ] Handle chunked requests for CGI
+- [ ] Handle chunked requests for CGI &#x2611;
 
 ### Configuration File Features
 - [ ] Configure port and host for each server
@@ -56,11 +56,11 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
   - [ ] Upload location configuration 
 
 ### CGI Requirements
-- [ ] Execute CGI with file as first argument
-- [ ] Run CGI in correct directory
+- [ ] Execute CGI with file as first argument 
+- [ ] Run CGI in correct directory &#x2611;
 - [ ] Pass full path as PATH_INFO
-- [ ] Handle chunked requests (unchunk before CGI)
-- [ ] Handle CGI output (chunked responses)
+- [ ] Handle chunked requests (unchunk before CGI) 
+- [ ] Handle CGI output (chunked responses) &#x2611;
 - [ ] Fork only for CGI execution &#x2611;
 - [ ] Support at least one CGI interpreter (PHP/Python) &#x2611;
 
@@ -70,7 +70,7 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
 - [ ] Handle malformed requests &#x2611;
 - [ ] Handle file not found &#x2611;
 - [ ] Handle permission errors &#x2611;
-- [ ] Handle CGI errors 
+- [ ] Handle CGI errors &#x2611;
 
 ### Testing Requirements
 - [ ] Must remain operational under stress
@@ -82,7 +82,7 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
 ### Bonus Features (only if mandatory part is perfect)
 - [ ] Cookie support
 - [ ] Session management
-- [ ] Multiple CGI interpreters
+- [ ] Multiple CGI interpreters &#x2611;
 
 Make sure to also:
 - Test with telnet and actual browsers

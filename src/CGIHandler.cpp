@@ -70,7 +70,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         
         if (WIFEXITED(status)) {
             int exit_status = WEXITSTATUS(status);
-            std::cerr << "CGI Script exit status: " << exit_status << std::endl;
+            std::cerr << getTimeStamp() << "CGI Script exit status: " << exit_status << std::endl;
             
             if (exit_status == 0) {
                 int result = processScriptOutput(client);
@@ -93,20 +93,29 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
     return 1;
 }
 
+void CGIHandler::setNonBlocking(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags != -1) {
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    }
+}
+
 int CGIHandler::processScriptOutput(Client &client) {
     std::string output;
     char buffer[4096];
     int totalBytesRead = 0;
     
-    int flags = fcntl(_output[0], F_GETFL, 0);
-    fcntl(_output[0], F_SETFL, flags | O_NONBLOCK);
+    setNonBlocking(_output[0]);
     
     fd_set readfds;
-    
     FD_ZERO(&readfds);
     FD_SET(_output[0], &readfds);
     
-    int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, 0); //
+    struct timeval timeout;
+    timeout.tv_sec = 10;  // 10 seconds timeout
+    timeout.tv_usec = 0;
+    
+    int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, &timeout);
     
     if (selectResult > 0) {
         ssize_t bytesRead;
@@ -114,13 +123,14 @@ int CGIHandler::processScriptOutput(Client &client) {
             buffer[bytesRead] = '\0';
             output += buffer;
             totalBytesRead += bytesRead;
+            std::cout << BLUE << getTimeStamp() << "Received bytes: " << RESET << bytesRead << BLUE << ", Total buffer: " << RESET << totalBytesRead << "\n";
         }
     }
     
     close(_output[0]);
     _output[0] = -1;
 
-    std::cout << "Total bytes read: " << totalBytesRead << std::endl;
+    std::cout << BLUE << getTimeStamp() << "Total bytes read: " << RESET << totalBytesRead << std::endl;
 
     // If no output, send a default response
     if (output.empty()) {
@@ -133,10 +143,165 @@ int CGIHandler::processScriptOutput(Client &client) {
         return 0;
     }
 
-    Request temp = createTempHeader(output);
+    // Split headers and body
+    std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(output);
+    std::string headerSection = headerAndBody.first;
+    std::string bodyContent = headerAndBody.second;
     
+    // Parse headers
+    std::map<std::string, std::string> headerMap = parseHeaders(headerSection);
+    
+    // Check if we need to handle chunked transfer encoding
+    if (isChunkedTransfer(headerMap)) {
+        return handleChunkedOutput(headerMap, bodyContent);
+    } else {
+        return handleStandardOutput(headerMap, bodyContent);
+    }
+}
+
+bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& headers) {
+    std::map<std::string, std::string>::const_iterator it = headers.find("Transfer-Encoding");
+    if (it != headers.end() && it->second.find("chunked") != std::string::npos) {
+        return true;
+    }
+    return false;
+}
+
+int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
+    // Create a temporary request to hold the response information
+    Request temp;
+    
+    // Set content type from headers
+    std::map<std::string, std::string>::const_iterator typeIt = headerMap.find("Content-Type");
+    if (typeIt != headerMap.end()) {
+        temp.setContentType(typeIt->second);
+    } else {
+        temp.setContentType("text/html");
+    }
+    
+    // Set the body
+    temp.setBody(initialBody);
+    
+    // Send standard response
     _client->sendResponse(temp, "keep-alive", temp.getBody());
     return 0;
+}
+
+int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
+    // Build HTTP chunked response
+    std::string response = "HTTP/1.1 200 OK\r\n";
+    
+    // Add all headers except Content-Length (which doesn't apply to chunked responses)
+    for (std::map<std::string, std::string>::const_iterator it = headerMap.begin(); it != headerMap.end(); ++it) {
+        if (it->first != "Content-Length") {
+            response += it->first + ": " + it->second + "\r\n";
+        }
+    }
+    
+    // Make sure Transfer-Encoding: chunked is included
+    if (headerMap.find("Transfer-Encoding") == headerMap.end()) {
+        response += "Transfer-Encoding: chunked\r\n";
+    }
+    
+    response += "Connection: keep-alive\r\n";
+    response += "\r\n";
+    
+    // Format body as chunked
+    response += formatChunkedResponse(initialBody);
+    
+    // Send the chunked response
+    if (!_client->send_all(_client->getFd(), response)) {
+        std::cerr << "Failed to send chunked response" << std::endl;
+        return 1;
+    }
+    
+    return 0;
+}
+
+std::string CGIHandler::formatChunkedResponse(const std::string& body) {
+    std::string chunkedBody = "";
+    
+    // If body is empty, just send a terminating chunk
+    if (body.empty()) {
+        chunkedBody = "0\r\n\r\n";
+        return chunkedBody;
+    }
+    
+    // Define chunk size (we could optimize by using different sizes)
+    const size_t chunkSize = 4096;
+    size_t remaining = body.length();
+    size_t offset = 0;
+    
+    // Break body into chunks
+    while (remaining > 0) {
+        size_t currentChunkSize = (remaining < chunkSize) ? remaining : chunkSize;
+        
+        // Add chunk header (size in hex)
+        std::stringstream hexStream;
+        hexStream << std::hex << currentChunkSize;
+        chunkedBody += hexStream.str() + "\r\n";
+        
+        // Add chunk data
+        chunkedBody += body.substr(offset, currentChunkSize) + "\r\n";
+        
+        offset += currentChunkSize;
+        remaining -= currentChunkSize;
+    }
+    
+    // Add terminating chunk
+    chunkedBody += "0\r\n\r\n";
+    
+    return chunkedBody;
+}
+
+std::pair<std::string, std::string> CGIHandler::splitHeaderAndBody(const std::string& output) {
+    size_t headerEnd = output.find("\r\n\r\n");
+    if (headerEnd == std::string::npos) {
+        headerEnd = output.find("\n\n");
+        if (headerEnd == std::string::npos) {
+            // If no header/body separator found, assume it's all body
+            return std::make_pair("", output);
+        } else {
+            return std::make_pair(
+                output.substr(0, headerEnd),
+                output.substr(headerEnd + 2)
+            );
+        }
+    } else {
+        return std::make_pair(
+            output.substr(0, headerEnd),
+            output.substr(headerEnd + 4)
+        );
+    }
+}
+
+std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& headerSection) {
+    std::map<std::string, std::string> headers;
+    std::istringstream iss(headerSection);
+    std::string line;
+    
+    while (std::getline(iss, line) && !line.empty() && line != "\r") {
+        // Remove trailing '\r' if present
+        if (!line.empty() && line[line.length() - 1] == '\r') {
+            line.erase(line.length() - 1);
+        }
+        
+        size_t colonPos = line.find(':');
+        if (colonPos != std::string::npos) {
+            std::string key = line.substr(0, colonPos);
+            std::string value = line.substr(colonPos + 1);
+            
+            // Trim whitespace
+            key.erase(0, key.find_first_not_of(" \t"));
+            key.erase(key.find_last_not_of(" \t") + 1);
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
+            
+            headers[key] = value;
+        }
+    }
+    
+    return headers;
 }
 
 bool CGIHandler::isCGIScript(const std::string& path) {
@@ -253,6 +418,7 @@ void    CGIHandler::findPython() {
     static const char* pythonLocations[] = {
         "/usr/bin/python3",
         "/run/current-system/sw/bin/python3",
+        "/etc/profiles/per-user/schmitzi/bin/python3",
         "/usr/local/bin/python3",
         NULL
     };
@@ -408,7 +574,7 @@ Request    CGIHandler::createTempHeader(std::string output) {
 
 int CGIHandler::doChecks(Client client) {
     if (access(_path.c_str(), F_OK) != 0) {
-        std::cerr << "Script does not exist: " << _path << std::endl;
+        std::cerr << getTimeStamp() << "Script does not exist: " << _path << std::endl;
         client.sendErrorResponse(404);
         return 1;
     }
@@ -425,4 +591,20 @@ int CGIHandler::doChecks(Client client) {
         return 1;
     }
     return 0;
+}
+
+std::string CGIHandler::getTimeStamp() {
+    time_t now = time(NULL);
+    struct tm* tm_info = localtime(&now);
+    
+    std::ostringstream oss;
+    oss << "[" 
+        << (tm_info->tm_year + 1900) << "-"
+        << std::setw(2) << std::setfill('0') << (tm_info->tm_mon + 1) << "-"
+        << std::setw(2) << std::setfill('0') << tm_info->tm_mday << " "
+        << std::setw(2) << std::setfill('0') << tm_info->tm_hour << ":"
+        << std::setw(2) << std::setfill('0') << tm_info->tm_min << ":"
+        << std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
+    
+    return oss.str();
 }
