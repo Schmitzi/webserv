@@ -3,7 +3,6 @@
 #include "../include/Webserv.hpp"
 
 Client::Client() : _webserv(NULL), _server(NULL) {
-    std::cout << BLUE << "DEFAULT CONSTRUCT\n" << RESET;
 }
 
 Client::Client(Webserv &other) {
@@ -84,12 +83,12 @@ int Client::acceptConnection() {
 
 void Client::displayConnection() {
     unsigned char *ip = (unsigned char *)&_addr.sin_addr.s_addr;
-    std::cout << BLUE << _webserv->getTimeStamp() << "New connection from "
+    std::cout << BLUE << _webserv->getTimeStamp() << "New connection from " << RESET
                 << (int)ip[0] << "."
                 << (int)ip[1] << "."
                 << (int)ip[2] << "."
                 << (int)ip[3]
-                << ":" << ntohs(_addr.sin_port) << RESET << "\n";
+                << ":" << ntohs(_addr.sin_port) << "\n";
 }
 
 int Client::recieveData() {
@@ -209,7 +208,6 @@ int Client::processRequest(char *buffer) {
 
 int Client::handleGetRequest(Request& req) {
     std::string requestPath = req.getPath();
-    std::cout << RED << "Request path: " + req.getPath() + "\n" << RESET;
     // Check for path traversal attempts
     if (requestPath.find("../") != std::string::npos) {
         sendErrorResponse(403);
@@ -230,7 +228,6 @@ bool Client::isFileBrowserRequest(const std::string& path) {
 }
 
 int Client::handleFileBrowserRequest(Request& req, const std::string& requestPath) {
-    std::cout << RED << "DIR!\n" << RESET;
     if (requestPath == "/root" || requestPath == "/root/") {
         // Root directory listing
         std::string rootPath = _server->getWebRoot();
@@ -241,9 +238,8 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         std::string actualFullPath = _server->getWebRoot() + actualPath;
         
         struct stat fileStat;
-        if (stat(actualPath.c_str(), &fileStat) != 0) { //actualFullPath
-            std::cout << RED << "THIS!\n" << RESET;
-            std::cout << _webserv->getTimeStamp() << "File not found: " << actualPath << "\n"; //actualFullPath
+        if (stat(actualFullPath.c_str(), &fileStat) != 0) {
+            std::cout << _webserv->getTimeStamp() << "File not found: " << actualFullPath << "\n";
             sendErrorResponse(404);
             return 1;
         }
@@ -272,30 +268,59 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
     }
 }
 
+// Fix for handleRegularRequest in Client.cpp
 int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     std::string fullPath = _server->getWebRoot() + requestPath;
-    std::cout << BLUE << fullPath + "\n" << RESET;
 
+    // Check if path contains "root" and autoindex is disabled
     if (fullPath.find("root") != std::string::npos && _autoindex == false) {
-        std::cout << RED << "Out\n" << RESET;
+        std::cout << RED << "Access to directory browser is forbidden when autoindex is off\n" << RESET;
         sendErrorResponse(403);
         return 1;
     }
+    
     // Check if it's a CGI script
     if (_cgi.isCGIScript(requestPath)) {
         return _cgi.executeCGI(*this, req, fullPath);
     }
-    std::cout << RED << fullPath + "\n" << RESET;
+    
     // Check if file exists
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cout << _webserv->getTimeStamp() << "File not found: " << requestPath << "\n"; //fullPath
+        std::cout << _webserv->getTimeStamp() << "File not found: " << fullPath << "\n";
         sendErrorResponse(404);
         return 1;
     }
     
     // Check if it's a directory
     if (S_ISDIR(fileStat.st_mode)) {
+        // If autoindex is off, we need to check for default index first
+        // or redirect to homepage if no index file
+        if (!_autoindex) {
+            // Try to find an index file in the directory first
+            std::string indexPath = fullPath + "/index.html";
+            struct stat indexStat;
+            
+            if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
+                // Index file exists - serve it
+                req.setPath(indexPath);
+                if (buildBody(req, indexPath) == 1) {
+                    return 1;
+                }
+                req.setContentType("text/html");
+                sendResponse(req, "keep-alive", req.getBody());
+                std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served index file: " 
+                        << RESET << indexPath << std::endl;
+                return 0;
+            } else {
+                // Directory access is forbidden when autoindex is off
+                std::cout << RED << "Directory access forbidden (autoindex off): " << fullPath << RESET << std::endl;
+                sendErrorResponse(403);
+                return 1;
+            }
+        }
+        
+        // If autoindex is on, handle directory listing
         return viewDirectory(fullPath, requestPath);
     } else if (!S_ISREG(fileStat.st_mode)) {
         // Not a regular file or directory
@@ -303,11 +328,13 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
         sendErrorResponse(403);
         return 1;
     }
+    
     // Build response body from file
     if (buildBody(req, fullPath) == 1) {
         return 1;
     }
 
+    // Set content type based on file extension
     std::string contentType = req.getMimeType(fullPath);
     
     if (fullPath.find(".html") != std::string::npos || 
@@ -316,10 +343,8 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
         contentType = "text/html";
     }
 
-    // Set content type based on file extension
-    req.setContentType(req.getMimeType(fullPath));
+    req.setContentType(contentType);
 
-    
     // Send response
     sendResponse(req, "keep-alive", req.getBody());
     std::cout << GREEN << _webserv->getTimeStamp() << "Successfully sent file: " << RESET << fullPath << std::endl;
@@ -381,23 +406,33 @@ int Client::viewDirectory(std::string fullPath, std::string requestPath) {
         }
     }
     
-    std::cout << RED << "Viewing dir\n" << RESET;
     // If we found a matching location
     if (!bestMatch.empty() && _config.locations.find(bestMatch) != _config.locations.end()) {
         // Check if autoindex is enabled
         if (_autoindex == true) {
             return createDirList(fullPath, requestPath);
         } 
-        // If autoindex is disabled, try to serve index.html
+        // If autoindex is disabled, try to serve index.html in the requested directory
         else {
-            std::string indexPath = "/local/index.html";
+            // Fix: Use the actual requested directory's index.html
+            std::string indexPath = fullPath + "/index.html";
             struct stat indexStat;
             if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
                 // index.html exists, serve it
-                fullPath = indexPath;
+                Request req;
+                req.setPath(indexPath);
+                if (buildBody(req, indexPath) == 1) {
+                    return 1;
+                }
+                
+                // Set content type and send the file
+                req.setContentType("text/html");
+                sendResponse(req, "keep-alive", req.getBody());
+                std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served index file: " 
+                        << RESET << indexPath << std::endl;
+                return 0;
             } else {
                 // No autoindex and no index.html, return 403
-                std::cout << RED << "HERE\n" << RESET;
                 std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
                 sendErrorResponse(403);
                 return 1;
@@ -411,11 +446,23 @@ int Client::viewDirectory(std::string fullPath, std::string requestPath) {
         } 
         // If autoindex is disabled, try to serve index.html
         else {
+            // Fix: Use the actual requested directory's index.html
             std::string indexPath = fullPath + "/index.html";
             struct stat indexStat;
             if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
                 // index.html exists, serve it
-                fullPath = indexPath;
+                Request req;
+                req.setPath(indexPath);
+                if (buildBody(req, indexPath) == 1) {
+                    return 1;
+                }
+                
+                // Set content type and send the file
+                req.setContentType("text/html");
+                sendResponse(req, "keep-alive", req.getBody());
+                std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served index file: " 
+                        << RESET << indexPath << std::endl;
+                return 0;
             } else {
                 // No autoindex and no index.html, return 403
                 std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
@@ -444,7 +491,6 @@ int Client::createDirList(std::string fullPath, std::string requestPath) {
     // Send directory listing as response
     std::string response = "HTTP/1.1 200 OK\r\n";
     response += "Content-Type: text/html\r\n";
-    std::cout << RED << "HERE\n" << RESET; 
     response += "Content-Length: " + tostring(dirListing.length()) + "\r\n";
     response += "Connection: keep-alive\r\n";
     response += "\r\n";
@@ -502,8 +548,8 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
             parentUri = "/";
         }
         
-        // Create parent directory link with /root/ prefix
-        html += "        <li><a href=\"/root" + parentUri + "\">Parent Directory</a></li>\n";
+        // Fix: Create parent directory link WITHOUT /root/ prefix
+        html += "        <li><a href=\"" + parentUri + "\">Parent Directory</a></li>\n";
     }
     
     struct dirent* entry;
@@ -524,8 +570,8 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
             }
         }
         
-        // Create link with /root/ prefix
-        html += "        <li><a href=\"/root" + requestUri;
+        // Fix: Create link WITHOUT /root/ prefix to avoid path doubling
+        html += "        <li><a href=\"" + requestUri;
         if (requestUri[requestUri.length() - 1] != '/') {
             html += "/";
         }
@@ -688,7 +734,6 @@ bool Client::saveFile(const std::string& filename, const std::string& content) {
         std::cout << "Error: Failed to write to file: " << strerror(errno) << std::endl;
         return false;
     }
-    std::cout << RED << "END\n" << RESET;
     return true;
 }
 
@@ -778,9 +823,6 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     
     // Send headers
     send(_fd, response.c_str(), response.length(), 0);
-    // std::cout << RED << response << "\n";
-    // std::cout << content << "\n" << RESET;
-    
     // Send body content if there is any
     if (!content.empty()) {
         return send(_fd, content.c_str(), content.length(), 0);
@@ -804,19 +846,49 @@ bool Client::send_all(int sockfd, const std::string& data) {
 }
 
 void Client::sendErrorResponse(int statusCode) {
-	std::string body;
-	std::string statusText = getStatusMessage(statusCode);
-	Webserv &webserv = getWebserv();
-	resolveErrorResponse(statusCode, webserv, statusText, body);
-	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
-	response += "Content-Type: text/html\r\n";
-	response += "Content-Length: " + tostring(body.size()) + "\r\n";
-	response += "Server: WebServ/1.0\r\n";
-	response += "Connection: close\r\n";
-	response += "\r\n";
-	response += body;
-	if (!send_all(_fd, response))
-		std::cerr << "Failed to send error response" << std::endl;
+    std::string body;
+    std::string statusText = getStatusMessage(statusCode);
+    
+    // First try to find a custom error page in the local directory
+    std::string customErrorPath = "local/" + tostring(statusCode) + ".html";
+    struct stat fileStat;
+    
+    if (stat(customErrorPath.c_str(), &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
+        // Custom error page exists, read it
+        std::ifstream file(customErrorPath.c_str());
+        if (file) {
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            body = buffer.str();
+            file.close();
+            std::cout << _webserv->getTimeStamp() << "Using custom error page: " << customErrorPath << std::endl;
+        }
+    }
+    
+    // If no custom error page was found, generate a default one
+    if (body.empty()) {
+        Webserv &webserv = getWebserv();
+        resolveErrorResponse(statusCode, webserv, statusText, body);
+    }
+    
+    // Construct the HTTP response
+    std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+    response += "Content-Type: text/html\r\n";
+    response += "Content-Length: " + tostring(body.size()) + "\r\n";
+    response += "Server: WebServ/1.0\r\n";
+    
+    // Important: Set Cache-Control to prevent browsers from caching error responses
+    response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
+    response += "Pragma: no-cache\r\n";
+    
+    // Close the connection after error responses
+    response += "Connection: close\r\n";
+    response += "\r\n";
+    response += body;
+    
+    if (!send_all(_fd, response)) {
+        std::cerr << "Failed to send error response" << std::endl;
+    }
 }
 
 void    Client::freeTokens(char **tokens) {

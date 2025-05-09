@@ -1,6 +1,10 @@
 #!/usr/bin/perl
 print "Content-Type: text/html\n\n";
-print "<html><head><title>Perl CGI</title></head>";
+print "<html>";
+print "<head>";
+print "<title>Perl CGI</title>";
+print "<link rel=\"icon\" href=\"/images/favicon.ico\" type=\"image/x-icon\">";
+print "</head>";
 print "<body>";
 print "<h1>Hello from Perl CGI!</h1>";
 print "<div><a href=\"../cgi.html\">Back</a></div>";

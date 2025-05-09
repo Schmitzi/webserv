@@ -149,6 +149,15 @@ Connection: keep-alive
 ```
 <br>
 
+## Testing CGI in the Terminal
+
+While using CGI in the browser will render a beautiful clean image, we can also test it in the terminal using ```nc```
+```bash
+GET /cgi-bin/hello.py HTTP/1.1\r\nHost: localhost\r\n\r\n | nc localhost 8080
+```
+<br>
+
+
 # Useful functions
 
 ## What is socket()?

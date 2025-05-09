@@ -21,6 +21,7 @@ echo "<html>\n";
 echo "<head>\n";
 echo "    <title>Hello World CGI Script</title>\n";
 echo "    <style>body { font-family: Arial, sans-serif; margin: 20px; }</style>\n";
+echo "    <link rel=\icon\" href=\"/images/favicon.ico\" type=\"image/x-icon\">\n";
 echo "</head>\n";
 echo "<body>\n";
 echo "    <h1>Hello World from PHP!</h1>\n";

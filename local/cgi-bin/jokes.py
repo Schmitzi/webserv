@@ -38,6 +38,7 @@ html = f"""<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Programming Joke of the Day</title>
+    <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
     <style>
         body {{
             font-family: 'Courier New', monospace;
