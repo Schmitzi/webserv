@@ -6,7 +6,7 @@
 #    By: lbaumeis <lbaumeis@student.42vienna.com    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/11/22 14:29:42 by mgeiger-          #+#    #+#              #
-#    Updated: 2025/04/30 14:07:10 by lbaumeis         ###   ########.fr        #
+#    Updated: 2025/05/09 13:18:00 by lbaumeis         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -32,7 +32,12 @@ FILES	=	main \
 			Client \
 			Request \
 			CGIHandler \
+			Multipart \
 			Helper \
+			ConfigHelper \
+			ConfigParser \
+			ConfigValidator \
+			Response
 
 SRC_DIR = 	src/
 SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))
@@ -70,6 +75,6 @@ start: re
 	@./webserv
 
 val: re
-	@valgrind --track-origins=yes --leak-check=full --track-fds=yes ./webserv
+	@valgrind --track-origins=yes --leak-check=full --track-fds=yes ./webserv config/test.conf
 
 .PHONY:		all clean fclean re

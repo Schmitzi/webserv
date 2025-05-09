@@ -4,10 +4,12 @@
 #include <iostream>
 #include <unistd.h>
 #include <map>
+#include <sstream>
 
 class Request {
     public:
         Request();
+        Request(const std::string& rawRequest);
         ~Request();
         std::string const &getPath();
         std::string const &getMethod();
@@ -16,6 +18,8 @@ class Request {
         std::string const &getContentType();
         std::string const &getQuery();
         std::string const &getBoundary();
+        std::map<std::string, std::string> &getHeaders();
+        std::string getMimeType(std::string const &path);
         void    setMethod(std::string const method);
         void    setPath(std::string const path);
         void    setVersion(std::string const version);
@@ -23,10 +27,13 @@ class Request {
         void    setQuery(std::string const query);
         void    setContentType(std::string const content);
         void    setBoundary(std::string boundary);
+        void    setHeader(std::map<std::string, std::string> map);
         void    formatPost(std::string const target);
         void    formatDelete(std::string const token);
         int     formatGet(std::string const token);
-        std::string getMimeType(std::string const &path);
+        void    parse(const std::string& rawRequest);
+        void    parseHeaders(const std::string& headerSection);
+        void    parseContentType();
     private:
         std::string                         _method;
         std::string                         _path;

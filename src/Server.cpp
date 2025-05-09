@@ -50,6 +50,18 @@ int Server::openSocket() { // Create a TCP socket
         _webserv->ft_error("Socket creation error");
         return 1;
     }
+    
+    // // Make socket non-blocking
+    // int flags = fcntl(_fd, F_GETFL, 0);
+    // if (flags == -1) {
+    //     _webserv->ft_error("Failed to get socket flags");
+    //     return 1;
+    // }
+    // if (fcntl(_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+    //     _webserv->ft_error("Failed to set socket to non-blocking");
+    //     return 1;
+    // }
+    
     _webserv->printMsg("Server started", GREEN, "");
     return 0;
 }

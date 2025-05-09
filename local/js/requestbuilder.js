@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const blocks = document.querySelectorAll('.block');
+    // Core elements
     const dropZone = document.getElementById('drop-zone');
     const customInput = document.getElementById('custom-input');
     const addCustomBtn = document.getElementById('add-custom');
@@ -7,260 +7,203 @@ document.addEventListener('DOMContentLoaded', function() {
     const sendBtn = document.getElementById('send-btn');
     const requestOutput = document.getElementById('request-output');
     const responseOutput = document.getElementById('response-output');
-    
-    let draggedElement = null;
-    
-    // Initialize - remove placeholder text when blocks are added
-    function initDropZone() {
-        if (dropZone.children.length === 1 && 
-            dropZone.children[0].style && 
-            dropZone.children[0].style.color === 'rgb(170, 170, 170)') {
-            // It's our placeholder text
-            return false;
-        }
-        return true;
+
+    // Validate all required elements exist
+    if (!dropZone || !customInput || !addCustomBtn || !clearBtn || !requestOutput) {
+        console.error('One or more required elements are missing');
+        return;
     }
-    
-    // Add event listeners to blocks
-    blocks.forEach(block => {
-        block.addEventListener('dragstart', function(e) {
-            draggedElement = this;
-            this.classList.add('dragging');
-            e.dataTransfer.setData('text/plain', this.textContent);
-        });
-        
-        block.addEventListener('dragend', function() {
-            this.classList.remove('dragging');
-        });
-    });
-    
-    // Add custom block
-    addCustomBtn.addEventListener('click', function() {
-        if (customInput.value.trim() !== '') {
-            const customBlock = document.createElement('div');
-            customBlock.className = 'block custom-block';
-            customBlock.setAttribute('draggable', true);
-            customBlock.textContent = customInput.value.trim();
-            
-            customBlock.addEventListener('dragstart', function(e) {
-                draggedElement = this;
-                this.classList.add('dragging');
-                e.dataTransfer.setData('text/plain', this.textContent);
-            });
-            
-            customBlock.addEventListener('dragend', function() {
-                this.classList.remove('dragging');
-            });
-            
-            // Add to blocks container
-            document.querySelector('.blocks-container').appendChild(customBlock);
-            customInput.value = '';
+
+    // Debugging function
+    function log(message) {
+        console.log(`[Request Builder] ${message}`);
+    }
+
+    // Create a block
+    function createBlock(text, bgClass = 'bg-green-500') {
+        log(`Creating block: ${text}`);
+
+        // Trim and validate text
+        text = text.trim();
+        if (!text) {
+            log('Attempted to create empty block');
+            return;
         }
-    });
-    
-    // Drop zone events
-    dropZone.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        this.style.backgroundColor = '#f0f0f0';
-    });
-    
-    dropZone.addEventListener('dragleave', function() {
-        this.style.backgroundColor = '#fff';
-    });
-    
-    dropZone.addEventListener('drop', function(e) {
-        e.preventDefault();
-        this.style.backgroundColor = '#fff';
+
+        // Create block element
+        const blockElement = document.createElement('div');
+        blockElement.className = `block ${bgClass} text-white p-2 rounded m-1 inline-flex items-center relative group`;
         
-        // Clear placeholder text if this is the first block
-        if (!initDropZone()) {
+        // Block text
+        const textSpan = document.createElement('span');
+        textSpan.textContent = text;
+        blockElement.appendChild(textSpan);
+
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '&times;';
+        closeBtn.className = `ml-2 text-white opacity-0 group-hover:opacity-100 absolute -top-2 -right-2 bg-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs`;
+        
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            blockElement.remove();
+            updateRequestOutput();
+        });
+
+        blockElement.appendChild(closeBtn);
+
+        // Clear placeholder if needed
+        if (dropZone.children.length === 1 && dropZone.children[0].classList.contains('text-gray-500')) {
             dropZone.innerHTML = '';
         }
-        
-        // Create a new block in the drop zone
-        const blockText = e.dataTransfer.getData('text/plain');
-        const newBlock = document.createElement('div');
-        
-        if (blockText === 'GET' || blockText === 'POST' || blockText === 'DELETE') {
-            newBlock.className = 'block method-block';
-        } else if (blockText === 'HTTP/1.1') {
-            newBlock.className = 'block version-block';
+
+        // Add block to drop zone
+        dropZone.appendChild(blockElement);
+        updateRequestOutput();
+    }
+
+    // Add custom block
+    function addCustomBlock() {
+        const customText = customInput.value.trim();
+        if (customText) {
+            log(`Adding custom block: ${customText}`);
+            createBlock(customText);
+            customInput.value = ''; // Clear input
+            customInput.focus(); // Return focus to input
         } else {
-            newBlock.className = 'block custom-block';
+            log('No text entered');
         }
-        
-        newBlock.setAttribute('draggable', true);
-        newBlock.textContent = blockText;
-        
-        // Add remove button
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'remove-btn';
-        removeBtn.textContent = '×';
-        removeBtn.addEventListener('click', function() {
-            newBlock.remove();
-            updateRequestOutput();
-            
-            // Restore placeholder if empty
-            if (dropZone.children.length === 0) {
-                dropZone.innerHTML = '<div style="color: #aaa; text-align: center; width: 100%;">Drag blocks here to build your request</div>';
-            }
-        });
-        
-        newBlock.appendChild(removeBtn);
-        
-        // Add drag events to the new block
-        newBlock.addEventListener('dragstart', function(e) {
-            draggedElement = this;
-            this.classList.add('dragging');
-            e.dataTransfer.setData('text/plain', this.textContent.replace('×', '').trim());
-        });
-        
-        newBlock.addEventListener('dragend', function() {
-            this.classList.remove('dragging');
-        });
-        
-        this.appendChild(newBlock);
+    }
+
+    // Event Listeners
+    addCustomBtn.addEventListener('click', addCustomBlock);
+
+    // Support Enter key in input field
+    customInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            log('Enter key pressed');
+            addCustomBlock();
+        }
+    });
+
+    // Clear all blocks
+    clearBtn.addEventListener('click', () => {
+        log('Clearing all blocks');
+        dropZone.innerHTML = '<div class="text-gray-500 text-center">Drag blocks here to build your request</div>';
         updateRequestOutput();
     });
-    
-    // Clear button
-    clearBtn.addEventListener('click', function() {
-        dropZone.innerHTML = '<div style="color: #aaa; text-align: center; width: 100%;">Drag blocks here to build your request</div>';
-        updateRequestOutput();
-        responseOutput.textContent = '# Server response will appear here';
-    });
-    
+
     // Update request output
     function updateRequestOutput() {
-        if (!initDropZone()) {
+        const blocks = dropZone.querySelectorAll('.block');
+        
+        if (blocks.length === 0) {
             requestOutput.textContent = '# HTTP request will appear here';
             return;
         }
-        
-        let requestText = '';
-        
-        // Extract text content without the remove button
-        dropZone.childNodes.forEach(child => {
-            if (child.nodeType === Node.ELEMENT_NODE && child.classList.contains('block')) {
-                requestText += child.textContent.replace('×', '').trim() + ' ';
-            }
-        });
-        
-        requestOutput.textContent = requestText.trim();
+
+        // Build request from blocks
+        const requestParts = Array.from(blocks)
+            .map(block => block.textContent.replace('×', '').trim());
+
+        requestOutput.textContent = requestParts.join(' ');
+        log(`Request output updated: ${requestOutput.textContent}`);
     }
-    
-    // Send request
-    sendBtn.addEventListener('click', async function() {
-        if (!initDropZone()) {
-            alert('Please add some blocks to create a request.');
+
+    // Drag and drop functionality
+    const methodBlocks = document.querySelectorAll('.method-block');
+    const versionBlocks = document.querySelectorAll('.version-block');
+
+    // Add drag start to predefined blocks
+    methodBlocks.forEach(block => {
+        block.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', e.target.textContent);
+        });
+    });
+
+    versionBlocks.forEach(block => {
+        block.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', e.target.textContent);
+        });
+    });
+
+    // Drop zone event listeners
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const blockText = e.dataTransfer.getData('text/plain');
+        
+        // Determine background class
+        const bgClass = methodBlocks.length > 0 && 
+            Array.from(methodBlocks).some(block => block.textContent === blockText) 
+            ? 'bg-blue-500' 
+            : (versionBlocks.length > 0 && 
+               Array.from(versionBlocks).some(block => block.textContent === blockText) 
+               ? 'bg-purple-500' 
+               : 'bg-green-500');
+        
+        createBlock(blockText, bgClass);
+    });
+
+    // Send request (basic implementation)
+    sendBtn.addEventListener('click', async () => {
+        const request = requestOutput.textContent.trim();
+        
+        if (request === '# HTTP request will appear here' || request === '') {
+            responseOutput.textContent = 'Error: No request created. Please add blocks.';
             return;
         }
-        
-        const requestText = requestOutput.textContent;
-        responseOutput.textContent = 'Sending request...';
-        
-        // Parse the request text to extract method and path
-        const parts = requestText.split(' ');//TODO: even if i comment out the default values it still always gives me a GET request, even if i put in "PUT" or "idk"?? so confused, where else does GET set as the default value?
-        let method = 'GET'; // Default method
-        let path = '/';     // Default path
-        let hasQueryParams = false;
-        
-        // Find method
-        if (['GET', 'POST', 'DELETE'].includes(parts[0])) {
-            method = parts[0];
-        }
-        
-        // Find path (look for something that starts with / or is not HTTP/1.1)
-        for (let i = 1; i < parts.length; i++) {
-            if (parts[i].startsWith('/')) {
-                path = parts[i];
-                break;
-            } else if (parts[i] !== 'HTTP/1.1') {
-                // If it doesn't start with /, but isn't HTTP/1.1, assume it's a path
-                if (!parts[i].startsWith('/')) {
-                    path = '/' + parts[i];
-                } else {
-                    path = parts[i];
-                }
-                break;
-            }
-        }
-        
-        // Check if we have query parameters in the request
-        if (path.includes('?')) {
-            hasQueryParams = true;
-        }
-        
-        // Format the request for display
-        const fullRequest = `${method} ${path} HTTP/1.1
-Host: ${window.location.host}
-User-Agent: WebServ-RequestBuilder
-Accept: */*
-${method === 'POST' ? 'Content-Type: application/x-www-form-urlencoded\n' : ''}
-`;
-        
-        // Display the full request that will be sent
-        requestOutput.textContent = fullRequest;
-        
+
         try {
-            console.log("Sending request to:", path);
-            let fetchOptions = {
+            // Parse request
+            const parts = request.split(' ');
+            const method = parts[0] || 'GET';
+            const path = parts[1] || '/';
+
+            // Perform fetch
+            const response = await fetch(path, {
                 method: method,
                 headers: {
-                    'Accept': '*/*',
-                    'User-Agent': 'WebServ-RequestBuilder'
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 }
-            };
+            });
             
-            // For POST requests, we need to set up the body correctly
-            if (method === 'POST') {
-                // If we have query parameters in the URL, use them as the body
-                if (hasQueryParams) {
-                    const queryString = path.split('?')[1];
-                    path = path.split('?')[0]; // Remove query from path for fetch
-                    fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-                    fetchOptions.body = queryString;
-                } else {
-                    // Make sure we at least send an empty body
-                    fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-                    fetchOptions.body = '';
+            // Get response details
+            const status = response.status;
+            const statusText = response.statusText;
+            
+            // Collect headers
+            const headersText = Array.from(response.headers.entries())
+                .map(([key, value]) => `${key}: ${value}`)
+                .join('\n');
+            
+            // Try to parse response body
+            let bodyText;
+            try {
+                const jsonBody = await response.json();
+                bodyText = JSON.stringify(jsonBody, null, 2);
+            } catch {
+                try {
+                    bodyText = await response.text();
+                } catch {
+                    bodyText = 'Unable to read response body';
                 }
             }
             
-            // Send the request
-            const response = await fetch(path, fetchOptions);
-            
-            console.log("Response received:", response.status, response.statusText);
-            
-            // Create status line
-            let responseText = `HTTP/1.1 ${response.status} ${response.statusText}\n`;
-            
-            // Add all headers
-            console.log("Response headers:");
-            response.headers.forEach((value, name) => {
-                console.log(`${name}: ${value}`);
-                responseText += `${name}: ${value}\n`;
-            });
-            
-            // Add empty line to separate headers from body
-            responseText += '\n';
-            
-            // Add body
-            const body = await response.text();
-            console.log("Response body:", body);
-            
-            // Display full response
-            responseOutput.textContent = responseText + body;
-
-			// Render HTML in iframe
-			const iframe = document.getElementById('rendered-output');
-			const blob = new Blob([body], { type: 'text/html' });
-			const blobUrl = URL.createObjectURL(blob);
-			iframe.src = blobUrl;
-
+            // Display response
+            const fullResponseText = `HTTP ${status} ${statusText}\n\nHeaders:\n${headersText}\n\nBody:\n${bodyText}`;
+            responseOutput.textContent = fullResponseText;
+            responseOutput.style.whiteSpace = 'pre-wrap';
+            responseOutput.style.fontFamily = 'monospace';
         } catch (error) {
-            console.error("Fetch error:", error);
-            responseOutput.textContent = `Error: ${error.message}`;
+            responseOutput.textContent = `Error sending request:\n${error.message}`;
         }
     });
+
+    // Initial log
+    log('Request Builder script initialized');
 });

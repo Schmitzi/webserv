@@ -84,17 +84,6 @@ int Webserv::setConfig(std::string const filepath) {
 
 // Add a file descriptor to the poll array
 int Webserv::addToPoll(int fd, short events) {  
-    // Set the socket to non-blocking mode //TODO: already set it to nonblocking in server-openSocket
-    // int flags = fcntl(fd, F_GETFL, 0);
-    // if (flags == -1) {
-    //     ft_error("fcntl F_GETFL failed");
-    //     return 1;
-    // }
-    
-    // if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-    //     ft_error("fcntl F_SETFL O_NONBLOCK failed");
-    //     return 1;
-    // }
     // Add to poll array
     struct pollfd temp;
     temp.fd = fd;
@@ -138,7 +127,6 @@ int Webserv::run() {
 
     while (1) {
         // Wait for activity on any socket
-        
         if (poll(&_pfds[0], _pfds.size(), -1) < 0) {
             ft_error("poll() failed");
             continue;
@@ -203,7 +191,7 @@ int Webserv::run() {
     return 0;
 }
 
-void    Webserv::ft_error(std::string const msg) {
+void    Webserv::ft_error(std::string const msg) {  // TODO: Check if allowed
     printMsg("Error: " + msg, RED, strerror(errno));
 }
 

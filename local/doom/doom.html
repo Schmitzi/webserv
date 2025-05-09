@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT DOOMS! 🕹</title>
+    <link rel="stylesheet" type="text/css" href="./style.css">
+    <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <a href="../index.html" class="block text-center text-blue-500 hover:underline mb-4">Home</a>
+    <div class="container">
+        <div id="dosbox"></div>
+        <button class="wrapper" onclick="dosbox.requestFullScreen();">
+            <a><span>FULLSCREEN</span></a>
+        </button>
+    </div>
+    <!-- Direct load of CDN version to avoid CORS -->
+    <script src="https://js-dos.com/cdn/js-dos-api.js"></script>
+    <script type="text/javascript">
+        var dosbox = new Dosbox({
+            id: "dosbox",
+            onload: function (dosbox) {
+                // Try method 1: Direct executable path in second parameter
+                dosbox.run("https://js-dos.com/cdn/upload/DOOM-@evilution.zip", "./DOOM/DOOM.EXE");
+            },
+            onrun: function (dosbox, app) {
+                console.log("App '" + app + "' is running!");
+            }
+        });
+    </script>
+</body>
+</html>

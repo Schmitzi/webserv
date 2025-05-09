@@ -1,17 +1,23 @@
 #include "../include/ConfigValidator.hpp"
 
 std::string getAbsPath(std::string& path) {
-	if (path.empty())
-		return (".");
-	if (path[0] == '/')
-		return (path);
-	std::string absPath = getcwd(NULL, 0);
-	if (absPath.empty())
-		return (".");
-	absPath += "/" + path;
-	if (absPath[absPath.size() - 1] == '/')
-		absPath = absPath.substr(0, absPath.size() - 1);
-	return (absPath);
+    if (path.empty())
+        return ".";
+    if (path[0] == '/')
+        return path;
+    
+    char* cwdBuffer = getcwd(NULL, 0);
+    if (cwdBuffer == NULL)
+        return ".";
+    
+    std::string absPath = cwdBuffer;
+    free(cwdBuffer);
+    
+    absPath += "/" + path;
+    if (absPath[absPath.size() - 1] == '/')
+        absPath = absPath.substr(0, absPath.size() - 1);
+    
+    return absPath;
 }
 
 bool isValidPath(const std::string &path) {

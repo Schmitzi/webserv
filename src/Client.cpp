@@ -3,15 +3,20 @@
 #include "../include/Webserv.hpp"
 
 Client::Client() : _webserv(NULL), _server(NULL) {
-
+    std::cout << BLUE << "DEFAULT CONSTRUCT\n" << RESET;
 }
 
 Client::Client(Webserv &other) {
     setWebserv(&other);
     setServer(&other.getServer());
 
-    _cgi.setPythonPath(other.getEnvironment());
+    Config *temp = new Config(_webserv->getConfig());
+    setConfig(temp->getConfig());
+    delete temp;
     _cgi.setClient(*this);
+    _cgi.setServer(*_server);
+    _cgi.setConfig(_webserv->getConfig());
+    setAutoIndex();
 }
 
 Client::~Client() {
@@ -54,6 +59,19 @@ Server &Client::getServer() {
 	return *_server;
 }
 
+void    Client::setConfig(serverLevel config) {
+    _config = config;
+}
+
+void    Client::setAutoIndex() {
+    std::map<std::string, locationLevel>::iterator it = _config.locations.begin();
+    if (it->second.autoindex == true) {
+        _autoindex = true;
+    } else {
+        _autoindex = false;
+    }
+}
+
 int Client::acceptConnection() {
     _addrLen = sizeof(_addr);
     _fd = accept(_server->getFd(), (struct sockaddr *)&_addr, &_addrLen);
@@ -77,29 +95,80 @@ void Client::displayConnection() {
 //TODO: check for requestLimit?
 
 int Client::recieveData() {
-    memset(_buffer, 0, sizeof(_buffer));
+    // Larger buffer for multipart uploads
+    char buffer[1024 * 1024];
+    memset(buffer, 0, sizeof(buffer));
     
     // Receive data
-    int bytesRead = recv(_fd, _buffer, sizeof(_buffer) - 1, 0);
+    int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, 0);
     
     if (bytesRead > 0) {
-        std::cout << BLUE << _webserv->getTimeStamp() << "Recieved from " << _fd << ": " << _buffer << RESET << "\n";
-        if (processRequest(_buffer) == 1) {
-            return (0);
+        // Append to request buffer
+        _requestBuffer.append(buffer, bytesRead);
+
+        if (_requestBuffer.length() > MAX_BUFFER_SIZE) {
+            std::cout << "Buffer size exceeded maximum limit" << std::endl;
+            sendErrorResponse(413);
+            _requestBuffer.clear();
+            return 1;
         }
-        return (0);
+
+        std::cout << BLUE << _webserv->getTimeStamp() 
+                  << "Received " << bytesRead << " bytes from " << _fd 
+                  << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
+
+        if (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
+        _requestBuffer.find("\n\n") != std::string::npos) {
+
+            Request req(_requestBuffer);
+        
+            if (req.getMethod() == "BAD") {
+                std::cout << RED << _webserv->getTimeStamp() 
+                        << "Bad request format" << RESET << std::endl;
+                sendErrorResponse(400);
+                _requestBuffer.clear();
+                return 1;
+            }
+            // Handle multipart uploads separately
+            if (req.getContentType().find("multipart/form-data") != std::string::npos) {
+                int result = handleMultipartPost(req);
+                
+                if (result != -1) {
+                    return result;
+                }
+                
+                // If partial upload, wait for more data
+                return 0;
+            }
+
+            // Create a copy of the buffer for processing
+            std::string tempBuffer = _requestBuffer;
+
+            // Try processing the request
+            int processResult = processRequest(const_cast<char*>(tempBuffer.c_str()));
+            
+            // If fully processed, clear the buffer
+            if (processResult != -1) {
+                _requestBuffer.clear();
+            }
+
+            return processResult;
+        }
+        return 0;
     } 
     else if (bytesRead == 0) {
-        std::cout << RED << _webserv->getTimeStamp() << "Client disconnected: " << _fd << RESET << "\n";
-        return (1);
+        std::cout << RED << _webserv->getTimeStamp() 
+                  << "Client disconnected: " << _fd << RESET << "\n";
+        return 1;
     }
-    else { // Error occurred
+    else { // Error occurred TODO: Possible not allowed?
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            return (0);
+            return 0;
         } else {
             return (_webserv->ft_error("recv() failed"), 1);
         }
     }
+
 }
 
 Request Client::parseRequest(char* buffer) {
@@ -168,6 +237,16 @@ Request Client::parseRequest(char* buffer) {
         std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd << ": 403 Bad request\n" << RESET;//TODO: 400 is bad request, 403 is forbidden
         req.setMethod("BAD");
         return req;
+    std::string input;
+    if (buffer) {
+        size_t len = strlen(buffer);
+        input.assign(buffer, len);
+    }
+
+    Request req(input);
+
+    if (req.getMethod() == "BAD") {
+        sendErrorResponse(400);
     }
 
     if (req.getPath().empty() || req.getPath()[0] != '/') {
@@ -184,11 +263,8 @@ int Client::processRequest(char *buffer) {
     }
 
     // Debug print
-    std::cout << BLUE <<  _webserv->getTimeStamp() << "\n";
-    std::cout << "Parsed Request:" << "\n";
-    std::cout << "Method: " << req.getMethod() << "\n";
-    std::cout << "Path: " << req.getPath() << "\n";
-    std::cout << "Version: " << req.getVersion() << RESET << "\n\n";
+    std::cout << BLUE <<  _webserv->getTimeStamp();
+    std::cout << "Parsed Request: " << RESET << req.getMethod() << " " << req.getPath() << " " << req.getVersion() << RESET << "\n";
 
     if (req.getMethod() == "GET") {
         return handleGetRequest(req);
@@ -197,20 +273,91 @@ int Client::processRequest(char *buffer) {
     } else if (req.getMethod() == "DELETE") {
         return handleDeleteRequest(req);
     } else {
-        sendErrorResponse(405);//, "");
+        sendErrorResponse(405);
         return 1;
     }
 }
 
 int Client::handleGetRequest(Request& req) {
-
-	std::string scriptPath = req.getPath();
-    std::string fullPath = _server->getWebRoot() + scriptPath;
-    
-    if (scriptPath.find("../") != std::string::npos) {
-        sendErrorResponse(403);//, "");
+    std::string requestPath = req.getPath();
+    std::cout << RED << "Request path: " + req.getPath() + "\n" << RESET;
+    // Check for path traversal attempts
+    if (requestPath.find("../") != std::string::npos) {
+        sendErrorResponse(403);
         return 1;
     }
+    
+    // Separate file browser functionality from regular web serving
+    if (_autoindex == true && isFileBrowserRequest(requestPath)) {
+        return handleFileBrowserRequest(req, requestPath);
+    } else {
+        return handleRegularRequest(req, requestPath);
+    }
+}
+
+bool Client::isFileBrowserRequest(const std::string& path) {
+    return (path.length() >= 6 && path.substr(0, 6) == "/root/") || 
+           (path == "/root");
+}
+
+int Client::handleFileBrowserRequest(Request& req, const std::string& requestPath) {
+    std::cout << RED << "DIR!\n" << RESET;
+    if (requestPath == "/root" || requestPath == "/root/") {
+        // Root directory listing
+        std::string rootPath = _server->getWebRoot();
+        return createDirList(rootPath, "/");
+    } else {
+        // Sub-directory or file within root/
+        std::string actualPath = requestPath.substr(5); // Remove the /root prefix
+        std::string actualFullPath = _server->getWebRoot() + actualPath;
+        
+        struct stat fileStat;
+        if (stat(actualPath.c_str(), &fileStat) != 0) { //actualFullPath
+            std::cout << RED << "THIS!\n" << RESET;
+            std::cout << _webserv->getTimeStamp() << "File not found: " << actualPath << "\n"; //actualFullPath
+            sendErrorResponse(404);
+            return 1;
+        }
+        
+        if (S_ISDIR(fileStat.st_mode)) {
+            // If it's a directory, show directory listing
+            return createDirList(actualFullPath, actualPath);
+        } else if (S_ISREG(fileStat.st_mode)) {
+            // If it's a regular file, serve it
+            if (buildBody(req, actualFullPath) == 1) {
+                return 1;
+            }
+            
+            // Set proper content type and serve the file
+            req.setContentType(req.getMimeType(actualFullPath));
+            sendResponse(req, "keep-alive", req.getBody());
+            std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served file from browser: " 
+                    << RESET << actualFullPath << std::endl;
+            return 0;
+        } else {
+            // Not a regular file or directory
+            std::cout << _webserv->getTimeStamp() << "Not a regular file or directory: " << actualFullPath << std::endl;
+            sendErrorResponse(403);
+            return 1;
+        }
+    }
+}
+
+int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
+    std::string fullPath = _server->getWebRoot() + requestPath;
+    std::cout << BLUE << fullPath + "\n" << RESET;
+
+    if (fullPath.find("root") != std::string::npos && _autoindex == false) {
+        std::cout << RED << "Out\n" << RESET;
+        sendErrorResponse(403);
+        return 1;
+    }
+    // Check if it's a CGI script
+    if (_cgi.isCGIScript(requestPath)) {
+        return _cgi.executeCGI(*this, req, fullPath);
+    }
+    std::cout << RED << fullPath + "\n" << RESET;
+    // Check if file exists
 
     if (_cgi.isCGIScript(scriptPath)) {
         return _cgi.executeCGI(*this, req, fullPath);
@@ -237,44 +384,65 @@ int Client::handleGetRequest(Request& req) {
     // Check if file exists and is regular file
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cout << _webserv->getTimeStamp() << "File not found: " << fullPath << "\n";
-        sendErrorResponse(404);//, "");
+        std::cout << _webserv->getTimeStamp() << "File not found: " << requestPath << "\n"; //fullPath
+        sendErrorResponse(404);
         return 1;
     }
-
-
-    if (!S_ISREG(fileStat.st_mode)) {
+    
+    // Check if it's a directory
+    if (S_ISDIR(fileStat.st_mode)) {
+        return viewDirectory(fullPath, requestPath);
+    } else if (!S_ISREG(fileStat.st_mode)) {
+        // Not a regular file or directory
         std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
-        sendErrorResponse(403);//, "");
+        sendErrorResponse(403);
+        return 1;
+    }
+    // Build response body from file
+    if (buildBody(req, fullPath) == 1) {
         return 1;
     }
 
-    // Open file with additional error checking
+    std::string contentType = req.getMimeType(fullPath);
+    
+    if (fullPath.find(".html") != std::string::npos || 
+        requestPath == "/" || 
+        requestPath == "/index.html") {
+        contentType = "text/html";
+    }
+
+    // Set content type based on file extension
+    req.setContentType(req.getMimeType(fullPath));
+
+    
+    // Send response
+    sendResponse(req, "keep-alive", req.getBody());
+    std::cout << GREEN << _webserv->getTimeStamp() << "Successfully sent file: " << RESET << fullPath << std::endl;
+    return 0;
+}
+
+int Client::buildBody(Request &req, std::string fullPath) {
+    // Open file
     int fd = open(fullPath.c_str(), O_RDONLY);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file: " << fullPath << std::endl;
-        sendErrorResponse(500);//, "");
+        sendErrorResponse(500);
         return 1;
     }
-
-    // Clear any previous body content
-    req.setBody("");
-
-    // Read file contents
-    char buffer[4096];
-    ssize_t bytesRead;
-    std::string fileContent;
     
-    while ((bytesRead = read(fd, buffer, sizeof(buffer) - 1)) > 0) {// && //TODO: does this check work here?
-		//    fileContent.length() < getWebserv().getConfig().getConfig().requestLimit) {
-        buffer[bytesRead] = '\0';
-        fileContent += buffer;
+    // Get file size
+    struct stat fileStat;
+    if (fstat(fd, &fileStat) < 0) {
+        close(fd);
+        sendErrorResponse(500);
+        return 1;
     }
-	// if (fileContent.length() >= getWebserv().getConfig().getConfig().requestLimit) {
-    //     sendErrorResponse(413);//, "");//Payload Too Large
-    //     return 1;
-	// }
     
+    // Allocate a buffer for the entire file
+    std::vector<char> buffer(fileStat.st_size);
+    
+    // Read the entire file at once
+    ssize_t bytesRead = read(fd, buffer.data(), fileStat.st_size);
     close(fd);
     
     // Set the body content
@@ -283,14 +451,195 @@ int Client::handleGetRequest(Request& req) {
     // Check for read errors
     if (bytesRead < 0) {
         std::cout << "Error reading file: " << fullPath << std::endl;
-        sendErrorResponse(500);//, "");
+        sendErrorResponse(500);
         return 1;
     }
-
-    sendResponse(req, "keep-alive", req.getBody());
-
-    std::cout << GREEN << _webserv->getTimeStamp() << "\nSuccessfully sent file: " << fullPath << std::endl;
+    
+    // Set the body directly from the buffer without null termination
+    std::string fileContent(buffer.data(), bytesRead);
+    req.setBody(fileContent);
+    
     return 0;
+}
+
+int Client::viewDirectory(std::string fullPath, std::string requestPath) {
+    // Find the location configuration that matches the request path
+    std::string bestMatch = "";
+        
+    // Iterate through all locations to find the best match
+    std::map<std::string, locationLevel>::const_iterator it;
+    for (it = _config.locations.begin(); it != _config.locations.end(); ++it) {
+        std::string locationPath = it->first; // This is the URL path like "/images"
+        
+        // Check if this location is a prefix of the requested path
+        if (requestPath.find(locationPath) == 0) {
+            // If this is a longer match than what we have, use it
+            if (locationPath.length() > bestMatch.length()) {
+                bestMatch = locationPath;
+            }
+        }
+    }
+    
+    std::cout << RED << "Viewing dir\n" << RESET;
+    // If we found a matching location
+    if (!bestMatch.empty() && _config.locations.find(bestMatch) != _config.locations.end()) {
+        // Check if autoindex is enabled
+        if (_autoindex == true) {
+            return createDirList(fullPath, requestPath);
+        } 
+        // If autoindex is disabled, try to serve index.html
+        else {
+            std::string indexPath = "/local/index.html";
+            struct stat indexStat;
+            if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
+                // index.html exists, serve it
+                fullPath = indexPath;
+            } else {
+                // No autoindex and no index.html, return 403
+                std::cout << RED << "HERE\n" << RESET;
+                std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
+                sendErrorResponse(403);
+                return 1;
+            }
+        }
+    } 
+    // No matching location found, check if there's a default location
+    else if (_config.locations.find("/") != _config.locations.end()) {
+        if (_config.locations.find("/")->second.autoindex) {
+            return createDirList(fullPath, requestPath);
+        } 
+        // If autoindex is disabled, try to serve index.html
+        else {
+            std::string indexPath = fullPath + "/index.html";
+            struct stat indexStat;
+            if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
+                // index.html exists, serve it
+                fullPath = indexPath;
+            } else {
+                // No autoindex and no index.html, return 403
+                std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
+                sendErrorResponse(403);
+                return 1;
+            }
+        }
+    }
+    // No matching location and no default, return 403
+    else {
+        std::cout << _webserv->getTimeStamp() << "No matching location for: " << requestPath << std::endl;
+        sendErrorResponse(403);
+        return 1;
+    }
+    return 0;
+}
+
+int Client::createDirList(std::string fullPath, std::string requestPath) {
+    // Generate directory listing without checking for index.html
+    std::string dirListing = showDir(fullPath, requestPath);
+    if (dirListing.empty()) {
+        sendErrorResponse(403);
+        return 1;
+    }
+    
+    // Send directory listing as response
+    std::string response = "HTTP/1.1 200 OK\r\n";
+    response += "Content-Type: text/html\r\n";
+    std::cout << RED << "HERE\n" << RESET; 
+    response += "Content-Length: " + tostring(dirListing.length()) + "\r\n";
+    response += "Connection: keep-alive\r\n";
+    response += "\r\n";
+    response += dirListing;
+    send(_fd, response.c_str(), response.length(), 0);
+    std::cout << GREEN << _webserv->getTimeStamp() << "\nSuccessfully sent directory listing: " << fullPath << std::endl;
+    return 0;
+}
+
+std::string Client::showDir(const std::string& dirPath, const std::string& requestUri) {
+    DIR* dir = opendir(dirPath.c_str());
+    if (!dir) {
+        return ""; // Return empty string if directory can't be opened
+    }
+    
+    // Create a more attractive HTML with styling
+    std::string html = "<!DOCTYPE html>\n"
+        "<html>\n"
+        "<head>\n"
+        "    <title>Index of " + requestUri + "</title>\n"
+        "    <style>\n"
+        "        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }\n"
+        "        h1 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }\n"
+        "        ul { list-style-type: none; padding: 0; }\n"
+        "        li { padding: 8px; border-bottom: 1px solid #f2f2f2; }\n"
+        "        li:hover { background-color: #f8f8f8; }\n"
+        "        a { text-decoration: none; color: #0366d6; }\n"
+        "        a:hover { text-decoration: underline; }\n"
+        "        .header { background-color: #f4f4f4; padding: 10px; margin-bottom: 20px; border-radius: 4px; }\n"
+        "        .server-info { font-size: 12px; color: #777; margin-top: 20px; }\n"
+        "    </style>\n"
+        "</head>\n"
+        "<body>\n"
+        "    <div class=\"header\">\n"
+        "        <h1>Index of " + requestUri + "</h1>\n"
+        "    </div>\n"
+        "    <ul>\n";
+    
+    // Add parent directory link if not at root
+    if (requestUri != "/") {
+        // Calculate parent directory path
+        std::string parentUri = requestUri;
+        
+        // Remove trailing slash if present
+        if (parentUri[parentUri.length() - 1] == '/') {
+            parentUri = parentUri.substr(0, parentUri.length() - 1);
+        }
+        
+        // Find the last slash
+        size_t lastSlash = parentUri.find_last_of('/');
+        if (lastSlash != std::string::npos) {
+            // Get parent directory path
+            parentUri = parentUri.substr(0, lastSlash + 1);
+        } else {
+            parentUri = "/";
+        }
+        
+        // Create parent directory link with /root/ prefix
+        html += "        <li><a href=\"/root" + parentUri + "\">Parent Directory</a></li>\n";
+    }
+    
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        std::string name = entry->d_name;
+        
+        // Skip . and .. entries
+        if (name == "." || name == "..") {
+            continue;
+        }
+        
+        // Check if it's a directory
+        std::string entryPath = dirPath + "/" + name;
+        struct stat entryStat;
+        if (stat(entryPath.c_str(), &entryStat) == 0) {
+            if (S_ISDIR(entryStat.st_mode)) {
+                name += "/"; // Add trailing slash for directories
+            }
+        }
+        
+        // Create link with /root/ prefix
+        html += "        <li><a href=\"/root" + requestUri;
+        if (requestUri[requestUri.length() - 1] != '/') {
+            html += "/";
+        }
+        html += name + "\">" + name + "</a></li>\n";
+    }
+    
+    html += "    </ul>\n"
+        "    <div class=\"server-info\">\n"
+        "        <p>WebServ 1.0</p>\n"
+        "    </div>\n"
+        "</body>\n"
+        "</html>";
+        
+    closedir(dir);
+    return html;
 }
 
 std::string Client::extractFileName(const std::string& path) {
@@ -315,7 +664,7 @@ int Client::handlePostRequest(Request& req) {
     }
 
     if (req.getPath().find("../") != std::string::npos) {
-        sendErrorResponse(403);//, "");
+        sendErrorResponse(403);
         return 1;
     }
 
@@ -324,7 +673,7 @@ int Client::handlePostRequest(Request& req) {
     int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file for writing: " << uploadPath << std::endl;
-        sendErrorResponse(500);//, "");
+        sendErrorResponse(500);
         return 1;
     }
 
@@ -336,7 +685,7 @@ int Client::handlePostRequest(Request& req) {
 
     if (bytesWritten < 0) {
         std::cout << "Failed to write to file" << "\n";
-        sendErrorResponse(500);//, "");
+        sendErrorResponse(500);
         return 1;
     }
 
@@ -359,7 +708,7 @@ int Client::handleDeleteRequest(Request& req) {
     }
 
     if (unlink(fullPath.c_str()) != 0) {
-        sendErrorResponse(403);//, "");
+        sendErrorResponse(403);
         return 1;
     }
 
@@ -368,137 +717,79 @@ int Client::handleDeleteRequest(Request& req) {
 }
 
 int Client::handleMultipartPost(Request& req) {
-    std::string raw(_buffer);
     std::string boundary = req.getBoundary();
     
     if (boundary.empty()) {
-        std::cout << "Error: No boundary found for multipart/form-data request" << std::endl;
-        sendErrorResponse(400);//, " - No Boundary");
+        sendErrorResponse(400);
         return 1;
     }
     
-    std::cout << "Handling multipart POST with boundary: " << boundary << std::endl;
+    Multipart parser(_requestBuffer, boundary);
     
-    // The boundary in the body will have -- prefix
-    std::string fullBoundary = "--" + boundary;
-    
-    // Find the first boundary
-    size_t boundaryPos = raw.find(fullBoundary);
-    if (boundaryPos == std::string::npos) {
-        std::cout << "Error: Boundary not found in request body" << std::endl;
-        sendErrorResponse(400);//, " - Invalid Format");
+    if (!parser.parse()) {
+        sendErrorResponse(400);
         return 1;
     }
     
-    // Find the Content-Disposition header
-    size_t dispositionPos = raw.find("Content-Disposition:", boundaryPos);
-    if (dispositionPos == std::string::npos) {
-        std::cout << "Error: Content-Disposition not found" << std::endl;
-        sendErrorResponse(400);//, " - Invalid Format");
+    std::string filename = parser.getFilename();
+    if (filename.empty()) {
+        sendErrorResponse(400);
         return 1;
     }
     
-    // Extract filename
-    size_t filenamePos = raw.find("filename=\"", dispositionPos);
-    if (filenamePos == std::string::npos) {
-        std::cout << "Error: Filename not found in Content-Disposition" << std::endl;
-        sendErrorResponse(400);//, " - No Filename");
+    std::string fileContent = parser.getFileContent();
+    if (fileContent.empty() && !parser.isComplete()) {
+        return -1;
+    }
+    
+    if (!ensureUploadDirectory()) {
+        sendErrorResponse(500);
         return 1;
     }
     
-    filenamePos += 10; // Skip 'filename="'
-    size_t filenameEnd = raw.find("\"", filenamePos);
-    if (filenameEnd == std::string::npos) {
-        std::cout << "Error: Invalid filename format" << std::endl;
-        sendErrorResponse(400);//, " - Invalid Format");
+    if (!saveFile(filename, fileContent)) {
+        sendErrorResponse(500);
         return 1;
     }
     
-    std::string filename = raw.substr(filenamePos, filenameEnd - filenamePos);
-    std::cout << "Extracted filename: " << filename << std::endl;
-    
-    // Find the blank line after headers
-    size_t headersEnd = raw.find("\r\n\r\n", filenameEnd);
-    if (headersEnd == std::string::npos) {
-        headersEnd = raw.find("\n\n", filenameEnd);
-        if (headersEnd == std::string::npos) {
-            std::cout << "Error: Headers end not found" << std::endl;
-            sendErrorResponse(400);//, " - Invalid Format");
-            return 1;
-        }
-        headersEnd += 2; // Skip \n\n
-    } else {
-        headersEnd += 4; // Skip \r\n\r\n
-    }
-    
-    // Find the end boundary
-    size_t contentEnd = raw.find(fullBoundary, headersEnd);
-    if (contentEnd == std::string::npos) {
-        std::cout << "Error: End boundary not found" << std::endl;
-        sendErrorResponse(400);//, " - Invalid Format");
-        return 1;
-    }
-    
-    // Extract the file content
-    std::string fileContent = raw.substr(headersEnd, contentEnd - headersEnd);
-    
-    // Remove trailing whitespace and newlines (C++98 compatible)
-    while (!fileContent.empty()) {
-        char lastChar = fileContent[fileContent.length() - 1];
-        if (lastChar == '\r' || lastChar == '\n' || lastChar == ' ' || lastChar == '\t') {
-            fileContent.resize(fileContent.length() - 1);
-        } else {
-            break;
-        }
-    }
-    std::cout << "Extracted file content: [" << fileContent << "]" << std::endl;
-    
-    // Create upload directory if it doesn't exist
+    std::cout << GREEN << _webserv->getTimeStamp() << "Recieved: " + parser.getFilename() << "\n" << RESET;
+    std::string successMsg = "File uploaded successfully: " + filename;
+    sendResponse(req, "close", successMsg);
+    std::cout << GREEN << "File transfer ended\n" << RESET;    
+    return 0;
+}
+
+bool Client::ensureUploadDirectory() {
     struct stat st;
     if (stat(_server->getUploadDir().c_str(), &st) != 0) {
 		std::cout << "Creating upload directory: " << _server->getUploadDir() << std::endl;
         if (mkdir(_server->getUploadDir().c_str(), 0755) != 0) {
             std::cout << "Error: Failed to create upload directory" << std::endl;
-            sendErrorResponse(500);//, "");
-            return 1;
+            return false;
         }
     }
-    
-    // Save the file
+    return true;
+}
+
+bool Client::saveFile(const std::string& filename, const std::string& content) {
     std::string uploadPath = _server->getUploadDir() + filename;
+    
     int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
         std::cout << "Error: Failed to open file for writing: " << uploadPath << std::endl;
         std::cout << "Error details: " << strerror(errno) << std::endl;
-        sendErrorResponse(500);//, "");
-        return 1;
+        return false;
     }
     
-    std::cout << _webserv->getTimeStamp() << "Writing to file: " << uploadPath << std::endl;
-    
-    ssize_t bytesWritten = write(fd, fileContent.c_str(), fileContent.length());
+    ssize_t bytesWritten = write(fd, content.c_str(), content.length());
     close(fd);
     
     if (bytesWritten < 0) {
         std::cout << "Error: Failed to write to file: " << strerror(errno) << std::endl;
-        sendErrorResponse(500);//, "");
-        return 1;
+        return false;
     }
-    
-    // Send success response
-    std::string successMsg = "File uploaded successfully: " + filename;
-    std::string response = "HTTP/1.1 200 OK\r\n";
-    response += "Content-Type: text/plain\r\n";
-	response += "Content-Length: " + tostring(successMsg.length()) + "\r\n";
-    response += "Server: WebServ/1.0\r\n";
-    response += "Connection: keep-alive\r\n";
-    response += "\r\n";
-    response += successMsg;
-    
-    send(_fd, response.c_str(), response.length(), 0);
-    
-    std::cout << _webserv->getTimeStamp() << "Successfully uploaded file: " << uploadPath << std::endl;
-    return 0;
+    std::cout << RED << "END\n" << RESET;
+    return true;
 }
 
 void Client::findContentType(Request& req) {
@@ -528,7 +819,7 @@ void Client::findContentType(Request& req) {
     std::string contentType = raw.substr(start, end - start);
     req.setContentType(contentType); // Store the full Content-Type
     
-    std::cout << "Found Content-Type: [" << contentType << "]" << std::endl;
+    //std::cout << "Found Content-Type: [" << contentType << "]" << std::endl;
     
     // Check for boundary parameter
     size_t boundaryPos = contentType.find("; boundary=");
@@ -541,7 +832,7 @@ void Client::findContentType(Request& req) {
             boundary = boundary.substr(0, quotePos);
         }
         
-        std::cout << "Boundary: [" << boundary << "]" << std::endl;
+        //std::cout << "Boundary: [" << boundary << "]" << std::endl;
         
         if (boundary.empty()) {
             std::cout << "Warning: Empty boundary found" << std::endl;
@@ -551,37 +842,54 @@ void Client::findContentType(Request& req) {
         req.setBoundary(boundary);
         
         // Verify the boundary was set correctly
-        std::cout << "Stored boundary: [" << req.getBoundary() << "]" << std::endl;
+        //std::cout << "Stored boundary: [" << req.getBoundary() << "]" << std::endl;
     }
 }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {//TODO: get actual statuscode?
+    // Create HTTP response
     int statusCode = 200;
 	std::string statusText = getStatusMessage(statusCode);
 	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
 	// std::string response = "HTTP/1.1 200 OK\r\n";
     
     // Get proper content type based on file extension
-    std::string contentType = req.getContentType();
-    if (contentType.find("multipart") == std::string::npos) {
+    std::string contentType;
+    
+    if (req.getPath().empty() || req.getPath() == "/") {
+        contentType = "text/html";
+    } else {
         contentType = req.getMimeType(req.getPath());
     }
     
+    // Set Content-Type header
     response += "Content-Type: " + contentType + "\r\n";
-    if (req.getMethod() == "POST") {
-        response += "Content-Length: " + std::string(tostring(req.getQuery().length())) + "\r\n";
-    } else {
-        response += "Content-Length: " + std::string(tostring(req.getBody().length())) + "\r\n";
-    }
-    response += "Server: WebServ/1.0\r\n";
-    response += "Connection: " + connect;
-    response += "\r\n\r\n";
-    if (!body.empty()) {
-        response += req.getBody();
-        response += "\r\n\r\n";
+    
+    // Choose which content to use for Content-Length
+    std::string content = req.getBody();
+    if (req.getMethod() == "POST" && body.empty()) {
+        content = req.getQuery();
+    } else if (!body.empty()) {
+        content = body;
     }
     
-    return send(_fd, response.c_str(), response.length(), 0);
+    // Add remaining headers
+    response += "Content-Length: " + std::string(tostring(content.length())) + "\r\n";
+    response += "Server: WebServ/1.0\r\n";
+    response += "Connection: " + connect + "\r\n";
+    response += "Access-Control-Allow-Origin: *\r\n\r\n";
+    
+    // Send headers
+    send(_fd, response.c_str(), response.length(), 0);
+    // std::cout << RED << response << "\n";
+    // std::cout << content << "\n" << RESET;
+    
+    // Send body content if there is any
+    if (!content.empty()) {
+        return send(_fd, content.c_str(), content.length(), 0);
+    }
+    
+    return 0;
 }
 
 bool Client::send_all(int sockfd, const std::string& data) {

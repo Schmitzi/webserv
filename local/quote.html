@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+    <title>Random Quote of the Day</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+        .demo-link {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+        .demo-link:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+	
+    <h1>CGI Demonstration</h1>
+    <p>Welcome to my custom webserver with CGI support! Click below to see a demonstration of dynamic content generation.</p>
+    
+    <a href="/cgi-bin/quote.cgi" class="demo-link">See Quote of the Day</a>
+    
+    <h2>How It Works</h2>
+    <p>This demo uses Common Gateway Interface (CGI) to generate dynamic content. When you click the link above:</p>
+    <ol>
+        <li>The webserver receives your request</li>
+        <li>It recognizes the request is for a CGI script</li>
+        <li>It executes the script and captures its output</li>
+        <li>The script generates a random inspirational quote</li>
+        <li>The webserver sends the generated content back to your browser</li>
+    </ol>
+    <p>Each time you refresh the page or click the button, a new quote is generated server-side.</p>
+</body>
+</html>

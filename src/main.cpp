@@ -70,7 +70,6 @@ int inputCheck(int ac, char **av, Webserv &webserv) {
 }
 
 int main(int ac, char **av, char **envp) {
-    // (void) av;
     (void) ac;
 
     try {

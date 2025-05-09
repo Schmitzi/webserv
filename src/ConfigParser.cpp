@@ -30,7 +30,31 @@ ConfigParser &ConfigParser::operator=(const ConfigParser& copy) {
 	return (*this);
 }
 
-ConfigParser::~ConfigParser() {}
+ConfigParser::~ConfigParser() {
+    _ipPortToServers.clear();
+    
+    for (std::vector<serverLevel>::iterator servIt = _allConfigs.begin(); servIt != _allConfigs.end(); ++servIt) {
+        for (std::map<std::string, locationLevel>::iterator locIt = servIt->locations.begin(); 
+             locIt != servIt->locations.end(); ++locIt) {
+            
+            locIt->second.methods.clear();
+            
+        }
+        
+        servIt->locations.clear();
+        servIt->port.clear();
+        servIt->servName.clear();
+        servIt->errPages.clear();
+    }
+    
+    _allConfigs.clear();
+    
+    for (std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin(); 
+         it != _storedConfigs.end(); ++it) {
+        it->clear();
+    }
+    _storedConfigs.clear();
+}
 
 /* ***************************************************************************************** */
 // SETTERS
