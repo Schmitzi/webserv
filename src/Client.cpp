@@ -116,6 +116,7 @@ int Client::recieveData() {
 
         if (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
         _requestBuffer.find("\n\n") != std::string::npos) {
+            std::cout << BLUE << _requestBuffer + "\n" << RESET;
 
             Request req(_requestBuffer);
         
@@ -146,6 +147,7 @@ int Client::recieveData() {
             
             // If fully processed, clear the buffer
             if (processResult != -1) {
+                std::cout << RED << _requestBuffer + "\n" << RESET; 
                 _requestBuffer.clear();
             }
 
@@ -278,6 +280,10 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
         sendErrorResponse(403);
         return 1;
     }
+
+    // if (handleRedirect(req) == 0) {
+    //     return 1;
+    // }
     
     // Check if it's a CGI script
     if (_cgi.isCGIScript(requestPath)) {
@@ -287,6 +293,7 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     // Check if file exists
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
+        std::cout << RED << "here\n" << RESET;
         std::cout << _webserv->getTimeStamp() << "File not found: " << fullPath << "\n";
         sendErrorResponse(404);
         return 1;
@@ -314,7 +321,7 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
                 return 0;
             } else {
                 // Directory access is forbidden when autoindex is off
-                std::cout << RED << "Directory access forbidden (autoindex off): " << fullPath << RESET << std::endl;
+                std::cout << RED << _webserv->getTimeStamp() << "Directory access forbidden (autoindex off): " << fullPath << RESET << std::endl;
                 sendErrorResponse(403);
                 return 1;
             }
@@ -737,6 +744,50 @@ bool Client::saveFile(const std::string& filename, const std::string& content) {
     return true;
 }
 
+int    Client::handleRedirect(Request req) {
+    std::cout << RED << "Starting redir\n" << RESET;
+    std::string path = req.getPath(); //.substr(6)
+    std::cout << RED << "Path: " + path + "\n" << RESET;
+    std::map<std::string, locationLevel>::iterator it = _config.locations.begin();
+    for ( ; it != _config.locations.end() ; it++) {
+        std::cout << RED << it->first + "\n" << RESET;
+        std::cout << RED << "Second: " + it->second.redirectionHTTP + "\n";
+        if (it->first.find(path) != std::string::npos) {
+            if (path == it->first ) {
+                sendRedirect(301, it->second.redirectionHTTP);
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+void    Client::sendRedirect(int statusCode, const std::string& location) {
+    std::string statusText;
+    if (statusCode == 301) {
+        statusText = "Moved Permanently";
+    } else {
+        statusText = "Found";
+    }
+    
+    std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+    std::string header = response + "Location: " + location + "\r\n";
+    header += "Content-Type: text/html\r\n";
+    
+    std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
+    body += "<body><h1>" + statusText + "</h1>";
+    body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
+    
+    body += "Content-Length: " + tostring(body.length()) + "\r\n";
+    body += "Connection: close\r\n\r\n";
+    body = header + body;
+
+    
+    std::cout << BLUE << _webserv->getTimeStamp() << "Sent redirect response" + response + "\n";
+    response += body;
+    send(_fd, response.c_str(), response.length(), 0);
+}
+
 void Client::findContentType(Request& req) {
     std::string raw(_buffer);
     size_t start = raw.find("Content-Type: ");
@@ -850,18 +901,18 @@ void Client::sendErrorResponse(int statusCode) {
     std::string statusText = getStatusMessage(statusCode);
     
     // First try to find a custom error page in the local directory
-    std::string customErrorPath = "local/" + tostring(statusCode) + ".html";
+    std::string errorPath = "local/" + tostring(statusCode) + ".html";
     struct stat fileStat;
     
-    if (stat(customErrorPath.c_str(), &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
+    if (stat(errorPath.c_str(), &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
         // Custom error page exists, read it
-        std::ifstream file(customErrorPath.c_str());
+        std::ifstream file(errorPath.c_str());
         if (file) {
             std::stringstream buffer;
             buffer << file.rdbuf();
             body = buffer.str();
             file.close();
-            std::cout << _webserv->getTimeStamp() << "Using custom error page: " << customErrorPath << std::endl;
+            std::cout << BLUE << _webserv->getTimeStamp() << "Sending error page: " << errorPath << RESET << std::endl;
         }
     }
     

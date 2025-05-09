@@ -63,6 +63,8 @@ class Client {
         int                     viewDirectory(std::string fullPath, std::string requestPath);
         int                     createDirList(std::string fullPath, std::string requestPath);
         std::string             showDir(const std::string& dirPath, const std::string& requestUri);
+        int                    handleRedirect(Request eq);
+        void                    sendRedirect(int statusCode, const std::string& location);
 
         void                    findContentType(Request &req);
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);

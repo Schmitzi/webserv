@@ -188,6 +188,8 @@ void Request::parse(const std::string& rawRequest) {
         return;
     }
 
+    std::cout << "Path: " + _path + "\n";
+
     parseHeaders(headerSection);
 
     parseContentType();
