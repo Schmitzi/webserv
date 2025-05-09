@@ -6,7 +6,7 @@
 #    By: lbaumeis <lbaumeis@student.42vienna.com    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/11/22 14:29:42 by mgeiger-          #+#    #+#              #
-#    Updated: 2025/05/09 13:18:00 by lbaumeis         ###   ########.fr        #
+#    Updated: 2025/05/09 20:58:06 by lbaumeis         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -27,16 +27,12 @@ FILES	=	main \
 			ConfigHelper \
 			ConfigParser \
 			ConfigValidator \
-			Response \
 			Server \
 			Client \
 			Request \
 			CGIHandler \
 			Multipart \
 			Helper \
-			ConfigHelper \
-			ConfigParser \
-			ConfigValidator \
 			Response
 
 SRC_DIR = 	src/

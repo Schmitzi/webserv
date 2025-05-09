@@ -5,6 +5,9 @@
 #include "ConfigParser.hpp"
 #include "Webserv.hpp"
 
+struct serverLevel;
+struct locationLevel;
+
 #define HTTP_STATUS_CODES \
 	X(100, Continue, "Continue") \
 	X(101, SwitchingProtocols, "Switching Protocols") \

@@ -25,6 +25,7 @@
 // Forward declarations
 class Webserv;
 class Server;
+class Request;
 struct serverLevel;
 struct locationLevel;
 
@@ -52,7 +53,7 @@ class Client {
         int                     handleGetRequest(Request& req);
         bool                    isFileBrowserRequest(const std::string& path);
         int                     handleFileBrowserRequest(Request& req, const std::string& requestPath);
-        int                     handleRegularRequest(Request& req, const std::string& requestPath);
+        int                     handleRegularRequest(Request& req, std::string& requestPath);
         int                     buildBody(Request &req, std::string fullPath);
         std::string             extractFileName(const std::string& path);
         int                     handlePostRequest(Request& req);

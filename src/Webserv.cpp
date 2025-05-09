@@ -1,7 +1,7 @@
 #include "../include/Webserv.hpp"
 #include "../include/Server.hpp"
 #include "../include/Client.hpp"
-#include "../include/Config.hpp"
+// #include "../include/Config.hpp"
 #include "../include/ConfigParser.hpp"
 #include "../include/Helper.hpp"
 
@@ -103,7 +103,7 @@ void Webserv::removeFromPoll(size_t index) {
     _pfds.erase(_pfds.begin() + index);
 }
 
-Config Webserv::getConfig() const {
+Config Webserv::getConfig() {
 	return _config;
 }
 

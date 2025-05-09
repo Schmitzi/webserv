@@ -18,11 +18,13 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <map>
-#include "../include/Helper.hpp"
+// #include "../include/Helper.hpp"
+// #include "../include/Server.hpp"
+// #include "../include/Client.hpp"
 #include "../include/Config.hpp"
-#include "../include/ConfigValidator.hpp"
-#include "../include/ConfigParser.hpp"
-#include "../include/ConfigHelper.hpp"
+// #include "../include/ConfigValidator.hpp"
+// #include "../include/ConfigParser.hpp"
+// #include "../include/ConfigHelper.hpp"
 
 // Forward declarations
 class Server;
@@ -53,7 +55,7 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-        Config          getConfig() const;
+        Config          getConfig();
 
     private:
         Server                  *_server;

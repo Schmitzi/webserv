@@ -7,6 +7,7 @@
 
 struct serverLevel;
 struct locationLevel;
+class ConfigParser;
 
 bool onlyDigits(const std::string& s);
 bool whiteLine(std::string& line);

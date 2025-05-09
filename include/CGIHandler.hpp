@@ -10,9 +10,10 @@
 #include "../include/Request.hpp"
 #include "../include/Helper.hpp"
 #include "../include/Config.hpp"
-#include "../include/Server.hpp"
 
 class Client;
+class Server;
+class Config;
 
 class CGIHandler {
     public:

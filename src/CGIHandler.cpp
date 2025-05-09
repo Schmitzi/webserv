@@ -217,7 +217,9 @@ void CGIHandler::prepareEnv(Request &req) {
     tempEnv.push_back("QUERY_STRING=" + req.getQuery());
     tempEnv.push_back("CONTENT_TYPE=" + req.getContentType());
     tempEnv.push_back("CONTENT_LENGTH=" + tostring(req.getBody().length()));
-    
+    tempEnv.push_back("SCRIPT_NAME=" + req.getPath());
+    tempEnv.push_back("SERVER_SOFTWARE=WebServ/1.0");
+
     for (std::vector<std::string>::iterator it = tempEnv.begin(); it != tempEnv.end(); ++it) {
         char* envStr = strdup(it->c_str());
         if (envStr) {

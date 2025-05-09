@@ -1,4 +1,5 @@
 #include "../include/Response.hpp"
+#include "../include/Config.hpp"
 
 const locationLevel* matchLocation(const std::string& uri, const serverLevel& serv) {
 	const locationLevel* bestMatch = NULL;
@@ -43,7 +44,6 @@ const std::string getStatusMessage(int code) {
 }
 
 void resolveErrorResponse(int statusCode, Webserv& webserv, std::string& statusText, std::string& body) {
-	std::string uri;
 	std::string dir = "errorPages";
 	std::map<std::vector<int>, std::string> errorPages = webserv.getConfig().getConfig().errPages;
 	std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
@@ -54,6 +54,7 @@ void resolveErrorResponse(int statusCode, Webserv& webserv, std::string& statusT
 	}
 	std::string filePath;
 	if (it != errorPages.end()) {
+		std::string uri;
 		uri = it->second;
 		filePath = resolveFilePathFromUri(uri, webserv.getConfig().getConfig());
 	} else

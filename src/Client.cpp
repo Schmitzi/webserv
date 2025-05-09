@@ -172,71 +172,72 @@ int Client::recieveData() {
 }
 
 Request Client::parseRequest(char* buffer) {
-    Request req;
+    // Request req;
     
-    size_t len = strlen(buffer);
-    while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || 
-                       buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
-        buffer[--len] = '\0';
-    }
-    std::string input(buffer);
+    // size_t len = strlen(buffer);
+    // while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || 
+    //                    buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
+    //     buffer[--len] = '\0';
+    // }
+    // std::string input(buffer);
 
-    findContentType(req);
+    // findContentType(req);
     
-    if (input.empty()) {
-        return req;
-    }
-    std::vector<std::string> tokens = split(buffer);
+    // if (input.empty()) {
+    //     return req;
+    // }
+    // std::vector<std::string> tokens = split(buffer);
 
-    if (tokens.empty()) {
-        sendErrorResponse(400);//, "");
-        return req;
-    }
-    std::string path = "/";//TODO: try to matchLocation
-	serverLevel serverStruct = getWebserv().getConfig().getConfig();
-	std::vector<std::string> allowedMethods = serverStruct.locations[path].methods;//TODO: get actual path
-	if (allowedMethods.empty()) {
-		sendErrorResponse(405);//, "");
-		return req;
-	}
-	bool methodAllowed = false;
-	std::cout << "GOING IN!" << std::endl;
-	for (size_t i = 0; i < allowedMethods.size(); i++) {
-		if (tokens[0] == allowedMethods[i]) {
-			methodAllowed = true;
-			std::cout << "Method allowed: " << tokens[0] << std::endl;
-			break;
-		}
-	}
+    // if (tokens.empty()) {
+    //     sendErrorResponse(400);
+    //     return req;
+    // }
+    // std::string path = "/";//TODO: try to matchLocation
+	// serverLevel serverStruct = getWebserv().getConfig().getConfig();
+	// std::vector<std::string> allowedMethods = serverStruct.locations[path].methods;//TODO: get actual path
+	// if (allowedMethods.empty()) {
+	// 	sendErrorResponse(405);
+	// 	return req;
+	// }
+	// bool methodAllowed = false;
+	// std::cout << "GOING IN!" << std::endl;
+	// for (size_t i = 0; i < allowedMethods.size(); i++) {
+	// 	if (tokens[0] == allowedMethods[i]) {
+	// 		methodAllowed = true;
+	// 		std::cout << "Method allowed: " << tokens[0] << std::endl;
+	// 		break;
+	// 	}
+	// }
 
-    if (!tokens[1].empty()) {
-        path = tokens[1];
-        path.erase(path.find_last_not_of(" \t\r\n") + 1);
-    }
+    // if (!tokens[1].empty()) {
+    //     path = tokens[1];
+    //     path.erase(path.find_last_not_of(" \t\r\n") + 1);
+    // }
 
-    if (tokens[0] == "POST" && methodAllowed) {
-        req.formatPost(tokens[1]);
-    } else if (tokens[0] == "DELETE" && methodAllowed) {
-        if (!tokens[1].empty()) {
-            req.formatDelete(path);
-        } else {
-            sendErrorResponse(400);//, " - Missing path");
-        }
-    } else if ((tokens[0] == "GET" && methodAllowed) || tokens[0] == "curl") {
-        if (!tokens[1].empty()) {
+    // if (tokens[0] == "POST" && methodAllowed) {
+    //     req.formatPost(tokens[1]);
+    // } else if (tokens[0] == "DELETE" && methodAllowed) {
+    //     if (!tokens[1].empty()) {
+    //         req.formatDelete(path);
+    //     } else {
+    //         sendErrorResponse(400);
+    //     }
+    // } else if ((tokens[0] == "GET" && methodAllowed) || tokens[0] == "curl") {
+    //     if (!tokens[1].empty()) {
             
-            if (req.formatGet(path) == 1) {//TODO: formatGet always returns 0?
-                sendErrorResponse(403);//, "");
-                return req;
-            }
-        } else {
-            req.formatGet("/index.html");
-        }
-    } else {
-        sendErrorResponse(403);//, "");
-        std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd << ": 403 Bad request\n" << RESET;//TODO: 400 is bad request, 403 is forbidden
-        req.setMethod("BAD");
-        return req;
+    //         if (req.formatGet(path) == 1) {//TODO: formatGet always returns 0?
+    //             sendErrorResponse(403);
+    //             return req;
+    //         }
+    //     } else {
+    //         req.formatGet("/index.html");
+    //     }
+    // } else {
+    //     sendErrorResponse(403);
+    //     std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd << ": 403 Bad request\n" << RESET;//TODO: 400 is bad request, 403 is forbidden
+    //     req.setMethod("BAD");
+    //     return req;
+    // }
     std::string input;
     if (buffer) {
         size_t len = strlen(buffer);
@@ -343,7 +344,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
     }
 }
 
-int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
+int Client::handleRegularRequest(Request& req, std::string& requestPath) {
     std::string fullPath = _server->getWebRoot() + requestPath;
     std::cout << BLUE << fullPath + "\n" << RESET;
 
@@ -359,39 +360,39 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     std::cout << RED << fullPath + "\n" << RESET;
     // Check if file exists
 
-    if (_cgi.isCGIScript(scriptPath)) {
+    if (_cgi.isCGIScript(requestPath)) {
         return _cgi.executeCGI(*this, req, fullPath);
     }
 
     std::cout << _webserv->getTimeStamp() << "Handling GET request for path: " << req.getPath() << std::endl;
 
-    std::string requestPath = req.getPath();//TODO: same as scriptPath?
-    if (requestPath == "/" || requestPath.empty()) {
-        requestPath = "/index.html";
+    std::string reqPath = req.getPath();
+    if (reqPath == "/" || reqPath.empty()) {
+        reqPath = "/index.html";
     }
 
-    size_t end = requestPath.find_last_not_of(" \t\r\n");
+    size_t end = reqPath.find_last_not_of(" \t\r\n");
 
     if (end != std::string::npos) {
-        requestPath = requestPath.substr(0, end + 1);
+        reqPath = reqPath.substr(0, end + 1);
     }
 
     // Construct full file path
-    fullPath = _server->getWebRoot() + requestPath;
+    fullPath = _server->getWebRoot() + reqPath;
 
     std::cout << _webserv->getTimeStamp() << "Full file path: " << fullPath << "\n";
 
     // Check if file exists and is regular file
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cout << _webserv->getTimeStamp() << "File not found: " << requestPath << "\n"; //fullPath
+        std::cout << _webserv->getTimeStamp() << "File not found: " << reqPath << "\n"; //fullPath
         sendErrorResponse(404);
         return 1;
     }
     
     // Check if it's a directory
     if (S_ISDIR(fileStat.st_mode)) {
-        return viewDirectory(fullPath, requestPath);
+        return viewDirectory(fullPath, reqPath);
     } else if (!S_ISREG(fileStat.st_mode)) {
         // Not a regular file or directory
         std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
@@ -406,8 +407,8 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     std::string contentType = req.getMimeType(fullPath);
     
     if (fullPath.find(".html") != std::string::npos || 
-        requestPath == "/" || 
-        requestPath == "/index.html") {
+        reqPath == "/" || 
+        reqPath == "/index.html") {
         contentType = "text/html";
     }
 
@@ -446,7 +447,7 @@ int Client::buildBody(Request &req, std::string fullPath) {
     close(fd);
     
     // Set the body content
-    req.setBody(fileContent);// + "\r\n");
+    // req.setBody(fileContent);// + "\r\n");
 
     // Check for read errors
     if (bytesRead < 0) {
