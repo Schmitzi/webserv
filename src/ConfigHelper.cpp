@@ -28,17 +28,20 @@ std::string skipComments(std::string &s) {
 	std::string ret = s;
 	x = s.find("#");
 	if (x != std::string::npos)
-		ret = s.substr(0, x);
+	ret = s.substr(0, x);
 	x = s.find("//");
-	if (x != std::string::npos)
-		ret = s.substr(0, x);
+	if (s.find("http") == 0 && x != std::string::npos)
+	ret = s.substr(0, x);
 	return (ret);
 }
 
 std::vector<std::string> splitIfSemicolon(std::string &configLine) {
 	std::vector<std::string> s;
-	if (!checkSemicolon(configLine))
+	if (!checkSemicolon(configLine)) // && configLine.find("http") == 0)
 		throw configException("Error: missing semicolon in config");
+	// if (configLine.find("http")) {
+	// 	std::cout << configLine + "\n";
+	// }
 	configLine = configLine.substr(0, configLine.size() - 1);
 	s = split(configLine);
 	return s;

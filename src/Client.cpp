@@ -153,6 +153,7 @@ int Client::recieveData() {
 
             return processResult;
         }
+        std::cout << RED << _requestBuffer + "\n" << RESET;
         return 0;
     } 
     else if (bytesRead == 0) {
