@@ -1,19 +1,7 @@
-# **************************************************************************** #
-#                                                                              #
-#                                                         :::      ::::::::    #
-#    Makefile                                           :+:      :+:    :+:    #
-#                                                     +:+ +:+         +:+      #
-#    By: lbaumeis <lbaumeis@student.42vienna.com    +#+  +:+       +#+         #
-#                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2023/11/22 14:29:42 by mgeiger-          #+#    #+#              #
-#    Updated: 2025/05/09 20:58:06 by lbaumeis         ###   ########.fr        #
-#                                                                              #
-# **************************************************************************** #
-
 NAME	=	webserv
 
 CXX		=	c++
-CFLAGS	=	-Wall -Werror -Wextra -std=c++98 -g
+CXXFLAGS	=	-Wall -Werror -Wextra -std=c++98 -g
 RM		=	rm -f
 
 RED     =   $(shell tput setaf 1)
@@ -43,13 +31,13 @@ OBJ		= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(FILES)))
 
 $(OBJ_DIR)%.o: $(SRC_DIR)%.cpp
 	@mkdir -p $(OBJ_DIR)
-	@$(CXX) $(CFLAGS) -c -o $@ $<
+	@$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 all:	$(NAME)
 
 $(NAME): $(OBJ)
 	@echo "$(YELLOW)Compiling exercise$(RESET)"
-	@$(CXX) $(OBJ) $(CFLAGS) -o $(NAME)
+	@$(CXX) $(OBJ) $(CXXFLAGS) -o $(NAME)
 	@echo "$(GREEN)Exercise built$(RESET)"
 
 clean:
@@ -71,6 +59,6 @@ start: re
 	@./webserv
 
 val: re
-	@valgrind --track-origins=yes --leak-check=full --track-fds=yes ./webserv config/test.conf
+	@valgrind --track-origins=yes --leak-check=full --track-fds=all ./webserv config/test.conf
 
 .PHONY:		all clean fclean re
