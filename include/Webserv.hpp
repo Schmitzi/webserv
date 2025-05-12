@@ -15,16 +15,9 @@
 #include <poll.h>
 #include <iomanip>
 #include <vector>
-#include <fcntl.h>
 #include <signal.h>
 #include <map>
-// #include "../include/Helper.hpp"
-// #include "../include/Server.hpp"
-// #include "../include/Client.hpp"
 #include "../include/Config.hpp"
-// #include "../include/ConfigValidator.hpp"
-// #include "../include/ConfigParser.hpp"
-// #include "../include/ConfigHelper.hpp"
 
 // Forward declarations
 class Server;
@@ -57,7 +50,6 @@ class Webserv {
         Config          getConfig() const;
 
     private:
-        //Server                  *_server;
         std::vector<Server *> 	_servers;
         std::vector<Client *>   _clients;
         char                    **_env;

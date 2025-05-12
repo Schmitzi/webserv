@@ -6,6 +6,7 @@
 #include <cstring>
 #include <map>
 #include <dirent.h>
+#include <fcntl.h>
 #include "../include/Response.hpp"
 #include "../include/Helper.hpp"
 #include "../include/Request.hpp"
@@ -71,7 +72,6 @@ class Client {
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
         void                    sendErrorResponse(int statusCode);
         bool					send_all(int sockfd, const std::string& data);
-        void                    freeTokens(char **tokens);
     private:
         struct sockaddr_in  _addr;
         socklen_t           _addrLen;

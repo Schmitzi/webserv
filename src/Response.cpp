@@ -43,54 +43,8 @@ const std::string getStatusMessage(int code) {
 	return "Unknown Status Code";
 }
 
-// Fix for resolveErrorResponse function in Response.cpp
-// Corrected resolveErrorResponse function in Response.cpp
-void resolveErrorResponse(int statusCode, Webserv& webserv, std::string& statusText, std::string& body) {
-    std::string dir = "errorPages";
-    std::map<std::vector<int>, std::string> errorPages = webserv.getConfig().getConfig().errPages;
-    std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
-    
-    // Look for custom error page for this status code
-    bool foundCustomPage = false;
-    while (it != errorPages.end()) {
-        // Check if this status code is in the vector of codes
-        for (size_t i = 0; i < it->first.size(); i++) {
-            if (it->first[i] == statusCode) {
-                foundCustomPage = true;
-                break;
-            }
-        }
-        if (foundCustomPage) {
-            break;
-        }
-        ++it;
-    }
-    
-    std::string filePath;
-    if (foundCustomPage) {
-        // Use custom error page if defined
-        std::string uri = it->second;
-        filePath = webserv.getConfig().getConfig().rootServ + uri;
-    } else {
-        // Otherwise use default error page
-        filePath = dir + "/" + tostring(statusCode) + ".html";
-    }
-    
-    // Make sure error pages directory exists
-    struct stat st;
-    if (stat(dir.c_str(), &st) != 0)
-        mkdir(dir.c_str(), 0755);
-    
-    // Try to read existing error page file
-    std::ifstream file(filePath.c_str());
-    if (file) {
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        body = buffer.str();
-        file.close();
-    } else {
-        // Generate a basic error page with no external resources
-        body = "<!DOCTYPE html>\n"
+void generateErrorPage(std::string& body, int statusCode, const std::string& statusText) {
+    body = "<!DOCTYPE html>\n"
             "<html>\n<head>\n"
             "<title>Error " + tostring(statusCode) + "</title>\n"
             "<style>\n"
@@ -111,7 +65,51 @@ void resolveErrorResponse(int statusCode, Webserv& webserv, std::string& statusT
             "</div>\n"
             "</body>\n"
             "</html>";
-        
+}
+
+std::string findErrorPage(int statusCode, Webserv& webserv, const std::string& dir) {
+    std::map<std::vector<int>, std::string> errorPages = webserv.getConfig().getConfig().errPages;
+    std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
+    bool foundCustomPage = false;
+    while (it != errorPages.end() && !foundCustomPage) {
+        // Check if this status code is in the vector of codes
+        for (size_t i = 0; i < it->first.size(); i++) {
+            if (it->first[i] == statusCode) {
+                foundCustomPage = true;
+                break;
+            }
+        }
+        ++it;
+    }
+    
+    std::string filePath;
+    if (foundCustomPage) {
+        // Use custom error page if defined
+        std::string uri = it->second;
+        filePath = webserv.getConfig().getConfig().rootServ + uri;
+    } else// Otherwise use default error page
+        filePath = dir + "/" + tostring(statusCode) + ".html";
+    return filePath;
+}
+
+void resolveErrorResponse(int statusCode, Webserv& webserv, std::string& statusText, std::string& body) {
+    std::string dir = "errorPages";
+    // Look for custom error page for this status code
+    std::string filePath = findErrorPage(statusCode, webserv, dir);
+    // Make sure error pages directory exists
+    struct stat st;
+    if (stat(dir.c_str(), &st) != 0)
+        mkdir(dir.c_str(), 0755);
+    // Try to read existing error page file
+    std::ifstream file(filePath.c_str());
+    if (file) {
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        body = buffer.str();
+        file.close();
+    } else {
+        // Generate a basic error page with no external resources
+        generateErrorPage(body, statusCode, statusText);
         // Save the generated error page for future use
         std::ofstream out(filePath.c_str());
         if (out) {

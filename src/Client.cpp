@@ -386,40 +386,13 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     // Check if file exists and is regular file
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cout << _webserv->getTimeStamp() << "File not found: " << fullPath << "\n";
+        std::cout << _webserv->getTimeStamp() << "File not found: " << requestPath << "\n"; //fullPath
         sendErrorResponse(404);
         return 1;
     }
     
     // Check if it's a directory
     if (S_ISDIR(fileStat.st_mode)) {
-        // If autoindex is off, we need to check for default index first
-        // or redirect to homepage if no index file
-        if (!_autoindex) {
-            // Try to find an index file in the directory first
-            std::string indexPath = fullPath + "/index.html";
-            struct stat indexStat;
-            
-            if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
-                // Index file exists - serve it
-                req.setPath(indexPath);
-                if (buildBody(req, indexPath) == 1) {
-                    return 1;
-                }
-                req.setContentType("text/html");
-                sendResponse(req, "keep-alive", req.getBody());
-                std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served index file: " 
-                        << RESET << indexPath << std::endl;
-                return 0;
-            } else {
-                // Directory access is forbidden when autoindex is off
-                std::cout << RED << _webserv->getTimeStamp() << "Directory access forbidden (autoindex off): " << fullPath << RESET << std::endl;
-                sendErrorResponse(403);
-                return 1;
-            }
-        }
-        
-        // If autoindex is on, handle directory listing
         return viewDirectory(fullPath, requestPath);
     } else if (!S_ISREG(fileStat.st_mode)) {
         // Not a regular file or directory
@@ -1037,65 +1010,49 @@ bool Client::send_all(int sockfd, const std::string& data) {
 }
 
 void Client::sendErrorResponse(int statusCode) {
-	std::string body;
-	std::string statusText = getStatusMessage(statusCode);
-	Webserv &webserv = getWebserv();
-	resolveErrorResponse(statusCode, webserv, statusText, body);
-	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
-	response += "Content-Type: text/html\r\n";
-	response += "Content-Length: " + tostring(body.size()) + "\r\n";
-	response += "Server: WebServ/1.0\r\n";
-	response += "Connection: close\r\n";
-	response += "\r\n";
-	response += body;
-	if (!send_all(_fd, response))
-		std::cerr << "Failed to send error response" << std::endl;
+    std::string body;
+    std::string statusText = getStatusMessage(statusCode);
+    
+    // First try to find a custom error page in the local directory
+    std::string errorPath = "local/" + tostring(statusCode) + ".html";
+    struct stat fileStat;
+    
+    if (stat(errorPath.c_str(), &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
+        // Custom error page exists, read it
+        std::ifstream file(errorPath.c_str());
+        if (file) {
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            body = buffer.str();
+            file.close();
+            std::cout << RED << _webserv->getTimeStamp() << "Sending error page: " << errorPath << RESET << std::endl;
+        }
+    }
+    
+    // If no custom error page was found, generate a default one
+    if (body.empty()) {
+        Webserv &webserv = getWebserv();
+        resolveErrorResponse(statusCode, webserv, statusText, body);
+    }
+    
+    // Construct the HTTP response
+    std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+    response += "Content-Type: text/html\r\n";
+    response += "Content-Length: " + tostring(body.size()) + "\r\n";
+    response += "Server: WebServ/1.0\r\n";
+    
+    // Important: Set Cache-Control to prevent browsers from caching error responses
+    response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
+    response += "Pragma: no-cache\r\n";
+    
+    // Close the connection after error responses
+    response += "Connection: close\r\n";
+    response += "\r\n";
+    response += body;
+    
+    if (!send_all(_fd, response)) {
+        std::cerr << "Failed to send error response" << std::endl;
+    }
 }
-
-// void Client::sendErrorResponse(int statusCode) {
-//     std::string body;
-//     std::string statusText = getStatusMessage(statusCode);
-    
-//     // First try to find a custom error page in the local directory
-//     std::string errorPath = "local/" + tostring(statusCode) + ".html";
-//     struct stat fileStat;
-    
-//     if (stat(errorPath.c_str(), &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
-//         // Custom error page exists, read it
-//         std::ifstream file(errorPath.c_str());
-//         if (file) {
-//             std::stringstream buffer;
-//             buffer << file.rdbuf();
-//             body = buffer.str();
-//             file.close();
-//             std::cout << RED << _webserv->getTimeStamp() << "Sending error page: " << errorPath << RESET << std::endl;
-//         }
-//     }
-    
-//     // If no custom error page was found, generate a default one
-//     if (body.empty()) {
-//         Webserv &webserv = getWebserv();
-//         resolveErrorResponse(statusCode, webserv, statusText, body);
-//     }
-    
-//     // Construct the HTTP response
-//     std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
-//     response += "Content-Type: text/html\r\n";
-//     response += "Content-Length: " + tostring(body.size()) + "\r\n";
-//     response += "Server: WebServ/1.0\r\n";
-    
-//     // Important: Set Cache-Control to prevent browsers from caching error responses
-//     response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
-//     response += "Pragma: no-cache\r\n";
-    
-//     // Close the connection after error responses
-//     response += "Connection: close\r\n";
-//     response += "\r\n";
-//     response += body;
-    
-//     if (!send_all(_fd, response)) {
-//         std::cerr << "Failed to send error response" << std::endl;
-//     }
-// }
 
 

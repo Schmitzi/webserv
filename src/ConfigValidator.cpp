@@ -1,23 +1,23 @@
 #include "../include/ConfigValidator.hpp"
 
 std::string getAbsPath(std::string& path) {
-    if (path.empty())
-        return ".";
-    if (path[0] == '/')
-        return path;
-    
-    char* cwdBuffer = getcwd(NULL, 0);
-    if (cwdBuffer == NULL)
-        return ".";
-    
-    std::string absPath = cwdBuffer;
-    free(cwdBuffer);
-    
-    absPath += "/" + path;
-    if (absPath[absPath.size() - 1] == '/')
-        absPath = absPath.substr(0, absPath.size() - 1);
-    
-    return absPath;
+	if (path.empty())
+		return ".";
+	if (path[0] == '/')
+		return path;
+	
+	char* cwdBuffer = getcwd(NULL, 0);
+	if (cwdBuffer == NULL)
+		return ".";
+	
+	std::string absPath = cwdBuffer;
+	free(cwdBuffer);
+	
+	absPath += "/" + path;
+	if (absPath[absPath.size() - 1] == '/')
+		absPath = absPath.substr(0, absPath.size() - 1);
+	
+	return absPath;
 }
 
 bool isValidPath(const std::string &path) {
@@ -130,14 +130,13 @@ void parseClientMaxBodySize(serverLevel &serv) {
 }
 
 void checkRoot(serverLevel &serv) {
-	if (serv.rootServ.empty()) {
+	if (serv.rootServ.empty())
 		serv.rootServ = "./www";//TODO: should this be the default?
-		std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
-		while (it != serv.locations.end()) {
-			if (it->second.rootLoc.empty())
-				it->second.rootLoc = serv.rootServ;//take default value from server if not specified
-			++it;
-		}
+	std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
+	while (it != serv.locations.end()) {
+		if (it->second.rootLoc.empty())
+			it->second.rootLoc = serv.rootServ;//take default value from server if not specified
+		++it;
 	}
 }
 

@@ -7,8 +7,6 @@
 #include <cstring>
 #include <iostream>
 #include "Config.hpp"
-// #include "../include/Webserv.hpp"
-// #include <arpa/inet.h>
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"

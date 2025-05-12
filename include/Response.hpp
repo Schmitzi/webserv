@@ -60,6 +60,8 @@ static const HttpErrorFormat httpErrors[] = {
 const locationLevel*		matchLocation(const std::string& uri, const serverLevel& serv);
 std::string					resolveFilePathFromUri(const std::string& uri, const serverLevel& serv);
 const std::string			getStatusMessage(int code);
+void						generateErrorPage(std::string& body, int statusCode, const std::string& statusText);
+std::string					findErrorPage(int statusCode, Webserv& webserv, const std::string& dir);
 void						resolveErrorResponse(int statusCode, Webserv& webserv, std::string& statusText, std::string& body);
 
 

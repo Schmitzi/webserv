@@ -32,27 +32,22 @@ ConfigParser &ConfigParser::operator=(const ConfigParser& copy) {
 
 ConfigParser::~ConfigParser() {
     _ipPortToServers.clear();
-    
-    for (std::vector<serverLevel>::iterator servIt = _allConfigs.begin(); servIt != _allConfigs.end(); ++servIt) {
-        for (std::map<std::string, locationLevel>::iterator locIt = servIt->locations.begin(); 
-             locIt != servIt->locations.end(); ++locIt) {
-            
+
+	std::vector<serverLevel>::iterator servIt = _allConfigs.begin();
+	for (; servIt != _allConfigs.end(); ++servIt) {
+		std::map<std::string, locationLevel>::iterator locIt = servIt->locations.begin();
+		for (; locIt != servIt->locations.end(); ++locIt)
             locIt->second.methods.clear();
-            
-        }
-        
         servIt->locations.clear();
         servIt->port.clear();
         servIt->servName.clear();
         servIt->errPages.clear();
-    }
-    
-    _allConfigs.clear();
-    
-    for (std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin(); 
-         it != _storedConfigs.end(); ++it) {
+	}
+	_allConfigs.clear();
+
+    std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin();
+    for (; it != _storedConfigs.end(); ++it)
         it->clear();
-    }
     _storedConfigs.clear();
 }
 
@@ -139,11 +134,6 @@ void ConfigParser::setConfigLevels(serverLevel& serv, std::vector<std::string>& 
 	while (i < conf.size()) {
 		if (!whiteLine(conf[i])) {
 			s = split(conf[i]);
-			// for (size_t j = 0; j < s.size(); j++) {
-			// 	if (s[j].find("listen")) {
-			// 		std::cout << conf[j] << "\n";
-			// 	}
-			// }
 			if (s.back() == "{") {
 				i++;
 				if (foundServer(s)) setServerLevel(i, s, serv, conf);
@@ -205,7 +195,8 @@ void ConfigParser::printAllConfigs() {
 }
 
 void ConfigParser::printIpPortToServers() const {
-	for (std::map<std::pair<std::string, int>, std::vector<serverLevel*> >::const_iterator it = _ipPortToServers.begin(); it != _ipPortToServers.end(); ++it) {
+	std::map<std::pair<std::string, int>, std::vector<serverLevel*> >::const_iterator it = _ipPortToServers.begin();
+	for (; it != _ipPortToServers.end(); ++it) {
 		const std::pair<std::string, int>& ipPort = it->first;
 		const std::vector<serverLevel*>& servers = it->second;
 

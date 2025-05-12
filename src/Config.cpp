@@ -15,9 +15,8 @@ Config::Config(const Config& other) {
 }
 
 Config &Config::operator=(const Config& other) {
-	if (this != &other) {
+	if (this != &other)
 		_config = other._config;
-	}
 	return *this;
 }
 

@@ -5,7 +5,6 @@
 #include <vector>
 #include <sys/wait.h>
 #include <cstdlib>
-// #include <fcntl.h>
 #include <cerrno>
 #include "../include/Request.hpp"
 #include "../include/Helper.hpp"
@@ -40,7 +39,6 @@ class CGIHandler {
         std::string getTimeStamp();
         std::string formatChunkedResponse(const std::string& body);
         bool    isChunkedTransfer(const std::map<std::string, std::string>& headers);
-        // void    setNonBlocking(int fd);
     private:
         int                         _input[2];
         int                         _output[2];

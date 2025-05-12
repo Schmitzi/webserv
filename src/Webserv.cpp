@@ -30,7 +30,8 @@ Webserv::Webserv(Webserv const &other) {
 
 Webserv &Webserv::operator=(Webserv const &other) {
     if (this != &other) {
-		_servers = other._servers;
+		for (size_t i = 0; i < other._servers.size(); i++)
+			_servers.push_back(other._servers[i]);
 		for (size_t i = 0; i < other._clients.size(); i++)
 			_clients.push_back(other._clients[i]);
 		_env = other._env;
@@ -58,7 +59,7 @@ Webserv::~Webserv() {
 }
 
 Server &Webserv::getServer() {
-    return *_servers[0];
+    return *_servers[0];//TODO: change this to return the right server
 }
 
 void Webserv::setEnvironment(char **envp) {
@@ -82,8 +83,8 @@ Config Webserv::getConfig() const {
 
 int Webserv::run() {
     // Initialize server
-    if (_servers[0]->openSocket() || _servers[0]->setOptional() || _servers[0]->setServerAddr() || 
-        _servers[0]->ft_bind() || _servers[0]->ft_listen()) {
+    if (getServer().openSocket() || getServer().setOptional() || getServer().setServerAddr() || 
+        getServer().ft_bind() || getServer().ft_listen()) {
         return 1;
     }
 	
@@ -96,17 +97,17 @@ int Webserv::run() {
 	}
 
     // Initialize poll array with server socket
-    _servers[0]->addToPoll(_servers[0]->getFd(), POLLIN);
+    getServer().addToPoll(getServer().getFd(), POLLIN);
 
     while (1) {
         // Wait for activity on any socket
-        if (poll(&_servers[0]->getPfds()[0], _servers[0]->getPfds().size(), -1) < 0) {
+        if (poll(&getServer().getPfds()[0], getServer().getPfds().size(), -1) < 0) {
             ft_error("poll() failed");
             continue;
         }
         
         // Check if server socket has activity (new connection)
-        if (_servers[0]->getPfds()[0].revents & POLLIN) {
+        if (getServer().getPfds()[0].revents & POLLIN) {
             // Accept the new connection
             Client* newClient = new Client(*this);
             
@@ -114,7 +115,7 @@ int Webserv::run() {
                 // Display connection info
                 newClient->displayConnection();
                 // Add to poll array
-                if (_servers[0]->addToPoll(newClient->getFd(), POLLIN) == 0) {
+                if (getServer().addToPoll(newClient->getFd(), POLLIN) == 0) {
                     // Store client for later use
                     _clients.push_back(newClient);
                     
@@ -128,12 +129,12 @@ int Webserv::run() {
         }
         
         // Check client sockets for activity
-        for (size_t i = 1; i < _servers[0]->getPfds().size(); i++) {
-            if (_servers[0]->getPfds()[i].revents & POLLIN) {
+        for (size_t i = 1; i < getServer().getPfds().size(); i++) {
+            if (getServer().getPfds()[i].revents & POLLIN) {
                 // Find the corresponding client
                 Client* client = NULL;
                 for (size_t j = 0; j < _clients.size(); j++) {
-                    if (_clients[j]->getFd() == _servers[0]->getPfds()[i].fd) {
+                    if (_clients[j]->getFd() == getServer().getPfds()[i].fd) {
                         client = _clients[j];
                         break;
                     }
@@ -143,24 +144,24 @@ int Webserv::run() {
                     // Receive data from client
                     if (client->recieveData() != 0) {
                         // Client disconnected or error, remove from poll
-                        close(_servers[0]->getPfds()[i].fd);
+                        close(getServer().getPfds()[i].fd);
                         
                         // Remove client from vector
                         for (size_t j = 0; j < _clients.size(); j++) {
-                            if (_clients[j]->getFd() == _servers[0]->getPfds()[i].fd) {
+                            if (_clients[j]->getFd() == getServer().getPfds()[i].fd) {
                                 delete _clients[j];
                                 _clients.erase(_clients.begin() + j);
                                 break;
                             }
                         }
-                        _servers[0]->removeFromPoll(i);
+                        getServer().removeFromPoll(i);
                         i--;
                     }
                 }
             }
         }
     }
-    close(_servers[0]->getFd());
+    close(getServer().getFd());
     return 0;
 }
 
