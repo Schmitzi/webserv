@@ -6,18 +6,22 @@
 
 // Othodox Cannonical Form
 
-Webserv::Webserv() {  
-    _server = new Server();
+Webserv::Webserv() { 
     _confParser = ConfigParser();
 	_config = Config(_confParser);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
-	_server->setWebserv(this);
+    for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
+        _servers.push_back(new Server());
+        _servers[i]->setWebserv(this);
+        Config* temp = new Config(_confParser, i);
+        _servers[i]->setConfig(*temp);
+    }
 }
 
 Webserv::Webserv(std::string const &config) {
-	_server = new Server();
+	_servers[0] = new Server();
 	_confParser = ConfigParser(config);
 	_config = Config(_confParser);
-	_server->setWebserv(this);
+	_servers[0]->setWebserv(this);
 }
 
 Webserv::Webserv(Webserv const &other) {
@@ -26,12 +30,10 @@ Webserv::Webserv(Webserv const &other) {
 
 Webserv &Webserv::operator=(Webserv const &other) {
     if (this != &other) {
-		_server = other._server;
+		_servers = other._servers;
 		for (size_t i = 0; i < other._clients.size(); i++)
 			_clients.push_back(other._clients[i]);
 		_env = other._env;
-		for (size_t i = 0; i < other._pfds.size(); i++)
-			_pfds.push_back(other._pfds[i]);
 		_confParser = other._confParser;
 		_config = other._config;
 	}
@@ -47,23 +49,16 @@ Webserv::~Webserv() {
     }
     _clients.clear();
 
-    if (_server && _server->getFd() >= 0) {
-        close(_server->getFd());
+    for (size_t i = 0; i < _servers.size(); i++)
+    if (!_servers.empty() && _servers[i]->getFd() >= 0) {
+        close(_servers[i]->getFd());
+        delete _servers[i];
+        _servers[i] = NULL;
     }
-    
-    if (_server) {
-        delete _server;
-        _server = NULL;
-    }
-    _pfds.clear();
 }
 
 Server &Webserv::getServer() {
-    return *_server;
-}
-
-std::vector<struct pollfd> &Webserv::getPfds() {
-    return _pfds;
+    return *_servers[0];
 }
 
 void Webserv::setEnvironment(char **envp) {
@@ -81,35 +76,14 @@ int Webserv::setConfig(std::string const filepath) {
     return true;
 }
 
-// Add a file descriptor to the poll array
-int Webserv::addToPoll(int fd, short events) {  
-    // Add to poll array
-    struct pollfd temp;
-    temp.fd = fd;
-    temp.events = events;
-    temp.revents = 0;
-    _pfds.push_back(temp);
-    
-    return 0;
-}
-
-// Remove a file descriptor from the poll array by index
-void Webserv::removeFromPoll(size_t index) {
-    if (index >= _pfds.size()) {
-        printMsg("Invalid poll index", RED, "");
-        return;
-    }
-    _pfds.erase(_pfds.begin() + index);
-}
-
-Config Webserv::getConfig() {
+Config Webserv::getConfig() const {
 	return _config;
 }
 
 int Webserv::run() {
     // Initialize server
-    if (_server->openSocket() || _server->setOptional() || _server->setServerAddr() || 
-        _server->ft_bind() || _server->ft_listen()) {
+    if (_servers[0]->openSocket() || _servers[0]->setOptional() || _servers[0]->setServerAddr() || 
+        _servers[0]->ft_bind() || _servers[0]->ft_listen()) {
         return 1;
     }
 	
@@ -122,17 +96,17 @@ int Webserv::run() {
 	}
 
     // Initialize poll array with server socket
-    addToPoll(_server->getFd(), POLLIN);
+    _servers[0]->addToPoll(_servers[0]->getFd(), POLLIN);
 
     while (1) {
         // Wait for activity on any socket
-        if (poll(&_pfds[0], _pfds.size(), -1) < 0) {
+        if (poll(&_servers[0]->getPfds()[0], _servers[0]->getPfds().size(), -1) < 0) {
             ft_error("poll() failed");
             continue;
         }
         
         // Check if server socket has activity (new connection)
-        if (_pfds[0].revents & POLLIN) {
+        if (_servers[0]->getPfds()[0].revents & POLLIN) {
             // Accept the new connection
             Client* newClient = new Client(*this);
             
@@ -140,7 +114,7 @@ int Webserv::run() {
                 // Display connection info
                 newClient->displayConnection();
                 // Add to poll array
-                if (addToPoll(newClient->getFd(), POLLIN) == 0) {
+                if (_servers[0]->addToPoll(newClient->getFd(), POLLIN) == 0) {
                     // Store client for later use
                     _clients.push_back(newClient);
                     
@@ -154,12 +128,12 @@ int Webserv::run() {
         }
         
         // Check client sockets for activity
-        for (size_t i = 1; i < _pfds.size(); i++) {
-            if (_pfds[i].revents & POLLIN) {
+        for (size_t i = 1; i < _servers[0]->getPfds().size(); i++) {
+            if (_servers[0]->getPfds()[i].revents & POLLIN) {
                 // Find the corresponding client
                 Client* client = NULL;
                 for (size_t j = 0; j < _clients.size(); j++) {
-                    if (_clients[j]->getFd() == _pfds[i].fd) {
+                    if (_clients[j]->getFd() == _servers[0]->getPfds()[i].fd) {
                         client = _clients[j];
                         break;
                     }
@@ -169,24 +143,24 @@ int Webserv::run() {
                     // Receive data from client
                     if (client->recieveData() != 0) {
                         // Client disconnected or error, remove from poll
-                        close(_pfds[i].fd);
+                        close(_servers[0]->getPfds()[i].fd);
                         
                         // Remove client from vector
                         for (size_t j = 0; j < _clients.size(); j++) {
-                            if (_clients[j]->getFd() == _pfds[i].fd) {
+                            if (_clients[j]->getFd() == _servers[0]->getPfds()[i].fd) {
                                 delete _clients[j];
                                 _clients.erase(_clients.begin() + j);
                                 break;
                             }
                         }
-                        removeFromPoll(i);
+                        _servers[0]->removeFromPoll(i);
                         i--;
                     }
                 }
             }
         }
     }
-    close(_server->getFd());
+    close(_servers[0]->getFd());
     return 0;
 }
 

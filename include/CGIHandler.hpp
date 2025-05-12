@@ -25,14 +25,22 @@ class CGIHandler {
         bool    isCGIScript(const std::string& path);
         int     doChecks(Client client);
         int     processScriptOutput(Client &client);
+        int     handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
+        int     handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
         int     executeCGI(Client &client, Request& req, std::string const &scriptPath);
         void    prepareEnv(Request &req);
         Request createTempHeader(std::string output);
+        std::map<std::string, std::string> parseHeaders(const std::string& headerSection);
+        std::pair<std::string, std::string> splitHeaderAndBody(const std::string& output);
         void    findBash();
         void    findPHP();
         void    findPython();
         void    findPl();
         void    cleanupResources();
+        std::string getTimeStamp();
+        std::string formatChunkedResponse(const std::string& body);
+        bool    isChunkedTransfer(const std::map<std::string, std::string>& headers);
+        // void    setNonBlocking(int fd);
     private:
         int                         _input[2];
         int                         _output[2];

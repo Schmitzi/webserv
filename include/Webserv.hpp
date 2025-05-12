@@ -47,7 +47,6 @@ class Webserv {
         ~Webserv();
 
         Server          &getServer();
-        std::vector<struct pollfd> &getPfds();
         void            setEnvironment(char **envp);
         char            **getEnvironment() const;
         int             setConfig(std::string const filepath);
@@ -55,21 +54,18 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-        Config          getConfig();
+        Config          getConfig() const;
 
     private:
-        Server                  *_server;
+        //Server                  *_server;
+        std::vector<Server *> 	_servers;
         std::vector<Client *>   _clients;
         char                    **_env;
         ConfigParser			_confParser;
         Config					_config;
-        // std::vector<Server> 	_servers;
 
-        std::vector<struct pollfd> _pfds;
 
-        // Polling
-        int             addToPoll(int fd, short events);
-        void            removeFromPoll(size_t index);
+        
 };
 
 #endif

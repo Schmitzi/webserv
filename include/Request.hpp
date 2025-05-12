@@ -34,6 +34,7 @@ class Request {
         void    parse(const std::string& rawRequest);
         void    parseHeaders(const std::string& headerSection);
         void    parseContentType();
+        bool    isChunkedTransfer() const;
     private:
         std::string                         _method;
         std::string                         _path;

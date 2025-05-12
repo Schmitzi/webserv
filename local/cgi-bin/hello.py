@@ -12,10 +12,12 @@ print("<html>")
 print("<head>")
 print("<title>Hello from Python CGI</title>")
 print("<style>body { font-family: Arial, sans-serif; margin: 20px; }</style>")
+print("<link rel=\"icon\" href=\"/images/favicon.ico\" type=\"image/x-icon\">")
 print("</head>")
 print("<body>")
 print("<h1>Hello from Python CGI!</h1>")
 print("<div><a href=\"../cgi.html\">Back</a></div>")
+
 
 # Get request method
 method = os.environ.get("REQUEST_METHOD", "Unknown")

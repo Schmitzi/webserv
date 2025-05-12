@@ -139,6 +139,11 @@ void ConfigParser::setConfigLevels(serverLevel& serv, std::vector<std::string>& 
 	while (i < conf.size()) {
 		if (!whiteLine(conf[i])) {
 			s = split(conf[i]);
+			// for (size_t j = 0; j < s.size(); j++) {
+			// 	if (s[j].find("listen")) {
+			// 		std::cout << conf[j] << "\n";
+			// 	}
+			// }
 			if (s.back() == "{") {
 				i++;
 				if (foundServer(s)) setServerLevel(i, s, serv, conf);
@@ -172,6 +177,7 @@ void ConfigParser::parseAndSetConfigs() {
 		setConfigLevels(nextConf, _storedConfigs[i]);
 		_allConfigs.push_back(nextConf);
 	}
+	// printAllConfigs();
 	setIpPortToServers();
 	// printIpPortToServers();
 }
@@ -216,5 +222,3 @@ void ConfigParser::printIpPortToServers() const {
 		std::cout << std::endl;
 	}
 }
-
-

@@ -43,44 +43,82 @@ const std::string getStatusMessage(int code) {
 	return "Unknown Status Code";
 }
 
+// Fix for resolveErrorResponse function in Response.cpp
+// Corrected resolveErrorResponse function in Response.cpp
 void resolveErrorResponse(int statusCode, Webserv& webserv, std::string& statusText, std::string& body) {
-	std::string dir = "errorPages";
-	std::map<std::vector<int>, std::string> errorPages = webserv.getConfig().getConfig().errPages;
-	std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
-	while (it != errorPages.end()) {
-		if (it->first[0] == statusCode)
-			break;
-		++it;
-	}
-	std::string filePath;
-	if (it != errorPages.end()) {
-		std::string uri;
-		uri = it->second;
-		filePath = resolveFilePathFromUri(uri, webserv.getConfig().getConfig());
-	} else
-		filePath = dir + "/" + tostring(statusCode) + ".html";
-	struct stat st;
-	if (stat(dir.c_str(), &st) != 0)
-		mkdir(dir.c_str(), 0755);
-	std::ifstream file(filePath.c_str());
-	if (file) {
-		std::stringstream buffer;
-		buffer << file.rdbuf();
-		body = buffer.str();
-		file.close();
-	} else {
-		body = "<!DOCTYPE html>\n"
-			"<html>\n<head><title>Error " + tostring(statusCode) + "</title></head>\n"
-			"<body>\n<h1>" + statusText + "</h1>\n"
-			"<p>The server encountered an error: " + statusText + " (" + tostring(statusCode) + ")</p>\n"
-			"<hr>\n<em>WebServ/1.0</em>\n"
-			"</body>\n</html>";
-		std::ofstream out(filePath.c_str());
-		if (out) {
-			out << body;
-			out.close();
-		}
-	}
+    std::string dir = "errorPages";
+    std::map<std::vector<int>, std::string> errorPages = webserv.getConfig().getConfig().errPages;
+    std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
+    
+    // Look for custom error page for this status code
+    bool foundCustomPage = false;
+    while (it != errorPages.end()) {
+        // Check if this status code is in the vector of codes
+        for (size_t i = 0; i < it->first.size(); i++) {
+            if (it->first[i] == statusCode) {
+                foundCustomPage = true;
+                break;
+            }
+        }
+        if (foundCustomPage) {
+            break;
+        }
+        ++it;
+    }
+    
+    std::string filePath;
+    if (foundCustomPage) {
+        // Use custom error page if defined
+        std::string uri = it->second;
+        filePath = webserv.getConfig().getConfig().rootServ + uri;
+    } else {
+        // Otherwise use default error page
+        filePath = dir + "/" + tostring(statusCode) + ".html";
+    }
+    
+    // Make sure error pages directory exists
+    struct stat st;
+    if (stat(dir.c_str(), &st) != 0)
+        mkdir(dir.c_str(), 0755);
+    
+    // Try to read existing error page file
+    std::ifstream file(filePath.c_str());
+    if (file) {
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        body = buffer.str();
+        file.close();
+    } else {
+        // Generate a basic error page with no external resources
+        body = "<!DOCTYPE html>\n"
+            "<html>\n<head>\n"
+            "<title>Error " + tostring(statusCode) + "</title>\n"
+            "<style>\n"
+            "  body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }\n"
+            "  h1 { color: #D32F2F; }\n"
+            "  .container { max-width: 800px; margin: 0 auto; padding: 20px; }\n"
+            "  .server-info { font-size: 12px; color: #777; margin-top: 20px; }\n"
+            "</style>\n"
+            "</head>\n"
+            "<body>\n"
+            "<div class=\"container\">\n"
+            "  <h1>Error " + tostring(statusCode) + " - " + statusText + "</h1>\n"
+            "  <p>The server cannot process your request.</p>\n"
+            "  <p><a href=\"/\">Return to homepage</a></p>\n"
+            "  <div class=\"server-info\">\n"
+            "    <p>WebServ/1.0</p>\n"
+            "  </div>\n"
+            "</div>\n"
+            "</body>\n"
+            "</html>";
+        
+        // Save the generated error page for future use
+        std::ofstream out(filePath.c_str());
+        if (out) {
+            out << body;
+            out.close();
+        }
+    }
 }
 
 

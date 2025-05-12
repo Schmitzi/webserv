@@ -275,3 +275,11 @@ std::string Request::getMimeType(std::string const &path) {
     
     return "text/plain"; // Default
 }
+
+bool Request::isChunkedTransfer() const {
+    std::map<std::string, std::string>::const_iterator it = _headers.find("Transfer-Encoding");
+    if (it != _headers.end() && it->second.find("chunked") != std::string::npos) {
+        return true;
+    }
+    return false;
+}

@@ -27,7 +27,8 @@ bool isValidPath(const std::string &path) {
 }
 
 bool isValidRedirectPath(const std::string &path) {
-	return (!path.empty() && path[0] == '/' && path.find("http") == 0);
+	return (!path.empty() && (path[0] == '/' || path.find("http://") == 0 || path.find("https://") == 0));
+	// return (!path.empty() && path[0] == '/' && path.find("http://") != 0);
 	// if (path.empty() || (path[0] != '/' && path.find("http") != 0))
 	// 	return (false);
 	// return (true);
@@ -166,7 +167,6 @@ void checkConfig(serverLevel &serv) {
 		serv.maxRequestSize = "1M";
 		parseClientMaxBodySize(serv);
 	}
-	// throw configException("Error: No port specified in config.\n-> server won't bind to any port");
 	checkRoot(serv);
 	checkIndex(serv);
 }
