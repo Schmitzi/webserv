@@ -26,8 +26,12 @@ Config::~Config() {}
 /* ************************************************************************************** */
 //GETTERS
 
-int Config::getPort() {//TODO: do this correctly
-	return _config.port[0].second;
+int Config::getPort() {
+    if (_config.port.empty()) {
+        return -1; // Error case
+    }
+    // Just return the first port from this server's config
+    return _config.port[0].second;
 }
 
 serverLevel Config::getConfig() {

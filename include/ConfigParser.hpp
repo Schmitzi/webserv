@@ -14,6 +14,12 @@
 #include "Helper.hpp"
 #include "ConfigHelper.hpp"
 
+#define BLUE    "\33[34m"
+#define GREEN   "\33[32m"
+#define RED     "\33[31m"
+#define WHITE   "\33[97m"
+#define RESET   "\33[0m" // No Colour
+
 struct locationLevel {
 	std::string									locName;//location
 	std::string									rootLoc;//root

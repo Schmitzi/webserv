@@ -5,13 +5,7 @@ Server::Server() : _uploadDir("local/upload/"), _webRoot("local"), _webserv(NULL
 
 }
 
-Server  &Server::operator=(Server const &other) {
-    for (size_t i = 0; i < other._pfds.size(); i++)
-        _pfds.push_back(other._pfds[i]);
-}
-
 Server::~Server()  {
-    _pfds.clear();
 }
 
 Webserv &Server::getWebServ() {
@@ -34,12 +28,8 @@ std::string const   &Server::getWebRoot() {
     return _webRoot;
 }
 
-std::vector<struct pollfd>  &Server::getPfds() {
-    return _pfds;
-}
-
-void    Server::addPfd(struct pollfd newPfd) {
-    _pfds.push_back(newPfd);
+Config  &Server::getConfig() {
+    return _config;
 }
 
 void Server::setWebserv(Webserv* webserv) {
@@ -52,31 +42,6 @@ void    Server::setConfig(Config config) {
 
 void    Server::setFd(int const fd) {
     _fd = fd;
-}
-
-void    Server::removePfd(int index) {
-    _pfds.erase(_pfds.begin() + index);
-}
-
-// Add a file descriptor to the poll array
-int Server::addToPoll(int fd, short events) {  
-    // Add to poll array
-    struct pollfd temp;
-    temp.fd = fd;
-    temp.events = events;
-    temp.revents = 0;
-    addPfd(temp);
-    
-    return 0;
-}
-
-// Remove a file descriptor from the poll array by index
-void Server::removeFromPoll(size_t index) {
-    if (index >= getPfds().size()) {
-        printMsg("Invalid poll index", RED, "");
-        return;
-    }
-    removePfd(index);
 }
 
 int Server::openSocket() {
@@ -112,11 +77,24 @@ int Server::setOptional() { // Optional: set socket options to reuse address
     return 0;
 }
 
-int Server::setServerAddr() { // Set up server address
+int Server::setServerAddr() {
     memset(&_addr, 0, sizeof(_addr));
-    _addr.sin_family = AF_INET;          // IPv4 Internet Protocol
-    _addr.sin_addr.s_addr = INADDR_ANY;  // Accept connections on any interface
-    _addr.sin_port = htons(getWebServ().getConfig().getPort());
+    _addr.sin_family = AF_INET;
+    
+    std::string ip = getConfig().getConfig().port[0].first;
+    int port = getConfig().getConfig().port[0].second;
+    
+    // Convert string IP to network format
+    if (ip == "0.0.0.0" || ip.empty()) {
+        _addr.sin_addr.s_addr = INADDR_ANY;
+    } else {
+        inet_pton(AF_INET, ip.c_str(), &(_addr.sin_addr));
+    }
+    
+    _addr.sin_port = htons(port);
+    
+    std::cout << GREEN << _webserv->getTimeStamp() << "Server binding to " << RESET << ip << ":" << port << std::endl;
+    
     return 0;
 }
 

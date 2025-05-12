@@ -7,12 +7,19 @@
 
 Webserv::Webserv() { 
     _confParser = ConfigParser();
-	_config = Config(_confParser);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
+    
+    // Set the Webserv-level config to the first one if there are any configs
+    if (!_confParser.getAllConfigs().empty()) {
+        _config = Config(_confParser, 0);
+    }
+    
+    // Create a server for each config
     for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
         _servers.push_back(new Server());
         _servers[i]->setWebserv(this);
         Config* temp = new Config(_confParser, i);
         _servers[i]->setConfig(*temp);
+        delete temp; // Don't forget to free the memory
     }
 }
 
@@ -24,7 +31,7 @@ Webserv::Webserv(std::string const &config) {
 }
 
 Webserv::Webserv(Webserv const &other) {
-	*this = other;
+    *this = other;
 }
 
 Webserv &Webserv::operator=(Webserv const &other) {
@@ -56,8 +63,8 @@ Webserv::~Webserv() {
     }
 }
 
-Server &Webserv::getServer() {
-    return *_server;
+Server &Webserv::getServer(int i) {
+    return *_servers[i];
 }
 
 void Webserv::setEnvironment(char **envp) {
@@ -69,7 +76,7 @@ char **Webserv::getEnvironment() const {
 }
 
 int Webserv::setConfig(std::string const filepath) {
-    std::cout << getTimeStamp() << "Config found at " << filepath << "\n";
+    std::cout << GREEN << getTimeStamp() << "Config found at " << RESET << filepath << "\n";
 	_confParser = ConfigParser(filepath);
 	_config = Config(_confParser);
     return true;
@@ -81,86 +88,130 @@ Config Webserv::getConfig() const {
 
 int Webserv::run() {
     // Initialize server
-    if (_server->openSocket() || _server->setOptional() || _server->setServerAddr() || 
-        _server->ft_bind() || _server->ft_listen()) {
-        return 1;
+    for (size_t i = 0; i < _servers.size(); i++) {
+        std::cout << BLUE << "Initializing server " << i + 1 << " with port " << RESET << _servers[i]->getConfig().getPort() << std::endl;
+        
+        if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
+            _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {
+            std::cerr << "Failed to initialize server " << i << std::endl;
+            continue; // Skip this server but try to initialize others
+        }
+        
+        // Add server socket to poll array
+        addToPoll(_servers[i]->getFd(), POLLIN);
+        
+        std::cout << GREEN << getTimeStamp() << 
+            "Server " << i << " is listening on port " << RESET << 
+            _servers[i]->getConfig().getPort() << "\n";
     }
-	
-	int port = _config.getPort();
-	if (port == -1)
-		std::cerr << "No port found in config..\n";
-	else {
-		std::string p = tostring(port);
-    	printMsg("Server is listening on port", GREEN, p);
-	}
-
-    // Initialize poll array with server socket
-    _servers[0]->addToPoll(_servers[0]->getFd(), POLLIN);
 
     while (1) {
-        // Wait for activity on any socket
+        // Poll the master array containing all server and client fds
         if (poll(&_pfds[0], _pfds.size(), -1) < 0) {
             ft_error("poll() failed");
             continue;
         }
         
-        // Check if server socket has activity (new connection)
-        if (_pfds[0].revents & POLLIN) {
-            // Accept the new connection
-            Client* newClient = new Client(*this);
-            
-            if (newClient->acceptConnection() == 0) {
-                // Display connection info
-                newClient->displayConnection();
-                // Add to poll array
-                if (addToPoll(newClient->getFd(), POLLIN) == 0) {
-                    // Store client for later use
-                    _clients.push_back(newClient);
-                    
-                } else {
-                    printMsg("Failed to add client to poll", RED, "");
-                    delete newClient;
-                }
-            } else {
-                delete newClient;
+        // Process all events
+        for (size_t i = 0; i < _pfds.size(); i++) {
+            if (!(_pfds[i].revents & POLLIN)) {
+                continue;
             }
-        }
-        
-        // Check client sockets for activity
-        for (size_t i = 1; i < _pfds.size(); i++) {
-            if (_pfds[i].revents & POLLIN) {
-                // Find the corresponding client
-                Client* client = NULL;
-                for (size_t j = 0; j < _clients.size(); j++) {
-                    if (_clients[j]->getFd() == _pfds[i].fd) {
-                        client = _clients[j];
-                        break;
-                    }
+            
+            // Check if this is a server listening socket
+            Server* activeServer = NULL;
+            for (size_t j = 0; j < _servers.size(); j++) {
+                if (_servers[j]->getFd() == _pfds[i].fd) {
+                    activeServer = _servers[j];
+                    break;
                 }
-                
-                if (client) {
-                    // Receive data from client
-                    if (client->recieveData() != 0) {
-                        // Client disconnected or error, remove from poll
-                        close(_pfds[i].fd);
-                        
-                        // Remove client from vector
-                        for (size_t j = 0; j < _clients.size(); j++) {
-                            if (_clients[j]->getFd() == _pfds[i].fd) {
-                                delete _clients[j];
-                                _clients.erase(_clients.begin() + j);
-                                break;
-                            }
-                        }
-                        removeFromPoll(i);
-                        i--;
-                    }
-                }
+            }
+            
+            if (activeServer) {
+                // New connection on a server socket
+                handleNewConnection(activeServer);
+            } else {
+                // Activity on a client socket
+                handleClientActivity(i);
             }
         }
     }
-    close(_server->getFd());
+    
+    // Clean up
+    for (size_t i = 0; i < _servers.size(); i++) {
+        close(_servers[i]->getFd());
+    }
     return 0;
+}
+
+// Add a file descriptor to the poll array
+int Webserv::addToPoll(int fd, short events) {  
+    // Add to poll array
+    struct pollfd temp;
+    temp.fd = fd;
+    temp.events = events;
+    temp.revents = 0;
+    _pfds.push_back(temp);
+    
+    return 0;
+}
+
+// Remove a file descriptor from the poll array by index
+void Webserv::removeFromPoll(size_t index) {
+    if (index >= _pfds.size()) {
+        printMsg("Invalid poll index", RED, "");
+        return;
+    }
+    _pfds.erase(_pfds.begin() + index);
+}
+
+void Webserv::handleNewConnection(Server* server) {
+    // Create a new client associated with this Webserv instance
+    Client* newClient = new Client(*this);
+    
+    // Set the specific server that accepted this connection
+    newClient->setServer(server);
+    
+    // Now let the client accept the actual connection from the server socket
+    if (newClient->acceptConnection(server->getFd()) == 0) {
+        // Connection accepted successfully
+        newClient->displayConnection();
+        
+        // Add client to poll array and client list
+        if (addToPoll(newClient->getFd(), POLLIN) == 0) {
+            _clients.push_back(newClient);
+        } else {
+            printMsg("Failed to add client to poll", RED, "");
+            delete newClient;
+        }
+    } else {
+        // Failed to accept connection
+        delete newClient;
+    }
+}
+
+void Webserv::handleClientActivity(size_t pollIndex) {
+    Client* client = NULL;
+    for (size_t j = 0; j < _clients.size(); j++) {
+        if (_clients[j]->getFd() == _pfds[pollIndex].fd) {
+            client = _clients[j];
+            break;
+        }
+    }
+    
+    if (client && client->recieveData() != 0) {
+        // Client disconnected or error
+        close(_pfds[pollIndex].fd);
+        
+        for (size_t j = 0; j < _clients.size(); j++) {
+            if (_clients[j]->getFd() == _pfds[pollIndex].fd) {
+                delete _clients[j];
+                _clients.erase(_clients.begin() + j);
+                break;
+            }
+        }
+        removeFromPoll(pollIndex);
+    }
 }
 
 void    Webserv::ft_error(std::string const msg) {  // TODO: Check if allowed

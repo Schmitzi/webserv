@@ -7,15 +7,8 @@ Client::Client() : _webserv(NULL), _server(NULL) {
 
 Client::Client(Webserv &other) {
     setWebserv(&other);
-    setServer(&other.getServer());
-
-    Config *temp = new Config(_webserv->getConfig());
-    setConfig(temp->getConfig());
-    delete temp;
     _cgi.setClient(*this);
-    _cgi.setServer(*_server);
     _cgi.setConfig(_webserv->getConfig());
-    setAutoIndex();
 }
 
 Client::~Client() {
@@ -50,12 +43,12 @@ void Client::setServer(Server *server) {
     _server = server;
 }
 
-Webserv &Client::getWebserv() {
-	return *_webserv;
+Server &Client::getServer() {
+    return *_server;
 }
 
-Server &Client::getServer() {
-	return *_server;
+Webserv &Client::getWebserv() {
+	return *_webserv;
 }
 
 void    Client::setConfig(serverLevel config) {
@@ -71,13 +64,23 @@ void    Client::setAutoIndex() {
     }
 }
 
-int Client::acceptConnection() {
+int Client::acceptConnection(int serverFd) {
     _addrLen = sizeof(_addr);
-    _fd = accept(_server->getFd(), (struct sockaddr *)&_addr, &_addrLen);
+    _fd = accept(serverFd, (struct sockaddr *)&_addr, &_addrLen);
     if (_fd < 0) {
         _webserv->ft_error("Accept failed");
         return 1;
     }
+    
+    // Set up server-specific configs
+    Config *temp = new Config(_server->getConfig());
+    setConfig(temp->getConfig());
+    delete temp;
+    
+    _cgi.setServer(*_server);
+    
+    setAutoIndex();
+    
     return 0;
 }
 
@@ -278,6 +281,7 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
         return 1;
     }
 
+    std::cout << "!\n";
     if (handleRedirect(req) == 0) {
         return 1;
     }
@@ -743,6 +747,7 @@ int    Client::handleRedirect(Request req) {
     std::string path = req.getPath().substr(1);
     std::map<std::string, locationLevel>::iterator it = _config.locations.begin();
     for ( ; it != _config.locations.end() ; it++) {
+        std::cout << "Loc: " << it->first << it->second.redirectionHTTP << "\n";
         if (it->first == path) {
             sendRedirect(301, it->second.redirectionHTTP);
             return 0;

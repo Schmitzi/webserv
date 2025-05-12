@@ -39,9 +39,6 @@ std::vector<std::string> splitIfSemicolon(std::string &configLine) {
 	std::vector<std::string> s;
 	if (!checkSemicolon(configLine)) // && configLine.find("http") == 0)
 		throw configException("Error: missing semicolon in config");
-	// if (configLine.find("http")) {
-	// 	std::cout << configLine + "\n";
-	// }
 	configLine = configLine.substr(0, configLine.size() - 1);
 	s = split(configLine);
 	return s;
@@ -159,6 +156,7 @@ void setAutoindex(locationLevel& loc, std::vector<std::string>& s) {
 }
 
 void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
+	std::cout << "S1: " << s[1] << "\n";
 	if (!s[1].empty() && !isValidRedirectPath(s[1]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
 	loc.redirectionHTTP = s[1];

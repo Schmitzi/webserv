@@ -39,12 +39,12 @@ class Client {
         unsigned char           &getIP();
         char                    &getBuffer();
         Webserv					&getWebserv();
-        Server					&getServer();
+        Server                  &getServer();
         void                    setWebserv(Webserv *webserv);
         void                    setServer(Server *server);
         void                    setConfig(serverLevel config);
         void                    setAutoIndex();
-        int                     acceptConnection();
+        int                     acceptConnection(int serverFd);
         void                    displayConnection();
         int                     recieveData();
         int                     processRequest(char *buffer);

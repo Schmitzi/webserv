@@ -139,11 +139,6 @@ void ConfigParser::setConfigLevels(serverLevel& serv, std::vector<std::string>& 
 	while (i < conf.size()) {
 		if (!whiteLine(conf[i])) {
 			s = split(conf[i]);
-			for (size_t i = 0; i < s.size(); i++) {
-				if (s[i].find("listen")) {
-					std::cout << conf[i] << "\n";
-				}
-			}
 			if (s.back() == "{") {
 				i++;
 				if (foundServer(s)) setServerLevel(i, s, serv, conf);
@@ -172,14 +167,37 @@ void ConfigParser::setIpPortToServers() {
 }
 
 void ConfigParser::parseAndSetConfigs() {
-	for (size_t i = 0; i < _storedConfigs.size(); i++) {
-		serverLevel nextConf;
-		setConfigLevels(nextConf, _storedConfigs[i]);
-		_allConfigs.push_back(nextConf);
-	}
-	printAllConfigs();
-	setIpPortToServers();
-	// printIpPortToServers();
+    std::map<std::pair<std::string, int>, bool> usedIpPorts;
+    
+    for (size_t i = 0; i < _storedConfigs.size(); i++) {
+        serverLevel nextConf;
+        setConfigLevels(nextConf, _storedConfigs[i]);
+        
+        // Check for duplicate IP:port combinations
+        for (size_t j = 0; j < nextConf.port.size(); j++) {
+            std::pair<std::string, int> ipPort = nextConf.port[j];
+            
+            if (usedIpPorts.find(ipPort) != usedIpPorts.end()) {
+                std::cerr << RED << "Warning: IP:port combination " << ipPort.first << ":" << ipPort.second 
+                          << " is already in use by another server. Ignoring duplicate." << RESET << std::endl;
+                
+                // Remove this duplicate from the server's port list
+                nextConf.port.erase(nextConf.port.begin() + j);
+                j--; // Adjust index after erasing
+            } else {
+                usedIpPorts[ipPort] = true;
+            }
+        }
+        
+        // Only add server if it has at least one valid port
+        if (!nextConf.port.empty()) {
+            _allConfigs.push_back(nextConf);
+        } else {
+            std::cerr << "Warning: Server skipped because it has no valid ports." << std::endl;
+        }
+    }
+    // printAllConfigs();
+    setIpPortToServers();
 }
 
 /* *************************************************************************************** */

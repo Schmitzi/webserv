@@ -3,9 +3,11 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <cstring>
 #include <iostream>
+#include "../include/Config.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -19,7 +21,6 @@ class Webserv;
 class Server {
     public:
         Server();
-        Server  &operator=(Server const &other);
         ~Server();
         
         Webserv             &getWebServ();
@@ -27,16 +28,10 @@ class Server {
         int                 &getFd();
         std::string const   &getUploadDir();
         std::string const   &getWebRoot();
-        std::vector<struct pollfd> &getPfds();
-        void                addPfd(struct pollfd newPfd);
-        void                removePfd(int index);
+        Config              &getConfig();
         void                setFd(int const fd);
         void                setWebserv(Webserv* webserv);
         void                setConfig(Config config);
-        // Polling
-        int                 addToPoll(int fd, short events);
-        void                removeFromPoll(size_t index);
-
         int                 openSocket();
         int                 setOptional();
         int                 setServerAddr();
@@ -47,7 +42,6 @@ class Server {
         struct sockaddr_in  _addr;
         std::string         _uploadDir;
         std::string         _webRoot;
-        std::vector<struct pollfd> _pfds;
         Config              _config;
         
         Webserv             *_webserv;
