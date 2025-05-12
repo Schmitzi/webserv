@@ -5,18 +5,22 @@
 
 // Othodox Cannonical Form
 
-Webserv::Webserv() {  
-    _server = new Server();
+Webserv::Webserv() { 
     _confParser = ConfigParser();
 	_config = Config(_confParser);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
-	_server->setWebserv(this);
+    for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
+        _servers.push_back(new Server());
+        _servers[i]->setWebserv(this);
+        Config* temp = new Config(_confParser, i);
+        _servers[i]->setConfig(*temp);
+    }
 }
 
 Webserv::Webserv(std::string const &config) {
-	_server = new Server();
+	_servers[0] = new Server();
 	_confParser = ConfigParser(config);
 	_config = Config(_confParser);
-	_server->setWebserv(this);
+	_servers[0]->setWebserv(this);
 }
 
 Webserv::Webserv(Webserv const &other) {
@@ -25,12 +29,10 @@ Webserv::Webserv(Webserv const &other) {
 
 Webserv &Webserv::operator=(Webserv const &other) {
     if (this != &other) {
-		_server = other._server;
+		_servers = other._servers;
 		for (size_t i = 0; i < other._clients.size(); i++)
 			_clients.push_back(other._clients[i]);
 		_env = other._env;
-		for (size_t i = 0; i < other._pfds.size(); i++)
-			_pfds.push_back(other._pfds[i]);
 		_confParser = other._confParser;
 		_config = other._config;
 	}
@@ -46,23 +48,16 @@ Webserv::~Webserv() {
     }
     _clients.clear();
 
-    if (_server && _server->getFd() >= 0) {
-        close(_server->getFd());
+    for (size_t i = 0; i < _servers.size(); i++)
+    if (!_servers.empty() && _servers[i]->getFd() >= 0) {
+        close(_servers[i]->getFd());
+        delete _servers[i];
+        _servers[i] = NULL;
     }
-    
-    if (_server) {
-        delete _server;
-        _server = NULL;
-    }
-    _pfds.clear();
 }
 
 Server &Webserv::getServer() {
     return *_server;
-}
-
-std::vector<struct pollfd> &Webserv::getPfds() {
-    return _pfds;
 }
 
 void Webserv::setEnvironment(char **envp) {
@@ -78,27 +73,6 @@ int Webserv::setConfig(std::string const filepath) {
 	_confParser = ConfigParser(filepath);
 	_config = Config(_confParser);
     return true;
-}
-
-// Add a file descriptor to the poll array
-int Webserv::addToPoll(int fd, short events) {  
-    // Add to poll array
-    struct pollfd temp;
-    temp.fd = fd;
-    temp.events = events;
-    temp.revents = 0;
-    _pfds.push_back(temp);
-    
-    return 0;
-}
-
-// Remove a file descriptor from the poll array by index
-void Webserv::removeFromPoll(size_t index) {
-    if (index >= _pfds.size()) {
-        printMsg("Invalid poll index", RED, "");
-        return;
-    }
-    _pfds.erase(_pfds.begin() + index);
 }
 
 Config Webserv::getConfig() const {
@@ -121,7 +95,7 @@ int Webserv::run() {
 	}
 
     // Initialize poll array with server socket
-    addToPoll(_server->getFd(), POLLIN);
+    _servers[0]->addToPoll(_servers[0]->getFd(), POLLIN);
 
     while (1) {
         // Wait for activity on any socket

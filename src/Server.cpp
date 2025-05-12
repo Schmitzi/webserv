@@ -5,8 +5,13 @@ Server::Server() : _uploadDir("local/upload/"), _webRoot("local"), _webserv(NULL
 
 }
 
-Server::~Server()  {
+Server  &Server::operator=(Server const &other) {
+    for (size_t i = 0; i < other._pfds.size(); i++)
+        _pfds.push_back(other._pfds[i]);
+}
 
+Server::~Server()  {
+    _pfds.clear();
 }
 
 Webserv &Server::getWebServ() {
@@ -29,12 +34,49 @@ std::string const   &Server::getWebRoot() {
     return _webRoot;
 }
 
+std::vector<struct pollfd>  &Server::getPfds() {
+    return _pfds;
+}
+
+void    Server::addPfd(struct pollfd newPfd) {
+    _pfds.push_back(newPfd);
+}
+
 void Server::setWebserv(Webserv* webserv) {
     _webserv = webserv;
 }
 
+void    Server::setConfig(Config config) {
+    _config = config;
+}
+
 void    Server::setFd(int const fd) {
     _fd = fd;
+}
+
+void    Server::removePfd(int index) {
+    _pfds.erase(_pfds.begin() + index);
+}
+
+// Add a file descriptor to the poll array
+int Server::addToPoll(int fd, short events) {  
+    // Add to poll array
+    struct pollfd temp;
+    temp.fd = fd;
+    temp.events = events;
+    temp.revents = 0;
+    addPfd(temp);
+    
+    return 0;
+}
+
+// Remove a file descriptor from the poll array by index
+void Server::removeFromPoll(size_t index) {
+    if (index >= getPfds().size()) {
+        printMsg("Invalid poll index", RED, "");
+        return;
+    }
+    removePfd(index);
 }
 
 int Server::openSocket() {

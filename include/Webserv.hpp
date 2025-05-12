@@ -56,18 +56,15 @@ class Webserv {
         Config          getConfig() const;
 
     private:
-        Server                  *_server;
+        //Server                  *_server;
+        std::vector<Server *> 	_servers;
         std::vector<Client *>   _clients;
         char                    **_env;
         ConfigParser			_confParser;
         Config					_config;
-        // std::vector<Server> 	_servers;
 
-        std::vector<struct pollfd> _pfds;
 
-        // Polling
-        int             addToPoll(int fd, short events);
-        void            removeFromPoll(size_t index);
+        
 };
 
 #endif
