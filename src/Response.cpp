@@ -68,7 +68,7 @@ void generateErrorPage(std::string& body, int statusCode, const std::string& sta
 }
 
 std::string findErrorPage(int statusCode, Webserv& webserv, const std::string& dir) {
-    std::map<std::vector<int>, std::string> errorPages = webserv.getConfig().getConfig().errPages;
+    std::map<std::vector<int>, std::string> errorPages = webserv.getDefaultConfig().getConfig().errPages;//TODO: add function for getting specific config
     std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
     bool foundCustomPage = false;
     while (it != errorPages.end() && !foundCustomPage) {
@@ -86,7 +86,7 @@ std::string findErrorPage(int statusCode, Webserv& webserv, const std::string& d
     if (foundCustomPage) {
         // Use custom error page if defined
         std::string uri = it->second;
-        filePath = webserv.getConfig().getConfig().rootServ + uri;
+        filePath = webserv.getDefaultConfig().getConfig().rootServ + uri;//TODO: add function for getting specific config
     } else// Otherwise use default error page
         filePath = dir + "/" + tostring(statusCode) + ".html";
     return filePath;

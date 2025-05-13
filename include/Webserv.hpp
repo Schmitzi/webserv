@@ -47,14 +47,16 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-        Config          getConfig() const;
+		std::vector<Server *> &getServers();
+        Config          getDefaultConfig();
+		Config			&getSpecificConfig(std::string& serverName, int port);
 
     private:
-        std::vector<Server *> 	_servers;
-        std::vector<Client *>   _clients;
-        char                    **_env;
-        ConfigParser			_confParser;
-        Config					_config;
+        std::vector<Server *> 		_servers;
+        std::vector<Client *>   	_clients;
+        char                    	**_env;
+        ConfigParser				_confParser;
+        std::vector<serverLevel>	_configs;
 
 
         

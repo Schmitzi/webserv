@@ -76,9 +76,11 @@ int main(int ac, char **av, char **envp) {
 		signal(SIGINT, signalHandler);
 		signal(SIGTERM, signalHandler);
 	
-		Webserv* webserv = new Webserv();
+		Webserv* webserv;
 		if (av[1])
-			webserv->setConfig(av[1]);
+			webserv = new Webserv(av[1]);
+		else
+			webserv = new Webserv();
 		g_webserv = webserv;
 	
 		webserv->setEnvironment(envp);

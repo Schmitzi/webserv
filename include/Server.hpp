@@ -30,6 +30,7 @@ class Server {
         std::string const   &getUploadDir();
         std::string const   &getWebRoot();
         std::vector<struct pollfd> &getPfds();
+		Config				&getConfigClass();
         void                addPfd(struct pollfd newPfd);
         void                removePfd(int index);
         void                setFd(int const fd);

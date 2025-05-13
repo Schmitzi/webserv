@@ -55,7 +55,9 @@ void setPort(std::vector<std::string>& s, serverLevel& serv) {
 	size_t colon = s[1].find(':');
 	size_t defPort = s[1].find("default_server");
 	if (colon != std::string::npos) {
-        ip = s[1].substr(0, colon);
+		std::string tmp = s[1].substr(0, colon);
+		if (tmp != "localhost")
+        	ip = s[1].substr(0, colon);
 		if (defPort != std::string::npos) {
 			isDefault = true;
         	port = std::atoi(s[1].substr(colon + 1, defPort).c_str());

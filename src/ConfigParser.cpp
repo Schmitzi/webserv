@@ -3,6 +3,8 @@
 ConfigParser::ConfigParser() : _filepath("config/default.conf") {
 	storeConfigs();
 	parseAndSetConfigs();
+	printAllConfigs();
+	printIpPortToServers();
 }
 
 ConfigParser::ConfigParser(const std::string& filepath) {
@@ -171,9 +173,7 @@ void ConfigParser::parseAndSetConfigs() {
 		setConfigLevels(nextConf, _storedConfigs[i]);
 		_allConfigs.push_back(nextConf);
 	}
-	// printAllConfigs();
 	setIpPortToServers();
-	// printIpPortToServers();
 }
 
 /* *************************************************************************************** */
@@ -192,14 +192,18 @@ std::vector<serverLevel> ConfigParser::getAllConfigs() {
 
 void ConfigParser::printAllConfigs() {
 	for (size_t i = 0; i < _storedConfigs.size(); i++) {
-		std::cout << "config[" << i << "]\n";
-		for (size_t j = 0; j < _storedConfigs[i].size(); j++)
-			std::cout << _storedConfigs[i][j] << std::endl;
+		std::cout << "___config[" << i << "]___\n";
+		for (size_t j = 0; j < _storedConfigs[i].size(); j++) {
+			if (!whiteLine(_storedConfigs[i][j]))
+				std::cout << _storedConfigs[i][j] << std::endl;
+		}
+		std::cout << "____________________________________" << std::endl << std::endl;
 	}
 }
 
 void ConfigParser::printIpPortToServers() {
 	std::map<std::pair<std::pair<int, std::string>, bool>, std::vector<serverLevel*> >::iterator it = _ipPortToServers.begin();
+	std::cout << std::endl << "___IP:Port -> Servers___" << std::endl;
 	for (; it != _ipPortToServers.end(); ++it) {
 		std::pair<std::pair<int, std::string>, bool> ipPort = it->first;
 		std::vector<serverLevel*>& servers = it->second;
@@ -209,13 +213,8 @@ void ConfigParser::printIpPortToServers() {
 			std::cout << "Default Server: Yes" << std::endl;
 		std::cout << "  Associated Servers: " << std::endl;
 
-		for (size_t i = 0; i < servers.size(); ++i) {
-			std::cout << "    - ServerConfig at address: " << servers[i];
-			if (!servers[i]->servName.empty()) {
-				std::cout << " (name: " << servers[i]->servName[0] << ")";
-			}
-			std::cout << std::endl;
-		}
+		for (size_t i = 0; i < servers.size(); ++i)
+			std::cout << "    - server_name: " << servers[i]->servName[0] << std::endl;
 		std::cout << std::endl;
 	}
 }

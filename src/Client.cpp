@@ -9,12 +9,12 @@ Client::Client(Webserv &other) {
     setWebserv(&other);
     setServer(&other.getServer());
 
-    Config *temp = new Config(_webserv->getConfig());
+    Config *temp = new Config(_webserv->getDefaultConfig());
     setConfig(temp->getConfig());
     delete temp;
     _cgi.setClient(*this);
     _cgi.setServer(*_server);
-    _cgi.setConfig(_webserv->getConfig());
+    _cgi.setConfig(_webserv->getDefaultConfig());
     setAutoIndex();
 }
 

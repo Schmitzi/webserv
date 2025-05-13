@@ -47,6 +47,10 @@ std::vector<struct pollfd>  &Server::getPfds() {
     return _pfds;
 }
 
+Config &Server::getConfigClass() {
+	return _config;
+}
+
 void    Server::addPfd(struct pollfd newPfd) {
     _pfds.push_back(newPfd);
 }
@@ -119,7 +123,7 @@ int Server::setServerAddr() { // Set up server address
     memset(&_addr, 0, sizeof(_addr));
     _addr.sin_family = AF_INET;          // IPv4 Internet Protocol
     _addr.sin_addr.s_addr = INADDR_ANY;  // Accept connections on any interface
-	_addr.sin_port = htons(getWebServ().getConfig().getPort());
+	_addr.sin_port = htons(getWebServ().getDefaultConfig().getPort());
     return 0;
 }
 

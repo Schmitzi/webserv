@@ -8,7 +8,7 @@
 
 Webserv::Webserv() { 
     _confParser = ConfigParser();
-	_config = Config(_confParser);//take first one by default, or choose a different one with: "Config(*_allConfigs, <nbr>)"
+	_configs = _confParser.getAllConfigs();
     for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
         _servers.push_back(new Server());
         _servers[i]->setWebserv(this);
@@ -20,7 +20,7 @@ Webserv::Webserv() {
 Webserv::Webserv(std::string const &config) {
 	_servers[0] = new Server();
 	_confParser = ConfigParser(config);
-	_config = Config(_confParser);
+	_configs = _confParser.getAllConfigs();
 	_servers[0]->setWebserv(this);
 }
 
@@ -36,7 +36,8 @@ Webserv &Webserv::operator=(Webserv const &other) {
 			_clients.push_back(other._clients[i]);
 		_env = other._env;
 		_confParser = other._confParser;
-		_config = other._config;
+		for (size_t i = 0; i < other._configs.size(); i++)
+			_configs.push_back(other._configs[i]);
 	}
 	return *this;
 }
@@ -73,12 +74,35 @@ char **Webserv::getEnvironment() const {
 int Webserv::setConfig(std::string const filepath) {
     std::cout << getTimeStamp() << "Config found at " << filepath << "\n";
 	_confParser = ConfigParser(filepath);
-	_config = Config(_confParser);
+	_configs = _confParser.getAllConfigs();
     return true;
 }
 
-Config Webserv::getConfig() const {
-	return _config;
+std::vector<Server *> &Webserv::getServers() {
+	return _servers;
+}
+
+Config Webserv::getDefaultConfig() {
+	for (size_t i = 0; i < _servers.size(); i++) {
+		serverLevel conf = _servers[i]->getConfigClass().getConfig();
+		for (size_t j = 0; j < conf.port.size(); j++) {
+			if (conf.port[j].second == true)
+				return _servers[i]->getConfigClass();
+		}
+
+	}
+	return _servers[0]->getConfigClass();
+}
+
+Config &Webserv::getSpecificConfig(std::string& serverName, int port) {//TODO: USE IT!
+	for (size_t i = 0; i < _servers.size(); i++) {
+		serverLevel conf = _servers[i]->getConfigClass().getConfig();
+		for (size_t j = 0; j < conf.port.size(); j++) {
+			if (conf.servName[0] == serverName && conf.port[j].first.first == port)
+				return _servers[i]->getConfigClass();
+		}
+	}
+	return _servers[0]->getConfigClass();
 }
 
 int Webserv::run() {
@@ -88,7 +112,7 @@ int Webserv::run() {
         return 1;
     }
 	
-	int port = _config.getPort();
+	int port = getDefaultConfig().getPort();
 	if (port == -1)
 		std::cerr << "No port found in config..\n";
 	else {
