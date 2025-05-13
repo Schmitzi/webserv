@@ -27,11 +27,20 @@ Config::~Config() {}
 
 int Config::getPort() {
 	for (size_t i = 0; i < _config.port.size(); i++) {
-		std::pair<std::pair<int, std::string>, bool> ipPort = _config.port[i];
+		std::pair<std::pair<std::string, int>, bool> ipPort = _config.port[i];
 		if (ipPort.second == true)
-			return ipPort.first.first;
+			return ipPort.first.second;
 	}
-	return _config.port[0].first.first;
+	return _config.port[0].first.second;
+}
+
+std::pair<std::pair<std::string, int>, bool> Config::getDefaultPortPair() {
+	for (size_t i = 0; i < _config.port.size(); i++) {
+		std::pair<std::pair<std::string, int>, bool> ipPort = _config.port[i];
+		if (ipPort.second == true)
+			return ipPort;
+	}
+	return _config.port[0];
 }
 
 serverLevel Config::getConfig() {
@@ -52,9 +61,9 @@ void Config::printConfig() {//only temporary, for debugging
 		std::cout << "\tport:" << std::endl;
 		for (size_t i = 0; i < _config.port.size(); i++) {
 			std::cout << "\t\t";
-			std::pair<std::pair<int, std::string>, bool> ipPort = _config.port[i];
-			if (_config.port[i].first.second != "0.0.0.0")
-				std::cout << _config.port[i].first.second << " ";
+			std::pair<std::pair<std::string, int>, bool> ipPort = _config.port[i];
+			if (_config.port[i].first.first != "0.0.0.0")
+				std::cout << _config.port[i].first.first << " ";
 			std::cout << _config.port[i].first.first << std::endl;
 			if (_config.port[i].second == true)
 				std::cout << "\t\tdefault_server" << std::endl;

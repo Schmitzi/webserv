@@ -14,6 +14,12 @@
 #include "Helper.hpp"
 #include "ConfigHelper.hpp"
 
+#define BLUE    "\33[34m"
+#define GREEN   "\33[32m"
+#define RED     "\33[31m"
+#define WHITE   "\33[97m"
+#define RESET   "\33[0m" // No Colour
+
 struct locationLevel {
 	std::string									locName;//location
 	std::string									rootLoc;//root
@@ -27,7 +33,7 @@ struct locationLevel {
 };
 
 struct serverLevel {
-	std::vector<std::pair<std::pair<int, std::string>, bool> >	port;//listen
+	std::vector<std::pair<std::pair<std::string, int>, bool> >	port;//listen
 	std::string									rootServ;//root
 	std::string									indexFile;//index
 	std::vector<std::string>					servName;//server_name
@@ -42,7 +48,7 @@ class ConfigParser {
 		std::string _filepath;
 		std::vector<std::vector<std::string> > _storedConfigs;
 		std::vector<serverLevel> _allConfigs;
-		std::map<std::pair<std::pair<int, std::string>, bool>, std::vector<serverLevel*> > _ipPortToServers;
+		std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > _ipPortToServers;
 
 	public:
 		ConfigParser();

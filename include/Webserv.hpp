@@ -39,21 +39,28 @@ class Webserv {
         Webserv &operator=(Webserv const &other);
         ~Webserv();
 
-        Server          &getServer();
+        Server          &getServer(int i);
+        std::vector<Server*> &getAllServers();
+        std::vector<struct pollfd> &getPfds();
         void            setEnvironment(char **envp);
         char            **getEnvironment() const;
         int             setConfig(std::string const filepath);
+        // Polling
+        int             addToPoll(int fd, short events);
+        void            removeFromPoll(size_t index);
         int             run();
+        void            handleNewConnection(Server* server);
+        void            handleClientActivity(size_t pollIndex);
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-		std::vector<Server *> &getServers();
-        Config          getDefaultConfig();
+        Config          &getDefaultConfig();
 		Config			&getSpecificConfig(std::string& serverName, int port);
 
     private:
         std::vector<Server *> 		_servers;
         std::vector<Client *>   	_clients;
+        std::vector<struct pollfd> 	_pfds;
         char                    	**_env;
         ConfigParser				_confParser;
         std::vector<serverLevel>	_configs;

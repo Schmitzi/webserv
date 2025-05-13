@@ -39,9 +39,6 @@ std::vector<std::string> splitIfSemicolon(std::string &configLine) {
 	std::vector<std::string> s;
 	if (!checkSemicolon(configLine)) // && configLine.find("http") == 0)
 		throw configException("Error: missing semicolon in config");
-	// if (configLine.find("http")) {
-	// 	std::cout << configLine + "\n";
-	// }
 	configLine = configLine.substr(0, configLine.size() - 1);
 	s = split(configLine);
 	return s;
@@ -74,7 +71,7 @@ void setPort(std::vector<std::string>& s, serverLevel& serv) {
 	}
 	if (port < 0)
 		port = 8080;
-	serv.port.push_back(std::pair<std::pair<int, std::string>, bool>(std::pair<int, std::string>(port, ip), isDefault));
+	serv.port.push_back(std::pair<std::pair<std::string, int>, bool>(std::pair<std::string, int>(ip, port), isDefault));
 }
 
 void setErrorPages(std::vector<std::string>& s, serverLevel &serv) {
@@ -173,6 +170,7 @@ void setAutoindex(locationLevel& loc, std::vector<std::string>& s) {
 }
 
 void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
+	std::cout << "S1: " << s[1] << "\n";
 	if (!s[1].empty() && !isValidRedirectPath(s[1]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
 	loc.redirectionHTTP = s[1];

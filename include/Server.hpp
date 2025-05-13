@@ -3,6 +3,7 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <cstring>
 #include <iostream>
@@ -21,7 +22,6 @@ class Config;
 class Server {
     public:
         Server();
-        Server  &operator=(Server const &other);
         ~Server();
         
         Webserv             &getWebServ();
@@ -36,10 +36,6 @@ class Server {
         void                setFd(int const fd);
         void                setWebserv(Webserv* webserv);
         void                setConfig(Config config);
-        // Polling
-        int                 addToPoll(int fd, short events);
-        void                removeFromPoll(size_t index);
-
         int                 openSocket();
         int                 setOptional();
         int                 setServerAddr();
@@ -51,7 +47,6 @@ class Server {
         struct sockaddr_in  _addr;
         std::string         _uploadDir;
         std::string         _webRoot;
-        std::vector<struct pollfd> _pfds;
         Config              _config;
         
         Webserv             *_webserv;
