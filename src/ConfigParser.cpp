@@ -3,8 +3,8 @@
 ConfigParser::ConfigParser() : _filepath("config/default.conf") {
 	storeConfigs();
 	parseAndSetConfigs();
-	printAllConfigs();
-	printIpPortToServers();
+	// printAllConfigs();
+	// printIpPortToServers();
 }
 
 ConfigParser::ConfigParser(const std::string& filepath) {

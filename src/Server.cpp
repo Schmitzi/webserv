@@ -34,12 +34,6 @@ Config &Server::getConfigClass() {
 
 void Server::setWebserv(Webserv* webserv) {
     _webserv = webserv;
-	// std::string root = webserv->getConfig().getConfig().rootServ;
-	// if (!root.empty())
-	// 	_webRoot = root;
-	// std::string upload = webserv->getConfig().getConfig().locations["/upload"].uploadDirPath;
-	// if (!upload.empty())
-	// 	_uploadDir = upload;
 	//TODO: use all the locations-> each one can have a different rootLoc, uploadDirPath etc.
 }
 

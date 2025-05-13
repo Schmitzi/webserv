@@ -19,7 +19,6 @@ Webserv::Webserv() {
 }
 
 Webserv::Webserv(std::string const &config) {
-	_servers[0] = new Server();
 	_confParser = ConfigParser(config);
 	_configs = _confParser.getAllConfigs();
 	for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
@@ -40,6 +39,8 @@ Webserv &Webserv::operator=(Webserv const &other) {
 			_servers.push_back(other._servers[i]);
 		for (size_t i = 0; i < other._clients.size(); i++)
 			_clients.push_back(other._clients[i]);
+		for (size_t i = 0; i < other._pfds.size(); i++)
+			_pfds.push_back(other._pfds[i]);
 		_env = other._env;
 		_confParser = other._confParser;
 		for (size_t i = 0; i < other._configs.size(); i++)
