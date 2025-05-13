@@ -170,7 +170,6 @@ void setAutoindex(locationLevel& loc, std::vector<std::string>& s) {
 }
 
 void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
-	std::cout << "S1: " << s[1] << "\n";
 	if (!s[1].empty() && !isValidRedirectPath(s[1]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
 	loc.redirectionHTTP = s[1];

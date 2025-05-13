@@ -22,8 +22,13 @@ Webserv::Webserv(std::string const &config) {
 	_servers[0] = new Server();
 	_confParser = ConfigParser(config);
 	_configs = _confParser.getAllConfigs();
-	_servers[0]->setWebserv(this);
-}
+	for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
+		_servers.push_back(new Server());
+		_servers[i]->setWebserv(this);
+		Config* temp = new Config(_confParser, i);
+		_servers[i]->setConfig(*temp);
+		delete temp; // Don't forget to free the memory
+	}}
 
 Webserv::Webserv(Webserv const &other) {
     *this = other;
@@ -113,7 +118,7 @@ int Webserv::run() {
         
         if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
             _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {
-            std::cerr << "Failed to initialize server " << i << std::endl;
+            std::cerr << RED << getTimeStamp() << "Failed to initialize server: " << RESET << i + 1 << std::endl;
             continue; // Skip this server but try to initialize others
         }
         
@@ -121,7 +126,7 @@ int Webserv::run() {
         addToPoll(_servers[i]->getFd(), POLLIN);
         
         std::cout << GREEN << getTimeStamp() << 
-            "Server " << i << " is listening on port " << RESET << 
+            "Server " << i + 1 << " is listening on port " << RESET << 
             _servers[i]->getConfigClass().getPort() << "\n";
     }
 

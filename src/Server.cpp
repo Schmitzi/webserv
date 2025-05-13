@@ -51,12 +51,14 @@ void    Server::setFd(int const fd) {
     _fd = fd;
 }
 
-int Server::openSocket() { // Create a TCP socket
+int Server::openSocket() {
+    // Create a TCP socket
     _fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (_fd < 0) {
         _webserv->ft_error("Socket creation error");
         return 1;
     }
+  
     _webserv->printMsg("Server started", GREEN, "");
     return 0;
 }

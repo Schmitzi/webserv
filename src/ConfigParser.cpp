@@ -184,7 +184,7 @@ void ConfigParser::parseAndSetConfigs() {
                 
                 // Remove this duplicate from the server's port list
                 nextConf.port.erase(nextConf.port.begin() + j);
-                j--; // Adjust index after erasing
+                j--;
             } else {
                 usedIpPorts[ipPort.first] = true;
             }
@@ -197,7 +197,7 @@ void ConfigParser::parseAndSetConfigs() {
             std::cerr << "Warning: Server skipped because it has no valid ports." << std::endl;
         }
     }
-    // printAllConfigs();
+    //printAllConfigs();
     setIpPortToServers();
 }
 
