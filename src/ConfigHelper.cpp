@@ -49,18 +49,30 @@ std::vector<std::string> splitIfSemicolon(std::string &configLine) {
 
 void setPort(std::vector<std::string>& s, serverLevel& serv) {
 	std::string ip = "0.0.0.0";
-	int port;
+	int port = 8080;
+	bool isDefault = false;
 
 	size_t colon = s[1].find(':');
+	size_t defPort = s[1].find("default_server");
 	if (colon != std::string::npos) {
         ip = s[1].substr(0, colon);
-        port = std::atoi(s[1].substr(colon + 1).c_str());
+		if (defPort != std::string::npos) {
+			isDefault = true;
+        	port = std::atoi(s[1].substr(colon + 1, defPort).c_str());
+		}
+		else
+			port = std::atoi(s[1].substr(colon + 1).c_str());
     } else {
-        port = std::atoi(s[1].c_str());
+		if (defPort != std::string::npos) {
+			isDefault = true;
+			port = std::atoi(s[1].substr(defPort).c_str());
+		}
+        else
+			port = std::atoi(s[1].c_str());
 	}
-	if (port < 0)//TODO: is this ok?
+	if (port < 0)
 		port = 8080;
-	serv.port.push_back(std::pair<std::string, int>(ip, port));
+	serv.port.push_back(std::pair<std::pair<int, std::string>, bool>(std::pair<int, std::string>(port, ip), isDefault));
 }
 
 void setErrorPages(std::vector<std::string>& s, serverLevel &serv) {

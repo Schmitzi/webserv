@@ -152,11 +152,15 @@ void ConfigParser::setConfigLevels(serverLevel& serv, std::vector<std::string>& 
 void ConfigParser::setIpPortToServers() {
 	for (size_t i = 0; i < _allConfigs.size(); ++i) {
 		for (size_t j = 0; j < _allConfigs[i].port.size(); ++j) {
-			std::pair<std::string, int> ipPort = _allConfigs[i].port[j];
-			std::vector<serverLevel*>& servers = _ipPortToServers[ipPort];
-			if (std::find(servers.begin(), servers.end(), &_allConfigs[i]) == servers.end()) {
-				servers.push_back(&_allConfigs[i]);
+			std::pair<std::pair<int, std::string>, bool> ipPort = _allConfigs[i].port[j];
+			int port = ipPort.first.first;
+			std::map<std::pair<std::pair<int, std::string>, bool>, std::vector<serverLevel*> >::iterator it = _ipPortToServers.begin();
+			while (it != _ipPortToServers.end() && it->first.first.first != port) ++it;
+			if (it == _ipPortToServers.end()) {
+				std::vector<serverLevel*> servers;
+				_ipPortToServers.insert(std::pair<std::pair<std::pair<int, std::string>, bool>, std::vector<serverLevel*> >(ipPort, servers));
 			}
+			_ipPortToServers[ipPort].push_back(&_allConfigs[i]);
 		}
 	}
 }
@@ -194,13 +198,15 @@ void ConfigParser::printAllConfigs() {
 	}
 }
 
-void ConfigParser::printIpPortToServers() const {
-	std::map<std::pair<std::string, int>, std::vector<serverLevel*> >::const_iterator it = _ipPortToServers.begin();
+void ConfigParser::printIpPortToServers() {
+	std::map<std::pair<std::pair<int, std::string>, bool>, std::vector<serverLevel*> >::iterator it = _ipPortToServers.begin();
 	for (; it != _ipPortToServers.end(); ++it) {
-		const std::pair<std::string, int>& ipPort = it->first;
-		const std::vector<serverLevel*>& servers = it->second;
+		std::pair<std::pair<int, std::string>, bool> ipPort = it->first;
+		std::vector<serverLevel*>& servers = it->second;
 
-		std::cout << "IP: " << ipPort.first << ", Port: " << ipPort.second << std::endl;
+		std::cout << "IP: " << it->first.first.first << ", Port: " << it->first.first.second << std::endl;
+		if (it->first.second == true)
+			std::cout << "Default Server: Yes" << std::endl;
 		std::cout << "  Associated Servers: " << std::endl;
 
 		for (size_t i = 0; i < servers.size(); ++i) {

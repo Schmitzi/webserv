@@ -25,8 +25,13 @@ Config::~Config() {}
 /* ************************************************************************************** */
 //GETTERS
 
-int Config::getPort() {//TODO: do this correctly
-	return _config.port[0].second;
+int Config::getPort() {
+	for (size_t i = 0; i < _config.port.size(); i++) {
+		std::pair<std::pair<int, std::string>, bool> ipPort = _config.port[i];
+		if (ipPort.second == true)
+			return ipPort.first.first;
+	}
+	return _config.port[0].first.first;
 }
 
 serverLevel Config::getConfig() {
@@ -47,9 +52,12 @@ void Config::printConfig() {//only temporary, for debugging
 		std::cout << "\tport:" << std::endl;
 		for (size_t i = 0; i < _config.port.size(); i++) {
 			std::cout << "\t\t";
-			if (_config.port[i].first != "0.0.0.0")
-				std::cout << _config.port[i].first << " ";
-			std::cout << _config.port[i].second << std::endl;
+			std::pair<std::pair<int, std::string>, bool> ipPort = _config.port[i];
+			if (_config.port[i].first.second != "0.0.0.0")
+				std::cout << _config.port[i].first.second << " ";
+			std::cout << _config.port[i].first.first << std::endl;
+			if (_config.port[i].second == true)
+				std::cout << "\t\tdefault_server" << std::endl;
 		}
 	}
 	if (!_config.servName.empty()) {

@@ -7,6 +7,7 @@
 
 struct serverLevel;
 struct locationLevel;
+struct portLevel;
 
 std::string getAbsPath(std::string& path);
 bool isValidPath(const std::string& path);
