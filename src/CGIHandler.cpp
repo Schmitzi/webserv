@@ -70,13 +70,15 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         
         if (WIFEXITED(status)) {
             int exit_status = WEXITSTATUS(status);
-            std::cerr << getTimeStamp() << "CGI Script exit status: " << exit_status << std::endl;
+            
             
             if (exit_status == 0) {
+                std::cerr << GREEN << getTimeStamp() << "CGI Script exit status: " << RESET << exit_status << "\n";
                 int result = processScriptOutput(client);
                 cleanupResources();
                 return result;
             } else {
+                std::cerr << RED << getTimeStamp() << "CGI Script exit status: " << RESET << exit_status << "\n";
                 client.sendErrorResponse(500);
                 cleanupResources();
                 return 1;

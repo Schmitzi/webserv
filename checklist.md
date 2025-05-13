@@ -25,7 +25,7 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
 - [ ] Handle file uploads &#x2611;
 - [ ] Default error pages if none provided &#x2611;
 - [ ] Compatible with standard web browsers &#x2611;
-- [ ] Listen on multiple ports (configured)
+- [ ] Listen on multiple ports (configured) &#x2611;
 - [ ] Handle multiple clients simultaneously &#x2611;
 - [ ] Clients should never hang indefinitely &#x2611;
 
@@ -41,7 +41,7 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
 - [ ] Handle chunked requests for CGI &#x2611;
 
 ### Configuration File Features
-- [ ] Configure port and host for each server
+- [ ] Configure port and host for each server &#x2611;
 - [ ] Set server_names &#x2611;
 - [ ] Default server for host:port &#x2611;
 - [ ] Custom error pages &#x2611;

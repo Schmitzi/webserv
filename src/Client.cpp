@@ -193,7 +193,7 @@ int Client::processRequest(char *buffer) {
     }
 
     // Debug print
-    std::cout <<  _webserv->getTimeStamp();
+    std::cout << BLUE << _webserv->getTimeStamp();
     std::cout << "Parsed Request: " << RESET << req.getMethod() << " " << req.getPath() << " " << req.getVersion() << "\n";
 
     if (req.getMethod() == "GET") {
@@ -241,7 +241,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         
         struct stat fileStat;
         if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-            std::cout << _webserv->getTimeStamp() << "File not found: " << actualFullPath << "\n";
+            std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << actualFullPath  << "\n";
             sendErrorResponse(404);
             return 1;
         }
@@ -281,7 +281,6 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
         return 1;
     }
 
-    std::cout << "!\n";
     if (handleRedirect(req) == 0) {
         return 1;
     }
@@ -294,7 +293,7 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     // Check if file exists
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cout << _webserv->getTimeStamp() << "File not found: " << fullPath << "\n";
+        std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << fullPath << "\n";
         sendErrorResponse(404);
         return 1;
     }
@@ -747,7 +746,6 @@ int    Client::handleRedirect(Request req) {
     std::string path = req.getPath().substr(1);
     std::map<std::string, locationLevel>::iterator it = _config.locations.begin();
     for ( ; it != _config.locations.end() ; it++) {
-        std::cout << "Loc: " << it->first << it->second.redirectionHTTP << "\n";
         if (it->first == path) {
             sendRedirect(301, it->second.redirectionHTTP);
             return 0;
@@ -780,7 +778,7 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     response += "\r\n"; // Empty line separating headers from body
     response += body;   // Add the body after headers
     
-    std::cout << BLUE << _webserv->getTimeStamp() << "Sent redirect response: " 
+    std::cout << BLUE << _webserv->getTimeStamp() << "Sent redirect response: " << RESET
               << statusCode << " " << statusText << " to " << location << "\n";
     
     send(_fd, response.c_str(), response.length(), 0);
@@ -953,7 +951,7 @@ void Client::sendErrorResponse(int statusCode) {
             buffer << file.rdbuf();
             body = buffer.str();
             file.close();
-            std::cout << RED << _webserv->getTimeStamp() << "Sending error page: " << errorPath << RESET << std::endl;
+            std::cout << RED << _webserv->getTimeStamp() << "Sending error page: " << RESET << errorPath  << std::endl;
         }
     }
     

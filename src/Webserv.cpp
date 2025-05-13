@@ -7,10 +7,9 @@
 
 Webserv::Webserv() { 
     _confParser = ConfigParser();
-    
     // Set the Webserv-level config to the first one if there are any configs
     if (!_confParser.getAllConfigs().empty()) {
-        _config = Config(_confParser, 0);
+        _config = Config(_confParser);
     }
     
     // Create a server for each config
@@ -24,10 +23,25 @@ Webserv::Webserv() {
 }
 
 Webserv::Webserv(std::string const &config) {
-	_servers[0] = new Server();
-	_confParser = ConfigParser(config);
-	_config = Config(_confParser);
-	_servers[0]->setWebserv(this);
+//	_servers[0] = new Server();
+//	_confParser = ConfigParser(config);
+//	_config = Config(_confParser);
+//	_servers[0]->setWebserv(this);
+
+    _confParser = ConfigParser(config);
+    // Set the Webserv-level config to the first one if there are any configs
+    if (!_confParser.getAllConfigs().empty()) {
+        _config = Config(_confParser);
+    }
+    
+    // Create a server for each config
+    for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
+        _servers.push_back(new Server());
+        _servers[i]->setWebserv(this);
+        Config* temp = new Config(_confParser, i);
+        _servers[i]->setConfig(*temp);
+        delete temp; // Don't forget to free the memory
+    }
 }
 
 Webserv::Webserv(Webserv const &other) {
@@ -89,11 +103,11 @@ Config Webserv::getConfig() const {
 int Webserv::run() {
     // Initialize server
     for (size_t i = 0; i < _servers.size(); i++) {
-        std::cout << BLUE << "Initializing server " << i + 1 << " with port " << RESET << _servers[i]->getConfig().getPort() << std::endl;
+        std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _servers[i]->getConfig().getPort() << std::endl;
         
         if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
             _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {
-            std::cerr << "Failed to initialize server " << i << std::endl;
+            std::cerr << RED << getTimeStamp() << "Failed to initialize server: " << RESET << i + 1 << std::endl;
             continue; // Skip this server but try to initialize others
         }
         
@@ -101,7 +115,7 @@ int Webserv::run() {
         addToPoll(_servers[i]->getFd(), POLLIN);
         
         std::cout << GREEN << getTimeStamp() << 
-            "Server " << i << " is listening on port " << RESET << 
+            "Server " << i + 1 << " is listening on port " << RESET << 
             _servers[i]->getConfig().getPort() << "\n";
     }
 
