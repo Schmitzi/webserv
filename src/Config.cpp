@@ -47,6 +47,15 @@ serverLevel Config::getConfig() {
 	return _config;
 }
 
+std::pair<std::pair<int, std::string>, bool> Config::getDefaultPortPair() {
+	for (size_t i = 0; i < _config.port.size(); i++) {
+		std::pair<std::pair<int, std::string>, bool> ipPort = _config.port[i];
+		if (ipPort.second == true)
+			return ipPort;
+	}
+	return _config.port[0];
+}
+
 /* ************************************************************************************** */
 //EXTRAS
 
