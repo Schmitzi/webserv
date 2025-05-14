@@ -33,7 +33,7 @@ struct locationLevel;
 class Client {
     public:
         Client();
-        Client(Webserv &other);
+        Client(Server& serv);
         ~Client();
         struct sockaddr_in      &getAddr();
         socklen_t               &getAddrLen();
@@ -60,12 +60,12 @@ class Client {
         int                     handlePostRequest(Request& req);
         int                     handleDeleteRequest(Request& req);
         int                     handleMultipartPost(Request& req);
-        bool                    ensureUploadDirectory();
+        bool                    ensureUploadDirectory();//std::string& path
         bool                    saveFile(const std::string& filename, const std::string& content);
         int                     viewDirectory(std::string fullPath, std::string requestPath);
         int                     createDirList(std::string fullPath, std::string requestPath);
         std::string             showDir(const std::string& dirPath, const std::string& requestUri);
-        int                    handleRedirect(Request eq);
+        int                     handleRedirect(Request eq);
         void                    sendRedirect(int statusCode, const std::string& location);
 
         void                    findContentType(Request &req);

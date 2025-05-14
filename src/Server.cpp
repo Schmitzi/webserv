@@ -1,8 +1,13 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
 
-Server::Server() : _uploadDir("local/upload/"), _webRoot("local"), _webserv(NULL) {
+Server::Server() : _uploadDir("local/upload/"), _webRoot("local"), _webserv(NULL) {//TODO: shouldn't be hardcoded i think
 
+}
+
+Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
+	_webserv = &webserv;
+	_config = Config(confs, nbr);
 }
 
 Server::~Server()  {

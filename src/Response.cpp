@@ -1,32 +1,43 @@
 #include "../include/Response.hpp"
 #include "../include/Config.hpp"
 
-const locationLevel* matchLocation(const std::string& uri, const serverLevel& serv) {
-	const locationLevel* bestMatch = NULL;
+bool matchRootLocation(const std::string& uri, serverLevel& serv, locationLevel& bestMatch) {
+	bool found = false;
 	size_t longestMatch = 0;
 
-	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
+	std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 	for (; it != serv.locations.end(); ++it) {
-		const locationLevel& loc = it->second;
+		locationLevel loc = it->second;
 		if (uri.find(loc.rootLoc) == 0 && loc.rootLoc.size() > longestMatch) {
-			bestMatch = &loc;
+			bestMatch = loc;
 			longestMatch = loc.rootLoc.size();
+			found = true;
 		}
 	}
-	return bestMatch;
+	return found;
 }
 
-std::string resolveFilePathFromUri(const std::string& uri, const serverLevel& serv) {
-	const locationLevel* loc = matchLocation(uri, serv);
-	if (!loc) {
-		std::cout << "Location not found for URI: " << uri << std::endl;
-		if (uri[0] == '/')
-			return uri;
-		else
-			return "/" + uri;
+std::string resolveFilePathFromUri(const std::string& uri, serverLevel& serv) {
+	locationLevel loc;
+	if (!matchRootLocation(uri, serv, loc)) {
+		if (!serv.rootServ.empty()) {
+			std::string root = serv.rootServ;
+			if (root[root.size() - 1] == '/')
+				root = root.substr(0, root.size() - 1);
+			if (uri[0] == '/')
+				return root + uri;
+			else
+				return root + "/" + uri;
+		} else {
+			std::cout << "No root found for URI: " << uri << std::endl;
+			if (uri[0] == '/')
+				return uri;
+			else
+				return "/" + uri;
+		}
 	}
-	std::string root = loc->rootLoc;
-	std::string locationPath = loc->locName;
+	std::string root = loc.rootLoc;
+	std::string locationPath = loc.locName;
 	std::string relativeUri = uri.substr(locationPath.size());
 	if (!root.empty() && root[root.size() - 1] == '/')
 		root = root.substr(0, root.size() - 1);

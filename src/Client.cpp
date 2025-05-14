@@ -5,16 +5,13 @@
 Client::Client() : _webserv(NULL), _server(NULL) {
 }
 
-Client::Client(Webserv &other) {
-    setWebserv(&other);
-    setServer(&other.getServer(0));
-
-    Config *temp = new Config(_webserv->getDefaultConfig());
-    setConfig(temp->getConfig());
-    delete temp;
+Client::Client(Server& serv) {
+    setWebserv(&serv.getWebServ());
+    setServer(&serv);
+	setConfig(Config(serv.getConfigClass()).getConfig());
     _cgi.setClient(*this);
     _cgi.setServer(*_server);
-    _cgi.setConfig(_webserv->getDefaultConfig());
+    _cgi.setConfig(serv.getConfigClass());
     setAutoIndex();
 }
 
@@ -64,7 +61,7 @@ void    Client::setConfig(serverLevel config) {
 
 void    Client::setAutoIndex() {
     std::map<std::string, locationLevel>::iterator it = _config.locations.begin();
-    if (it->second.autoindex == true) {
+    if (it != _config.locations.end() && it->second.autoindex == true) {
         _autoindex = true;
     } else {
         _autoindex = false;
@@ -180,92 +177,104 @@ int Client::recieveData() {
 }
 
 Request Client::parseRequest(char* buffer) {
-    // Request req;
+    Request req;
     
-    // size_t len = strlen(buffer);
-    // while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || 
-    //                    buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
-    //     buffer[--len] = '\0';
-    // }
-    // std::string input(buffer);
+	size_t len = strlen(buffer);
+    while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || 
+                       buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
+        buffer[--len] = '\0';
+    }
+    std::string input(buffer);
 
-    // findContentType(req);
+    findContentType(req);
     
-    // if (input.empty()) {
-    //     return req;
-    // }
-    // std::vector<std::string> tokens = split(buffer);
+    if (input.empty()) {
+        return req;
+    }
+    std::vector<std::string> tokens = split(buffer);
 
-    // if (tokens.empty()) {
-    //     sendErrorResponse(400);
-    //     return req;
-    // }
-    // std::string path = "/";//TODO: try to matchLocation
-	// serverLevel serverStruct = getWebserv().getConfig().getConfig();
-	// std::vector<std::string> allowedMethods = serverStruct.locations[path].methods;//TODO: get actual path
-	// if (allowedMethods.empty()) {
-	// 	sendErrorResponse(405);
+    if (tokens.empty()) {
+        sendErrorResponse(400);
+        return req;
+    }
+	// serverLevel serverStruct = getServer().getConfigClass().getConfig();
+    std::string path = "/";//TODO: try to matchLocation
+	serverLevel serverStruct = getServer().getConfigClass().getConfig();//getWebserv().getConfig().getConfig();
+	std::vector<std::string> allowedMethods = serverStruct.locations[path].methods;//TODO: get actual path
+	if (allowedMethods.empty()) {
+	// locationLevel loc;
+	// if (!matchRootLocation(path, serverStruct, loc)) {
+	// 	req.setPath(serverStruct.rootServ);
 	// 	return req;
 	// }
-	// bool methodAllowed = false;
-	// std::cout << "GOING IN!" << std::endl;
-	// for (size_t i = 0; i < allowedMethods.size(); i++) {
-	// 	if (tokens[0] == allowedMethods[i]) {
-	// 		methodAllowed = true;
-	// 		std::cout << "Method allowed: " << tokens[0] << std::endl;
-	// 		break;
-	// 	}
-	// }
+	
+	// if (loc.methods.empty()) {
+		sendErrorResponse(405);
+		return req;
+	}
+	bool methodAllowed = false;
+	// for (size_t i = 0; i < loc.methods.size(); i++) {
+	// 	if (tokens[0] == loc.methods[i]) {
+	for (size_t i = 0; i < allowedMethods.size(); i++) {
+		if (tokens[0] == allowedMethods[i]) {
+			methodAllowed = true;
+			std::cout << "Method allowed: " << tokens[0] << std::endl;
+			break;
+		}
+	}
 
-    // if (!tokens[1].empty()) {
-    //     path = tokens[1];
-    //     path.erase(path.find_last_not_of(" \t\r\n") + 1);
-    // }
+    if (!tokens[1].empty()) {
+        path = tokens[1];
+        path.erase(path.find_last_not_of(" \t\r\n") + 1);
+		// path = getAbsPath(path);
+		// std::cout << "PATH: " << path << std::endl;
+    }
 
-    // if (tokens[0] == "POST" && methodAllowed) {
-    //     req.formatPost(tokens[1]);
-    // } else if (tokens[0] == "DELETE" && methodAllowed) {
-    //     if (!tokens[1].empty()) {
-    //         req.formatDelete(path);
-    //     } else {
-    //         sendErrorResponse(400);
-    //     }
-    // } else if ((tokens[0] == "GET" && methodAllowed) || tokens[0] == "curl") {
-    //     if (!tokens[1].empty()) {
+    if (tokens[0] == "POST" && methodAllowed) {
+        req.formatPost(tokens[1]);
+    } else if (tokens[0] == "DELETE" && methodAllowed) {
+        if (!tokens[1].empty()) {
+            req.formatDelete(path);
+        } else {
+            sendErrorResponse(400);
+        }
+    } else if ((tokens[0] == "GET" && methodAllowed) || tokens[0] == "curl") {
+        if (!tokens[1].empty()) {
             
-    //         if (req.formatGet(path) == 1) {//TODO: formatGet always returns 0?
-    //             sendErrorResponse(403);
-    //             return req;
-    //         }
-    //     } else {
-    //         req.formatGet("/index.html");
-    //     }
-    // } else {
-    //     sendErrorResponse(403);
-    //     std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd << ": 403 Bad request\n" << RESET;//TODO: 400 is bad request, 403 is forbidden
-    //     req.setMethod("BAD");
-    //     return req;
+            if (req.formatGet(path) == 1) {//TODO: formatGet always returns 0?
+                sendErrorResponse(403);
+                return req;
+            }
+        } else {
+            req.formatGet("/index.html");
+        }
+    } else {
+        sendErrorResponse(403);
+        std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd << ": 403 Bad request\n" << RESET;//TODO: 400 is bad request, 403 is forbidden
+        req.setMethod("BAD");
+        return req;
+    }
+    // std::string input;
+    // if (buffer) {
+    //     size_t len = strlen(buffer);
+    //     input.assign(buffer, len);
     // }
-    std::string input;
-    if (buffer) {
-        size_t len = strlen(buffer);
-        input.assign(buffer, len);
-    }
 
-    Request req(input);
+    // Request req(input);
 
-    if (req.getMethod() == "BAD") {
-        sendErrorResponse(400);
-    }
+    // if (req.getMethod() == "BAD") {
+    //     sendErrorResponse(400);
+    // }
 
-    if (req.getPath().empty() || req.getPath()[0] != '/') {
-        req.setPath("/" + req.getPath());
-    }
+    // if (req.getPath().empty() || req.getPath()[0] != '/') {
+    //     req.setPath("/" + req.getPath());
+    // }
 
     return req;
 }
 
 int Client::processRequest(char *buffer) {
+	// std::cout << BLUE << "Processing request: " << buffer << RESET << "\n";
     Request req = parseRequest(buffer);
     if (req.getMethod() == "BAD") {
         return 1;
@@ -288,7 +297,7 @@ int Client::processRequest(char *buffer) {
 }
 
 int Client::handleGetRequest(Request& req) {
-    std::string requestPath = req.getPath();
+	std::string requestPath = req.getPath();
     // Check for path traversal attempts
     if (requestPath.find("../") != std::string::npos) {
         sendErrorResponse(403);
@@ -309,40 +318,42 @@ bool Client::isFileBrowserRequest(const std::string& path) {
 }
 
 int Client::handleFileBrowserRequest(Request& req, const std::string& requestPath) {
-    if (requestPath == "/root" || requestPath == "/root/") {
+	// std::string path = resolveFilePathFromUri(requestPath, _config)
+    std::string path = _server->getWebRoot() + requestPath;
+	if (path == "/root" || path == "/root/") {
         // Root directory listing
-        std::string rootPath = _server->getWebRoot();
-        return createDirList(rootPath, "/");
+        // std::string rootPath = _server->getWebRoot();
+        return createDirList(path, "/");
     } else {
         // Sub-directory or file within root/
-        std::string actualPath = requestPath.substr(5); // Remove the /root prefix
-        std::string actualFullPath = _server->getWebRoot() + actualPath;
+        std::string actualPath = path.substr(5); // Remove the /root prefix
+        // std::string actualFullPath = _server->getWebRoot() + actualPath;
         
         struct stat fileStat;
-        if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-            std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << actualFullPath  << "\n";
+        if (stat(path.c_str(), &fileStat) != 0) {
+            std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << path  << "\n";
             sendErrorResponse(404);
             return 1;
         }
         
         if (S_ISDIR(fileStat.st_mode)) {
             // If it's a directory, show directory listing
-            return createDirList(actualFullPath, actualPath);
+            return createDirList(path, actualPath);
         } else if (S_ISREG(fileStat.st_mode)) {
             // If it's a regular file, serve it
-            if (buildBody(req, actualFullPath) == 1) {
+            if (buildBody(req, path) == 1) {
                 return 1;
             }
             
             // Set proper content type and serve the file
-            req.setContentType(req.getMimeType(actualFullPath));
+            req.setContentType(req.getMimeType(path));
             sendResponse(req, "keep-alive", req.getBody());
             std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served file from browser: " 
-                    << RESET << actualFullPath << std::endl;
+                    << RESET << path << std::endl;
             return 0;
         } else {
             // Not a regular file or directory
-            std::cout << _webserv->getTimeStamp() << "Not a regular file or directory: " << actualFullPath << std::endl;
+            std::cout << _webserv->getTimeStamp() << "Not a regular file or directory: " << path << std::endl;
             sendErrorResponse(403);
             return 1;
         }
@@ -351,7 +362,8 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 
 // Fix for handleRegularRequest in Client.cpp
 int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
-    std::string fullPath = _server->getWebRoot() + requestPath;
+    // std::string fullPath = resolveFilePathFromUri(requestPath, _config);
+	std::string fullPath = _server->getWebRoot() + requestPath;
 
     // Check if path contains "root" and autoindex is disabled
     if (fullPath.find("root") != std::string::npos && _autoindex == false) {
@@ -389,7 +401,7 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     }
 
     // Construct full file path
-    fullPath = _server->getWebRoot() + reqPath;
+    // fullPath = _server->getWebRoot() + reqPath;
 
     std::cout << _webserv->getTimeStamp() << "Full file path: " << fullPath << "\n";
 
@@ -685,22 +697,44 @@ std::string Client::extractFileName(const std::string& path) {
 }
 
 int Client::handlePostRequest(Request& req) {
+	// std::string fullPath = resolveFilePathFromUri(req.getPath(), _config);
     std::string fullPath = _server->getWebRoot() + req.getPath();
-
+	
     if (_cgi.isCGIScript(req.getPath())) {
-        return _cgi.executeCGI(*this, req, fullPath);
+		return _cgi.executeCGI(*this, req, fullPath);
     }
     // Check if this is a multipart/form-data request and handle it separately
     if (req.getContentType().find("multipart/form-data") != std::string::npos) {
-        return handleMultipartPost(req);
+		return handleMultipartPost(req);
     }
-
+	
     if (req.getPath().find("../") != std::string::npos) {
-        sendErrorResponse(403);
+		sendErrorResponse(403);
         return 1;
     }
-
-    std::string uploadPath = _server->getUploadDir() + extractFileName(req.getPath());
+	
+	// locationLevel loc;
+	// if (!matchRootLocation(req.getPath(), _config, loc)) {
+	// 	std::cout << _webserv->getTimeStamp() << "No matching location found for POST request" << std::endl;
+	// 	std::cout << "Path: " << req.getPath() << std::endl;
+	// 	std::cout << "Full path: " << fullPath << std::endl;
+	// 	std::cout << "Location: " << loc.locName << std::endl;
+	// 	sendErrorResponse(403);
+	// 	return 1;
+	// }
+	// std::string uploadDir = loc.uploadDirPath;
+	// if (!ensureUploadDirectory(uploadDir)) {
+	// 	std::cout << _webserv->getTimeStamp() << "Failed to create upload directory: " << uploadDir << std::endl;
+	// 	sendErrorResponse(500);
+	// 	return 1;
+	// }
+	
+	// Construct the upload path
+	// std::string uploadPath = uploadDir + req.getPath();
+	// std::string uploadPath = _server->getUploadDir() + req.getPath();
+	
+	// Fix: Use the actual file name from the request
+	std::string uploadPath = _server->getUploadDir() + extractFileName(req.getPath());
     
     int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
@@ -728,7 +762,8 @@ int Client::handlePostRequest(Request& req) {
 }
 
 int Client::handleDeleteRequest(Request& req) {
-    std::string fullPath = _server->getWebRoot() + req.getPath();
+    // std::string fullPath = resolveFilePathFromUri(req.getPath(), _config);
+	std::string fullPath = _server->getWebRoot() + req.getPath();
 
     if (_cgi.isCGIScript(req.getPath())) {
         return _cgi.executeCGI(*this, req, fullPath);
@@ -774,10 +809,17 @@ int Client::handleMultipartPost(Request& req) {
         return -1;
     }
     
-    if (!ensureUploadDirectory()) {
-        sendErrorResponse(500);
-        return 1;
-    }
+	// locationLevel loc;
+	// if (!matchRootLocation(req.getPath(), _config, loc)) {
+	// 	std::cout << _webserv->getTimeStamp() << "No matching location found for POST request" << std::endl;
+	// 	sendErrorResponse(403);
+	// 	return 1;
+	// }
+	// std::string uploadDir = loc.uploadDirPath;
+    // if (!ensureUploadDirectory(uploadDir)) {
+    //     sendErrorResponse(500);
+    //     return 1;
+    // }
     
     if (!saveFile(filename, fileContent)) {
         sendErrorResponse(500);
@@ -791,7 +833,7 @@ int Client::handleMultipartPost(Request& req) {
     return 0;
 }
 
-bool Client::ensureUploadDirectory() {
+bool Client::ensureUploadDirectory() {//std::string& path
     struct stat st;
     if (stat(_server->getUploadDir().c_str(), &st) != 0) {
 		std::cout << "Creating upload directory: " << _server->getUploadDir() << std::endl;
@@ -804,7 +846,20 @@ bool Client::ensureUploadDirectory() {
 }
 
 bool Client::saveFile(const std::string& filename, const std::string& content) {
-    std::string uploadPath = _server->getUploadDir() + filename;
+    // std::string fullPath = resolveFilePathFromUri(filename, _config);
+	// locationLevel loc;
+	// if (!matchRootLocation(fullPath, _config, loc)) {
+	// 	std::cout << _webserv->getTimeStamp() << "No matching location found for POST request" << std::endl;
+	// 	sendErrorResponse(403);
+	// 	return 1;
+	// }
+	// std::string uploadDir = loc.uploadDirPath;
+	std::string uploadDir = _server->getUploadDir();
+    if (!ensureUploadDirectory()) {
+        sendErrorResponse(500);
+        return 1;
+    }
+	std::string uploadPath = uploadDir + filename;
     
     int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {

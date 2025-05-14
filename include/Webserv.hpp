@@ -49,7 +49,7 @@ class Webserv {
         int             addToPoll(int fd, short events);
         void            removeFromPoll(size_t index);
         int             run();
-        void            handleNewConnection(Server* server);
+        void            handleNewConnection(Server& server);
         void            handleClientActivity(size_t pollIndex);
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();

@@ -9,12 +9,13 @@
 Webserv::Webserv() { 
     _confParser = ConfigParser();
 	_configs = _confParser.getAllConfigs();
-    for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
-        _servers.push_back(new Server());
-        _servers[i]->setWebserv(this);
-        Config* temp = new Config(_confParser, i);
-        _servers[i]->setConfig(*temp);
-        delete temp; // Don't forget to free the memory
+    for (size_t i = 0; i < _configs.size(); i++) {
+        _servers.push_back(new Server(_confParser, i, *this));
+		// _servers.push_back(new Server());
+        // _servers[i]->setWebserv(this);
+        // Config* temp = new Config(_confParser, i);
+        // _servers[i]->setConfig(*temp);
+        // delete temp; // Don't forget to free the memory
     }
 }
 
@@ -22,12 +23,14 @@ Webserv::Webserv(std::string const &config) {
 	_confParser = ConfigParser(config);
 	_configs = _confParser.getAllConfigs();
 	for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
-		_servers.push_back(new Server());
-		_servers[i]->setWebserv(this);
-		Config* temp = new Config(_confParser, i);
-		_servers[i]->setConfig(*temp);
-		delete temp; // Don't forget to free the memory
-	}}
+		_servers.push_back(new Server(_confParser, i, *this));
+		// _servers.push_back(new Server());
+		// _servers[i]->setWebserv(this);
+		// Config* temp = new Config(_confParser, i);
+		// _servers[i]->setConfig(*temp);
+		// delete temp; // Don't forget to free the memory
+	}
+}
 
 Webserv::Webserv(Webserv const &other) {
     *this = other;
@@ -155,7 +158,7 @@ int Webserv::run() {
             
             if (activeServer) {
                 // New connection on a server socket
-                handleNewConnection(activeServer);
+                handleNewConnection(*activeServer);
             } else {
                 // Activity on a client socket
                 handleClientActivity(i);
@@ -191,15 +194,15 @@ void Webserv::removeFromPoll(size_t index) {
     _pfds.erase(_pfds.begin() + index);
 }
 
-void Webserv::handleNewConnection(Server* server) {
+void Webserv::handleNewConnection(Server& server) {
     // Create a new client associated with this Webserv instance
-    Client* newClient = new Client(*this);
+    Client* newClient = new Client(server);
     
     // Set the specific server that accepted this connection
-    newClient->setServer(server);
+    // newClient->setServer(server);
     
     // Now let the client accept the actual connection from the server socket
-    if (newClient->acceptConnection(server->getFd()) == 0) {
+    if (newClient->acceptConnection(server.getFd()) == 0) {
         // Connection accepted successfully
         newClient->displayConnection();
         

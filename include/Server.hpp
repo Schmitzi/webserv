@@ -22,6 +22,7 @@ class Config;
 class Server {
     public:
         Server();
+		Server(ConfigParser confs, int nbr, Webserv& webserv);
         ~Server();
         
         Webserv             &getWebServ();

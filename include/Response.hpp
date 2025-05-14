@@ -57,8 +57,8 @@ static const HttpErrorFormat httpErrors[] = {
 	#undef X
 };
 
-const locationLevel*		matchLocation(const std::string& uri, const serverLevel& serv);
-std::string					resolveFilePathFromUri(const std::string& uri, const serverLevel& serv);
+bool						matchRootLocation(const std::string& uri, serverLevel& serv, locationLevel& bestMatch);
+std::string					resolveFilePathFromUri(const std::string& uri, serverLevel& serv);
 const std::string			getStatusMessage(int code);
 void						generateErrorPage(std::string& body, int statusCode, const std::string& statusText);
 std::string					findErrorPage(int statusCode, Webserv& webserv, const std::string& dir);
