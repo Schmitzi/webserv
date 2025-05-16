@@ -370,7 +370,7 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     if (end != std::string::npos) {
         reqPath = reqPath.substr(0, end + 1);
     }
-    std::string fullPath = _server->getWebRoot() + reqPath;
+    std::string fullPath = _server->getWebRoot() + requestPath;//reqPath;
 
     // Check if path contains "root" and autoindex is disabled
     if (fullPath.find("root") != std::string::npos && _autoindex == false) {
