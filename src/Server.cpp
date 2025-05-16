@@ -8,6 +8,18 @@ Server::Server() : _uploadDir("local/upload/"), _webRoot("local"), _webserv(NULL
 Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 	_webserv = &webserv;
 	_config = Config(confs, nbr);
+	serverLevel conf = _config.getConfig();
+	if (!conf.rootServ.empty())
+		_webRoot = conf.rootServ;
+	else
+		_webRoot = "local";
+	std::map<std::string, locationLevel>::iterator it = conf.locations.begin();
+	for (; it != conf.locations.end(); ++it) {
+		if (!it->second.uploadDirPath.empty()) {
+			_uploadDir = it->second.uploadDirPath;
+			break;
+		}
+	}
 }
 
 Server::~Server()  {

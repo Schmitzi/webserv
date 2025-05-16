@@ -108,8 +108,10 @@ Config &Webserv::getSpecificConfig(std::string& serverName, int port) {//TODO: U
 	for (size_t i = 0; i < _servers.size(); i++) {
 		serverLevel conf = _servers[i]->getConfigClass().getConfig();
 		for (size_t j = 0; j < conf.port.size(); j++) {
-			if (conf.servName[0] == serverName && conf.port[j].first.second == port)
+			for (size_t k = 0; k < conf.servName.size(); k++) {
+				if (conf.servName[k] == serverName && conf.port[j].first.second == port)
 				return _servers[i]->getConfigClass();
+			}
 		}
 	}
 	return _servers[0]->getConfigClass();

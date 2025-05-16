@@ -100,7 +100,7 @@ void Request::formatPost(std::string const target) {
 void    Request::formatDelete(std::string const token) {
     setMethod("DELETE");
     setVersion("HTTP/1.1");
-    setPath("upload/" + token);//TODO: get path from locations
+	setPath("upload/" + token);//TODO: get path from locations
 }
 
 int Request::formatGet(std::string const token) {

@@ -28,6 +28,13 @@ ConfigParser &ConfigParser::operator=(const ConfigParser& copy) {
 		_storedConfigs = copy._storedConfigs;
 		_allConfigs = copy._allConfigs;
 		_ipPortToServers = copy._ipPortToServers;
+		// for (size_t i = 0; i < copy._storedConfigs.size(); i++)
+		// 	_storedConfigs.push_back(copy._storedConfigs[i]);
+		// for (size_t i = 0; i < copy._allConfigs.size(); i++)
+		// 	_allConfigs.push_back(copy._allConfigs[i]);
+		// std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::const_iterator it = copy._ipPortToServers.begin();
+		// for (; it != copy._ipPortToServers.end(); ++it)
+		// 	_ipPortToServers.insert(std::pair<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >(it->first, it->second));
 	}
 	return (*this);
 }

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <map>
 #include <sstream>
+#include "ConfigHelper.hpp"
 
 class Request {
     public:
