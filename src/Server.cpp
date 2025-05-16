@@ -1,19 +1,18 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
 
-Server::Server() : _uploadDir("local/upload/"), _webRoot("local"), _webserv(NULL) {//TODO: shouldn't be hardcoded i think
+Server::Server() : _webserv(NULL) {}//_uploadDir("local/upload/"), _webRoot("local"), _webserv(NULL) {}//TODO: shouldn't be hardcoded i think
 
-}
 
 Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 	_webserv = &webserv;
 	_config = Config(confs, nbr);
 	serverLevel conf = _config.getConfig();
 	if (!conf.rootServ.empty())
-		_webRoot = conf.rootServ;
+		_webRoot = conf.rootServ;//TODO: what about locations?
 	else
 		_webRoot = "local";
-	std::map<std::string, locationLevel>::iterator it = conf.locations.begin();
+	std::map<std::string, locationLevel>::iterator it = conf.locations.begin();//TODO: just gets first uploadPath, which one should it actually get?
 	for (; it != conf.locations.end(); ++it) {
 		if (!it->second.uploadDirPath.empty()) {
 			_uploadDir = it->second.uploadDirPath;
