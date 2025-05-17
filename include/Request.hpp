@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include <map>
 #include <sstream>
-#include <cstdlib>
 #include "../include/ConfigParser.hpp"
 
 struct serverLevel;
