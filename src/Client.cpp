@@ -360,6 +360,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
             return 1;
         }
     }
+	return 0;
 }
 
 // Fix for handleRegularRequest in Client.cpp
