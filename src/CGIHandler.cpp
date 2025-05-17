@@ -25,6 +25,28 @@ void    CGIHandler::setConfig(Config config) {
     _config = config;
 }
 
+void    CGIHandler::setCGIBin(serverLevel *config) {
+    _cgiBinPath = ""; // Initialize
+    
+    std::map<std::string, locationLevel>::iterator it = config->locations.begin();
+    for (; it != config->locations.end(); ++it) {
+        if (it->first.find("php") != std::string::npos) {
+            _cgiBinPath = it->second.cgiProcessorPath;
+            break;
+        }
+    }
+    
+    if (_cgiBinPath.empty()) {
+        std::cout << RED << "Warning: No PHP CGI processor found in config" << RESET << "\n";
+        std::cout << RED << "Setting CGI-Bin to /usr/bin/php-cgi\n" << RESET;
+        _cgiBinPath = "/usr/bin/php-cgi";
+    }
+}
+
+std::string CGIHandler::getInfoPath() {
+    return _pathInfo;
+}
+
 int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scriptPath) {
     cleanupResources();
     _path = scriptPath;
@@ -314,11 +336,12 @@ bool CGIHandler::isCGIScript(const std::string& path) {
     
     if (dotPos != std::string::npos) {
         std::string ext = path.substr(dotPos + 1);
+        std::cout << "ext: " << ext << "\n";
         
         static const char* whiteList[] = {"py", "php", "cgi", "pl", NULL};
         
         for (int i = 0; whiteList[i] != NULL; ++i) {
-            if (ext == whiteList[i]) {
+            if (ext.find(whiteList[i]) != std::string::npos) {
                 return true;
             }
         }
@@ -326,18 +349,17 @@ bool CGIHandler::isCGIScript(const std::string& path) {
         std::cout << RED << "Starting CGI Test\n" << RESET;
         return true;
     }
-    
     return false;
 }
 
 void CGIHandler::prepareEnv(Request &req) {
-    
+    std::cout << "!!!\n";
     std::string ext = "";
     size_t dotPos = _path.find_last_of('.');
     if (dotPos != std::string::npos) {
         ext = _path.substr(dotPos + 1);
         if (ext == "php") {
-            findPHP();
+            findPHP(_cgiBinPath);
         } 
         else if (ext == "py") {
             findPython();
@@ -357,18 +379,26 @@ void CGIHandler::prepareEnv(Request &req) {
             std::cout << RED << "Running CGI Tester\n" << RESET;
             findBash();
         }
-    } 
+    }
+
+    setPathInfo(req.getPath());
 
     _env.clear();
     
     std::vector<std::string> tempEnv;
+
+    // For PHP-CGI
+    std::string abs_path = makeAbsolutePath(_path);
+    tempEnv.push_back("SCRIPT_FILENAME=" + std::string(abs_path));
+    tempEnv.push_back("REDIRECT_STATUS=200");
+
     tempEnv.push_back("SERVER_SOFTWARE=WebServ/1.0");
     tempEnv.push_back("SERVER_NAME=WebServ/1.0");
     tempEnv.push_back("GATEWAY_INTERFACE=CGI/1.1");
     tempEnv.push_back("SERVER_PROTOCOL=WebServ/1.0");
     tempEnv.push_back("SERVER_PORT=" + tostring(_config.getPort()));
     tempEnv.push_back("REQUEST_METHOD=" + req.getMethod());
-    tempEnv.push_back("PATH_INFO=" + req.getPath()); // FIX THIS
+    tempEnv.push_back("PATH_INFO=" + getInfoPath());
     size_t slashPos = _path.find_last_of('/');
     std::string script;
     if (slashPos != std::string::npos) {
@@ -388,6 +418,50 @@ void CGIHandler::prepareEnv(Request &req) {
         }
     }
     _env.push_back(NULL);
+}
+
+std::string CGIHandler::makeAbsolutePath(const std::string& path) {
+    if (path.empty()) {
+        return "";
+    }
+
+    if (path[0] == '/') {
+        return path;
+    }
+    
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        return path;
+    }
+    
+    return std::string(cwd) + "/" + path;
+}
+
+void CGIHandler::setPathInfo(const std::string& requestPath) {
+    size_t lastSlash = _path.find_last_of('/');
+    std::string scriptName = (lastSlash != std::string::npos) ? _path.substr(lastSlash + 1) : _path;
+    
+    size_t scriptNamePos = requestPath.find(scriptName);
+    
+    if (scriptNamePos == std::string::npos) {
+        _pathInfo = "";
+        std::cout << "PATH_INFO: (empty - script not found in path)" << std::endl;
+        return;
+    }
+    
+    size_t pathInfoStart = scriptNamePos + scriptName.length();
+    
+    if (pathInfoStart < requestPath.length()) {
+        size_t queryPos = requestPath.find('?', pathInfoStart);
+        
+        if (queryPos != std::string::npos) {
+            _pathInfo = requestPath.substr(pathInfoStart, queryPos - pathInfoStart);
+        } else {
+            _pathInfo = requestPath.substr(pathInfoStart);
+        }
+    } else {
+        _pathInfo = "";
+    }
 }
 
 void    CGIHandler::findBash() {
@@ -454,37 +528,12 @@ void    CGIHandler::findPython() {
     }
 }
 
-void    CGIHandler::findPHP() {
-    // Whitelist of possible PHP locations
-    static const char* phpLocations[] = {
-        "/usr/bin/php",
-        "/etc/profiles/per-user/schmitzi/bin/php",
-        "/run/current-system/sw/bin/php",
-        "/usr/local/bin/php",
-        NULL
-    };
-    
-    std::string phpPath = "/usr/bin/env";
-    for (int i = 0; phpLocations[i] != NULL; ++i) {
-        if (access(phpLocations[i], X_OK) == 0) {
-            phpPath = phpLocations[i];
-            break;
-        }
-    }
-    
-    // Use env as fallback
-    if (phpPath == "/usr/bin/env") {
-        _args = new char*[4];
-        _args[0] = strdup(phpPath.c_str());
-        _args[1] = strdup("php-cgi");
-        _args[2] = strdup(_path.c_str());
-        _args[3] = NULL;
-    } else {
-        _args = new char*[3];
-        _args[0] = strdup(phpPath.c_str());
-        _args[1] = strdup(_path.c_str());
-        _args[2] = NULL;
-    }
+void    CGIHandler::findPHP(std::string const &cgiBin) {
+    std::string phpPath = cgiBin + "php-cgi";
+    _args = new char*[3];
+    _args[0] = strdup(phpPath.c_str());
+    _args[1] = strdup("php-cgi");
+    _args[2] = NULL;
 }
 
 void    CGIHandler::findPl() {
