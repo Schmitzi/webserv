@@ -90,9 +90,9 @@ void setErrorPages(std::vector<std::string>& s, serverLevel &serv) {
 		}
 		else if (waitingForPath == true && !onlyDigits(s[j]) && !errCodes.empty()) {
 			site = s[j].substr(0, s[j].size());
-			site = getAbsPath(site);
-			// if (!isValidPath(site))
-			// 	throw configException("Error: Invalid path (error_page) -> " + site);
+			// site = getAbsPath(site);
+			if (!isValidPath(site))
+				throw configException("Error: Invalid path (error_page) -> " + site);
 			serv.errPages.insert(std::pair<std::vector<int>, std::string>(errCodes, site));
 			errCodes.clear();
 			waitingForPath = false;

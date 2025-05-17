@@ -1057,28 +1057,7 @@ void Client::sendErrorResponse(int statusCode) {
     std::string body;
     std::string statusText = getStatusMessage(statusCode);
     
-    // First try to find a custom error page in the local directory
-    std::string errorPath = "local/" + tostring(statusCode) + ".html";
-    struct stat fileStat;
-    
-    if (stat(errorPath.c_str(), &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
-        // Custom error page exists, read it
-        std::ifstream file(errorPath.c_str());
-        if (file) {
-            std::stringstream buffer;
-            buffer << file.rdbuf();
-            body = buffer.str();
-            file.close();
-            std::cout << RED << _webserv->getTimeStamp() << "Sending error page: " << RESET << errorPath  << std::endl;
-        }
-    }
-    
-    // If no custom error page was found, generate a default one
-    if (body.empty()) {
-        Webserv &webserv = getWebserv();
-        resolveErrorResponse(statusCode, webserv, statusText, body);
-    }
-    
+    resolveErrorResponse(statusCode, *_server, statusText, body);    
     // Construct the HTTP response
     std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
     response += "Content-Type: text/html\r\n";

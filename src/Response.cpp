@@ -78,15 +78,17 @@ void generateErrorPage(std::string& body, int statusCode, const std::string& sta
             "</html>";
 }
 
-std::string findErrorPage(int statusCode, Webserv& webserv, const std::string& dir) {
-    std::map<std::vector<int>, std::string> errorPages = webserv.getDefaultConfig().getConfig().errPages;//TODO: add function for getting specific config
+std::string findErrorPage(int statusCode, Server& server, const std::string& dir) {
+    std::map<std::vector<int>, std::string> errorPages = server.getConfigClass().getConfig().errPages;
     std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
     bool foundCustomPage = false;
+	std::string uri;
     while (it != errorPages.end() && !foundCustomPage) {
         // Check if this status code is in the vector of codes
         for (size_t i = 0; i < it->first.size(); i++) {
             if (it->first[i] == statusCode) {
                 foundCustomPage = true;
+				uri = it->second;
                 break;
             }
         }
@@ -94,23 +96,22 @@ std::string findErrorPage(int statusCode, Webserv& webserv, const std::string& d
     }
     
     std::string filePath;
-    if (foundCustomPage) {
-        // Use custom error page if defined
-        std::string uri = it->second;
-        filePath = webserv.getDefaultConfig().getConfig().rootServ + uri;//TODO: add function for getting specific config
-    } else// Otherwise use default error page
+    if (foundCustomPage)// Use custom error page if defined
+		filePath = server.getConfigClass().getConfig().rootServ + uri;
+    else// Otherwise use default error page
         filePath = dir + "/" + tostring(statusCode) + ".html";
     return filePath;
 }
 
-void resolveErrorResponse(int statusCode, Webserv& webserv, std::string& statusText, std::string& body) {
+void resolveErrorResponse(int statusCode, Server& server, std::string& statusText, std::string& body) {
     std::string dir = "errorPages";
     // Look for custom error page for this status code
-    std::string filePath = findErrorPage(statusCode, webserv, dir);
+    std::string filePath = findErrorPage(statusCode, server, dir);
     // Make sure error pages directory exists
     struct stat st;
-    if (stat(dir.c_str(), &st) != 0)
-        mkdir(dir.c_str(), 0755);
+    if (stat(dir.c_str(), &st) != 0) {
+    	mkdir(dir.c_str(), 0755);
+	}
     // Try to read existing error page file
     std::ifstream file(filePath.c_str());
     if (file) {

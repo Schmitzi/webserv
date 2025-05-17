@@ -42,10 +42,10 @@ bool isValidDir(const std::string &path) {
 
 bool isValidName(const std::string& name) {
 	if (name.empty())
-		return true;//TODO: can be empty?
+		return true;
 	if (name.size() > 253)
 		return false;
-	if (name[0] == '~') {//TODO: should we support regex server_names?
+	if (name[0] == '~') {
 		std::cerr << "Regex server names not supported" << std::endl;
 		return false;
 	}
@@ -90,10 +90,6 @@ bool isValidName(const std::string& name) {
 bool isValidIndexFile(const std::string &indexFile) {
 	if (indexFile.empty() || indexFile.find('/') != std::string::npos || indexFile.find("..") != std::string::npos)
 		return false;
-	// std::string s = "local/" + indexFile;//TODO: how should this be checked?
-	// std::ifstream file(s.c_str());
-	// if (!file.is_open() || !file.good())
-	// 	throw configException("Error: Invalid indexFile -> " + indexFile);
 	std::string::size_type dot = indexFile.rfind('.');
 	if (dot == std::string::npos)
 		return false;
@@ -130,11 +126,11 @@ void parseClientMaxBodySize(serverLevel &serv) {
 }
 
 void checkRoot(serverLevel &serv) {
-	if (serv.rootServ.empty())
-		serv.rootServ = "./www";//TODO: should this be the default?
 	std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 	while (it != serv.locations.end()) {
-		if (it->second.rootLoc.empty())
+		if (it->second.rootLoc.empty() && serv.rootServ.empty())
+			throw configException("Error: No root for server and locations specified.\n-> Requests to / may return 403 or 404");
+		else if (it->second.rootLoc.empty())
 			it->second.rootLoc = serv.rootServ;//take default value from server if not specified
 		++it;
 	}
