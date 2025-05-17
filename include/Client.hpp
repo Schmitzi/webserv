@@ -42,10 +42,12 @@ class Client {
         char                    &getBuffer();
         Webserv					&getWebserv();
         Server                  &getServer();
+        Server                  &getServer();
         void                    setWebserv(Webserv *webserv);
         void                    setServer(Server *server);
         void                    setConfig(serverLevel config);
         void                    setAutoIndex();
+        int                     acceptConnection(int serverFd);
         int                     acceptConnection(int serverFd);
         void                    displayConnection();
         int                     recieveData();

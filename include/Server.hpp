@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <cstring>
 #include <iostream>
@@ -21,8 +22,7 @@ class Config;
 
 class Server {
     public:
-        Server();
-		Server(ConfigParser confs, int nbr, Webserv& webserv);
+        Server(ConfigParser confs, int nbr);
         ~Server();
         
         Webserv             &getWebServ();
@@ -30,8 +30,7 @@ class Server {
         int                 &getFd();
         std::string const   &getUploadDir();
         std::string const   &getWebRoot();
-        std::vector<struct pollfd> &getPfds();
-		Config				&getConfigClass();
+        Config              &getConfigClass();
         void                setFd(int const fd);
         void                setWebserv(Webserv* webserv);
         void                setConfig(Config config);
@@ -42,6 +41,7 @@ class Server {
         int                 ft_listen();
 		// int					openAndListenSockets();
     private:
+        Server();
         int                 _fd;
         struct sockaddr_in  _addr;
         std::string         _uploadDir;

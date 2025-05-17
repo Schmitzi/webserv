@@ -1,11 +1,7 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
 
-Server::Server() : _webserv(NULL) {}//_uploadDir("local/upload/"), _webRoot("local"), _webserv(NULL) {}//TODO: shouldn't be hardcoded i think
-
-
-Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
-	_webserv = &webserv;
+Server::Server(ConfigParser confs, int nbr) {
 	_config = Config(confs, nbr);
 	serverLevel conf = _config.getConfig();
 	if (!conf.rootServ.empty())
@@ -16,6 +12,9 @@ Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 	for (; it != conf.locations.end(); ++it) {
 		if (!it->second.uploadDirPath.empty()) {
 			_uploadDir = it->second.uploadDirPath;
+            if (_uploadDir[strlen(_uploadDir.c_str())] != '/') {
+                _uploadDir += '/';
+            }
 			break;
 		}
 	}

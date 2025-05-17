@@ -40,7 +40,7 @@ class Webserv {
         ~Webserv();
 
         Server          &getServer(int i);
-        std::vector<Server*> &getAllServers();
+        std::vector<Server> &getAllServers();
         std::vector<struct pollfd> &getPfds();
         void            setEnvironment(char **envp);
         char            **getEnvironment() const;

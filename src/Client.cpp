@@ -12,6 +12,7 @@ Client::Client(Server& serv) {
     _cgi.setClient(*this);
     _cgi.setServer(*_server);
     _cgi.setConfig(serv.getConfigClass());
+    _cgi.setConfig(serv.getConfigClass());
     setAutoIndex();
 }
 
@@ -326,36 +327,38 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         actualPath = requestPath.substr(5); // Remove "/root"
         if (actualPath.empty()) actualPath = "/";
     } else {
-        // Invalid path for file browser
-        sendErrorResponse(404);
-        return 1;
-    }
-    std::string actualFullPath = _server->getWebRoot() + actualPath;
-
-    struct stat fileStat;
-    if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-        std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << actualFullPath  << "\n";
-        sendErrorResponse(404);
-        return 1;
-    }
-
-    if (S_ISDIR(fileStat.st_mode)) {
-        // Directory listing
-        return createDirList(actualFullPath, actualPath);
-    } else if (S_ISREG(fileStat.st_mode)) {
-        // Serve file
-        if (buildBody(req, actualFullPath) == 1) {
+        // Sub-directory or file within root/
+        std::string actualPath = requestPath.substr(5); // Remove the /root prefix
+        std::string actualFullPath = _server->getWebRoot() + actualPath;
+        
+        struct stat fileStat;
+        if (stat(actualFullPath.c_str(), &fileStat) != 0) {
+            std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << actualFullPath  << "\n";
+            sendErrorResponse(404);
             return 1;
         }
-        req.setContentType(req.getMimeType(actualFullPath));
-        sendResponse(req, "keep-alive", req.getBody());
-        std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served file from browser: "
-                  << RESET << actualFullPath << std::endl;
-        return 0;
-    } else {
-        std::cout << _webserv->getTimeStamp() << "Not a regular file or directory: " << actualFullPath << std::endl;
-        sendErrorResponse(403);
-        return 1;
+        
+        if (S_ISDIR(fileStat.st_mode)) {
+            // If it's a directory, show directory listing
+            return createDirList(actualFullPath, actualPath);
+        } else if (S_ISREG(fileStat.st_mode)) {
+            // If it's a regular file, serve it
+            if (buildBody(req, actualFullPath) == 1) {
+                return 1;
+            }
+            
+            // Set proper content type and serve the file
+            req.setContentType(req.getMimeType(actualFullPath));
+            sendResponse(req, "keep-alive", req.getBody());
+            std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served file from browser: " 
+                    << RESET << actualFullPath << std::endl;
+            return 0;
+        } else {
+            // Not a regular file or directory
+            std::cout << _webserv->getTimeStamp() << "Not a regular file or directory: " << actualFullPath << std::endl;
+            sendErrorResponse(403);
+            return 1;
+        }
     }
 }
 
@@ -820,6 +823,7 @@ int Client::handleMultipartPost(Request& req) {
 
 bool Client::ensureUploadDirectory() {//std::string& path
     struct stat st;
+    std::cout << "Here: " << _server->getUploadDir() << "\n";
     if (stat(_server->getUploadDir().c_str(), &st) != 0) {
 		std::cout << "Creating upload directory: " << _server->getUploadDir() << std::endl;
         if (mkdir(_server->getUploadDir().c_str(), 0755) != 0) {
@@ -831,20 +835,9 @@ bool Client::ensureUploadDirectory() {//std::string& path
 }
 
 bool Client::saveFile(const std::string& filename, const std::string& content) {
-    // std::string fullPath = resolveFilePathFromUri(filename, _config);
-	// locationLevel loc;
-	// if (!matchRootLocation(fullPath, _config, loc)) {
-	// 	std::cout << _webserv->getTimeStamp() << "No matching location found for POST request" << std::endl;
-	// 	sendErrorResponse(403);
-	// 	return 1;
-	// }
-	// std::string uploadDir = loc.uploadDirPath;
-	std::string uploadDir = _server->getUploadDir();
-    if (!ensureUploadDirectory()) {
-        sendErrorResponse(500);
-        return 1;
-    }
-	std::string uploadPath = uploadDir + filename;
+    std::string uploadPath = _server->getUploadDir() + filename;
+
+    std::cout << "Upload path: " + uploadPath << "\n";
     
     int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
