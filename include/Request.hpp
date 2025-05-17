@@ -9,6 +9,9 @@
 #include "../include/ConfigParser.hpp"
 
 struct serverLevel;
+#include "../include/ConfigParser.hpp"
+
+struct serverLevel;
 
 class Request {
     public:
