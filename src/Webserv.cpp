@@ -107,7 +107,7 @@ Config &Webserv::getSpecificConfig(std::string& serverName, int port) {//TODO: U
 int Webserv::run() {
    // Initialize server
    for (size_t i = 0; i < _servers.size(); i++) {
-    std::cout << BLUE << "Initializing server " << i + 1 << " with port " << RESET << _servers[i]->getConfigClass().getPort() << std::endl;
+    std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _servers[i]->getConfigClass().getPort() << std::endl;
     
     if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
         _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {

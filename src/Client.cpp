@@ -12,6 +12,7 @@ Client::Client(Server &serv) {
     _cgi.setClient(*this);
     _cgi.setServer(*_server);
     _cgi.setConfig(serv.getConfigClass());
+    _cgi.setCGIBin(&_config);
     setAutoIndex();
 }
 
@@ -183,16 +184,13 @@ Request Client::parseRequest(char* buffer) {
 
     Request req(input);
 
-    if (req.getMethod() == "BAD") {
-        sendErrorResponse(400);
-    }
-
     return req;
 }
 
 int Client::processRequest(char *buffer) {
     Request req = parseRequest(buffer);
     if (req.getMethod() == "BAD") {
+        sendErrorResponse(400);
         return 1;
     }
 

@@ -5,6 +5,9 @@
 #include <unistd.h>
 #include <map>
 #include <sstream>
+#include "../include/ConfigParser.hpp"
+
+struct serverLevel;
 
 class Request {
     public:
