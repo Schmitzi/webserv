@@ -85,6 +85,28 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
     }
 }
 
+void    CGIHandler::setCGIBin(serverLevel *config) {
+    _cgiBinPath = ""; // Initialize
+    
+    std::map<std::string, locationLevel>::iterator it = config->locations.begin();
+    for (; it != config->locations.end(); ++it) {
+        if (it->first.find("php") != std::string::npos) {
+            _cgiBinPath = it->second.cgiProcessorPath;
+            break;
+        }
+    }
+    
+    if (_cgiBinPath.empty()) {
+        std::cout << RED << "Warning: No PHP CGI processor found in config" << RESET << "\n";
+        std::cout << RED << "Setting CGI-Bin to /usr/bin/php-cgi\n" << RESET;
+        _cgiBinPath = "/usr/bin/php-cgi";
+    }
+}
+
+std::string CGIHandler::getInfoPath() {
+    return _pathInfo;
+}
+
 int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scriptPath) {
     cleanupResources();
     _path = scriptPath;
@@ -354,6 +376,7 @@ bool CGIHandler::isCGIScript(const std::string& path) {
     
     if (dotPos != std::string::npos) {
         std::string ext = path.substr(dotPos + 1);
+        std::cout << "ext: " << ext << "\n";
         
         static const char* whiteList[] = {"py", "php", "cgi", "pl", NULL};
         
@@ -477,6 +500,50 @@ void CGIHandler::setPathInfo(Request& req) {
 			std::cout << "Path info: " << _pathInfo << std::endl;
         } else {
             _pathInfo = _path.substr(scriptPathEnd);
+        }
+    } else {
+        _pathInfo = "";
+    }
+}
+
+std::string CGIHandler::makeAbsolutePath(const std::string& path) {
+    if (path.empty()) {
+        return "";
+    }
+
+    if (path[0] == '/') {
+        return path;
+    }
+    
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        return path;
+    }
+    
+    return std::string(cwd) + "/" + path;
+}
+
+void CGIHandler::setPathInfo(const std::string& requestPath) {
+    size_t lastSlash = _path.find_last_of('/');
+    std::string scriptName = (lastSlash != std::string::npos) ? _path.substr(lastSlash + 1) : _path;
+    
+    size_t scriptNamePos = requestPath.find(scriptName);
+    
+    if (scriptNamePos == std::string::npos) {
+        _pathInfo = "";
+        std::cout << "PATH_INFO: (empty - script not found in path)" << std::endl;
+        return;
+    }
+    
+    size_t pathInfoStart = scriptNamePos + scriptName.length();
+    
+    if (pathInfoStart < requestPath.length()) {
+        size_t queryPos = requestPath.find('?', pathInfoStart);
+        
+        if (queryPos != std::string::npos) {
+            _pathInfo = requestPath.substr(pathInfoStart, queryPos - pathInfoStart);
+        } else {
+            _pathInfo = requestPath.substr(pathInfoStart);
         }
     } else {
         _pathInfo = "";
