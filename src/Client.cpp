@@ -13,6 +13,7 @@ Client::Client(Server& serv) {
     _cgi.setServer(*_server);
     _cgi.setConfig(serv.getConfigClass());
     _cgi.setConfig(serv.getConfigClass());
+    _cgi.setCGIBin(&_config);
     setAutoIndex();
 }
 
@@ -179,20 +180,13 @@ Request Client::parseRequest(char* buffer) {
 
     Request req(input);
 
-    if (req.getMethod() == "BAD") {
-        sendErrorResponse(400);
-    }
-
-    if (req.getPath().empty() || req.getPath()[0] != '/') {
-        req.setPath("/" + req.getPath());
-    }
-
     return req;
 }
 
 int Client::processRequest(char *buffer) {
     Request req = parseRequest(buffer);
     if (req.getMethod() == "BAD") {
+        sendErrorResponse(400);
         return 1;
     }
 
