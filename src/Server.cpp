@@ -1,8 +1,23 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
 
-Server::Server() : _uploadDir("local/upload/"), _webRoot("local"), _webserv(NULL) {
-
+Server::Server(ConfigParser confs, int nbr) {
+	_config = Config(confs, nbr);
+	serverLevel conf = _config.getConfig();
+	if (!conf.rootServ.empty())
+		_webRoot = conf.rootServ;//TODO: what about locations?
+	else
+		_webRoot = "local";
+	std::map<std::string, locationLevel>::iterator it = conf.locations.begin();//TODO: just gets first uploadPath, which one should it actually get?
+	for (; it != conf.locations.end(); ++it) {
+		if (!it->second.uploadDirPath.empty()) {
+			_uploadDir = it->second.uploadDirPath;
+            if (_uploadDir[strlen(_uploadDir.c_str())] != '/') {
+                _uploadDir += '/';
+            }
+			break;
+		}
+	}
 }
 
 Server::~Server()  {
@@ -28,8 +43,8 @@ std::string const   &Server::getWebRoot() {
     return _webRoot;
 }
 
-Config  &Server::getConfig() {
-    return _config;
+Config &Server::getConfigClass() {
+	return _config;
 }
 
 void Server::setWebserv(Webserv* webserv) {
@@ -70,8 +85,9 @@ int Server::setServerAddr() {
     memset(&_addr, 0, sizeof(_addr));
     _addr.sin_family = AF_INET;
     
-    std::string ip = getConfig().getConfig().port[0].first;
-    int port = getConfig().getConfig().port[0].second;
+    std::pair<std::pair<std::string, int>, bool> conf = getConfigClass().getDefaultPortPair();
+    std::string ip = conf.first.first;
+    int port = conf.first.second;
     
     // Convert string IP to network format
     if (ip == "0.0.0.0" || ip.empty()) {

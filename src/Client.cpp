@@ -5,10 +5,14 @@
 Client::Client() : _webserv(NULL), _server(NULL) {
 }
 
-Client::Client(Webserv &other) {
-    setWebserv(&other);
+Client::Client(Server &serv) {
+    setWebserv(&serv.getWebServ());
+    setServer(&serv);
+	setConfig(Config(serv.getConfigClass()).getConfig());
     _cgi.setClient(*this);
-    _cgi.setConfig(_webserv->getConfig());
+    _cgi.setServer(*_server);
+    _cgi.setConfig(serv.getConfigClass());
+    setAutoIndex();
 }
 
 Client::~Client() {
@@ -73,7 +77,7 @@ int Client::acceptConnection(int serverFd) {
     }
     
     // Set up server-specific configs
-    Config *temp = new Config(_server->getConfig());
+    Config *temp = new Config(_server->getConfigClass());
     setConfig(temp->getConfig());
     delete temp;
     
@@ -713,6 +717,7 @@ int Client::handleMultipartPost(Request& req) {
 
 bool Client::ensureUploadDirectory() {
     struct stat st;
+    std::cout << "Here: " << _server->getUploadDir() << "\n";
     if (stat(_server->getUploadDir().c_str(), &st) != 0) {
         if (mkdir(_server->getUploadDir().c_str(), 0755) != 0) {
             std::cout << "Error: Failed to create upload directory" << std::endl;
@@ -724,6 +729,8 @@ bool Client::ensureUploadDirectory() {
 
 bool Client::saveFile(const std::string& filename, const std::string& content) {
     std::string uploadPath = _server->getUploadDir() + filename;
+
+    std::cout << "Upload path: " + uploadPath << "\n";
     
     int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {

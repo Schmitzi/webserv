@@ -18,6 +18,7 @@ class Config {
 		
 		//getters
 		int getPort();
+		std::pair<std::pair<std::string ,int>, bool> getDefaultPortPair();
 		serverLevel getConfig();
 		
 		//extras

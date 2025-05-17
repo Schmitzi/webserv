@@ -3,6 +3,8 @@
 ConfigParser::ConfigParser() : _filepath("config/default.conf") {
 	storeConfigs();
 	parseAndSetConfigs();
+	// printAllConfigs();
+	// printIpPortToServers();
 }
 
 ConfigParser::ConfigParser(const std::string& filepath) {
@@ -26,33 +28,35 @@ ConfigParser &ConfigParser::operator=(const ConfigParser& copy) {
 		_storedConfigs = copy._storedConfigs;
 		_allConfigs = copy._allConfigs;
 		_ipPortToServers = copy._ipPortToServers;
+		// for (size_t i = 0; i < copy._storedConfigs.size(); i++)
+		// 	_storedConfigs.push_back(copy._storedConfigs[i]);
+		// for (size_t i = 0; i < copy._allConfigs.size(); i++)
+		// 	_allConfigs.push_back(copy._allConfigs[i]);
+		// std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::const_iterator it = copy._ipPortToServers.begin();
+		// for (; it != copy._ipPortToServers.end(); ++it)
+		// 	_ipPortToServers.insert(std::pair<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >(it->first, it->second));
 	}
 	return (*this);
 }
 
 ConfigParser::~ConfigParser() {
     _ipPortToServers.clear();
-    
-    for (std::vector<serverLevel>::iterator servIt = _allConfigs.begin(); servIt != _allConfigs.end(); ++servIt) {
-        for (std::map<std::string, locationLevel>::iterator locIt = servIt->locations.begin(); 
-             locIt != servIt->locations.end(); ++locIt) {
-            
+
+	std::vector<serverLevel>::iterator servIt = _allConfigs.begin();
+	for (; servIt != _allConfigs.end(); ++servIt) {
+		std::map<std::string, locationLevel>::iterator locIt = servIt->locations.begin();
+		for (; locIt != servIt->locations.end(); ++locIt)
             locIt->second.methods.clear();
-            
-        }
-        
         servIt->locations.clear();
         servIt->port.clear();
         servIt->servName.clear();
         servIt->errPages.clear();
-    }
-    
-    _allConfigs.clear();
-    
-    for (std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin(); 
-         it != _storedConfigs.end(); ++it) {
+	}
+	_allConfigs.clear();
+
+    std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin();
+    for (; it != _storedConfigs.end(); ++it)
         it->clear();
-    }
     _storedConfigs.clear();
 }
 
@@ -157,11 +161,15 @@ void ConfigParser::setConfigLevels(serverLevel& serv, std::vector<std::string>& 
 void ConfigParser::setIpPortToServers() {
 	for (size_t i = 0; i < _allConfigs.size(); ++i) {
 		for (size_t j = 0; j < _allConfigs[i].port.size(); ++j) {
-			std::pair<std::string, int> ipPort = _allConfigs[i].port[j];
-			std::vector<serverLevel*>& servers = _ipPortToServers[ipPort];
-			if (std::find(servers.begin(), servers.end(), &_allConfigs[i]) == servers.end()) {
-				servers.push_back(&_allConfigs[i]);
+			std::pair<std::pair<std::string, int>, bool> ipPort = _allConfigs[i].port[j];
+			int port = ipPort.first.second;
+			std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = _ipPortToServers.begin();
+			while (it != _ipPortToServers.end() && it->first.first.second != port) ++it;
+			if (it == _ipPortToServers.end()) {
+				std::vector<serverLevel*> servers;
+				_ipPortToServers.insert(std::pair<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >(ipPort, servers));
 			}
+			_ipPortToServers[ipPort].push_back(&_allConfigs[i]);
 		}
 	}
 }
@@ -175,17 +183,17 @@ void ConfigParser::parseAndSetConfigs() {
         
         // Check for duplicate IP:port combinations
         for (size_t j = 0; j < nextConf.port.size(); j++) {
-            std::pair<std::string, int> ipPort = nextConf.port[j];
+            std::pair<std::pair<std::string, int>, bool> ipPort = nextConf.port[j];
             
-            if (usedIpPorts.find(ipPort) != usedIpPorts.end()) {
-                std::cerr << RED << "Warning: IP:port combination " << ipPort.first << ":" << ipPort.second 
+            if (usedIpPorts.find(ipPort.first) != usedIpPorts.end()) {
+                std::cerr << RED << "Warning: IP:port combination " << ipPort.first.first << ":" << ipPort.first.second 
                           << " is already in use by another server. Ignoring duplicate." << RESET << std::endl;
                 
                 // Remove this duplicate from the server's port list
                 nextConf.port.erase(nextConf.port.begin() + j);
                 j--;
             } else {
-                usedIpPorts[ipPort] = true;
+                usedIpPorts[ipPort.first] = true;
             }
         }
         
@@ -216,27 +224,29 @@ std::vector<serverLevel> ConfigParser::getAllConfigs() {
 
 void ConfigParser::printAllConfigs() {
 	for (size_t i = 0; i < _storedConfigs.size(); i++) {
-		std::cout << "config[" << i << "]\n";
-		for (size_t j = 0; j < _storedConfigs[i].size(); j++)
-			std::cout << _storedConfigs[i][j] << std::endl;
+		std::cout << "___config[" << i << "]___\n";
+		for (size_t j = 0; j < _storedConfigs[i].size(); j++) {
+			if (!whiteLine(_storedConfigs[i][j]))
+				std::cout << _storedConfigs[i][j] << std::endl;
+		}
+		std::cout << "____________________________________" << std::endl << std::endl;
 	}
 }
 
-void ConfigParser::printIpPortToServers() const {
-	for (std::map<std::pair<std::string, int>, std::vector<serverLevel*> >::const_iterator it = _ipPortToServers.begin(); it != _ipPortToServers.end(); ++it) {
-		const std::pair<std::string, int>& ipPort = it->first;
-		const std::vector<serverLevel*>& servers = it->second;
+void ConfigParser::printIpPortToServers() {
+	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = _ipPortToServers.begin();
+	std::cout << std::endl << "___IP:Port -> Servers___" << std::endl;
+	for (; it != _ipPortToServers.end(); ++it) {
+		std::pair<std::pair<std::string, int>, bool> ipPort = it->first;
+		std::vector<serverLevel*>& servers = it->second;
 
-		std::cout << "IP: " << ipPort.first << ", Port: " << ipPort.second << std::endl;
+		std::cout << "IP: " << it->first.first.first << ", Port: " << it->first.first.second << std::endl;
+		if (it->first.second == true)
+			std::cout << "Default Server: Yes" << std::endl;
 		std::cout << "  Associated Servers: " << std::endl;
 
-		for (size_t i = 0; i < servers.size(); ++i) {
-			std::cout << "    - ServerConfig at address: " << servers[i];
-			if (!servers[i]->servName.empty()) {
-				std::cout << " (name: " << servers[i]->servName[0] << ")";
-			}
-			std::cout << std::endl;
-		}
+		for (size_t i = 0; i < servers.size(); ++i)
+			std::cout << "    - server_name: " << servers[i]->servName[0] << std::endl;
 		std::cout << std::endl;
 	}
 }

@@ -54,12 +54,13 @@ class Webserv {
         int             addToPoll(int fd, short events);
         void            removeFromPoll(size_t index);
         int             run();
-        void            handleNewConnection(Server* server);
+        void            handleNewConnection(Server &server);
         void            handleClientActivity(size_t pollIndex);
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-        Config          getConfig() const;
+        Config          &getDefaultConfig();
+		Config			&getSpecificConfig(std::string& serverName, int port);
 
     private:
         std::vector<Server *> 	_servers;
@@ -67,7 +68,7 @@ class Webserv {
         std::vector<struct pollfd> _pfds;
         char                    **_env;
         ConfigParser			_confParser;
-        Config					_config;
+        std::vector<serverLevel>	_configs;
 
 
         

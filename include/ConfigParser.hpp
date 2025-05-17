@@ -33,7 +33,7 @@ struct locationLevel {
 };
 
 struct serverLevel {
-	std::vector<std::pair<std::string, int> >	port;//listen
+	std::vector<std::pair<std::pair<std::string, int>, bool> >	port;//listen
 	std::string									rootServ;//root
 	std::string									indexFile;//index
 	std::vector<std::string>					servName;//server_name
@@ -48,7 +48,7 @@ class ConfigParser {
 		std::string _filepath;
 		std::vector<std::vector<std::string> > _storedConfigs;
 		std::vector<serverLevel> _allConfigs;
-		std::map<std::pair<std::string, int>, std::vector<serverLevel*> > _ipPortToServers;
+		std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > _ipPortToServers;
 
 	public:
 		ConfigParser();
@@ -71,7 +71,7 @@ class ConfigParser {
 
 		//extras
 		void printAllConfigs();
-		void printIpPortToServers() const;
+		void printIpPortToServers();
 };
 
 class configException : public std::exception {

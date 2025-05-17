@@ -7,41 +7,20 @@
 
 Webserv::Webserv() { 
     _confParser = ConfigParser();
-    // Set the Webserv-level config to the first one if there are any configs
-    if (!_confParser.getAllConfigs().empty()) {
-        _config = Config(_confParser);
-    }
-    
-    // Create a server for each config
-    for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
-        _servers.push_back(new Server());
+	_configs = _confParser.getAllConfigs();
+    for (size_t i = 0; i < _configs.size(); i++) {
+        _servers.push_back(new Server(_confParser, i));
         _servers[i]->setWebserv(this);
-        Config* temp = new Config(_confParser, i);
-        _servers[i]->setConfig(*temp);
-        delete temp; // Don't forget to free the memory
     }
 }
 
 Webserv::Webserv(std::string const &config) {
-//	_servers[0] = new Server();
-//	_confParser = ConfigParser(config);
-//	_config = Config(_confParser);
-//	_servers[0]->setWebserv(this);
-
-    _confParser = ConfigParser(config);
-    // Set the Webserv-level config to the first one if there are any configs
-    if (!_confParser.getAllConfigs().empty()) {
-        _config = Config(_confParser);
-    }
-    
-    // Create a server for each config
-    for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
-        _servers.push_back(new Server());
-        _servers[i]->setWebserv(this);
-        Config* temp = new Config(_confParser, i);
-        _servers[i]->setConfig(*temp);
-        delete temp; // Don't forget to free the memory
-    }
+	_confParser = ConfigParser(config);
+	_configs = _confParser.getAllConfigs();
+	for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
+		_servers.push_back(new Server(_confParser, i));
+		_servers[i]->setWebserv(this);
+	}
 }
 
 Webserv::Webserv(Webserv const &other) {
@@ -50,12 +29,16 @@ Webserv::Webserv(Webserv const &other) {
 
 Webserv &Webserv::operator=(Webserv const &other) {
     if (this != &other) {
-		_servers = other._servers;
+		for (size_t i = 0; i < other._servers.size(); i++)
+			_servers.push_back(other._servers[i]);
 		for (size_t i = 0; i < other._clients.size(); i++)
 			_clients.push_back(other._clients[i]);
+		for (size_t i = 0; i < other._pfds.size(); i++)
+			_pfds.push_back(other._pfds[i]);
 		_env = other._env;
 		_confParser = other._confParser;
-		_config = other._config;
+		for (size_t i = 0; i < other._configs.size(); i++)
+			_configs.push_back(other._configs[i]);
 	}
 	return *this;
 }
@@ -92,31 +75,52 @@ char **Webserv::getEnvironment() const {
 int Webserv::setConfig(std::string const filepath) {
     std::cout << GREEN << getTimeStamp() << "Config found at " << RESET << filepath << "\n";
 	_confParser = ConfigParser(filepath);
-	_config = Config(_confParser);
+	_configs = _confParser.getAllConfigs();
     return true;
 }
 
-Config Webserv::getConfig() const {
-	return _config;
+Config &Webserv::getDefaultConfig() {
+	for (size_t i = 0; i < _servers.size(); i++) {
+		serverLevel conf = _servers[i]->getConfigClass().getConfig();
+		for (size_t j = 0; j < conf.port.size(); j++) {
+			if (conf.port[j].second == true)
+				return _servers[i]->getConfigClass();
+		}
+
+	}
+	return _servers[0]->getConfigClass();
+}
+
+Config &Webserv::getSpecificConfig(std::string& serverName, int port) {//TODO: USE IT!
+	for (size_t i = 0; i < _servers.size(); i++) {
+		serverLevel conf = _servers[i]->getConfigClass().getConfig();
+		for (size_t j = 0; j < conf.port.size(); j++) {
+			for (size_t k = 0; k < conf.servName.size(); k++) {
+				if (conf.servName[k] == serverName && conf.port[j].first.second == port)
+				return _servers[i]->getConfigClass();
+			}
+		}
+	}
+	return _servers[0]->getConfigClass();
 }
 
 int Webserv::run() {
-    // Initialize server
-    for (size_t i = 0; i < _servers.size(); i++) {
-        std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _servers[i]->getConfig().getPort() << std::endl;
-        
-        if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
-            _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {
-            std::cerr << RED << getTimeStamp() << "Failed to initialize server: " << RESET << i + 1 << std::endl;
-            continue; // Skip this server but try to initialize others
-        }
-        
-        // Add server socket to poll array
-        addToPoll(_servers[i]->getFd(), POLLIN);
-        
-        std::cout << GREEN << getTimeStamp() << 
-            "Server " << i + 1 << " is listening on port " << RESET << 
-            _servers[i]->getConfig().getPort() << "\n";
+   // Initialize server
+   for (size_t i = 0; i < _servers.size(); i++) {
+    std::cout << BLUE << "Initializing server " << i + 1 << " with port " << RESET << _servers[i]->getConfigClass().getPort() << std::endl;
+    
+    if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
+        _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {
+        std::cerr << RED << getTimeStamp() << "Failed to initialize server: " << RESET << i + 1 << std::endl;
+        continue; // Skip this server but try to initialize others
+    }
+    
+    // Add server socket to poll array
+    addToPoll(_servers[i]->getFd(), POLLIN);
+    
+    std::cout << GREEN << getTimeStamp() << 
+        "Server " << i + 1 << " is listening on port " << RESET << 
+        _servers[i]->getConfigClass().getPort() << "\n";
     }
 
     while (1) {
@@ -143,14 +147,14 @@ int Webserv::run() {
             
             if (activeServer) {
                 // New connection on a server socket
-                handleNewConnection(activeServer);
+                handleNewConnection(*activeServer);
             } else {
                 // Activity on a client socket
                 handleClientActivity(i);
             }
         }
     }
-    
+
     // Clean up
     for (size_t i = 0; i < _servers.size(); i++) {
         close(_servers[i]->getFd());
@@ -179,15 +183,15 @@ void Webserv::removeFromPoll(size_t index) {
     _pfds.erase(_pfds.begin() + index);
 }
 
-void Webserv::handleNewConnection(Server* server) {
+void Webserv::handleNewConnection(Server &server) {
     // Create a new client associated with this Webserv instance
-    Client* newClient = new Client(*this);
+    Client* newClient = new Client(server);
     
     // Set the specific server that accepted this connection
-    newClient->setServer(server);
+    // newClient->setServer(server);
     
     // Now let the client accept the actual connection from the server socket
-    if (newClient->acceptConnection(server->getFd()) == 0) {
+    if (newClient->acceptConnection(server.getFd()) == 0) {
         // Connection accepted successfully
         newClient->displayConnection();
         

@@ -20,7 +20,7 @@ class Webserv;
 
 class Server {
     public:
-        Server();
+        Server(ConfigParser confs, int nbr);
         ~Server();
         
         Webserv             &getWebServ();
@@ -28,7 +28,7 @@ class Server {
         int                 &getFd();
         std::string const   &getUploadDir();
         std::string const   &getWebRoot();
-        Config              &getConfig();
+        Config              &getConfigClass();
         void                setFd(int const fd);
         void                setWebserv(Webserv* webserv);
         void                setConfig(Config config);
@@ -38,6 +38,7 @@ class Server {
         int                 ft_bind();
         int                 ft_listen();
     private:
+        Server();
         int                 _fd;
         struct sockaddr_in  _addr;
         std::string         _uploadDir;
