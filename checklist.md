@@ -59,7 +59,7 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
 - [ ] Execute CGI with file as first argument 
 - [ ] Run CGI in correct directory &#x2611;
 - [ ] Pass full path as PATH_INFO
-- [ ] Handle chunked requests (unchunk before CGI) 
+- [ ] Handle chunked requests (unchunk before CGI) &#x2611;
 - [ ] Handle CGI output (chunked responses) &#x2611;
 - [ ] Fork only for CGI execution &#x2611;
 - [ ] Support at least one CGI interpreter (PHP/Python) &#x2611;
