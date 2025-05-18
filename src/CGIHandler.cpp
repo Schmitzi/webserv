@@ -324,7 +324,6 @@ bool CGIHandler::isCGIScript(const std::string& path) {
     
     if (dotPos != std::string::npos) {
         std::string ext = path.substr(dotPos + 1);
-        std::cout << "ext: " << ext << "\n";
         
         static const char* whiteList[] = {"py", "php", "cgi", "pl", NULL};
         
