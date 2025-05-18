@@ -14,6 +14,7 @@ if (!empty($path_info)) {
     $segments = explode('/', trim($path_info, '/'));
     $segments = array_filter($segments); // Remove empty segments
 }
+<<<<<<< HEAD
 
 echo "<h2>All Server Variables</h2>";
 echo "<pre>";
@@ -37,6 +38,8 @@ if (!empty($path_info)) {
     $segments = explode('/', trim($path_info, '/'));
     $segments = array_filter($segments); // Remove empty segments
 }
+=======
+>>>>>>> 0ac2e6f (Updated PATH_INFO parsing)
 ?>
 <!DOCTYPE html>
 <html>

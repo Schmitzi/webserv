@@ -324,7 +324,6 @@ bool CGIHandler::isCGIScript(const std::string& path) {
     
     if (dotPos != std::string::npos) {
         std::string ext = path.substr(dotPos + 1);
-        std::cout << "ext: " << ext << "\n";
         
         static const char* whiteList[] = {"py", "php", "cgi", "pl", NULL};
         
@@ -423,30 +422,34 @@ std::string CGIHandler::makeAbsolutePath(const std::string& path) {
 }
 
 void CGIHandler::setPathInfo(const std::string& requestPath) {
-    size_t lastSlash = _path.find_last_of('/');
-    std::string scriptName = (lastSlash != std::string::npos) ? _path.substr(lastSlash + 1) : _path;
+    if (_path.empty()) {
+        std::cout << "Error: _path is empty! Using requestPath instead.\n";
+        _path = requestPath;
+    }
     
-    size_t scriptNamePos = requestPath.find(scriptName);
-    
-    if (scriptNamePos == std::string::npos) {
+    size_t phpPos = requestPath.find(".php");
+    if (phpPos == std::string::npos) {
+        std::cout << "Warning: No .php found in request path!\n";
         _pathInfo = "";
-        std::cout << "PATH_INFO: (empty - script not found in path)" << std::endl;
         return;
     }
     
-    size_t pathInfoStart = scriptNamePos + scriptName.length();
+    size_t scriptPathEnd = phpPos + 4;
     
-    if (pathInfoStart < requestPath.length()) {
-        size_t queryPos = requestPath.find('?', pathInfoStart);
-        
+    std::string scriptPath = requestPath.substr(0, scriptPathEnd);
+    
+    if (scriptPathEnd < requestPath.length()) {
+        size_t queryPos = requestPath.find('?', scriptPathEnd);
         if (queryPos != std::string::npos) {
-            _pathInfo = requestPath.substr(pathInfoStart, queryPos - pathInfoStart);
+            _pathInfo = requestPath.substr(scriptPathEnd, queryPos - scriptPathEnd);
         } else {
-            _pathInfo = requestPath.substr(pathInfoStart);
+            _pathInfo = requestPath.substr(scriptPathEnd);
         }
     } else {
         _pathInfo = "";
     }
+
+    _path = "local" + scriptPath;
 }
 
 void    CGIHandler::findBash() {
