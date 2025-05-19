@@ -20,7 +20,7 @@ Request::~Request() {
 
 }
 
-std::string const &Request::getPath() {
+std::string &Request::getPath() {
     return _path;
 }
 
@@ -50,6 +50,10 @@ std::string const &Request::getBoundary() {
 
 std::map<std::string, std::string> &Request::getHeaders() {
     return _headers;
+}
+
+std::string Request::getReqPath() const {
+	return _reqPath;
 }
 
 void    Request::setMethod(std::string const method) {
@@ -84,41 +88,6 @@ void    Request::setHeader(std::map<std::string, std::string> map) {
     _headers = map;
 }
 
-void Request::formatPost(std::string const target) {  
-    setMethod("POST");
-    setVersion("HTTP/1.1");
-    size_t queryPos = target.find('?');
-    if (queryPos != std::string::npos) {
-        setPath(target.substr(0, queryPos));
-        setQuery(target.substr(queryPos + 1));
-    } else {
-        setPath(target);
-        setQuery("");
-    }
-}
-
-void    Request::formatDelete(std::string const token) {
-    setMethod("DELETE");
-    setVersion("HTTP/1.1");
-	setPath("upload/" + token);//TODO: get path from locations?
-}
-
-int Request::formatGet(std::string const token) {
-    setMethod("GET");
-    setVersion("HTTP/1.1");
-    
-    size_t queryPos = token.find('?');
-    if (queryPos != std::string::npos) {
-        setPath(token.substr(0, queryPos));
-        setQuery(token.substr(queryPos + 1));
-    } else {
-        setPath(token);
-        setQuery("");
-    }
-    
-    return 0;
-}
-
 void Request::parse(const std::string& rawRequest) {
     if (rawRequest.empty()) {
         _method = "BAD";
@@ -147,7 +116,7 @@ void Request::parse(const std::string& rawRequest) {
     std::string requestLine;
     std::getline(iss, requestLine);
 
-    size_t end = requestLine.find_last_not_of(" \t\r\n");
+	size_t end = requestLine.find_last_not_of(" \t\r\n");
     if (end != std::string::npos) {
         requestLine = requestLine.substr(0, end + 1);
     }
@@ -156,7 +125,7 @@ void Request::parse(const std::string& rawRequest) {
     std::string target;
     lineStream >> _method >> target >> _version;
 
-    if (_method.empty() || target.empty()) {
+    if (_method.empty() || (_method != "GET" && target.empty())) {
         _method = "BAD";
         return;
     }
@@ -170,11 +139,7 @@ void Request::parse(const std::string& rawRequest) {
         _query = "";
     }
 
-    if (_path.empty() || _path[0] != '/') {
-        _path = "/" + _path;
-    }
-
-    if (_path == "/" && _method == "GET") {
+    if ((_path == "/" || _path == "") && _method == "GET") {
         _path = "/index.html";
     }
 
@@ -182,7 +147,15 @@ void Request::parse(const std::string& rawRequest) {
     if (end != std::string::npos) {
         _path = _path.substr(0, end + 1);
     }
-
+	size_t reqPathEnd = _path.find_last_of("/");
+	if (reqPathEnd != std::string::npos) {
+		_reqPath = _path.substr(0, reqPathEnd + 1);
+	} else {
+		_reqPath = "";
+	}
+	// Debug output
+	std::cout << "Request method: " << _method << std::endl;
+	std::cout << "Request path: " << _path << std::endl;
     if (_method != "GET" && _method != "POST" && _method != "DELETE") {
         _method = "BAD";
         return;
@@ -191,6 +164,10 @@ void Request::parse(const std::string& rawRequest) {
     parseHeaders(headerSection);
     checkContentLength();
     parseContentType();
+
+    // if (_method == "DELETE" && _path.find("upload/") != 0) {
+    //     _path = "upload/" + _path;
+    // }
 }
 
 void Request::parseHeaders(const std::string& headerSection) {

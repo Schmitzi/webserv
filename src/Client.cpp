@@ -100,8 +100,6 @@ void Client::displayConnection() {
                 << ":" << ntohs(_addr.sin_port) << "\n";
 }
 
-//TODO: check for requestLimit?
-
 int Client::recieveData() {
     // Larger buffer for multipart uploads
     char buffer[1024 * 1024];
@@ -124,42 +122,39 @@ int Client::recieveData() {
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
 
-        // if (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
-        // _requestBuffer.find("\n\n") != std::string::npos) {
-            Request req(_requestBuffer);
-        
-            if (req.getMethod() == "BAD") {
-                std::cout << RED << _webserv->getTimeStamp() 
-                        << "Bad request format" << RESET << std::endl;
-                sendErrorResponse(400);
-                // _requestBuffer.clear();
-                return 1;
-            }
-            // Handle multipart uploads separately
-            if (req.getContentType().find("multipart/form-data") != std::string::npos) {
-                int result = handleMultipartPost(req);
-                
-                if (result != -1) {
-                    return result;
-                }
-                
-                // If partial upload, wait for more data
-                return 0;
-            } 
-            // Create a copy of the buffer for processing
-            std::string tempBuffer = _requestBuffer;
+		Request req(_requestBuffer);
+	
+		if (req.getMethod() == "BAD") {
+			std::cout << RED << _webserv->getTimeStamp() 
+					<< "Bad request format" << RESET << std::endl;
+			sendErrorResponse(400);
+			_requestBuffer.clear();
+			return 1;
+		}
+		// Handle multipart uploads separately
+		if (req.getContentType().find("multipart/form-data") != std::string::npos) {
+			int result = handleMultipartPost(req);
+			
+			if (result != -1) {
+				return result;
+			}
+			
+			// If partial upload, wait for more data
+			return 0;
+		}
 
-            // Try processing the request
-            int processResult = processRequest(const_cast<char*>(tempBuffer.c_str()));
-            
-            // If fully processed, clear the buffer
-            if (processResult != -1) {
-                _requestBuffer.clear();
-            }
+		// Create a copy of the buffer for processing
+		std::string tempBuffer = _requestBuffer;
 
-            return processResult;
-        // }
-        return 0;
+		// Try processing the request
+		int processResult = processRequest(const_cast<char*>(tempBuffer.c_str()));
+		
+		// If fully processed, clear the buffer
+		if (processResult != -1) {
+			_requestBuffer.clear();
+		}
+
+		return processResult;
     } 
     else if (bytesRead == 0) {
         std::cout << RED << _webserv->getTimeStamp() 
@@ -189,7 +184,6 @@ Request Client::parseRequest(char* buffer) {
 }
 
 int Client::processRequest(char *buffer) {
-	// std::cout << BLUE << "Processing request: " << buffer << RESET << "\n";
     Request req = parseRequest(buffer);
     if (req.getMethod() == "BAD") {
         sendErrorResponse(400);
@@ -214,6 +208,12 @@ int Client::processRequest(char *buffer) {
 
 int Client::handleGetRequest(Request& req) {
 	std::string requestPath = req.getPath();
+	locationLevel loc;
+	if (!matchLocation(req.getReqPath(), _server->getConfigClass().getConfig(), loc)) {
+		std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getReqPath() << std::endl;
+		sendErrorResponse(404);
+		return 1;
+	}
     // Check for path traversal attempts
     if (requestPath.find("../") != std::string::npos) {
         sendErrorResponse(403);
@@ -236,7 +236,7 @@ bool Client::isFileBrowserRequest(const std::string& path) {
 int Client::handleFileBrowserRequest(Request& req, const std::string& requestPath) {
     // Remove "/root" prefix to get the actual path relative to web root
     std::string actualPath;
-    if (requestPath == "/root" || requestPath == "/root/") {
+    if (requestPath == "/root" || requestPath == "/root/") {//TODO: check
         actualPath = "/";
     } else if (requestPath.find("/root/") == 0) {
         actualPath = requestPath.substr(5); // Remove "/root"
@@ -280,7 +280,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 
 // Fix for handleRegularRequest in Client.cpp
 int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
-    std::string reqPath = req.getPath();
+    std::string reqPath = req.getPath();//TODO: check
     if (reqPath == "/" || reqPath.empty()) {
         reqPath = "/index.html";
     }
@@ -289,7 +289,7 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     if (end != std::string::npos) {
         reqPath = reqPath.substr(0, end + 1);
     }
-    std::string fullPath = _server->getWebRoot() + requestPath;//reqPath;
+	std::string fullPath = _server->getWebRoot() + requestPath;
 
     // Check if path contains "root" and autoindex is disabled
     if (fullPath.find("root") != std::string::npos && _autoindex == false) {
@@ -600,9 +600,36 @@ std::string Client::extractFileName(const std::string& path) {
     return path.substr(pos + 1);
 }
 
-int Client::handlePostRequest(Request& req) {
-	// std::string fullPath = resolveFilePathFromUri(req.getPath(), _config);
+std::string Client::getLocationPath(Request& req, const std::string& method) {
+	locationLevel loc;
+	if (!matchUploadLocation(req.getReqPath(), _config, loc)) {
+		std::cout << "Location not found for " << method << " request: " << req.getReqPath() << std::endl;
+		sendErrorResponse(403);
+		return "";
+	}
+	for (size_t i = 0; i < loc.methods.size(); i++) {
+		if (loc.methods[i] == method) {
+			break;
+		}
+		if (i == loc.methods.size() - 1) {
+			std::cout << "Method not allowed for " << method << "request: " << req.getReqPath() << std::endl;
+			sendErrorResponse(405);
+			return "";
+		}
+	}
+	if (loc.uploadDirPath.empty()) {
+		std::cout << "Upload directory not set for " << method << "request: " << req.getReqPath() << std::endl;
+		sendErrorResponse(403);
+		return "";
+	}
     std::string fullPath = _server->getWebRoot() + req.getPath();
+	return fullPath;
+}
+
+int Client::handlePostRequest(Request& req) {
+	std::string fullPath = getLocationPath(req, "POST");
+	if (fullPath.empty())
+		return 1;
 	
     if (_cgi.isCGIScript(req.getPath())) {
 		return _cgi.executeCGI(*this, req, fullPath);
@@ -618,16 +645,14 @@ int Client::handlePostRequest(Request& req) {
     }
 	
 	// Fix: Use the actual file name from the request
-	std::string uploadPath = _server->getUploadDir() + extractFileName(req.getPath());
-    
-    int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
-        std::cout << _webserv->getTimeStamp() << "Failed to open file for writing: " << uploadPath << std::endl;
+        std::cout << _webserv->getTimeStamp() << "Failed to open file for writing: " << fullPath << std::endl;
         sendErrorResponse(500);
         return 1;
     }
 
-    std::cout << _webserv->getTimeStamp() << "Writing to file: " << uploadPath << "\n";
+    std::cout << _webserv->getTimeStamp() << "Writing to file: " << fullPath << "\n";
     std::cout << _webserv->getTimeStamp() << "Content to write: " << req.getQuery() << "\n";
 
     ssize_t bytesWritten = write(fd, req.getQuery().c_str(), req.getQuery().length());
@@ -641,14 +666,14 @@ int Client::handlePostRequest(Request& req) {
 
     sendResponse(req, "keep-alive", "");
 
-    std::cout << _webserv->getTimeStamp() << "Successfully uploaded file: " << uploadPath << std::endl;
+    std::cout << _webserv->getTimeStamp() << "Successfully uploaded file: " << fullPath << std::endl;
     return 0;
 }
 
 int Client::handleDeleteRequest(Request& req) {
-    // std::string fullPath = resolveFilePathFromUri(req.getPath(), _config);
-	std::string fullPath = _server->getWebRoot() + req.getPath();
-
+	std::string fullPath = getLocationPath(req, "DELETE");
+	if (fullPath.empty())
+		return 1;
     if (_cgi.isCGIScript(req.getPath())) {
         return _cgi.executeCGI(*this, req, fullPath);
     }
@@ -692,9 +717,8 @@ int Client::handleMultipartPost(Request& req) {
     if (fileContent.empty() && !parser.isComplete()) {
         return -1;
     }
-
     
-    if (!saveFile(filename, fileContent)) {
+    if (!saveFile(req, filename, fileContent)) {
         sendErrorResponse(500);
         return 1;
     }
@@ -705,12 +729,13 @@ int Client::handleMultipartPost(Request& req) {
     return 0;
 }
 
-bool Client::ensureUploadDirectory() {//std::string& path
+bool Client::ensureUploadDirectory(Request& req) {
     struct stat st;
-    std::cout << "Here: " << _server->getUploadDir() << "\n";
-    if (stat(_server->getUploadDir().c_str(), &st) != 0) {
-		std::cout << "Creating upload directory: " << _server->getUploadDir() << std::endl;
-        if (mkdir(_server->getUploadDir().c_str(), 0755) != 0) {
+	std::string uploadDir = _server->getUploadDir(*this, req);
+	const char *path = uploadDir.c_str();
+    if (stat(path, &st) != 0) {
+		std::cout << "Creating upload directory: " << path << std::endl;
+        if (mkdir(path, 0755) != 0) {
             std::cout << "Error: Failed to create upload directory" << std::endl;
             return false;
         }
@@ -718,12 +743,12 @@ bool Client::ensureUploadDirectory() {//std::string& path
     return true;
 }
 
-bool Client::saveFile(const std::string& filename, const std::string& content) {
-    std::string uploadPath = _server->getUploadDir() + filename;
+bool Client::saveFile(Request& req, const std::string& filename, const std::string& content) {
+    std::string fullPath = _server->getUploadDir(*this, req) + filename;
     
-    int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
-        std::cout << "Error: Failed to open file for writing: " << uploadPath << std::endl;
+        std::cout << "Error: Failed to open file for writing: " << fullPath << std::endl;
         std::cout << "Error details: " << strerror(errno) << std::endl;
         return false;
     }
@@ -835,6 +860,7 @@ void Client::findContentType(Request& req) {
 }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
+    // Create HTTP response
 	std::string response = "HTTP/1.1 200 OK\r\n";
     
     // Get proper content type based on file extension

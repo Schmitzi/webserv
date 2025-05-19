@@ -93,19 +93,6 @@ Config &Webserv::getDefaultConfig() {
 	return _servers[0]->getConfigClass();
 }
 
-Config &Webserv::getSpecificConfig(std::string& serverName, int port) {//TODO: USE IT!
-	for (size_t i = 0; i < _servers.size(); i++) {
-		serverLevel conf = _servers[i]->getConfigClass().getConfig();
-		for (size_t j = 0; j < conf.port.size(); j++) {
-			for (size_t k = 0; k < conf.servName.size(); k++) {
-				if (conf.servName[k] == serverName && conf.port[j].first.second == port)
-				return _servers[i]->getConfigClass();
-			}
-		}
-	}
-	return _servers[0]->getConfigClass();
-}
-
 int Webserv::run() {
    // Initialize server
    for (size_t i = 0; i < _servers.size(); i++) {

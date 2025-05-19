@@ -14,13 +14,14 @@ class Request {
         Request();
         Request(const std::string& rawRequest);
         ~Request();
-        std::string const &getPath();
+        std::string &getPath();
         std::string const &getMethod();
         std::string const &getVersion();
         std::string const &getBody();
         std::string const &getContentType();
         std::string const &getQuery();
         std::string const &getBoundary();
+		std::string getReqPath() const;
         std::map<std::string, std::string> &getHeaders();
         std::string getMimeType(std::string const &path);
         void    setMethod(std::string const method);
@@ -31,9 +32,6 @@ class Request {
         void    setContentType(std::string const content);
         void    setBoundary(std::string boundary);
         void    setHeader(std::map<std::string, std::string> map);
-        void    formatPost(std::string const target);
-        void    formatDelete(std::string const token);
-        int     formatGet(std::string const token);
         void    parse(const std::string& rawRequest);
         void    parseHeaders(const std::string& headerSection);
         void    checkContentLength();
@@ -48,6 +46,7 @@ class Request {
         std::string                         _body;
         std::string                         _query;
         std::string                         _boundary;
+		std::string						 	_reqPath;
 };
 
 #endif

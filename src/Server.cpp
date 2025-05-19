@@ -6,18 +6,19 @@ Server::Server(ConfigParser confs, int nbr) {
 	serverLevel conf = _config.getConfig();
 	if (!conf.rootServ.empty())
 		_webRoot = conf.rootServ;//TODO: what about locations?
-	else
-		_webRoot = "local";
-	std::map<std::string, locationLevel>::iterator it = conf.locations.begin();//TODO: just gets first uploadPath, which one should it actually get?
-	for (; it != conf.locations.end(); ++it) {
-		if (!it->second.uploadDirPath.empty()) {
-			_uploadDir = it->second.uploadDirPath;
-            if (_uploadDir[strlen(_uploadDir.c_str())] != '/') {
-                _uploadDir += '/';
-            }
-			break;
-		}
+	if (_webRoot.empty()) {
+		//check locations
 	}
+	// std::map<std::string, locationLevel>::iterator it = conf.locations.begin();//TODO: just gets first uploadPath, which one should it actually get?
+	// for (; it != conf.locations.end(); ++it) {
+	// 	if (!it->second.uploadDirPath.empty()) {
+	// 		_uploadDir = it->second.uploadDirPath;
+    //         if (_uploadDir[strlen(_uploadDir.c_str())] != '/') {
+    //             _uploadDir += '/';
+    //         }
+	// 		break;
+	// 	}
+	// }
 }
 
 Server::~Server()  {
@@ -35,11 +36,26 @@ int &Server::getFd() {
     return _fd;
 }
 
-std::string const &Server::getUploadDir() {
-    return _uploadDir;
+std::string Server::getUploadDir(Client& client, Request& req) {
+	locationLevel loc;
+	if (!matchUploadLocation(req.getReqPath(), _config.getConfig(), loc)) {
+		std::cout << "Location not found: " << req.getReqPath() << std::endl;
+		client.sendErrorResponse(403);
+		return "";
+	}
+	if (loc.uploadDirPath.empty()) {
+		std::cout << "Upload directory not set: " << req.getReqPath() << std::endl;
+		client.sendErrorResponse(403);
+		return "";
+	}
+    std::string fullPath = getWebRoot() + req.getReqPath();
+	return fullPath;
 }
 
 std::string const   &Server::getWebRoot() {
+	if (_webRoot.empty()) {
+		
+	}
     return _webRoot;
 }
 
