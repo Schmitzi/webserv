@@ -103,7 +103,7 @@ void Client::displayConnection() {
 int Client::recieveData() {
     // Larger buffer for multipart uploads
     char buffer[1024 * 1024];
-    memset(buffer, 0, sizeof(buffer));
+    memset(buffer, 0, sizeof(buffer) - 1);
     
     // Receive data
     int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, 0);
@@ -111,8 +111,8 @@ int Client::recieveData() {
     if (bytesRead > 0) {
         // Append to request buffer
         _requestBuffer.append(buffer, bytesRead);
-        if (_requestBuffer.length() > MAX_BUFFER_SIZE) {
-            std::cout << "Buffer size exceeded maximum limit" << std::endl;
+        if (_requestBuffer.length() > _config.requestLimit) {  // TODO: check if working correctly
+            std::cerr << RED << _webserv->getTimeStamp() << "Buffer size exceeded maximum limit: Error 413" << RESET << std::endl;
             sendErrorResponse(413);
             _requestBuffer.clear();
             return 1;
@@ -122,29 +122,30 @@ int Client::recieveData() {
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
 
-		Request req(_requestBuffer);
-	
-		if (req.getMethod() == "BAD") {
-			std::cout << RED << _webserv->getTimeStamp() 
-					<< "Bad request format" << RESET << std::endl;
-			sendErrorResponse(400);
-			_requestBuffer.clear();
-			return 1;
-		}
-		// Handle multipart uploads separately
-		if (req.getContentType().find("multipart/form-data") != std::string::npos) {
-			int result = handleMultipartPost(req);
-			
-			if (result != -1) {
-				return result;
-			}
-			
-			// If partial upload, wait for more data
-			return 0;
-		}
-
-		// Create a copy of the buffer for processing
-		std::string tempBuffer = _requestBuffer;
+        // if (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
+        // _requestBuffer.find("\n\n") != std::string::npos) {
+            Request req(_requestBuffer);
+        
+            if (req.getMethod() == "BAD") {
+                std::cout << RED << _webserv->getTimeStamp() 
+                        << "Bad request format" << RESET << std::endl;
+                sendErrorResponse(400);
+                // _requestBuffer.clear();
+                return 1;
+            }
+            // Handle multipart uploads separately
+            if (req.getContentType().find("multipart/form-data") != std::string::npos) {
+                int result = handleMultipartPost(req);
+                
+                if (result != -1) {
+                    return result;
+                }
+                
+                // If partial upload, wait for more data
+                return 0;
+            } 
+            // Create a copy of the buffer for processing
+            std::string tempBuffer = _requestBuffer;
 
 		// Try processing the request
 		int processResult = processRequest(const_cast<char*>(tempBuffer.c_str()));
@@ -154,7 +155,9 @@ int Client::recieveData() {
 			_requestBuffer.clear();
 		}
 
-		return processResult;
+            return processResult;
+        // }
+        return 0;
     } 
     else if (bytesRead == 0) {
         std::cout << RED << _webserv->getTimeStamp() 
@@ -712,18 +715,18 @@ int Client::handleMultipartPost(Request& req) {
         sendErrorResponse(400);
         return 1;
     }
-    
+
     std::string fileContent = parser.getFileContent();
     if (fileContent.empty() && !parser.isComplete()) {
         return -1;
     }
+
     
-    if (!saveFile(req, filename, fileContent)) {
+    if (!saveFile(filename, fileContent)) {
         sendErrorResponse(500);
         return 1;
     }
-    
-    std::cout << GREEN << _webserv->getTimeStamp() << "Recieved: " + parser.getFilename() << "\n" << RESET;
+    std::cout << GREEN << _webserv->getTimeStamp() << "Recieved: " + parser.getFilename() << "\n\n" << RESET;
     std::string successMsg = "File uploaded successfully: " + filename;
     sendResponse(req, "close", successMsg);
     std::cout << GREEN << "File transfer ended\n" << RESET;    
@@ -861,7 +864,6 @@ void Client::findContentType(Request& req) {
 }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
-    // Create HTTP response
 	std::string response = "HTTP/1.1 200 OK\r\n";
     
     // Get proper content type based on file extension
@@ -976,6 +978,7 @@ void Client::sendErrorResponse(int statusCode) {
     response += "Connection: close\r\n";
     response += "\r\n";
     response += body;
+    // response += "\r\n";
     
     if (!send_all(_fd, response)) {
         std::cerr << "Failed to send error response" << std::endl;

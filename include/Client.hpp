@@ -21,8 +21,6 @@
 #define WHITE   "\33[97m"
 #define RESET   "\33[0m" // No Colour
 
-#define MAX_BUFFER_SIZE  100 * 1024 * 1024
-
 // Forward declarations
 class Webserv;
 class Server;
