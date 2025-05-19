@@ -36,6 +36,7 @@ class Request {
         int     formatGet(std::string const token);
         void    parse(const std::string& rawRequest);
         void    parseHeaders(const std::string& headerSection);
+        void    checkContentLength();
         void    parseContentType();
         bool    isChunkedTransfer() const;
     private:

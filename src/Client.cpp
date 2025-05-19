@@ -105,7 +105,7 @@ void Client::displayConnection() {
 int Client::recieveData() {
     // Larger buffer for multipart uploads
     char buffer[1024 * 1024];
-    memset(buffer, 0, sizeof(buffer));
+    memset(buffer, 0, sizeof(buffer) - 1);
     
     // Receive data
     int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, 0);
@@ -113,8 +113,8 @@ int Client::recieveData() {
     if (bytesRead > 0) {
         // Append to request buffer
         _requestBuffer.append(buffer, bytesRead);
-        if (_requestBuffer.length() > MAX_BUFFER_SIZE) {
-            std::cout << "Buffer size exceeded maximum limit" << std::endl;
+        if (_requestBuffer.length() > _config.requestLimit) {  // TODO: check if working correctly
+            std::cerr << RED << _webserv->getTimeStamp() << "Buffer size exceeded maximum limit: Error 413" << RESET << std::endl;
             sendErrorResponse(413);
             _requestBuffer.clear();
             return 1;
@@ -124,16 +124,15 @@ int Client::recieveData() {
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
 
-        if (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
-        _requestBuffer.find("\n\n") != std::string::npos) {
-
+        // if (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
+        // _requestBuffer.find("\n\n") != std::string::npos) {
             Request req(_requestBuffer);
         
             if (req.getMethod() == "BAD") {
                 std::cout << RED << _webserv->getTimeStamp() 
                         << "Bad request format" << RESET << std::endl;
                 sendErrorResponse(400);
-                _requestBuffer.clear();
+                // _requestBuffer.clear();
                 return 1;
             }
             // Handle multipart uploads separately
@@ -146,8 +145,7 @@ int Client::recieveData() {
                 
                 // If partial upload, wait for more data
                 return 0;
-            }
-
+            } 
             // Create a copy of the buffer for processing
             std::string tempBuffer = _requestBuffer;
 
@@ -160,7 +158,7 @@ int Client::recieveData() {
             }
 
             return processResult;
-        }
+        // }
         return 0;
     } 
     else if (bytesRead == 0) {
@@ -179,83 +177,6 @@ int Client::recieveData() {
 }
 
 Request Client::parseRequest(char* buffer) {
-    // Request req;
-    
-	// size_t len = strlen(buffer);
-    // while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || 
-    //                    buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
-    //     buffer[--len] = '\0';
-    // }
-    // std::string input(buffer);
-
-    // findContentType(req);
-    
-    // if (input.empty()) {
-    //     return req;
-    // }
-    // std::vector<std::string> tokens = split(buffer);
-
-    // if (tokens.empty()) {
-    //     sendErrorResponse(400);
-    //     return req;
-    // }
-	// // serverLevel serverStruct = getServer().getConfigClass().getConfig();
-    // std::string path = "/";//TODO: try to matchLocation
-	// serverLevel serverStruct = getServer().getConfigClass().getConfig();//getWebserv().getConfig().getConfig();
-	// std::vector<std::string> allowedMethods = serverStruct.locations[path].methods;//TODO: get actual path
-	// if (allowedMethods.empty()) {
-	// // locationLevel loc;
-	// // if (!matchRootLocation(path, serverStruct, loc)) {
-	// // 	req.setPath(serverStruct.rootServ);
-	// // 	return req;
-	// // }
-	
-	// // if (loc.methods.empty()) {
-	// 	sendErrorResponse(405);
-	// 	return req;
-	// }
-	// bool methodAllowed = false;
-	// // for (size_t i = 0; i < loc.methods.size(); i++) {
-	// // 	if (tokens[0] == loc.methods[i]) {
-	// for (size_t i = 0; i < allowedMethods.size(); i++) {
-	// 	if (tokens[0] == allowedMethods[i]) {
-	// 		methodAllowed = true;
-	// 		std::cout << "Method allowed: " << tokens[0] << std::endl;
-	// 		break;
-	// 	}
-	// }
-
-    // if (!tokens[1].empty()) {
-    //     path = tokens[1];
-    //     path.erase(path.find_last_not_of(" \t\r\n") + 1);
-	// 	// path = getAbsPath(path);
-	// 	// std::cout << "PATH: " << path << std::endl;
-    // }
-
-    // if (tokens[0] == "POST" && methodAllowed) {
-    //     req.formatPost(tokens[1]);
-    // } else if (tokens[0] == "DELETE" && methodAllowed) {
-    //     if (!tokens[1].empty()) {
-    //         req.formatDelete(path);
-    //     } else {
-    //         sendErrorResponse(400);
-    //     }
-    // } else if ((tokens[0] == "GET" && methodAllowed) || tokens[0] == "curl") {
-    //     if (!tokens[1].empty()) {
-            
-    //         if (req.formatGet(path) == 1) {//TODO: formatGet always returns 0?
-    //             sendErrorResponse(403);
-    //             return req;
-    //         }
-    //     } else {
-    //         req.formatGet("/index.html");
-    //     }
-    // } else {
-    //     sendErrorResponse(403);
-    //     std::cout << RED << _webserv->getTimeStamp() << "Client " << _fd << ": 403 Bad request\n" << RESET;//TODO: 400 is bad request, 403 is forbidden
-    //     req.setMethod("BAD");
-    //     return req;
-    // }
     std::string input;
     if (buffer) {
         size_t len = strlen(buffer);
@@ -696,26 +617,6 @@ int Client::handlePostRequest(Request& req) {
         return 1;
     }
 	
-	// locationLevel loc;
-	// if (!matchRootLocation(req.getPath(), _config, loc)) {
-	// 	std::cout << _webserv->getTimeStamp() << "No matching location found for POST request" << std::endl;
-	// 	std::cout << "Path: " << req.getPath() << std::endl;
-	// 	std::cout << "Full path: " << fullPath << std::endl;
-	// 	std::cout << "Location: " << loc.locName << std::endl;
-	// 	sendErrorResponse(403);
-	// 	return 1;
-	// }
-	// std::string uploadDir = loc.uploadDirPath;
-	// if (!ensureUploadDirectory(uploadDir)) {
-	// 	std::cout << _webserv->getTimeStamp() << "Failed to create upload directory: " << uploadDir << std::endl;
-	// 	sendErrorResponse(500);
-	// 	return 1;
-	// }
-	
-	// Construct the upload path
-	// std::string uploadPath = uploadDir + req.getPath();
-	// std::string uploadPath = _server->getUploadDir() + req.getPath();
-	
 	// Fix: Use the actual file name from the request
 	std::string uploadPath = _server->getUploadDir() + extractFileName(req.getPath());
     
@@ -786,30 +687,18 @@ int Client::handleMultipartPost(Request& req) {
         sendErrorResponse(400);
         return 1;
     }
-    
+
     std::string fileContent = parser.getFileContent();
     if (fileContent.empty() && !parser.isComplete()) {
         return -1;
     }
-    
-	// locationLevel loc;
-	// if (!matchRootLocation(req.getPath(), _config, loc)) {
-	// 	std::cout << _webserv->getTimeStamp() << "No matching location found for POST request" << std::endl;
-	// 	sendErrorResponse(403);
-	// 	return 1;
-	// }
-	// std::string uploadDir = loc.uploadDirPath;
-    // if (!ensureUploadDirectory(uploadDir)) {
-    //     sendErrorResponse(500);
-    //     return 1;
-    // }
+
     
     if (!saveFile(filename, fileContent)) {
         sendErrorResponse(500);
         return 1;
     }
-    
-    std::cout << GREEN << _webserv->getTimeStamp() << "Recieved: " + parser.getFilename() << "\n" << RESET;
+    std::cout << GREEN << _webserv->getTimeStamp() << "Recieved: " + parser.getFilename() << "\n\n" << RESET;
     std::string successMsg = "File uploaded successfully: " + filename;
     sendResponse(req, "close", successMsg);
     std::cout << GREEN << "File transfer ended\n" << RESET;    
@@ -831,8 +720,6 @@ bool Client::ensureUploadDirectory() {//std::string& path
 
 bool Client::saveFile(const std::string& filename, const std::string& content) {
     std::string uploadPath = _server->getUploadDir() + filename;
-
-    std::cout << "Upload path: " + uploadPath << "\n";
     
     int fd = open(uploadPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
@@ -947,12 +834,8 @@ void Client::findContentType(Request& req) {
     }
 }
 
-ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {//TODO: get actual statuscode?
-    // Create HTTP response
-    int statusCode = 200;
-	std::string statusText = getStatusMessage(statusCode);
-	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
-	// std::string response = "HTTP/1.1 200 OK\r\n";
+ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
+	std::string response = "HTTP/1.1 200 OK\r\n";
     
     // Get proper content type based on file extension
     std::string contentType;
@@ -1066,6 +949,7 @@ void Client::sendErrorResponse(int statusCode) {
     response += "Connection: close\r\n";
     response += "\r\n";
     response += body;
+    // response += "\r\n";
     
     if (!send_all(_fd, response)) {
         std::cerr << "Failed to send error response" << std::endl;

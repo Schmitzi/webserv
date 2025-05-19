@@ -122,19 +122,6 @@ int CGIHandler::processScriptOutput(Client &client) {
     char buffer[4096];
     int totalBytesRead = 0;
     
-    // int flags = fcntl(_output[0], F_GETFL, 0);
-    // fcntl(_output[0], F_SETFL, flags | O_NONBLOCK);
-	/*
-		Use select(), poll(), or epoll() on blocking FDs
-		The key is that read() or write() will not block if you check with select() or poll() first.
-		So, you can:
-    	Create a regular blocking pipe with pipe()
-    	Use select() (or poll()/epoll()) to monitor the read or write end
-    	Only call read() when select() says it's readable
-    	Only call write() when select() says it's writable
-		This allows you to avoid blocking even though the FDs themselves are in blocking mode.
-	*/
-    
     fd_set readfds;
     FD_ZERO(&readfds);
     FD_SET(_output[0], &readfds);

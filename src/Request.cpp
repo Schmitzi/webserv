@@ -189,12 +189,8 @@ void Request::parse(const std::string& rawRequest) {
     }
 
     parseHeaders(headerSection);
-
+    checkContentLength();
     parseContentType();
-
-    if (_method == "DELETE" && _path.find("upload/") != 0) {
-        _path = "upload/" + _path;
-    }
 }
 
 void Request::parseHeaders(const std::string& headerSection) {
@@ -216,6 +212,15 @@ void Request::parseHeaders(const std::string& headerSection) {
             
             _headers[key] = value;
         }
+    }
+}
+
+void    Request::checkContentLength() {
+    std::map<std::string, std::string>::iterator it = _headers.find("Content-Length");
+    if (it != _headers.end()) {
+        // if (std::stoi(it->second) > 1024) {
+        //     std::cout << "BIG!\n";
+        // }
     }
 }
 

@@ -234,7 +234,7 @@ void Webserv::handleClientActivity(size_t pollIndex) {
     }
 }
 
-void    Webserv::ft_error(std::string const msg) {  // TODO: Check if allowed
+void    Webserv::ft_error(std::string const msg) {
     printMsg("Error: " + msg, RED, strerror(errno));
 }
 
