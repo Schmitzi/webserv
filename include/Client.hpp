@@ -56,12 +56,13 @@ class Client {
         int                     handleFileBrowserRequest(Request& req, const std::string& requestPath);
         int                     handleRegularRequest(Request& req, const std::string& requestPath);
         int                     buildBody(Request &req, std::string fullPath);
+		std::string			 	getLocationPath(Request& req, const std::string& method);
         std::string             extractFileName(const std::string& path);
         int                     handlePostRequest(Request& req);
         int                     handleDeleteRequest(Request& req);
         int                     handleMultipartPost(Request& req);
-        bool                    ensureUploadDirectory();//std::string& path
-        bool                    saveFile(const std::string& filename, const std::string& content);
+        bool                    ensureUploadDirectory(Request& req);
+        bool                    saveFile(Request& req, const std::string& filename, const std::string& content);
         int                     viewDirectory(std::string fullPath, std::string requestPath);
         int                     createDirList(std::string fullPath, std::string requestPath);
         std::string             showDir(const std::string& dirPath, const std::string& requestUri);

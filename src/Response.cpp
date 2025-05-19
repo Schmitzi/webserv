@@ -1,6 +1,46 @@
 #include "../include/Response.hpp"
 #include "../include/Config.hpp"
 
+bool matchLocation(const std::string& path, const serverLevel& serv, locationLevel& bestMatch) {
+	size_t longestMatch = 0;
+	bool found = false;
+	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
+	for (; it != serv.locations.end(); ++it) {
+		locationLevel loc = it->second;
+		if (path.find(loc.locName) == 0 && loc.locName.size() > longestMatch) {
+			bestMatch = loc;
+			found = true;
+			longestMatch = loc.locName.size();
+		}
+	}
+	return found;
+}
+
+bool matchUploadLocation(const std::string& path, const serverLevel& serv, locationLevel& bestMatch) {
+	size_t longestMatch = 0;
+	bool found = false;
+	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
+	if (path.empty()) {
+		for (; it != serv.locations.end(); ++it) {
+			locationLevel loc = it->second;
+			if (!loc.uploadDirPath.empty()) {
+				bestMatch = loc;
+				return true;
+			}
+		}
+	} else {
+		for (; it != serv.locations.end(); ++it) {
+			locationLevel loc = it->second;
+			if (path.find(loc.locName) == 0 && loc.locName.size() > longestMatch) {
+				bestMatch = loc;
+				found = true;
+				longestMatch = loc.locName.size();
+			}
+		}
+	}
+	return found;
+}
+
 bool matchRootLocation(const std::string& uri, serverLevel& serv, locationLevel& bestMatch) {
 	bool found = false;
 	size_t longestMatch = 0;
@@ -96,10 +136,15 @@ std::string findErrorPage(int statusCode, Server& server, const std::string& dir
     }
     
     std::string filePath;
-    if (foundCustomPage)// Use custom error page if defined
-		filePath = server.getConfigClass().getConfig().rootServ + uri;
-    else// Otherwise use default error page
+    if (foundCustomPage) {// Use custom error page if defined
+		if (uri.find(server.getConfigClass().getConfig().rootServ) == std::string::npos)
+			filePath = server.getConfigClass().getConfig().rootServ + uri;
+		else
+			filePath = uri;
+	}
+    else {// Otherwise use default error page
         filePath = dir + "/" + tostring(statusCode) + ".html";
+	}
     return filePath;
 }
 

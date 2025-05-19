@@ -58,6 +58,8 @@ static const HttpErrorFormat httpErrors[] = {
 	#undef X
 };
 
+bool						matchLocation(const std::string& path, const serverLevel& serv, locationLevel& bestMatch);
+bool						matchUploadLocation(const std::string&, const serverLevel& serv, locationLevel& bestMatch);
 bool						matchRootLocation(const std::string& uri, serverLevel& serv, locationLevel& bestMatch);
 std::string					resolveFilePathFromUri(const std::string& uri, serverLevel& serv);
 const std::string			getStatusMessage(int code);

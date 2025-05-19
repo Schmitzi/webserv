@@ -81,7 +81,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         close(_input[0]);
         close(_output[1]);
 
-        if (!req.getBody().empty()) {//TODO: check for requestLimit?
+        if (!req.getBody().empty()) {
             write(_input[1], req.getBody().c_str(), req.getBody().length());
         }
         close(_input[1]);
@@ -121,19 +121,6 @@ int CGIHandler::processScriptOutput(Client &client) {
     std::string output;
     char buffer[4096];
     int totalBytesRead = 0;
-    
-    // int flags = fcntl(_output[0], F_GETFL, 0);
-    // fcntl(_output[0], F_SETFL, flags | O_NONBLOCK);
-	/*
-		Use select(), poll(), or epoll() on blocking FDs
-		The key is that read() or write() will not block if you check with select() or poll() first.
-		So, you can:
-    	Create a regular blocking pipe with pipe()
-    	Use select() (or poll()/epoll()) to monitor the read or write end
-    	Only call read() when select() says it's readable
-    	Only call write() when select() says it's writable
-		This allows you to avoid blocking even though the FDs themselves are in blocking mode.
-	*/
     
     fd_set readfds;
     FD_ZERO(&readfds);
