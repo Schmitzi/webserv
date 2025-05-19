@@ -159,7 +159,9 @@ int Client::recieveData() {
 			_requestBuffer.clear();
 		}
 
-		return processResult;
+            return processResult;
+        // }
+        return 0;
     } 
     else if (bytesRead == 0) {
         std::cout << RED << _webserv->getTimeStamp() 
@@ -752,8 +754,9 @@ int Client::handleMultipartPost(Request& req) {
     if (fileContent.empty() && !parser.isComplete()) {
         return -1;
     }
+
     
-    if (!saveFile(req, filename, fileContent)) {
+    if (!saveFile(filename, fileContent)) {
         sendErrorResponse(500);
         return 1;
     }
@@ -891,7 +894,6 @@ void Client::findContentType(Request& req) {
 }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
-    // Create HTTP response
 	std::string response = "HTTP/1.1 200 OK\r\n";
     
     // Get proper content type based on file extension
