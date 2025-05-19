@@ -15,7 +15,7 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
 - [ ] Use only 1 poll() (or equivalent like select, epoll, kqueue) for ALL I/O operations &#x2611;
 - [ ] poll() must monitor both reading and writing &#x2611;
 - [ ] Never perform read/write without going through poll() &#x2611;
-- [ ] Cannot check errno after read/write operations
+- [ ] Cannot check errno after read/write operations &#x2611;
 - [ ] Server must accept an optional configuration file argument &#x2611;
 
 ### HTTP Implementation
@@ -53,7 +53,7 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
   - [ ] Directory listing enable/disable &#x2611;
   - [ ] Default file for directories
   - [ ] CGI execution based on file extension &#x2611;
-  - [ ] Upload location configuration 
+  - [ ] Upload location configuration &#x2611; 
 
 ### CGI Requirements
 - [ ] Execute CGI with file as first argument 
