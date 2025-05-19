@@ -261,19 +261,3 @@ std::string Webserv::getTimeStamp() {
     
     return oss.str();
 }
-
-//TODO: idk, just a try
-// void Webserv::initServers() {
-// 	std::vector<serverLevel> confs = _confParser->getAllConfigs();
-// 	for (size_t i = 0; i < confs.size(); i++) {
-// 		Server server;
-// 		std::vector<std::pair<std::string, int> >::iterator it = confs[i].port.begin();
-// 		for (; it != confs[i].port.end(); ++it)
-// 			server.addListenPort(it->first, it->second);
-// 		server.setWebserv(this);
-// 		if (server.openAndListenSockets() != 0)
-// 			return (ft_error("Failed to initialize server"));
-// 		_servers.push_back(server);
-// 	}
-// }
-	
