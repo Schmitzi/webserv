@@ -14,32 +14,6 @@ if (!empty($path_info)) {
     $segments = explode('/', trim($path_info, '/'));
     $segments = array_filter($segments); // Remove empty segments
 }
-<<<<<<< HEAD
-
-echo "<h2>All Server Variables</h2>";
-echo "<pre>";
-print_r($_SERVER);
-echo "</pre>";
-echo "</body></html>";
-?>
-<?php
-// path_demo.php - Simple PATH_INFO demonstration
-header("Content-Type: text/html");
-
-// Get the important server variables
-$request_uri = $_SERVER['REQUEST_URI'] ?? '';
-$script_name = $_SERVER['SCRIPT_NAME'] ?? '';
-$path_info = $_SERVER['PATH_INFO'] ?? '';
-$query_string = $_SERVER['QUERY_STRING'] ?? '';
-
-// Extract PATH_INFO segments if available
-$segments = [];
-if (!empty($path_info)) {
-    $segments = explode('/', trim($path_info, '/'));
-    $segments = array_filter($segments); // Remove empty segments
-}
-=======
->>>>>>> 0ac2e6f (Updated PATH_INFO parsing)
 ?>
 <!DOCTYPE html>
 <html>
