@@ -122,30 +122,29 @@ int Client::recieveData() {
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
 
-        // if (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
-        // _requestBuffer.find("\n\n") != std::string::npos) {
-            Request req(_requestBuffer);
-        
-            if (req.getMethod() == "BAD") {
-                std::cout << RED << _webserv->getTimeStamp() 
-                        << "Bad request format" << RESET << std::endl;
-                sendErrorResponse(400);
-                // _requestBuffer.clear();
-                return 1;
-            }
-            // Handle multipart uploads separately
-            if (req.getContentType().find("multipart/form-data") != std::string::npos) {
-                int result = handleMultipartPost(req);
-                
-                if (result != -1) {
-                    return result;
-                }
-                
-                // If partial upload, wait for more data
-                return 0;
-            } 
-            // Create a copy of the buffer for processing
-            std::string tempBuffer = _requestBuffer;
+		Request req(_requestBuffer);
+	
+		if (req.getMethod() == "BAD") {
+			std::cout << RED << _webserv->getTimeStamp() 
+					<< "Bad request format" << RESET << std::endl;
+			sendErrorResponse(400);
+			_requestBuffer.clear();
+			return 1;
+		}
+		// Handle multipart uploads separately
+		if (req.getContentType().find("multipart/form-data") != std::string::npos) {
+			int result = handleMultipartPost(req);
+			
+			if (result != -1) {
+				return result;
+			}
+			
+			// If partial upload, wait for more data
+			return 0;
+		}
+
+		// Create a copy of the buffer for processing
+		std::string tempBuffer = _requestBuffer;
 
 		// Try processing the request
 		int processResult = processRequest(const_cast<char*>(tempBuffer.c_str()));
@@ -155,9 +154,7 @@ int Client::recieveData() {
 			_requestBuffer.clear();
 		}
 
-            return processResult;
-        // }
-        return 0;
+		return processResult;
     } 
     else if (bytesRead == 0) {
         std::cout << RED << _webserv->getTimeStamp() 
@@ -720,9 +717,8 @@ int Client::handleMultipartPost(Request& req) {
     if (fileContent.empty() && !parser.isComplete()) {
         return -1;
     }
-
     
-    if (!saveFile(filename, fileContent)) {
+    if (!saveFile(req, filename, fileContent)) {
         sendErrorResponse(500);
         return 1;
     }
@@ -864,6 +860,7 @@ void Client::findContentType(Request& req) {
 }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
+    // Create HTTP response
 	std::string response = "HTTP/1.1 200 OK\r\n";
     
     // Get proper content type based on file extension
