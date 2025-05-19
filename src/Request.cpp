@@ -165,6 +165,7 @@ void Request::parse(const std::string& rawRequest) {
     }
 
     parseHeaders(headerSection);
+    checkContentLength();
     parseContentType();
 }
 
