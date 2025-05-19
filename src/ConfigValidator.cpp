@@ -94,7 +94,7 @@ bool isValidIndexFile(const std::string &indexFile) {
 	if (dot == std::string::npos)
 		return false;
 	std::string ext = indexFile.substr(dot);
-	return ext == ".html"; // TODO: maybe add more extension checks?
+	return ext == ".html";
 }
 
 void parseClientMaxBodySize(serverLevel &serv) {

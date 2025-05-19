@@ -9,6 +9,8 @@
 #include <cstring>
 #include <iostream>
 #include "Config.hpp"
+#include "Client.hpp"
+#include "Request.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -19,6 +21,8 @@
 // Forward declaration
 class Webserv;
 class Config;
+class Request;
+class Client;
 
 class Server {
     public:
@@ -28,7 +32,7 @@ class Server {
         Webserv             &getWebServ();
         struct sockaddr_in  &getAddr();
         int                 &getFd();
-        std::string const   &getUploadDir();
+        std::string   		getUploadDir(Client& client, Request& req);
         std::string const   &getWebRoot();
         Config              &getConfigClass();
         void                setFd(int const fd);
@@ -39,7 +43,6 @@ class Server {
         int                 setServerAddr();
         int                 ft_bind();
         int                 ft_listen();
-		// int					openAndListenSockets();
     private:
         Server();
         int                 _fd;

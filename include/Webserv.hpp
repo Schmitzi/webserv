@@ -55,7 +55,6 @@ class Webserv {
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
         Config          &getDefaultConfig();
-		Config			&getSpecificConfig(std::string& serverName, int port);
 
     private:
         std::vector<Server *> 		_servers;
