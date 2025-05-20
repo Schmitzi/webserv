@@ -163,6 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const parts = requestText.split(' ');
         let method = 'GET'; // Default method
         let path = '/';     // Default path
+        let type = 'text/html' // Default type
         let hasQueryParams = false;
         
         // Find method
@@ -250,10 +251,11 @@ ${method === 'POST' ? 'Content-Type: application/x-www-form-urlencoded\n' : ''}
             console.log("Response body:", body);
 			
 			// Render HTML in iframe
-			const iframe = document.getElementById('rendered-output');
-			const blob = new Blob([body], { type: 'text/html' });
-			const blobUrl = URL.createObjectURL(blob);
-			iframe.src = blobUrl;
+			const contentType = response.headers.get('Content-Type') || 'text/plain';
+            const iframe = document.getElementById('rendered-output');
+            const blob = new Blob([body], { type: contentType });
+            const blobUrl = URL.createObjectURL(blob);
+            iframe.src = blobUrl;
             
             // Display full response
             responseOutput.textContent = responseText + body;
