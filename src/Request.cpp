@@ -56,6 +56,10 @@ std::string Request::getReqPath() const {
 	return _reqPath;
 }
 
+size_t         &Request::getContentLength() {
+    return _contentLength;
+}
+
 void    Request::setMethod(std::string const method) {
     _method = method;
 }
@@ -93,6 +97,8 @@ void Request::parse(const std::string& rawRequest) {
         _method = "BAD";
         return;
     }
+
+    checkContentLength(rawRequest);
 
     // Find headers and body
     size_t headerEnd = rawRequest.find("\r\n\r\n");
@@ -154,20 +160,15 @@ void Request::parse(const std::string& rawRequest) {
 		_reqPath = "";
 	}
 	// Debug output
-	std::cout << "Request method: " << _method << std::endl;
-	std::cout << "Request path: " << _path << std::endl;
+	// std::cout << "Request method: " << _method << std::endl;
+	// std::cout << "Request path: " << _path << std::endl;
     if (_method != "GET" && _method != "POST" && _method != "DELETE") {
         _method = "BAD";
         return;
     }
 
     parseHeaders(headerSection);
-    checkContentLength();
     parseContentType();
-
-    // if (_method == "DELETE" && _path.find("upload/") != 0) {
-    //     _path = "upload/" + _path;
-    // }
 }
 
 void Request::parseHeaders(const std::string& headerSection) {
@@ -192,12 +193,21 @@ void Request::parseHeaders(const std::string& headerSection) {
     }
 }
 
-void    Request::checkContentLength() {
-    std::map<std::string, std::string>::iterator it = _headers.find("Content-Length");
-    if (it != _headers.end()) {
-        // if (std::stoi(it->second) > 1024) {
-        //     std::cout << "BIG!\n";
-        // }
+void Request::checkContentLength(std::string buffer) {
+    size_t pos = buffer.find("Content-Length:");;
+    if (pos != std::string::npos) {
+        pos += 15;
+
+        while (pos < buffer.size() && (buffer[pos] == ' ' || buffer[pos] == '\t')) {
+            pos++;
+        }
+        
+        size_t eol = buffer.find("\r\n", pos);
+        
+        if (eol != std::string::npos) {
+            std::string valueStr = buffer.substr(pos, eol - pos);
+            _contentLength = strtoul(valueStr.c_str(), NULL, 10);
+        }
     }
 }
 
