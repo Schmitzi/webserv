@@ -1,11 +1,11 @@
 #include "../include/Request.hpp"
 
-Request::Request() : _method("GET"), _path("/"), _version("HTTP/1.1"), _body("") {
+Request::Request() : _method("GET"), _path(""), _version("HTTP/1.1"), _body("") {
 }
 
 Request::Request(const std::string& rawRequest) : 
     _method("GET"),
-    _path("/"),
+    _path(""),
     _contentType(""),
     _version("HTTP/1.1"),
     _headers(),

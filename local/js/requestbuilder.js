@@ -253,7 +253,6 @@ ${method === 'POST' ? 'Content-Type: application/x-www-form-urlencoded\n' : ''}
 			const iframe = document.getElementById('rendered-output');
 			const blob = new Blob([body], { type: 'text/html' });
 			const blobUrl = URL.createObjectURL(blob);
-			// iframe.src = blobUrl;
             iframe.src = path;
             // Display full response
             responseOutput.textContent = responseText + body;

@@ -177,6 +177,7 @@ int Client::recieveData() {
 }
 
 Request Client::parseRequest(char* buffer) {
+	std::cout << "BUFFER: " << buffer << std::endl;
     std::string input;
     if (buffer) {
         size_t len = strlen(buffer);
@@ -607,6 +608,11 @@ std::string Client::extractFileName(const std::string& path) {
 
 std::string Client::getLocationPath(Request& req, const std::string& method) {
 	locationLevel loc;
+	if (req.getReqPath().empty()) {
+		std::cout << "Request path is empty for " << method << " request" << std::endl;
+		sendErrorResponse(400);
+		return "";
+	}
 	if (!matchUploadLocation(req.getReqPath(), _config, loc)) {
 		std::cout << "Location not found for " << method << " request: " << req.getReqPath() << std::endl;
 		sendErrorResponse(404);
