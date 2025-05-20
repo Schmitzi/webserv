@@ -25,24 +25,6 @@ void    CGIHandler::setConfig(Config config) {
     _config = config;
 }
 
-void    CGIHandler::setCGIBin(serverLevel *config) {
-    _cgiBinPath = ""; // Initialize
-    
-    std::map<std::string, locationLevel>::iterator it = config->locations.begin();
-    for (; it != config->locations.end(); ++it) {
-        if (it->first.find("php") != std::string::npos) {
-            _cgiBinPath = it->second.cgiProcessorPath;
-            break;
-        }
-    }
-    
-    if (_cgiBinPath.empty()) {
-        std::cout << RED << "Warning: No PHP CGI processor found in config" << RESET << "\n";
-        std::cout << RED << "Setting CGI-Bin to /usr/bin/php-cgi\n" << RESET;
-        _cgiBinPath = "/usr/bin/php-cgi";
-    }
-}
-
 std::string CGIHandler::getInfoPath() {
     return _pathInfo;
 }
@@ -63,10 +45,6 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
         std::cout << RED << "Setting CGI-Bin to /usr/bin/php-cgi\n" << RESET;
         _cgiBinPath = "/usr/bin/php-cgi";
     }
-}
-
-std::string CGIHandler::getInfoPath() {
-    return _pathInfo;
 }
 
 int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scriptPath) {
