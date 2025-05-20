@@ -165,12 +165,7 @@ void Request::parse(const std::string& rawRequest) {
     }
 
     parseHeaders(headerSection);
-    checkContentLength();
     parseContentType();
-
-    // if (_method == "DELETE" && _path.find("upload/") != 0) {
-    //     _path = "upload/" + _path;
-    // }
 }
 
 void Request::parseHeaders(const std::string& headerSection) {
