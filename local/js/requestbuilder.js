@@ -19,6 +19,18 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
         return true;
+    
+    let draggedElement = null;
+    
+    // Initialize - remove placeholder text when blocks are added
+    function initDropZone() {
+        if (dropZone.children.length === 1 && 
+            dropZone.children[0].style && 
+            dropZone.children[0].style.color === 'rgb(170, 170, 170)') {
+            // It's our placeholder text
+            return false;
+        }
+        return true;
     }
     
     // Add event listeners to blocks
@@ -130,14 +142,6 @@ document.addEventListener('DOMContentLoaded', function() {
         responseOutput.textContent = '# Server response will appear here';
     });
     
-    
-    // Clear button
-    clearBtn.addEventListener('click', function() {
-        dropZone.innerHTML = '<div style="color: #aaa; text-align: center; width: 100%;">Drag blocks here to build your request</div>';
-        updateRequestOutput();
-        responseOutput.textContent = '# Server response will appear here';
-    });
-    
     // Update request output
     function updateRequestOutput() {
         if (!initDropZone()) {
@@ -171,7 +175,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const parts = requestText.split(' ');
         let method = 'GET'; // Default method
         let path = '/';     // Default path
-        let type = 'text/html' // Default type
         let hasQueryParams = false;
         
         // Find method
@@ -257,12 +260,6 @@ ${method === 'POST' ? 'Content-Type: application/x-www-form-urlencoded\n' : ''}
             // Add body
             const body = await response.text();
             console.log("Response body:", body);
-			
-			// Render HTML in iframe
-			const iframe = document.getElementById('rendered-output');
-			const blob = new Blob([body], { type: 'text/html' });
-			const blobUrl = URL.createObjectURL(blob);
-			iframe.src = blobUrl;
             
             // Display full response
             responseOutput.textContent = responseText + body;

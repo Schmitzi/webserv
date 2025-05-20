@@ -52,6 +52,51 @@
 	<iframe id="rendered-output" style="width: 100%; height: 400px; border: 1px solid #ccc; margin-top: 1em;"></iframe>
         <div class="mt-8 bg-gray-50 p-6 rounded-lg">
         </div>
+<body>
+    <h1>HTTP Request Builder</h1>
+    <a href = "index.html">Home</a>
+    <p>Drag and drop blocks to create an HTTP request. The request will be sent to your Webserv server.</p>
+    
+    <div class="container">
+        <div class="blocks-container">
+            <h2>Blocks</h2>
+            <div class="block method-block" draggable="true">GET</div>
+            <div class="block method-block" draggable="true">POST</div>
+            <div class="block method-block" draggable="true">DELETE</div>
+            <div class="block version-block" draggable="true">HTTP/1.1</div>
+            
+            <h3>Custom Block</h3>
+            <input type="text" id="custom-input" placeholder="Enter custom text">
+            <button id="add-custom">Add Custom Block</button>
+        </div>
+        
+        <div class="drop-zone" id="drop-zone">
+            <div style="color: #aaa; text-align: center; width: 100%;">Drag blocks here to build your request</div>
+        </div>
+    </div>
+    
+    <button class="clear-btn" id="clear-btn">Clear All</button>
+    <button class="send-btn" id="send-btn">Send Request</button>
+    
+    <div class="output" id="request-output">
+# HTTP request will appear here
+    </div>
+    
+    <div class="output" id="response-output">
+# Server response will appear here
+    </div>
+    
+    <div class="info">
+        <h2>How It Works</h2>
+        <ul>
+            <li><strong>Method Blocks (blue)</strong>: Define the HTTP method (GET, POST, DELETE)</li>
+            <li><strong>Version Block (purple)</strong>: Specify the HTTP version</li>
+            <li><strong>Custom Blocks (orange)</strong>: Add custom path, parameters, or headers</li>
+            <li>Once you've arranged your blocks, click <strong>Send Request</strong> to submit to the Webserv</li>
+        </ul>
+        <p>Typical HTTP request format: <code>METHOD /path HTTP/VERSION</code></p>
+    </div>
+    
     <script src="/js/requestbuilder.js"></script>
 
 </body>
