@@ -159,9 +159,6 @@ void Request::parse(const std::string& rawRequest) {
 	} else {
 		_reqPath = "";
 	}
-	// Debug output
-	// std::cout << "Request method: " << _method << std::endl;
-	// std::cout << "Request path: " << _path << std::endl;
     if (_method != "GET" && _method != "POST" && _method != "DELETE") {
         _method = "BAD";
         return;
