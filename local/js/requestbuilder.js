@@ -19,18 +19,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
         return true;
-    
-    let draggedElement = null;
-    
-    // Initialize - remove placeholder text when blocks are added
-    function initDropZone() {
-        if (dropZone.children.length === 1 && 
-            dropZone.children[0].style && 
-            dropZone.children[0].style.color === 'rgb(170, 170, 170)') {
-            // It's our placeholder text
-            return false;
-        }
-        return true;
     }
     
     // Add event listeners to blocks
