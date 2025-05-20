@@ -635,32 +635,6 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
     return fullPath;
 }
 
-std::string Client::getLocationPath(Request& req, const std::string& method) {
-	locationLevel loc;
-	if (!matchUploadLocation(req.getReqPath(), _config, loc)) {
-		std::cout << "Location not found for " << method << " request: " << req.getReqPath() << std::endl;
-		sendErrorResponse(403);
-		return "";
-	}
-	for (size_t i = 0; i < loc.methods.size(); i++) {
-		if (loc.methods[i] == method) {
-			break;
-		}
-		if (i == loc.methods.size() - 1) {
-			std::cout << "Method not allowed for " << method << "request: " << req.getReqPath() << std::endl;
-			sendErrorResponse(405);
-			return "";
-		}
-	}
-	if (loc.uploadDirPath.empty()) {
-		std::cout << "Upload directory not set for " << method << "request: " << req.getReqPath() << std::endl;
-		sendErrorResponse(403);
-		return "";
-	}
-    std::string fullPath = _server->getWebRoot() + req.getPath();
-	return fullPath;
-}
-
 int Client::handlePostRequest(Request& req) {
 	std::string fullPath = getLocationPath(req, "POST");
 	if (fullPath.empty())
