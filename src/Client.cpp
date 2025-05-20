@@ -111,7 +111,8 @@ int Client::recieveData() {
     if (bytesRead > 0) {
         // Append to request buffer
         _requestBuffer.append(buffer, bytesRead);
-        if (_requestBuffer.length() > _config.requestLimit) {  // TODO: check if working correctly
+
+        if (_requestBuffer.length() > _config.requestLimit) {
             std::cerr << RED << _webserv->getTimeStamp() << "Buffer size exceeded maximum limit: Error 413" << RESET << std::endl;
             sendErrorResponse(413);
             _requestBuffer.clear();
@@ -123,6 +124,12 @@ int Client::recieveData() {
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
 
 		Request req(_requestBuffer);
+        if (req.getContentLength() > _config.requestLimit) {
+            std::cerr << RED << "Content-Length too large" << RESET << std::endl;
+            sendErrorResponse(413);
+            _requestBuffer.clear();
+            return 1;
+        }
 	
 		if (req.getMethod() == "BAD") {
 			std::cout << RED << _webserv->getTimeStamp() 
@@ -138,8 +145,6 @@ int Client::recieveData() {
 			if (result != -1) {
 				return result;
 			}
-			
-			// If partial upload, wait for more data
 			return 0;
 		}
 
@@ -722,10 +727,10 @@ int Client::handleMultipartPost(Request& req) {
         sendErrorResponse(500);
         return 1;
     }
-    std::cout << GREEN << _webserv->getTimeStamp() << "Recieved: " + parser.getFilename() << "\n\n" << RESET;
+    std::cout << GREEN << _webserv->getTimeStamp() << "Recieved: " + parser.getFilename() << "\n" << RESET;
     std::string successMsg = "File uploaded successfully: " + filename;
     sendResponse(req, "close", successMsg);
-    std::cout << GREEN << "File transfer ended\n" << RESET;    
+    std::cout << GREEN << _webserv->getTimeStamp() << "File transfer ended\n" << RESET;    
     return 0;
 }
 
@@ -851,11 +856,7 @@ void Client::findContentType(Request& req) {
             std::cout << "Warning: Empty boundary found" << std::endl;
         }
         
-        // Store the boundary
         req.setBoundary(boundary);
-        
-        // Verify the boundary was set correctly
-        //std::cout << "Stored boundary: [" << req.getBoundary() << "]" << std::endl;
     }
 }
 
@@ -975,10 +976,15 @@ void Client::sendErrorResponse(int statusCode) {
     response += "Connection: close\r\n";
     response += "\r\n";
     response += body;
-    // response += "\r\n";
-    
+    response += "\r\n";
+
+    char discard_buffer[1024];
+    while (recv(_fd, discard_buffer, sizeof(discard_buffer), MSG_DONTWAIT) > 0) {
+        // Just discard the data
+    }
     if (!send_all(_fd, response)) {
         std::cerr << "Failed to send error response" << std::endl;
     }
+    std::cerr << RED << _webserv->getTimeStamp() << "Error sent: " << statusCode << RESET << "\n";
 }
 
