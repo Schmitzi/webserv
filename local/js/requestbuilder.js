@@ -260,6 +260,12 @@ ${method === 'POST' ? 'Content-Type: application/x-www-form-urlencoded\n' : ''}
             // Add body
             const body = await response.text();
             console.log("Response body:", body);
+			
+			// Render HTML in iframe
+			const iframe = document.getElementById('rendered-output');
+			const blob = new Blob([body], { type: 'text/html' });
+			const blobUrl = URL.createObjectURL(blob);
+			iframe.src = blobUrl;
             
             // Display full response
             responseOutput.textContent = responseText + body;
