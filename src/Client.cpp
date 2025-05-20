@@ -639,7 +639,7 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 	locationLevel loc;
 	if (!matchUploadLocation(req.getReqPath(), _config, loc)) {
 		std::cout << "Location not found for " << method << " request: " << req.getReqPath() << std::endl;
-		sendErrorResponse(403);
+		sendErrorResponse(404);
 		return "";
 	}
 	for (size_t i = 0; i < loc.methods.size(); i++) {
@@ -657,8 +657,12 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 		sendErrorResponse(403);
 		return "";
 	}
-    std::string fullPath = _server->getWebRoot() + req.getPath();
-	return fullPath;
+    std::string fullPath = loc.uploadDirPath;
+    if (!fullPath.empty() && fullPath[fullPath.size() - 1] != '/')
+        fullPath += "/";
+    std::string fileName = extractFileName(req.getPath());
+    fullPath += fileName;
+    return fullPath;
 }
 
 int Client::handlePostRequest(Request& req) {
