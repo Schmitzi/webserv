@@ -9,16 +9,6 @@ Server::Server(ConfigParser confs, int nbr) {
 	if (_webRoot.empty()) {
 		//check locations
 	}
-	// std::map<std::string, locationLevel>::iterator it = conf.locations.begin();//TODO: just gets first uploadPath, which one should it actually get?
-	// for (; it != conf.locations.end(); ++it) {
-	// 	if (!it->second.uploadDirPath.empty()) {
-	// 		_uploadDir = it->second.uploadDirPath;
-    //         if (_uploadDir[strlen(_uploadDir.c_str())] != '/') {
-    //             _uploadDir += '/';
-    //         }
-	// 		break;
-	// 	}
-	// }
 }
 
 Server::~Server()  {
