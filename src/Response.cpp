@@ -118,7 +118,7 @@ void generateErrorPage(std::string& body, int statusCode, const std::string& sta
             "</html>";
 }
 
-std::string findErrorPage(int statusCode, Server& server, const std::string& dir) { // TODO: Resolve correct Error Pages
+std::string findErrorPage(int statusCode, Server& server, const std::string& dir) {
     std::map<std::vector<int>, std::string> errorPages = server.getConfigClass().getConfig().errPages;
     std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
     bool foundCustomPage = false;
