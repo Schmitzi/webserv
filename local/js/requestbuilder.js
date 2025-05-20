@@ -130,6 +130,14 @@ document.addEventListener('DOMContentLoaded', function() {
         responseOutput.textContent = '# Server response will appear here';
     });
     
+    
+    // Clear button
+    clearBtn.addEventListener('click', function() {
+        dropZone.innerHTML = '<div style="color: #aaa; text-align: center; width: 100%;">Drag blocks here to build your request</div>';
+        updateRequestOutput();
+        responseOutput.textContent = '# Server response will appear here';
+    });
+    
     // Update request output
     function updateRequestOutput() {
         if (!initDropZone()) {
