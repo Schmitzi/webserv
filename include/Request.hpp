@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <map>
 #include <sstream>
+#include <cstdlib>
 #include "../include/ConfigParser.hpp"
 
 struct serverLevel;
@@ -21,6 +22,7 @@ class Request {
         std::string const &getContentType();
         std::string const &getQuery();
         std::string const &getBoundary();
+        unsigned long     &getContentLength();
 		std::string getReqPath() const;
         std::map<std::string, std::string> &getHeaders();
         std::string getMimeType(std::string const &path);
@@ -34,7 +36,7 @@ class Request {
         void    setHeader(std::map<std::string, std::string> map);
         void    parse(const std::string& rawRequest);
         void    parseHeaders(const std::string& headerSection);
-        void    checkContentLength();
+        void    checkContentLength(std::string buffer);
         void    parseContentType();
         bool    isChunkedTransfer() const;
     private:
@@ -47,6 +49,7 @@ class Request {
         std::string                         _query;
         std::string                         _boundary;
 		std::string						 	_reqPath;
+        unsigned long                       _contentLength;
 };
 
 #endif
