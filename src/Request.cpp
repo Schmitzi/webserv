@@ -15,6 +15,7 @@ Request::Request(const std::string& rawRequest) :
 	_reqPath(""),
 	_contentLength(0)
 {
+    std::cout << RED << "SIZE raw: " << rawRequest.size() << "\n" << RESET;
     parse(rawRequest);
 }
 
