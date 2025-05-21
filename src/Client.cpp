@@ -123,36 +123,8 @@ int Client::recieveData() {
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
 
-		Request req(_requestBuffer);
-        if (req.getContentLength() > _config.requestLimit) {
-            std::cerr << RED << "Content-Length too large" << RESET << std::endl;
-            sendErrorResponse(413);
-            _requestBuffer.clear();
-            return 1;
-        }
-	
-		if (req.getMethod() == "BAD") {
-			std::cout << RED << _webserv->getTimeStamp() 
-					<< "Bad request format" << RESET << std::endl;
-			sendErrorResponse(400);
-			_requestBuffer.clear();
-			return 1;
-		}
-		// Handle multipart uploads separately
-		if (req.getContentType().find("multipart/form-data") != std::string::npos) {
-			int result = handleMultipartPost(req);
-			
-			if (result != -1) {
-				return result;
-			}
-			return 0;
-		}
-
-		// Create a copy of the buffer for processing
-		std::string tempBuffer = _requestBuffer;
-
 		// Try processing the request
-		int processResult = processRequest(const_cast<char*>(tempBuffer.c_str()));
+		int processResult = processRequest(_requestBuffer);
 		
 		// If fully processed, clear the buffer
 		if (processResult != -1) {
@@ -176,21 +148,32 @@ int Client::recieveData() {
 
 }
 
-Request Client::parseRequest(char* buffer) {
-	std::cout << "BUFFER: " << buffer << std::endl;
-    std::string input;
-    if (buffer) {
-        size_t len = strlen(buffer);
-        input.assign(buffer, len);
+int Client::processRequest(std::string &buffer) {
+    Request req(buffer);
+
+    if (req.getContentLength() > _config.requestLimit) {
+        std::cerr << RED << "Content-Length too large" << RESET << std::endl;
+        sendErrorResponse(413);
+        _requestBuffer.clear();
+        return 1;
     }
 
-    Request req(input);
-
-    return req;
-}
-
-int Client::processRequest(char *buffer) {
-    Request req = parseRequest(buffer);
+    if (req.getMethod() == "BAD") {
+        std::cout << RED << _webserv->getTimeStamp() 
+                << "Bad request format" << RESET << std::endl;
+        sendErrorResponse(400);
+        _requestBuffer.clear();
+        return 1;
+    }
+    // Handle multipart uploads separately
+    if (req.getContentType().find("multipart/form-data") != std::string::npos) {
+        int result = handleMultipartPost(req);
+        
+        if (result != -1) {
+            return result;
+        }
+        return 0;
+    }
     if (req.getMethod() == "BAD") {
         sendErrorResponse(400);
         return 1;
@@ -668,7 +651,12 @@ int Client::handlePostRequest(Request& req) {
     }
 
     std::cout << _webserv->getTimeStamp() << "Writing to file: " << fullPath << "\n";
-    std::cout << _webserv->getTimeStamp() << "Content to write: " << req.getQuery() << "\n";
+    std::cout << _webserv->getTimeStamp() << "Content to write: ";
+    if (!req.getQuery().empty()) {
+        std::cout << req.getQuery() << "\n";
+    } else {
+        std::cout << "(none)\n";
+    }
 
     ssize_t bytesWritten = write(fd, req.getQuery().c_str(), req.getQuery().length());
     close(fd);
