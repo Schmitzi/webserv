@@ -15,7 +15,6 @@ Request::Request(const std::string& rawRequest, serverLevel& conf) :
 	_contentLength(0),
 	_conf(conf)
 {
-    std::cout << RED << "SIZE raw: " << rawRequest.size() << "\n" << RESET;
     parse(rawRequest);
 }
 
