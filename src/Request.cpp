@@ -16,6 +16,7 @@ Request::Request(const std::string& rawRequest) :
 	_contentLength(0),
 	_reqPath(""),
 {
+    std::cout << RED << "SIZE raw: " << rawRequest.size() << "\n" << RESET;
     parse(rawRequest);
 }
 
@@ -97,7 +98,6 @@ void    Request::setHeader(std::map<std::string, std::string> map) {
 
 void Request::parse(const std::string& rawRequest) {
     if (rawRequest.empty()) {
-        std::cout << RED << "Empty request!\n" << RESET;
         _method = "BAD";
         return;
     }
@@ -144,7 +144,6 @@ void Request::parse(const std::string& rawRequest) {
 
     if (_method.empty() || (_method != "GET" && target.empty()) || _version.empty()) {
         _method = "BAD";
-        std::cout << RED << "Invalid request line!\n" << RESET;
         return;
     }
 

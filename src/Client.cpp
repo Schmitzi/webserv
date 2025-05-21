@@ -241,7 +241,6 @@ int Client::processRequest(std::string &buffer) {
     }
 
     if (req.getMethod() == "BAD") {
-        std::cout << "!\n";
         std::cout << RED << _webserv->getTimeStamp() 
                 << "Bad request format" << RESET << std::endl;
         sendErrorResponse(400);
