@@ -12,10 +12,8 @@ Request::Request(const std::string& rawRequest) :
     _body(""),
     _query(""),
     _boundary(""),
-	_reqPath(""),
-	_contentLength(0)
+    _contentLength(0)
 {
-    std::cout << RED << "SIZE raw: " << rawRequest.size() << "\n" << RESET;
     parse(rawRequest);
 }
 
@@ -97,7 +95,6 @@ void    Request::setHeader(std::map<std::string, std::string> map) {
 
 void Request::parse(const std::string& rawRequest) {
     if (rawRequest.empty()) {
-        std::cout << RED << "!\n" << RESET;
         _method = "BAD";
         return;
     }
@@ -130,14 +127,18 @@ void Request::parse(const std::string& rawRequest) {
     if (end != std::string::npos) {
         requestLine = requestLine.substr(0, end + 1);
     }
-
-	std::istringstream lineStream(requestLine);
-    std::string target;
-    lineStream >> _method >> target >> _version;
+    std::cout << "requestLine: " << requestLine << "\n";
+    std::vector<std::string> vars = split(requestLine);
+    if (vars.size() != 3) {
+        return ;
+    }
+    _method = vars[0];
+    std::string target = vars[1];
+    _version = vars[2];
+    std::cout << "Test: " << _method + " " << target + " " << _version + "\n";
 
     if (_method.empty() || (_method != "GET" && target.empty()) || _version.empty()) {
         _method = "BAD";
-        std::cout << RED << "?\n" << RESET;
         return;
     }
 
