@@ -11,9 +11,10 @@ Request::Request(const std::string& rawRequest) :
     _headers(),
     _body(""),
     _query(""),
-    _boundary("")
+    _boundary(""),
+	_reqPath(""),
+	_contentLength(0)
 {
-    std::cout << RED << "SIZE raw: " << rawRequest.size() << "\n" << RESET;
     parse(rawRequest);
 }
 
@@ -129,7 +130,7 @@ void Request::parse(const std::string& rawRequest) {
         requestLine = requestLine.substr(0, end + 1);
     }
 
-    std::istringstream lineStream(requestLine);
+	std::istringstream lineStream(requestLine);
     std::string target;
     lineStream >> _method >> target >> _version;
 
@@ -157,11 +158,8 @@ void Request::parse(const std::string& rawRequest) {
         _path = _path.substr(0, end + 1);
     }
 	size_t reqPathEnd = _path.find_last_of("/");
-	if (reqPathEnd != std::string::npos) {
+	if (reqPathEnd != std::string::npos)
 		_reqPath = _path.substr(0, reqPathEnd + 1);
-	} else {
-		_reqPath = "";
-	}
     if (_method != "GET" && _method != "POST" && _method != "DELETE") {
         _method = "BAD";
         return;
@@ -194,7 +192,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 }
 
 void Request::checkContentLength(std::string buffer) {
-    size_t pos = buffer.find("Content-Length:");;
+    size_t pos = buffer.find("Content-Length:");
     if (pos != std::string::npos) {
         pos += 15;
 
