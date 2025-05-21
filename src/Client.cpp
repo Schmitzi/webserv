@@ -748,6 +748,12 @@ bool Client::ensureUploadDirectory(Request& req) {
 
 bool Client::saveFile(Request& req, const std::string& filename, const std::string& content) {
     std::string fullPath = _server->getUploadDir(*this, req) + filename;
+	if (fullPath.empty())
+		return false;
+	if (!ensureUploadDirectory(req)) {
+		std::cout << "Error: Failed to ensure upload directory exists" << std::endl;
+		return false;
+	}
     
     int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
