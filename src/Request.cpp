@@ -13,10 +13,8 @@ Request::Request(const std::string& rawRequest) :
     _query(""),
     _boundary(""),
 	_reqPath(""),
-	_contentLength(0),
-	_reqPath(""),
+	_contentLength(0)
 {
-    std::cout << RED << "SIZE raw: " << rawRequest.size() << "\n" << RESET;
     parse(rawRequest);
 }
 
