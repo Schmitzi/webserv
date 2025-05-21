@@ -162,13 +162,6 @@ int Client::processRequest(std::string &buffer) {
         _requestBuffer.clear();
         return 1;
     }
-	locationLevel loc;
-	if (matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
-		if (loc.hasRedirect == true) {
-			sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
-			return 0;
-		}
-	}
     // Handle multipart uploads separately
     if (req.getContentType().find("multipart/form-data") != std::string::npos) {
         int result = handleMultipartPost(req);
