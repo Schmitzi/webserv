@@ -752,10 +752,7 @@ bool Client::ensureUploadDirectory(Request& req) {
 }
 
 bool Client::saveFile(Request& req, const std::string& filename, const std::string& content) {
-    std::string uploadDir = _server->getUploadDir(*this, req);
-	if (uploadDir[uploadDir.size() - 1] != '/')
-		uploadDir += "/";
-	std::string fullPath = uploadDir + filename;
+    std::string fullPath = _server->getUploadDir(*this, req) + filename;
 	if (fullPath.empty())
 		return false;
 	if (!ensureUploadDirectory(req)) {
