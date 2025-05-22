@@ -27,7 +27,8 @@ struct locationLevel {
 	std::vector<std::string>					methods;//methods
 	bool										autoindexFound;//TODO: can be deleted, just for printing in config.cpp
 	bool										autoindex;//autoindex
-	std::string									redirectionHTTP;//redirect
+	std::pair<int, std::string>					redirectionHTTP;//redirect
+	bool										hasRedirect;
 	std::string									cgiProcessorPath;//cgi_pass
 	std::string									uploadDirPath;//upload_store
 };

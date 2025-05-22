@@ -170,9 +170,13 @@ void setAutoindex(locationLevel& loc, std::vector<std::string>& s) {
 }
 
 void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
-	if (!s[1].empty() && !isValidRedirectPath(s[1]))
-		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
-	loc.redirectionHTTP = s[1];
+	if (s.size() != 3 || !onlyDigits(s[1]))
+		throw configException("Error: invalid redirection!\n");
+	if (!s[2].empty() && !isValidRedirectPath(s[2]))
+		throw configException("Error: invalid path for " + s[0] + " -> " + s[1] + " " + s[2]);
+	loc.redirectionHTTP.first = atoi(s[1].c_str());
+	loc.redirectionHTTP.second = s[2];
+	loc.hasRedirect = true;
 }
 
 void setCgiProcessorPath(locationLevel& loc, std::vector<std::string>& s) {

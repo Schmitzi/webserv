@@ -165,6 +165,13 @@ int Client::processRequest(std::string &buffer) {
         _requestBuffer.clear();
         return 1;
     }
+	locationLevel loc;
+	if (matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+		if (loc.hasRedirect == true) {
+			sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
+			return 0;
+		}
+	}
     // Handle multipart uploads separately
     if (req.getContentType().find("multipart/form-data") != std::string::npos) {
         int result = handleMultipartPost(req);
@@ -232,7 +239,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         if (actualPath.empty()) actualPath = "/";
     } else {
         // Sub-directory or file within root/
-        std::string actualPath = requestPath.substr(5); // Remove the /root prefix
+        actualPath = requestPath.substr(5); // Remove the /root prefix
         std::string actualFullPath = _server->getWebRoot() + actualPath;
         
         struct stat fileStat;
@@ -269,7 +276,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 
 // Fix for handleRegularRequest in Client.cpp
 int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
-    std::string reqPath = req.getPath();//TODO: check
+    std::string reqPath = req.getPath();
     if (reqPath == "/" || reqPath.empty()) {
         reqPath = "/index.html";
     }
@@ -292,8 +299,9 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     }
 
     // Check if it's a CGI script
-    if (_cgi.isCGIScript(reqPath)) {
-        return _cgi.executeCGI(*this, req, fullPath);
+    if (_cgi.isCGIScript(requestPath)) {
+		std::string fullCgiPath = _server->getWebRoot() + reqPath;
+        return _cgi.executeCGI(*this, req, fullCgiPath);
     }
 
     std::cout << _webserv->getTimeStamp() << "Handling GET request for path: " << req.getPath() << std::endl;
@@ -589,15 +597,15 @@ std::string Client::extractFileName(const std::string& path) {
     return path.substr(pos + 1);
 }
 
-std::string Client::getLocationPath(Request& req, const std::string& method) {
+std::string Client::getLocationPath(Request& req, const std::string& method) {	
 	locationLevel loc;
-	if (req.getReqPath().empty()) {
+	if (req.getPath().empty()) {
 		std::cout << "Request path is empty for " << method << " request" << std::endl;
 		sendErrorResponse(400);
 		return "";
 	}
-	if (!matchUploadLocation(req.getReqPath(), _config, loc)) {
-		std::cout << "Location not found for " << method << " request: " << req.getReqPath() << std::endl;
+	if (!matchUploadLocation(req.getPath(), _config, loc)) {
+		std::cout << "Location not found for " << method << " request: " << req.getPath() << std::endl;
 		sendErrorResponse(404);
 		return "";
 	}
@@ -606,13 +614,13 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 			break;
 		}
 		if (i == loc.methods.size() - 1) {
-			std::cout << "Method not allowed for " << method << "request: " << req.getReqPath() << std::endl;
+			std::cout << "Method not allowed for " << method << " request: " << req.getPath() << std::endl;
 			sendErrorResponse(405);
 			return "";
 		}
 	}
 	if (loc.uploadDirPath.empty()) {
-		std::cout << "Upload directory not set for " << method << "request: " << req.getReqPath() << std::endl;
+		std::cout << "Upload directory not set for " << method << " request: " << req.getPath() << std::endl;
 		sendErrorResponse(403);
 		return "";
 	}
@@ -628,9 +636,9 @@ int Client::handlePostRequest(Request& req) {
 	std::string fullPath = getLocationPath(req, "POST");
 	if (fullPath.empty())
 		return 1;
-	
-    if (_cgi.isCGIScript(req.getPath())) {
-		return _cgi.executeCGI(*this, req, fullPath);
+	std::string cgiPath = _server->getWebRoot() + req.getPath();
+    if (_cgi.isCGIScript(cgiPath)) {
+		return _cgi.executeCGI(*this, req, cgiPath);
     }
     // Check if this is a multipart/form-data request and handle it separately
     if (req.getContentType().find("multipart/form-data") != std::string::npos) {
@@ -675,6 +683,7 @@ int Client::handlePostRequest(Request& req) {
 
 int Client::handleDeleteRequest(Request& req) {
 	std::string fullPath = getLocationPath(req, "DELETE");
+	std::cout << "FULLLPATHDELETE: " << fullPath << std::endl;
 	if (fullPath.empty())
 		return 1;
     if (_cgi.isCGIScript(req.getPath())) {
@@ -747,7 +756,10 @@ bool Client::ensureUploadDirectory(Request& req) {
 }
 
 bool Client::saveFile(Request& req, const std::string& filename, const std::string& content) {
-    std::string fullPath = _server->getUploadDir(*this, req) + filename;
+    std::string uploadDir = _server->getUploadDir(*this, req);
+	if (uploadDir[uploadDir.size() - 1] != '/')
+		uploadDir += "/";
+	std::string fullPath = uploadDir + filename;
 	if (fullPath.empty())
 		return false;
 	if (!ensureUploadDirectory(req)) {
@@ -777,7 +789,7 @@ int    Client::handleRedirect(Request req) {
     std::map<std::string, locationLevel>::iterator it = _config.locations.begin();
     for ( ; it != _config.locations.end() ; it++) {
         if (it->first == path) {
-            sendRedirect(301, it->second.redirectionHTTP);
+            sendRedirect(it->second.redirectionHTTP.first, it->second.redirectionHTTP.second);
             return 0;
         }
     }
@@ -785,12 +797,12 @@ int    Client::handleRedirect(Request req) {
 }
 
 void Client::sendRedirect(int statusCode, const std::string& location) {
-    std::string statusText;
-    if (statusCode == 301) {
-        statusText = "Moved Permanently";
-    } else {
-        statusText = "Found";
-    }
+    std::string statusText = getStatusMessage(statusCode);
+    // if (statusCode == 301) {
+    //     statusText = "Moved Permanently";
+    // } else {
+    //     statusText = "Found";
+    // }
     
     // Create HTML body first
     std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";

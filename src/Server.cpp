@@ -38,13 +38,13 @@ std::string Server::getUploadDir(Client& client, Request& req) {
 		client.sendErrorResponse(403);
 		return "";
 	}
-    std::string fullPath = getWebRoot() + req.getReqPath();
+    std::string fullPath = getWebRoot() + req.getPath();
 	return fullPath;
 }
 
-std::string const   &Server::getWebRoot() {
+std::string const   &Server::getWebRoot() {//TODO: fix this!
 	if (_webRoot.empty()) {
-		
+
 	}
     return _webRoot;
 }
