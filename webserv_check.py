@@ -41,8 +41,8 @@ def test_connection(path="/", method="GET", body=None, headers=None, expect_stat
         res = conn.getresponse()
         status = res.status
         reason = res.reason
-        data = res.read().decode(errors='ignore')  # read ONCE here
-
+        data = res.read().decode(errors='ignore')  # decode response body to string
+        
         # Check status code if expected
         if expect_status and status != expect_status:
             print(f"❌ {method} {path} expected status {expect_status}, got {status} {reason}")
@@ -54,7 +54,7 @@ def test_connection(path="/", method="GET", body=None, headers=None, expect_stat
             return None
 
         print(f"✅ {method} {path} -> {status} {reason}")
-        return (status, res.getheaders(), data)  # return a tuple
+        return res
     except Exception as e:
         print(f"❌ {method} {path} failed: {e}")
     finally:
@@ -84,8 +84,9 @@ def test_post_upload_with_content():
     print("[*] Testing file upload with actual content (multipart/form-data)...")
     boundary = uuid.uuid4().hex
     filename = "test_upload.txt"
-    file_content = "This is a test upload file.Line 2 of content."
+    file_content = "This is a test upload file.\nLine 2 of content."
 
+    # Build multipart/form-data body
     body_lines = [
         f"--{boundary}",
         f'Content-Disposition: form-data; name="file"; filename="{filename}"',
@@ -102,15 +103,13 @@ def test_post_upload_with_content():
         "Content-Length": str(len(body))
     }
 
+    # Send POST to /upload (adjust path if needed)
     res = test_connection("/upload", "POST", body=body, headers=headers, expect_status=200)
     if res is not None:
-        status, _, _ = res
         # After upload, try to GET the uploaded file to verify content
         get_res = test_connection(f"/upload/{filename}", "GET", expect_status=200)
         if get_res:
-            _, _, data = get_res  # we already decoded it in test_connection
-            print("Expected:", repr(file_content))
-            print("Actual:", repr(data))
+            data = get_res.read().decode(errors='ignore')
             if file_content in data:
                 print("✅ Uploaded file content verified successfully.")
             else:
@@ -124,12 +123,8 @@ def test_delete():
     print("[*] Testing DELETE method...")
     # Try deleting a known file (adjust filename if needed)
     res = test_connection("/upload/upload", "DELETE")
-    if res is not None:
-        status, _, _ = res
-        if status in (200, 204):
-            print("✅ DELETE request succeeded.")
-        else:
-            print("❌ DELETE request failed or returned wrong status.")
+    if res is not None and res.status in (200, 204):
+        print("✅ DELETE request succeeded.")
     else:
         print("❌ DELETE request failed or file not found.")
 
@@ -152,20 +147,14 @@ def test_directory_listing():
 def test_redirection():
     print("[*] Testing redirection /redirectme ...")
     res = test_connection("/redirectme")
-    if res:
-        status, headers, _ = res
-        if status in (301, 302):
-            # headers is a list of tuples, convert to dict to access easily
-            header_dict = dict(headers)
-            location = header_dict.get("Location")
-            if location:
-                print(f"✅ Redirection works. Location: {location}")
-            else:
-                print("❌ Redirection header missing Location.")
+    if res and res.status in (301, 302):
+        location = res.getheader("Location")
+        if location:
+            print(f"✅ Redirection works. Location: {location}")
         else:
-            print(f"❌ Redirection failed: unexpected status {status}")
+            print("❌ Redirection header missing Location.")
     else:
-        print("❌ Redirection request failed.")
+        print("❌ Redirection failed or missing.")
 
 def test_cgi():
     print("[*] Testing CGI script POST ...")
@@ -186,7 +175,7 @@ def main():
     try:
         test_static_file()
         test_post_upload()
-        test_post_upload_with_content()
+        test_post_upload_with_content()  # NEW: upload with content
         test_delete()
         test_directory_listing()
         test_redirection()

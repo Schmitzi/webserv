@@ -247,23 +247,14 @@ int Client::processRequest(std::string &buffer) {
         _requestBuffer.clear();
         return 1;
     }
-    
-    if (req.getMethod() != "GET" && req.getMethod() != "POST" && req.getMethod() != "DELETE") {
-        std::cout << RED << _webserv->getTimeStamp() 
-                << "Method not allowed: " << req.getMethod() << RESET << std::endl;
-        sendErrorResponse(405);
-        _requestBuffer.clear();
-        return 1;
-    }
-
-    locationLevel loc;
-    if (matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
-        if (loc.hasRedirect == true) {
-            sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
-            return 0;
-        }
-    }
-    
+	locationLevel loc;
+	if (matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+		if (loc.hasRedirect == true) {
+			sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
+			return 0;
+		}
+	}
+    // Handle multipart uploads separately
     if (req.getContentType().find("multipart/form-data") != std::string::npos) {
         int result = handleMultipartPost(req);
         
@@ -782,6 +773,7 @@ int Client::handlePostRequest(Request& req) {
 
 int Client::handleDeleteRequest(Request& req) {
 	std::string fullPath = getLocationPath(req, "DELETE");
+	std::cout << "FULLLPATHDELETE: " << fullPath << std::endl;
 	if (fullPath.empty())
 		return 1;
     if (_cgi.isCGIScript(req.getPath())) {

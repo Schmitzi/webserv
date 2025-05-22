@@ -50,9 +50,9 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
 int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scriptPath) {
     cleanupResources();
     _path = scriptPath;
-
-    setPathInfo(req);
-
+   
+    setPathInfo(req.getPath());
+	std::cout << _path << "\n\n";
 
     if (doChecks(client) == 1) {
         cleanupResources();
@@ -315,7 +315,7 @@ std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& h
     return headers;
 }
 
-bool CGIHandler::isCGIScript(const std::string& path) {
+bool CGIHandler::isCGIScript(const std::string& path) {//TODO: !
     size_t dotPos = path.find_last_of('.');
     
     if (dotPos != std::string::npos) {
