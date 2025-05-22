@@ -162,6 +162,14 @@ int Client::processRequest(std::string &buffer) {
         _requestBuffer.clear();
         return 1;
     }
+	locationLevel loc;
+	if (matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+		if (loc.hasRedirect == true) {
+			sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
+			return 0;
+		}
+	}
+
     // Handle multipart uploads separately
     if (req.getContentType().find("multipart/form-data") != std::string::npos) {
         int result = handleMultipartPost(req);
@@ -671,6 +679,7 @@ int Client::handlePostRequest(Request& req) {
 
 int Client::handleDeleteRequest(Request& req) {
 	std::string fullPath = getLocationPath(req, "DELETE");
+	std::cout << "FULLLPATHDELETE: " << fullPath << std::endl;
 	if (fullPath.empty())
 		return 1;
     if (_cgi.isCGIScript(req.getPath())) {
@@ -743,7 +752,10 @@ bool Client::ensureUploadDirectory(Request& req) {
 }
 
 bool Client::saveFile(Request& req, const std::string& filename, const std::string& content) {
-    std::string fullPath = _server->getUploadDir(*this, req) + filename;
+    std::string uploadDir = _server->getUploadDir(*this, req);
+	if (uploadDir[uploadDir.size() - 1] != '/')
+		uploadDir += "/";
+	std::string fullPath = uploadDir + filename;
 	if (fullPath.empty())
 		return false;
 	if (!ensureUploadDirectory(req)) {
