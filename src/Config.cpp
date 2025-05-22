@@ -109,8 +109,8 @@ void Config::printConfig() {//only temporary, for debugging
 			else
 				std::cout << "off" << std::endl;
 		}
-		if (!its->second.redirectionHTTP.empty())
-			std::cout << "\t\tredirect: " << its->second.redirectionHTTP << std::endl;
+		if (!its->second.redirectionHTTP.second.empty())
+			std::cout << "\t\treturn: " << its->second.redirectionHTTP.first << " " << its->second.redirectionHTTP.second << std::endl;
 		if (!its->second.cgiProcessorPath.empty())
 			std::cout << "\t\tcgi_pass: " << its->second.cgiProcessorPath << std::endl;
 		if (!its->second.uploadDirPath.empty())

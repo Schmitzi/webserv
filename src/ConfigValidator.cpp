@@ -175,6 +175,7 @@ void checkMethods(locationLevel& loc) {
 }
 
 void initLocLevel(std::vector<std::string>& s, locationLevel& loc) {
+	loc.hasRedirect = false;
 	loc.autoindex = false;
 	loc.autoindexFound = false;
 	for (size_t x = 1; x < s.size() && s[x] != "{"; x++) {

@@ -52,6 +52,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
     _path = scriptPath;
    
     setPathInfo(req.getPath());
+	std::cout << _path << "\n\n";
 
     if (doChecks(client) == 1) {
         return 1;
@@ -319,7 +320,7 @@ std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& h
     return headers;
 }
 
-bool CGIHandler::isCGIScript(const std::string& path) {
+bool CGIHandler::isCGIScript(const std::string& path) {//TODO: !
     size_t dotPos = path.find_last_of('.');
     
     if (dotPos != std::string::npos) {

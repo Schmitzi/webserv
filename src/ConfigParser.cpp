@@ -101,7 +101,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 			else if (s[0] == "index") setLocIndexFile(loc, s);
 			else if (s[0] == "methods") setMethods(loc, s);
 			else if (s[0] == "autoindex") setAutoindex(loc, s);
-			else if (s[0] == "redirect") setRedirection(loc, s);
+			else if (s[0] == "return") setRedirection(loc, s);
 			else if (s[0] == "cgi_pass") setCgiProcessorPath(loc, s);
 			else if (s[0] == "upload_store") setUploadDirPath(loc, s);
 		}
