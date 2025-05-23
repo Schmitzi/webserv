@@ -41,8 +41,8 @@ def test_connection(path="/", method="GET", body=None, headers=None, expect_stat
         res = conn.getresponse()
         status = res.status
         reason = res.reason
-        data = res.read().decode(errors='ignore')  # decode response body to string
-        
+        data = res.read().decode(errors='ignore')  # read ONCE here
+
         # Check status code if expected
         if expect_status and status != expect_status:
             print(f"❌ {method} {path} expected status {expect_status}, got {status} {reason}")
@@ -54,7 +54,7 @@ def test_connection(path="/", method="GET", body=None, headers=None, expect_stat
             return None
 
         print(f"✅ {method} {path} -> {status} {reason}")
-        return res
+        return (status, res.getheaders(), data)  # return a tuple
     except Exception as e:
         print(f"❌ {method} {path} failed: {e}")
     finally:
@@ -86,7 +86,6 @@ def test_post_upload_with_content():
     filename = "test_upload.txt"
     file_content = "This is a test upload file.Line 2 of content."
 
-    # Build multipart/form-data body
     body_lines = [
         f"--{boundary}",
         f'Content-Disposition: form-data; name="file"; filename="{filename}"',
@@ -103,13 +102,13 @@ def test_post_upload_with_content():
         "Content-Length": str(len(body))
     }
 
-    # Send POST to /upload (adjust path if needed)
     res = test_connection("/upload", "POST", body=body, headers=headers, expect_status=200)
     if res is not None:
+        status, _, _ = res
         # After upload, try to GET the uploaded file to verify content
         get_res = test_connection(f"/upload/{filename}", "GET", expect_status=200)
         if get_res:
-            data = get_res.read().decode(errors='ignore')
+            _, _, data = get_res  # we already decoded it in test_connection
             print("Expected:", repr(file_content))
             print("Actual:", repr(data))
             if file_content in data:
@@ -125,8 +124,12 @@ def test_delete():
     print("[*] Testing DELETE method...")
     # Try deleting a known file (adjust filename if needed)
     res = test_connection("/upload/upload", "DELETE")
-    if res is not None and res.status in (200, 204):
-        print("✅ DELETE request succeeded.")
+    if res is not None:
+        status, _, _ = res
+        if status in (200, 204):
+            print("✅ DELETE request succeeded.")
+        else:
+            print("❌ DELETE request failed or returned wrong status.")
     else:
         print("❌ DELETE request failed or file not found.")
 
@@ -149,14 +152,20 @@ def test_directory_listing():
 def test_redirection():
     print("[*] Testing redirection /redirectme ...")
     res = test_connection("/redirectme")
-    if res and res.status in (301, 302):
-        location = res.getheader("Location")
-        if location:
-            print(f"✅ Redirection works. Location: {location}")
+    if res:
+        status, headers, _ = res
+        if status in (301, 302):
+            # headers is a list of tuples, convert to dict to access easily
+            header_dict = dict(headers)
+            location = header_dict.get("Location")
+            if location:
+                print(f"✅ Redirection works. Location: {location}")
+            else:
+                print("❌ Redirection header missing Location.")
         else:
-            print("❌ Redirection header missing Location.")
+            print(f"❌ Redirection failed: unexpected status {status}")
     else:
-        print("❌ Redirection failed or missing.")
+        print("❌ Redirection request failed.")
 
 def test_cgi():
     print("[*] Testing CGI script POST ...")
