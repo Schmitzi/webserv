@@ -51,7 +51,7 @@ class Client {
         int                     handleGetRequest(Request& req);
         bool                    isFileBrowserRequest(const std::string& path);
         int                     handleFileBrowserRequest(Request& req, const std::string& requestPath);
-        int                     handleRegularRequest(Request& req, const std::string& requestPath);
+        int                     handleRegularRequest(Request& req);
         int                     buildBody(Request &req, std::string fullPath);
 		std::string			 	getLocationPath(Request& req, const std::string& method);
         std::string             extractFileName(const std::string& path);
