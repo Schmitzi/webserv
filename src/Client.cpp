@@ -728,12 +728,11 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 
 int Client::handlePostRequest(Request& req) {
 	locationLevel loc;
-    matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
-    std::string fullPath = getLocationPath(req, "POST");
-    if (fullPath.empty())
-        return 1;
-    
-    std::string cgiPath = _server->getWebRoot(loc) + req.getPath();
+	matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
+	std::string fullPath = getLocationPath(req, "POST");
+	if (fullPath.empty())
+		return 1;
+	std::string cgiPath = _server->getWebRoot(loc) + req.getPath();
     if (_cgi.isCGIScript(cgiPath)) {
         return _cgi.executeCGI(*this, req, cgiPath);
     }
@@ -809,7 +808,6 @@ int Client::handlePostRequest(Request& req) {
 
 int Client::handleDeleteRequest(Request& req) {
 	std::string fullPath = getLocationPath(req, "DELETE");
-	std::cout << "FULLLPATHDELETE: " << fullPath << std::endl;
 	if (fullPath.empty())
 		return 1;
     if (_cgi.isCGIScript(req.getPath())) {
