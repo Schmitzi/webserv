@@ -43,7 +43,7 @@ class Client {
         void                    setWebserv(Webserv *webserv);
         void                    setServer(Server *server);
         void                    setConfig(serverLevel config);
-        void                    setAutoIndex();
+        void                    setAutoIndex(locationLevel& loc);
         int                     acceptConnection(int serverFd);
         void                    displayConnection();
         int                     recieveData();
