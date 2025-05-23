@@ -320,7 +320,7 @@ std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& h
     return headers;
 }
 
-bool CGIHandler::isCGIScript(const std::string& path) {//TODO: !
+bool CGIHandler::isCGIScript(const std::string& path) {
     size_t dotPos = path.find_last_of('.');
     
     if (dotPos != std::string::npos) {

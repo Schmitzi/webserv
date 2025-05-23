@@ -4,11 +4,6 @@
 Server::Server(ConfigParser confs, int nbr) {
 	_config = Config(confs, nbr);
 	serverLevel conf = _config.getConfig();
-	if (!conf.rootServ.empty())
-		_webRoot = conf.rootServ;//TODO: what about locations?
-	if (_webRoot.empty()) {
-		//check locations
-	}
 }
 
 Server::~Server()  {
@@ -38,15 +33,25 @@ std::string Server::getUploadDir(Client& client, Request& req) {
 		client.sendErrorResponse(403);
 		return "";
 	}
-    std::string fullPath = getWebRoot() + req.getPath();
+    std::string fullPath = getWebRoot(loc) + req.getPath();
 	return fullPath;
 }
 
-std::string const   &Server::getWebRoot() {//TODO: fix this!
-	if (_webRoot.empty()) {
-
+std::string	Server::getWebRoot(locationLevel& loc) {
+	std::string path;
+	if (!loc.rootLoc.empty()) {
+		if (loc.rootLoc[loc.rootLoc.size() - 1] == '/')
+			path = loc.rootLoc.substr(0, loc.rootLoc.size() - 1);
+		else
+			path = loc.rootLoc;
 	}
-    return _webRoot;
+	else {
+		if (_config.getConfig().rootServ[_config.getConfig().rootServ.size() - 1] == '/')
+			path = _config.getConfig().rootServ.substr(0, _config.getConfig().rootServ.size() - 1);
+		else
+			path = _config.getConfig().rootServ;
+	}
+	return path;
 }
 
 Config &Server::getConfigClass() {
@@ -55,7 +60,6 @@ Config &Server::getConfigClass() {
 
 void Server::setWebserv(Webserv* webserv) {
     _webserv = webserv;
-	//TODO: use all the locations-> each one can have a different rootLoc, uploadDirPath etc.
 }
 
 void    Server::setConfig(Config config) {

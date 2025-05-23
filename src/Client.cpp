@@ -13,7 +13,6 @@ Client::Client(Server& serv) {
     _cgi.setServer(*_server);
     _cgi.setConfig(serv.getConfigClass());
     _cgi.setCGIBin(&_config);
-    // setAutoIndex();//TODO: each location can have different ones
 }
 
 Client::~Client() {
@@ -218,7 +217,7 @@ int Client::handleGetRequest(Request& req) {
     if (_autoindex == true && isFileBrowserRequest(requestPath)) {
         return handleFileBrowserRequest(req, requestPath);
     } else {
-        return handleRegularRequest(req, requestPath);
+        return handleRegularRequest(req);
     }
 }
 
@@ -237,8 +236,10 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         if (actualPath.empty()) actualPath = "/";
     } else {
         // Sub-directory or file within root/
+		locationLevel loc;
+		matchLocation(requestPath, _server->getConfigClass().getConfig(), loc);
         actualPath = requestPath.substr(5); // Remove the /root prefix
-        std::string actualFullPath = _server->getWebRoot() + actualPath;
+        std::string actualFullPath = _server->getWebRoot(loc) + actualPath;
         
         struct stat fileStat;
         if (stat(actualFullPath.c_str(), &fileStat) != 0) {
@@ -272,7 +273,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 }
 
 // Fix for handleRegularRequest in Client.cpp
-int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
+int Client::handleRegularRequest(Request& req) {
     std::string reqPath = req.getPath();
     if (reqPath == "/" || reqPath.empty()) {
         reqPath = "/index.html";
@@ -282,9 +283,13 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     if (end != std::string::npos) {
         reqPath = reqPath.substr(0, end + 1);
     }
-	std::string fullPath = _server->getWebRoot() + requestPath;
 	locationLevel loc;
-	matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
+	if (!matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+		std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getPath() << std::endl;
+		sendErrorResponse(404);
+		return 1;
+	}
+	std::string fullPath = _server->getWebRoot(loc) + reqPath;
 	setAutoIndex(loc);
     // Check if path contains "root" and autoindex is disabled
     if (fullPath.find("root") != std::string::npos && _autoindex == false) {
@@ -298,8 +303,8 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     }
 
     // Check if it's a CGI script
-    if (_cgi.isCGIScript(requestPath)) {
-		std::string fullCgiPath = _server->getWebRoot() + reqPath;
+    if (_cgi.isCGIScript(reqPath)) {
+		std::string fullCgiPath = _server->getWebRoot(loc) + reqPath;
         return _cgi.executeCGI(*this, req, fullCgiPath);
     }
 
@@ -316,7 +321,7 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
     
     // Check if it's a directory
     if (S_ISDIR(fileStat.st_mode)) {
-        return viewDirectory(fullPath, requestPath);
+        return viewDirectory(fullPath, reqPath);
     } else if (!S_ISREG(fileStat.st_mode)) {
         // Not a regular file or directory
         std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
@@ -347,6 +352,10 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
 
 int Client::buildBody(Request &req, std::string fullPath) {
     // Open file
+	// std::ifstream file(fullPath.c_str(), std::ios::binary);//TODO: switch
+	// std::stringstream buffer;
+	// buffer << file.rdbuf();
+	// std::string body = buffer.str();
     int fd = open(fullPath.c_str(), O_RDONLY);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file: " << fullPath << std::endl;
@@ -617,10 +626,12 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 }
 
 int Client::handlePostRequest(Request& req) {
+	locationLevel loc;
+	matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
 	std::string fullPath = getLocationPath(req, "POST");
 	if (fullPath.empty())
 		return 1;
-	std::string cgiPath = _server->getWebRoot() + req.getPath();
+	std::string cgiPath = _server->getWebRoot(loc) + req.getPath();
     if (_cgi.isCGIScript(cgiPath)) {
 		return _cgi.executeCGI(*this, req, cgiPath);
     }
@@ -667,7 +678,6 @@ int Client::handlePostRequest(Request& req) {
 
 int Client::handleDeleteRequest(Request& req) {
 	std::string fullPath = getLocationPath(req, "DELETE");
-	std::cout << "FULLLPATHDELETE: " << fullPath << std::endl;
 	if (fullPath.empty())
 		return 1;
     if (_cgi.isCGIScript(req.getPath())) {
@@ -782,11 +792,6 @@ int    Client::handleRedirect(Request req) {
 
 void Client::sendRedirect(int statusCode, const std::string& location) {
     std::string statusText = getStatusMessage(statusCode);
-    // if (statusCode == 301) {
-    //     statusText = "Moved Permanently";
-    // } else {
-    //     statusText = "Found";
-    // }
     
     // Create HTML body first
     std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
