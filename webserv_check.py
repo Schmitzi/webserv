@@ -175,7 +175,7 @@ def main():
     try:
         test_static_file()
         test_post_upload()
-        test_post_upload_with_content()  # NEW: upload with content
+        test_post_upload_with_content()
         test_delete()
         test_directory_listing()
         test_redirection()
