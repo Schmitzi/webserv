@@ -12,9 +12,8 @@ Client::Client(Server& serv) {
     _cgi.setClient(*this);
     _cgi.setServer(*_server);
     _cgi.setConfig(serv.getConfigClass());
-    _cgi.setConfig(serv.getConfigClass());
     _cgi.setCGIBin(&_config);
-    setAutoIndex();
+    // setAutoIndex();//TODO: each location can have different ones
 }
 
 Client::~Client() {
@@ -61,13 +60,12 @@ void    Client::setConfig(serverLevel config) {
     _config = config;
 }
 
-void    Client::setAutoIndex() {
-    std::map<std::string, locationLevel>::iterator it = _config.locations.begin();
-    if (it != _config.locations.end() && it->second.autoindex == true) {
-        _autoindex = true;
-    } else {
-        _autoindex = false;
-    }
+void    Client::setAutoIndex(locationLevel& loc) {
+	if (loc.autoindex == true) {
+		_autoindex = true;
+	} else {
+		_autoindex = false;
+	}
 }
 
 int Client::acceptConnection(int serverFd) {
@@ -85,7 +83,7 @@ int Client::acceptConnection(int serverFd) {
     
     _cgi.setServer(*_server);
     
-    setAutoIndex();
+    // setAutoIndex();
     
     return 0;
 }
@@ -215,7 +213,7 @@ int Client::handleGetRequest(Request& req) {
         sendErrorResponse(403);
         return 1;
     }
-    
+    setAutoIndex(loc);
     // Separate file browser functionality from regular web serving
     if (_autoindex == true && isFileBrowserRequest(requestPath)) {
         return handleFileBrowserRequest(req, requestPath);
@@ -232,7 +230,7 @@ bool Client::isFileBrowserRequest(const std::string& path) {
 int Client::handleFileBrowserRequest(Request& req, const std::string& requestPath) {
     // Remove "/root" prefix to get the actual path relative to web root
     std::string actualPath;
-    if (requestPath == "/root" || requestPath == "/root/") {//TODO: check
+    if (requestPath == "/root" || requestPath == "/root/") {
         actualPath = "/";
     } else if (requestPath.find("/root/") == 0) {
         actualPath = requestPath.substr(5); // Remove "/root"
@@ -248,7 +246,6 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
             sendErrorResponse(404);
             return 1;
         }
-        
         if (S_ISDIR(fileStat.st_mode)) {
             // If it's a directory, show directory listing
             return createDirList(actualFullPath, actualPath);
@@ -286,7 +283,9 @@ int Client::handleRegularRequest(Request& req, const std::string& requestPath) {
         reqPath = reqPath.substr(0, end + 1);
     }
 	std::string fullPath = _server->getWebRoot() + requestPath;
-
+	locationLevel loc;
+	matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
+	setAutoIndex(loc);
     // Check if path contains "root" and autoindex is disabled
     if (fullPath.find("root") != std::string::npos && _autoindex == false) {
         std::cout << RED << "Access to directory browser is forbidden when autoindex is off\n" << RESET;
@@ -389,53 +388,38 @@ int Client::buildBody(Request &req, std::string fullPath) {
 
 int Client::viewDirectory(std::string fullPath, std::string requestPath) {
     // Find the location configuration that matches the request path
-    std::string bestMatch = "";
-        
-    // Iterate through all locations to find the best match
-    std::map<std::string, locationLevel>::const_iterator it;
-    for (it = _config.locations.begin(); it != _config.locations.end(); ++it) {
-        std::string locationPath = it->first; // This is the URL path like "/images"
-        
-        // Check if this location is a prefix of the requested path
-        if (requestPath.find(locationPath) == 0) {
-            // If this is a longer match than what we have, use it
-            if (locationPath.length() > bestMatch.length()) {
-                bestMatch = locationPath;
-            }
-        }
-    }
-    
-    // If we found a matching location
-    if (!bestMatch.empty() && _config.locations.find(bestMatch) != _config.locations.end()) {
-        // Check if autoindex is enabled
-        if (_autoindex == true) {
-            return createDirList(fullPath, requestPath);
-        } 
-        // If autoindex is disabled, try to serve index.html in the requested directory
-        else {
-            // Fix: Use the actual requested directory's index.html
-            std::string indexPath = fullPath + "/index.html";
-            struct stat indexStat;
-            if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
-                // index.html exists, serve it
-                Request req;
-                req.setPath(indexPath);
-                if (buildBody(req, indexPath) == 1) {
-                    return 1;
-                }
-                
-                // Set content type and send the file
-                req.setContentType("text/html");
-                sendResponse(req, "keep-alive", req.getBody());
-                std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served index file: " 
-                        << RESET << indexPath << std::endl;
-                return 0;
-            } else {
-                // No autoindex and no index.html, return 403
-                std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
-                sendErrorResponse(403);
-                return 1;
-            }
+    locationLevel loc;
+	if (matchLocation(requestPath, _server->getConfigClass().getConfig(), loc)) {
+		setAutoIndex(loc);
+		if (_autoindex == true) {
+			return createDirList(fullPath, requestPath);
+		} else {
+			// Fix: Use the actual requested directory's index.html
+			std::string indexPath = fullPath;
+			if (indexPath[indexPath.size() - 1] != '/')
+				indexPath += "/";
+			indexPath += "index.html";
+			struct stat indexStat;
+			if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
+				// index.html exists, serve it
+				Request req;
+				req.setPath(indexPath);
+				if (buildBody(req, indexPath) == 1) {
+					return 1;
+				}
+				
+				// Set content type and send the file
+				req.setContentType("text/html");
+				sendResponse(req, "keep-alive", req.getBody());
+				std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served index file: " 
+						<< RESET << indexPath << std::endl;
+				return 0;
+			} else {
+				// No autoindex and no index.html, return 403
+				std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
+				sendErrorResponse(403);
+				return 1;
+			}
         }
     } 
     // No matching location found, check if there's a default location
