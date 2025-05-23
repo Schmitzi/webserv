@@ -316,11 +316,17 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
     
     if (requestPath == "/root" || requestPath == "/root/") {
         actualPath = "/";
-        std::string actualFullPath = _server->getWebRoot(loc) + actualPath;
+    } else if (requestPath.find("/root/") == 0) {
+        actualPath = requestPath.substr(5); // Remove "/root"
+        if (actualPath.empty()) actualPath = "/";
+    } else {
+        // Sub-directory or file within root/
+        actualPath = requestPath.substr(5); // Remove the /root prefix
+        std::string actualFullPath = _server->getWebRoot() + actualPath;
         
         struct stat fileStat;
         if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-            std::cout << RED << _webserv->getTimeStamp() << "Root directory not found: " << RESET << actualFullPath << std::endl;
+            std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << actualFullPath  << "\n";
             sendErrorResponse(404);
             return 1;
         }
@@ -343,11 +349,10 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         
         struct stat fileStat;
         if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-            std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << actualFullPath << std::endl;
+            std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << actualFullPath << "\n";
             sendErrorResponse(404);
             return 1;
         }
-        
         if (S_ISDIR(fileStat.st_mode)) {
             return createDirList(actualFullPath, actualPath);
         } 
@@ -392,7 +397,9 @@ int Client::handleRegularRequest(Request& req) {
     if (end != std::string::npos) {
         reqPath = reqPath.substr(0, end + 1);
     }
-
+	locationLevel loc;
+	matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
+	setAutoIndex(loc);
 	std::string fullPath = _server->getWebRoot(loc) + reqPath;
 
 	setAutoIndex(loc);
