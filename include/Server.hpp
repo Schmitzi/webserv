@@ -33,7 +33,7 @@ class Server {
         struct sockaddr_in  &getAddr();
         int                 &getFd();
         std::string   		getUploadDir(Client& client, Request& req);
-        std::string const   &getWebRoot();
+        std::string			getWebRoot(locationLevel& loc);
         Config              &getConfigClass();
         void                setFd(int const fd);
         void                setWebserv(Webserv* webserv);
