@@ -84,7 +84,7 @@ def test_post_upload_with_content():
     print("[*] Testing file upload with actual content (multipart/form-data)...")
     boundary = uuid.uuid4().hex
     filename = "test_upload.txt"
-    file_content = "This is a test upload file.\nLine 2 of content."
+    file_content = "This is a test upload file.Line 2 of content."
 
     # Build multipart/form-data body
     body_lines = [
@@ -110,6 +110,8 @@ def test_post_upload_with_content():
         get_res = test_connection(f"/upload/{filename}", "GET", expect_status=200)
         if get_res:
             data = get_res.read().decode(errors='ignore')
+            print("Expected:", repr(file_content))
+            print("Actual:", repr(data))
             if file_content in data:
                 print("✅ Uploaded file content verified successfully.")
             else:

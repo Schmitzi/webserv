@@ -321,8 +321,10 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         if (actualPath.empty()) actualPath = "/";
     } else {
         // Sub-directory or file within root/
+		locationLevel loc;
+		matchLocation(requestPath, _server->getConfigClass().getConfig(), loc);
         actualPath = requestPath.substr(5); // Remove the /root prefix
-        std::string actualFullPath = _server->getWebRoot() + actualPath;
+        std::string actualFullPath = _server->getWebRoot(loc) + actualPath;
         
         struct stat fileStat;
         if (stat(actualFullPath.c_str(), &fileStat) != 0) {
@@ -398,7 +400,12 @@ int Client::handleRegularRequest(Request& req) {
         reqPath = reqPath.substr(0, end + 1);
     }
 	locationLevel loc;
-	matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
+	if (!matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+		std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getPath() << std::endl;
+		sendErrorResponse(404);
+		return 1;
+	}
+	std::string fullPath = _server->getWebRoot(loc) + reqPath;
 	setAutoIndex(loc);
 	std::string fullPath = _server->getWebRoot(loc) + reqPath;
 
@@ -780,7 +787,6 @@ int Client::handlePostRequest(Request& req) {
 
 int Client::handleDeleteRequest(Request& req) {
 	std::string fullPath = getLocationPath(req, "DELETE");
-	std::cout << "FULLLPATHDELETE: " << fullPath << std::endl;
 	if (fullPath.empty())
 		return 1;
     if (_cgi.isCGIScript(req.getPath())) {
