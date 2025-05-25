@@ -99,6 +99,8 @@ int Webserv::run() {
         _servers[i]->getConfigClass().getPort() << "\n";
     }
 
+    
+
     while (1) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
