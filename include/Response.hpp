@@ -8,6 +8,7 @@
 
 struct serverLevel;
 struct locationLevel;
+class Server;
 
 #define HTTP_STATUS_CODES \
 	X(100, Continue, "Continue") \

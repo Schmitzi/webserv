@@ -1,3 +1,2 @@
 This is a test upload file.
 Line 2 of content.
-🚀 Unicode test
