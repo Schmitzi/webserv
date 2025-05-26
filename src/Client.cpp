@@ -97,7 +97,10 @@ void Client::displayConnection() {
 int Client::recieveData() {
     char buffer[4096];
     memset(buffer, 0, sizeof(buffer));
+    char buffer[4096];
+    memset(buffer, 0, sizeof(buffer));
     
+    int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
     int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
     
     if (bytesRead > 0) {
@@ -247,15 +250,23 @@ int Client::processRequest(std::string &buffer) {
         _requestBuffer.clear();
         return 1;
     }
-	locationLevel loc;
-	if (matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
-		if (loc.hasRedirect == true) {
-			sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
-			return 0;
-		}
-	}
+    
+    if (req.getMethod() != "GET" && req.getMethod() != "POST" && req.getMethod() != "DELETE") {
+        std::cout << RED << _webserv->getTimeStamp() 
+                << "Method not allowed: " << req.getMethod() << RESET << std::endl;
+        sendErrorResponse(405);
+        _requestBuffer.clear();
+        return 1;
+    }
 
-    // Handle multipart uploads separately
+    locationLevel loc;
+    if (matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+        if (loc.hasRedirect == true) {
+            sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
+            return 0;
+        }
+    }
+    
     if (req.getContentType().find("multipart/form-data") != std::string::npos) {
         int result = handleMultipartPost(req);
         
@@ -977,6 +988,13 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     //     contentType = req.getMimeType(req.getPath());
     // }
     
+    // if (req.getPath().empty() || req.getPath() == "/" || req.getPath() == "/index.html" || req.getPath() == "/index.html") {
+    //     contentType = "text/html";
+    // } else {
+        // Use the request's path to determine MIME type
+    //     contentType = req.getMimeType(req.getPath());
+    // }
+     in headers
     std::map<std::string, std::string> headers = req.getHeaders();
     bool isChunked = false;
     std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
@@ -1156,6 +1174,166 @@ std::string Client::decodeChunkedBody(const std::string& chunkedData) {
         // Check if we have enough data for this chunk
         if (pos + chunkSize > chunkedData.length()) {
             std::cerr << BLUE << "Incomplete chunk data: expected " << chunkSize 
+                      << " bytes, but only " << (chunkedData.length() - pos) << " available" << RESET << std::endl;
+            break;
+        }
+        
+        std::string chunkData = chunkedData.substr(pos, chunkSize);
+        decodedBody += chunkData;
+        
+        std::cout << BLUE << _webserv->getTimeStamp() << "Decoded chunk: \"" 
+                  << chunkData << "\"" << RESET << std::endl;
+        
+        pos += chunkSize;
+        
+        if (pos < chunkedData.length() && chunkedData[pos] == '\r') {
+            pos++;
+        }
+        if (pos < chunkedData.length() && chunkedData[pos] == '\n') {
+            pos++;
+        }
+    }
+    
+    std::cout << GREEN << _webserv->getTimeStamp() << "Total decoded body: \"" 
+              << decodedBody << "\" (" << decodedBody.length() << " bytes)" << RESET << std::endl;
+    
+    return decodedBody;
+}
+
+bool Client::isChunkedRequest(const Request& req) {
+    std::map<std::string, std::string> headers = const_cast<Request&>(req).getHeaders();
+    std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
+    if (it != headers.end() && it->second.find("chunked") != std::string::npos) {
+        return true;
+    }   
+    return false;
+}
+
+std::string Client::decodeChunkedBody(const std::string& chunkedData) {
+    std::string decodedBody;
+    size_t pos = 0;
+    
+    std::cout << BLUE << _webserv->getTimeStamp() << "Decoding chunked data, total size: " 
+              << chunkedData.length() << " bytes" << RESET << std::endl;
+    
+    while (pos < chunkedData.length()) {
+        // Find the end of the chunk size line (looking for \r\n)
+        size_t crlfPos = chunkedData.find("\r\n", pos);
+        if (crlfPos == std::string::npos) {
+            crlfPos = chunkedData.find("\n", pos);
+            if (crlfPos == std::string::npos) {
+                std::cerr << RED << "Malformed chunked data: no CRLF after chunk size" << RESET << std::endl;
+                break;
+            }
+        }
+        
+        std::string chunkSizeStr = chunkedData.substr(pos, crlfPos - pos);
+        
+        size_t semicolon = chunkSizeStr.find(';');
+        if (semicolon != std::string::npos) {
+            chunkSizeStr = chunkSizeStr.substr(0, semicolon);
+        }
+        
+        chunkSizeStr.erase(0, chunkSizeStr.find_first_not_of(" \t"));
+        chunkSizeStr.erase(chunkSizeStr.find_last_not_of(" \t") + 1);
+        
+        size_t chunkSize = 0;
+        std::istringstream hexStream(chunkSizeStr);
+        hexStream >> std::hex >> chunkSize;
+        
+        std::cout << BLUE << _webserv->getTimeStamp() << "Chunk size: 0x" << chunkSizeStr 
+                  << " (" << chunkSize << " bytes)" << RESET << std::endl;
+        
+        if (chunkSize == 0) {
+            std::cout << GREEN << _webserv->getTimeStamp() << "End of chunked data reached" << RESET << std::endl;
+            break;
+        }
+        
+        pos = crlfPos + (chunkedData[crlfPos] == '\r' ? 2 : 1);
+        
+        // Check if we have enough data for this chunk
+        if (pos + chunkSize > chunkedData.length()) {
+            std::cerr << RED << "Incomplete chunk data: expected " << chunkSize 
+                      << " bytes, but only " << (chunkedData.length() - pos) << " available" << RESET << std::endl;
+            break;
+        }
+        
+        std::string chunkData = chunkedData.substr(pos, chunkSize);
+        decodedBody += chunkData;
+        
+        std::cout << BLUE << _webserv->getTimeStamp() << "Decoded chunk: \"" 
+                  << chunkData << "\"" << RESET << std::endl;
+        
+        pos += chunkSize;
+        
+        if (pos < chunkedData.length() && chunkedData[pos] == '\r') {
+            pos++;
+        }
+        if (pos < chunkedData.length() && chunkedData[pos] == '\n') {
+            pos++;
+        }
+    }
+    
+    std::cout << GREEN << _webserv->getTimeStamp() << "Total decoded body: \"" 
+              << decodedBody << "\" (" << decodedBody.length() << " bytes)" << RESET << std::endl;
+    
+    return decodedBody;
+}
+
+bool Client::isChunkedRequest(const Request& req) {
+    std::map<std::string, std::string> headers = const_cast<Request&>(req).getHeaders();
+    std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
+    if (it != headers.end() && it->second.find("chunked") != std::string::npos) {
+        return true;
+    }   
+    return false;
+}
+
+std::string Client::decodeChunkedBody(const std::string& chunkedData) {
+    std::string decodedBody;
+    size_t pos = 0;
+    
+    std::cout << BLUE << _webserv->getTimeStamp() << "Decoding chunked data, total size: " 
+              << chunkedData.length() << " bytes" << RESET << std::endl;
+    
+    while (pos < chunkedData.length()) {
+        // Find the end of the chunk size line (looking for \r\n)
+        size_t crlfPos = chunkedData.find("\r\n", pos);
+        if (crlfPos == std::string::npos) {
+            crlfPos = chunkedData.find("\n", pos);
+            if (crlfPos == std::string::npos) {
+                std::cerr << RED << "Malformed chunked data: no CRLF after chunk size" << RESET << std::endl;
+                break;
+            }
+        }
+        
+        std::string chunkSizeStr = chunkedData.substr(pos, crlfPos - pos);
+        
+        size_t semicolon = chunkSizeStr.find(';');
+        if (semicolon != std::string::npos) {
+            chunkSizeStr = chunkSizeStr.substr(0, semicolon);
+        }
+        
+        chunkSizeStr.erase(0, chunkSizeStr.find_first_not_of(" \t"));
+        chunkSizeStr.erase(chunkSizeStr.find_last_not_of(" \t") + 1);
+        
+        size_t chunkSize = 0;
+        std::istringstream hexStream(chunkSizeStr);
+        hexStream >> std::hex >> chunkSize;
+        
+        std::cout << BLUE << _webserv->getTimeStamp() << "Chunk size: 0x" << chunkSizeStr 
+                  << " (" << chunkSize << " bytes)" << RESET << std::endl;
+        
+        if (chunkSize == 0) {
+            std::cout << GREEN << _webserv->getTimeStamp() << "End of chunked data reached" << RESET << std::endl;
+            break;
+        }
+        
+        pos = crlfPos + (chunkedData[crlfPos] == '\r' ? 2 : 1);
+        
+        // Check if we have enough data for this chunk
+        if (pos + chunkSize > chunkedData.length()) {
+            std::cerr << RED << "Incomplete chunk data: expected " << chunkSize 
                       << " bytes, but only " << (chunkedData.length() - pos) << " available" << RESET << std::endl;
             break;
         }

@@ -265,6 +265,7 @@ void Webserv::handleClientActivity(int clientFd) {
         removeFromEpoll(clientFd);
         close(clientFd);
         
+        // Remove from client list
         for (size_t i = 0; i < _clients.size(); i++) {
             if (_clients[i]->getFd() == clientFd) {
                 delete _clients[i];

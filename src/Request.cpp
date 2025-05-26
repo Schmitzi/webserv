@@ -131,7 +131,7 @@ void Request::parse(const std::string& rawRequest) {
         requestLine = requestLine.substr(0, end + 1);
     }
 
-	std::istringstream lineStream(requestLine);
+    std::istringstream lineStream(requestLine);
     std::string target;
     lineStream >> _method >> target >> _version;
 
@@ -157,10 +157,13 @@ void Request::parse(const std::string& rawRequest) {
     if (end != std::string::npos) {
         _path = _path.substr(0, end + 1);
     }
-	size_t reqPathEnd = _path.find_last_of("/");
-	if (reqPathEnd != std::string::npos)
-		_reqPath = _path.substr(0, reqPathEnd + 1);
-    if (_method != "GET" && _method != "POST" && _method != "DELETE") {
+    
+    size_t reqPathEnd = _path.find_last_of("/");
+    if (reqPathEnd != std::string::npos)
+        _reqPath = _path.substr(0, reqPathEnd + 1);
+    
+    if (_method != "GET" && _method != "POST" && _method != "DELETE" && 
+        _method != "HEAD" && _method != "OPTIONS") {
         _method = "BAD";
         return;
     }
