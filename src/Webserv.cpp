@@ -1,8 +1,5 @@
 #include "../include/Webserv.hpp"
 
-
-// Othodox Cannonical Form
-
 Webserv::Webserv() : _epollFd(-1) { 
     _confParser = ConfigParser();
 	_configs = _confParser.getAllConfigs();
@@ -76,7 +73,6 @@ Config &Webserv::getDefaultConfig() {
 }
 
 int Webserv::run() {
-    // Create epoll
     _epollFd = epoll_create1(EPOLL_CLOEXEC);
     if (_epollFd == -1) {
         ft_error("epoll_create1() failed");
@@ -90,10 +86,9 @@ int Webserv::run() {
     if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
         _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {
         std::cerr << RED << getTimeStamp() << "Failed to initialize server: " << RESET << i + 1 << std::endl;
-        continue; // Skip this server but try to initialize others
+        continue;
     }
     
-    // Add server socket to poll array
     if (addToEpoll(_servers[i]->getFd(), EPOLLIN) != 0) {
         std::cerr << RED << getTimeStamp() << "Failed to add server to epoll: " << RESET << i + 1 << std::endl;
         continue;
@@ -104,41 +99,39 @@ int Webserv::run() {
         _servers[i]->getConfigClass().getPort() << "\n";
     }
 
-    
-
     while (1) {
-        // Wait for events
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
             if (errno == EINTR) {
-                continue; // Interrupted by signal, continue
+                continue;
             }
             ft_error("epoll_wait() failed");
             continue;
         }
         
-        // Process all events
         for (int i = 0; i < nfds; i++) {
             int fd = _events[i].data.fd;
             uint32_t eventMask = _events[i].events;
             
-            // Check for errors
-            if (eventMask & (EPOLLERR | EPOLLHUP)) {
-                std::cerr << RED << getTimeStamp() << "Error on fd " << fd << RESET << std::endl;
+            if (eventMask & EPOLLHUP) {
+                std::cout << BLUE << getTimeStamp() << "Client disconnected: fd " << fd << RESET << std::endl;
+                handleClientDisconnect(fd);
+                continue;
+            }
+            
+            if (eventMask & EPOLLERR) {
+                std::cerr << RED << getTimeStamp() << "Socket error on fd " << fd << RESET << std::endl;
                 handleErrorEvent(fd);
                 continue;
             }
             
-            // Check if this is a server listening socket
             Server* activeServer = findServerByFd(fd);
             
             if (activeServer) {
-                // New connection on a server socket
                 if (eventMask & EPOLLIN) {
                     handleNewConnection(*activeServer);
                 }
             } else {
-                // Activity on a client socket
                 if (eventMask & EPOLLIN) {
                     handleClientActivity(fd);
                 }
@@ -184,7 +177,6 @@ void Webserv::handleErrorEvent(int fd) {
     std::cerr << RED << getTimeStamp() << "Error on unknown fd: " << fd << RESET << std::endl;
 }
 
-// Add a file descriptor to the poll array
 int Webserv::addToEpoll(int fd, short events) {  
     struct epoll_event event;
     event.events = events;
@@ -198,7 +190,6 @@ int Webserv::addToEpoll(int fd, short events) {
     return 0;
 }
 
-// Remove a file descriptor from the poll array by index
 void Webserv::removeFromEpoll(int fd) {
     if (_epollFd < 0 || fd < 0) {
         return;
@@ -209,6 +200,23 @@ void Webserv::removeFromEpoll(int fd) {
             std::cerr << "Warning: epoll_ctl DEL failed for fd " << fd << ": " << strerror(errno) << std::endl;
         }
     }
+}
+
+void Webserv::handleClientDisconnect(int fd) {
+    removeFromEpoll(fd);
+
+    for (size_t i = 0; i < _clients.size(); i++) {
+        if (_clients[i]->getFd() == fd) {
+            std::cout << GREEN << getTimeStamp() << "Cleaned up client connection: " << fd << RESET << std::endl;
+            
+            close(_clients[i]->getFd());
+            delete _clients[i];
+            _clients.erase(_clients.begin() + i);
+            return;
+        }
+    }
+    
+    std::cerr << RED << getTimeStamp() << "Disconnect on unknown fd: " << fd << RESET << std::endl;
 }
 
 void Webserv::handleNewConnection(Server &server) {
@@ -255,7 +263,6 @@ void Webserv::handleClientActivity(int clientFd) {
         removeFromEpoll(clientFd);
         close(clientFd);
         
-        // Remove from client list
         for (size_t i = 0; i < _clients.size(); i++) {
             if (_clients[i]->getFd() == clientFd) {
                 delete _clients[i];

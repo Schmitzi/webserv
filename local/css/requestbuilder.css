@@ -73,7 +73,8 @@ h1, h2 {
 .info {
     margin-top: 20px;
     padding: 10px;
-    background-color: #e8f4f8;
+    /* background-color: #e8f4f8; */
+    background-color: #333;
     border-radius: 5px;
 }
 
