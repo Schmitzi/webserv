@@ -75,14 +75,11 @@ int Client::acceptConnection(int serverFd) {
         return 1;
     }
     
-    // Set up server-specific configs
     Config *temp = new Config(_server->getConfigClass());
     setConfig(temp->getConfig());
     delete temp;
     
     _cgi.setServer(*_server);
-    
-    // setAutoIndex();
     
     return 0;
 }
@@ -117,30 +114,19 @@ int Client::recieveData() {
         std::cout << BLUE << _webserv->getTimeStamp() 
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
-
-        bool hasCompleteHeaders = (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
-                                   _requestBuffer.find("\n\n") != std::string::npos);
         
-        if (!hasCompleteHeaders) {
-            return 0;
-        }
-        
-        // Check if this is a chunked request
         bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
                           _requestBuffer.find("chunked") != std::string::npos);
         
         if (isChunked) {
-            // For chunked requests, check if we have the complete chunked body
             if (!isChunkedBodyComplete(_requestBuffer)) {
                 std::cout << BLUE << _webserv->getTimeStamp() 
                           << "Chunked body incomplete, waiting for more data" << RESET << std::endl;
                 return 0;
             }
         } else {
-            // For regular requests, check Content-Length if present
             size_t contentLengthPos = _requestBuffer.find("Content-Length:");
             if (contentLengthPos != std::string::npos) {
-                // Extract Content-Length value
                 size_t valueStart = contentLengthPos + 15;
                 while (valueStart < _requestBuffer.length() && 
                        (_requestBuffer[valueStart] == ' ' || _requestBuffer[valueStart] == '\t')) {
@@ -190,7 +176,7 @@ int Client::recieveData() {
         return processResult;
     } 
     else if (bytesRead == 0) {
-        std::cout << RED << _webserv->getTimeStamp() 
+        std::cout << BLUE << _webserv->getTimeStamp() 
                   << "Client disconnected cleanly: " << _fd << RESET << "\n";
         return 1;
     }
@@ -199,7 +185,7 @@ int Client::recieveData() {
             return 0;
         } 
         else if (errno == ECONNRESET) {
-            std::cout << RED << _webserv->getTimeStamp() 
+            std::cout << BLUE << _webserv->getTimeStamp() 
                       << "Connection reset by peer on fd " << _fd << RESET << "\n";
             return 1;
         }
@@ -310,13 +296,11 @@ int Client::handleGetRequest(Request& req) {
 		sendErrorResponse(404);
 		return 1;
 	}
-    // Check for path traversal attempts
     if (requestPath.find("../") != std::string::npos) {
         sendErrorResponse(403);
         return 1;
     }
     setAutoIndex(loc);
-    // Separate file browser functionality from regular web serving
     if (_autoindex == true && isFileBrowserRequest(requestPath)) {
         return handleFileBrowserRequest(req, requestPath);
     } else {
@@ -330,15 +314,13 @@ bool Client::isFileBrowserRequest(const std::string& path) {
 }
 
 int Client::handleFileBrowserRequest(Request& req, const std::string& requestPath) {
-    // Remove "/root" prefix to get the actual path relative to web root
     std::string actualPath;
     if (requestPath == "/root" || requestPath == "/root/") {
         actualPath = "/";
     } else if (requestPath.find("/root/") == 0) {
-        actualPath = requestPath.substr(5); // Remove "/root"
+        actualPath = requestPath.substr(5);
         if (actualPath.empty()) actualPath = "/";
     } else {
-        // Sub-directory or file within root/
 		locationLevel loc;
 		matchLocation(requestPath, _server->getConfigClass().getConfig(), loc);
         actualPath = requestPath.substr(5); // Remove the /root prefix
@@ -351,22 +333,18 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
             return 1;
         }
         if (S_ISDIR(fileStat.st_mode)) {
-            // If it's a directory, show directory listing
             return createDirList(actualFullPath, actualPath);
         } else if (S_ISREG(fileStat.st_mode)) {
-            // If it's a regular file, serve it
             if (buildBody(req, actualFullPath) == 1) {
                 return 1;
             }
             
-            // Set proper content type and serve the file
             req.setContentType(req.getMimeType(actualFullPath));
             sendResponse(req, "keep-alive", req.getBody());
             std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served file from browser: " 
                     << RESET << actualFullPath << std::endl;
             return 0;
         } else {
-            // Not a regular file or directory
             std::cout << _webserv->getTimeStamp() << "Not a regular file or directory: " << actualFullPath << std::endl;
             sendErrorResponse(403);
             return 1;
@@ -375,26 +353,30 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 	return 0;
 }
 
-// Fix for handleRegularRequest in Client.cpp
 int Client::handleRegularRequest(Request& req) {
+    locationLevel loc;
+
+    if (!matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+        std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getPath() << std::endl;
+        sendErrorResponse(404);
+        return 1;
+    }
+
     std::string reqPath = req.getPath();
     if (reqPath == "/" || reqPath.empty()) {
-        reqPath = "/index.html";
+        // reqPath = "/index.html";
+        reqPath = loc.indexFile;
     }
 
     size_t end = reqPath.find_last_not_of(" \t\r\n");
     if (end != std::string::npos) {
         reqPath = reqPath.substr(0, end + 1);
     }
-	locationLevel loc;
-	if (!matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
-		std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getPath() << std::endl;
-		sendErrorResponse(404);
-		return 1;
-	}
+
 	std::string fullPath = _server->getWebRoot(loc) + reqPath;
+
 	setAutoIndex(loc);
-    // Check if path contains "root" and autoindex is disabled
+
     if (fullPath.find("root") != std::string::npos && _autoindex == false) {
         std::cout << RED << "Access to directory browser is forbidden when autoindex is off\n" << RESET;
         sendErrorResponse(403);
@@ -405,16 +387,13 @@ int Client::handleRegularRequest(Request& req) {
         return 1;
     }
 
-    // Check if it's a CGI script
     if (_cgi.isCGIScript(reqPath)) {
 		std::string fullCgiPath = _server->getWebRoot(loc) + reqPath;
         return _cgi.executeCGI(*this, req, fullCgiPath);
     }
 
-    std::cout << _webserv->getTimeStamp() << "Handling GET request for path: " << req.getPath() << std::endl;
-    std::cout << _webserv->getTimeStamp() << "Full file path: " << fullPath << "\n";
+    std::cout << BLUE << _webserv->getTimeStamp() << "Handling GET request for path: " << RESET << req.getPath() + "\n";
 
-    // Check if file exists and is regular file
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
         std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << fullPath << "\n";
@@ -422,43 +401,34 @@ int Client::handleRegularRequest(Request& req) {
         return 1;
     }
     
-    // Check if it's a directory
     if (S_ISDIR(fileStat.st_mode)) {
         return viewDirectory(fullPath, reqPath);
     } else if (!S_ISREG(fileStat.st_mode)) {
-        // Not a regular file or directory
         std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
         sendErrorResponse(403);
         return 1;
     }
     
-    // Build response body from file
     if (buildBody(req, fullPath) == 1) {
         return 1;
     }
 
-    // Set content type based on file extension
     std::string contentType = req.getMimeType(fullPath);
     if (fullPath.find(".html") != std::string::npos || 
         reqPath == "/" || 
-        reqPath == "/index.html") {
+        // reqPath == "/index.html") {
+        reqPath == loc.indexFile) { // TODO: is this correct?
         contentType = "text/html";
     }
 
     req.setContentType(contentType);
 
-    // Send response
     sendResponse(req, "close", req.getBody());
     std::cout << GREEN << _webserv->getTimeStamp() << "Successfully sent file: " << RESET << fullPath << std::endl;
     return 0;
 }
 
 int Client::buildBody(Request &req, std::string fullPath) {
-    // Open file
-	// std::ifstream file(fullPath.c_str(), std::ios::binary);//TODO: switch
-	// std::stringstream buffer;
-	// buffer << file.rdbuf();
-	// std::string body = buffer.str();
     int fd = open(fullPath.c_str(), O_RDONLY);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file: " << fullPath << std::endl;
@@ -466,7 +436,6 @@ int Client::buildBody(Request &req, std::string fullPath) {
         return 1;
     }
     
-    // Get file size
     struct stat fileStat;
     if (fstat(fd, &fileStat) < 0) {
         close(fd);
@@ -474,24 +443,17 @@ int Client::buildBody(Request &req, std::string fullPath) {
         return 1;
     }
     
-    // Allocate a buffer for the entire file
     std::vector<char> buffer(fileStat.st_size);
-    
-    // Read the entire file at once
+
     ssize_t bytesRead = read(fd, buffer.data(), fileStat.st_size);
     close(fd);
-    
-    // Set the body content
-    // req.setBody(fileContent);// + "\r\n");
 
-    // Check for read errors
     if (bytesRead < 0) {
         std::cout << "Error reading file: " << fullPath << std::endl;
         sendErrorResponse(500);
         return 1;
     }
     
-    // Set the body directly from the buffer without null termination
     std::string fileContent(buffer.data(), bytesRead);
     req.setBody(fileContent);
     
@@ -499,74 +461,65 @@ int Client::buildBody(Request &req, std::string fullPath) {
 }
 
 int Client::viewDirectory(std::string fullPath, std::string requestPath) {
-    // Find the location configuration that matches the request path
     locationLevel loc;
 	if (matchLocation(requestPath, _server->getConfigClass().getConfig(), loc)) {
 		setAutoIndex(loc);
 		if (_autoindex == true) {
 			return createDirList(fullPath, requestPath);
 		} else {
-			// Fix: Use the actual requested directory's index.html
 			std::string indexPath = fullPath;
 			if (indexPath[indexPath.size() - 1] != '/')
 				indexPath += "/";
-			indexPath += "index.html";
+			// indexPath += "index.html";
+            indexPath += loc.indexFile;
 			struct stat indexStat;
 			if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
-				// index.html exists, serve it
+
 				Request req;
 				req.setPath(indexPath);
 				if (buildBody(req, indexPath) == 1) {
 					return 1;
 				}
 				
-				// Set content type and send the file
 				req.setContentType("text/html");
 				sendResponse(req, "keep-alive", req.getBody());
 				std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served index file: " 
 						<< RESET << indexPath << std::endl;
 				return 0;
 			} else {
-				// No autoindex and no index.html, return 403
 				std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
 				sendErrorResponse(403);
 				return 1;
 			}
         }
     } 
-    // No matching location found, check if there's a default location
     else if (_config.locations.find("/") != _config.locations.end()) {
         if (_config.locations.find("/")->second.autoindex) {
             return createDirList(fullPath, requestPath);
-        } 
-        // If autoindex is disabled, try to serve index.html
-        else {
-            // Fix: Use the actual requested directory's index.html
-            std::string indexPath = fullPath + "/index.html";
+        } else {
+
+            // std::string indexPath = fullPath + "/index.html";
+            std::string indexPath = fullPath + loc.indexFile;
             struct stat indexStat;
             if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
-                // index.html exists, serve it
                 Request req;
                 req.setPath(indexPath);
                 if (buildBody(req, indexPath) == 1) {
                     return 1;
                 }
                 
-                // Set content type and send the file
                 req.setContentType("text/html");
                 sendResponse(req, "keep-alive", req.getBody());
                 std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served index file: " 
                         << RESET << indexPath << std::endl;
                 return 0;
             } else {
-                // No autoindex and no index.html, return 403
                 std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
                 sendErrorResponse(403);
                 return 1;
             }
         }
     }
-    // No matching location and no default, return 403
     else {
         std::cout << _webserv->getTimeStamp() << "No matching location for: " << requestPath << std::endl;
         sendErrorResponse(403);
@@ -623,26 +576,20 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
         "    </div>\n"
         "    <ul>\n";
     
-    // Add parent directory link if not at root
     if (requestUri != "/") {
-        // Calculate parent directory path
         std::string parentUri = requestUri;
         
-        // Remove trailing slash if present
         if (parentUri[parentUri.length() - 1] == '/') {
             parentUri = parentUri.substr(0, parentUri.length() - 1);
         }
         
-        // Find the last slash
         size_t lastSlash = parentUri.find_last_of('/');
         if (lastSlash != std::string::npos) {
-            // Get parent directory path
             parentUri = parentUri.substr(0, lastSlash + 1);
         } else {
             parentUri = "/";
         }
         
-        // Fix: Create parent directory link WITHOUT /root/ prefix
         html += "        <li><a href=\"" + parentUri + "\">Parent Directory</a></li>\n";
     }
     
@@ -650,12 +597,10 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
     while ((entry = readdir(dir)) != NULL) {
         std::string name = entry->d_name;
         
-        // Skip . and .. entries
         if (name == "." || name == "..") {
             continue;
         }
         
-        // Check if it's a directory
         std::string entryPath = dirPath + "/" + name;
         struct stat entryStat;
         if (stat(entryPath.c_str(), &entryStat) == 0) {
@@ -664,7 +609,6 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
             }
         }
         
-        // Fix: Create link WITHOUT /root/ prefix to avoid path doubling
         html += "        <li><a href=\"" + requestUri;
         if (requestUri[requestUri.length() - 1] != '/') {
             html += "/";
@@ -776,12 +720,6 @@ int Client::handlePostRequest(Request& req) {
     }
     
     std::cout << _webserv->getTimeStamp() << "Writing to file: " << fullPath << "\n";
-    // std::cout << _webserv->getTimeStamp() << "Content to write: ";
-    // if (!contentToWrite.empty()) {
-    //     std::cout << "\"" << contentToWrite << "\" (" << contentToWrite.length() << " bytes)\n";
-    // } else {
-    //     std::cout << "(empty)\n";
-    // }
     
     ssize_t bytesWritten = write(fd, contentToWrite.c_str(), contentToWrite.length());
     close(fd);
@@ -965,16 +903,14 @@ void Client::findContentType(Request& req) {
     size_t start = raw.find("Content-Type: ");
     
     if (start == std::string::npos) {
-        // Content-Type header not found
         if (raw.find("POST") == 0) {
-            std::cout << "Warning: POST request without Content-Type header" << std::endl;
+            std::cout << RED <<  "Warning: POST request without Content-Type header\n" << RESET;
             req.setContentType("application/octet-stream");
         }
         return;
     }
     
-    // Extract the full Content-Type header value
-    start += 14; // Skip "Content-Type: "
+    start += 14;
     size_t end = raw.find("\r\n", start);
     if (end == std::string::npos) {
         end = raw.find("\n", start);
@@ -983,24 +919,18 @@ void Client::findContentType(Request& req) {
         }
     }
     
-    // Get the complete Content-Type value
     std::string contentType = raw.substr(start, end - start);
-    req.setContentType(contentType); // Store the full Content-Type
+    req.setContentType(contentType);
     
-    //std::cout << "Found Content-Type: [" << contentType << "]" << std::endl;
-    
-    // Check for boundary parameter
     size_t boundaryPos = contentType.find("; boundary=");
     if (boundaryPos != std::string::npos) {
-        std::string boundary = contentType.substr(boundaryPos + 11); // +11 for "; boundary="
+        std::string boundary = contentType.substr(boundaryPos + 11);
         
         // Clean up boundary if needed
         size_t quotePos = boundary.find("\"");
         if (quotePos != std::string::npos) {
             boundary = boundary.substr(0, quotePos);
         }
-        
-        //std::cout << "Boundary: [" << boundary << "]" << std::endl;
         
         if (boundary.empty()) {
             std::cout << "Warning: Empty boundary found" << std::endl;
@@ -1011,20 +941,15 @@ void Client::findContentType(Request& req) {
 }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
-    // Create HTTP response
     std::string response = "HTTP/1.1 200 OK\r\n";
+    // std::string contentType;
     
-    // Get proper content type from the request path, not just the path variable
-    std::string contentType;
+    // if (req.getPath().empty() || req.getPath() == "/" || req.getPath() == "/index.html") {
+    //     contentType = "text/html";
+    // } else {
+    //     contentType = req.getMimeType(req.getPath());
+    // }
     
-    if (req.getPath().empty() || req.getPath() == "/" || req.getPath() == "/index.html") {
-        contentType = "text/html";
-    } else {
-        // Use the request's path to determine MIME type
-        contentType = req.getMimeType(req.getPath());
-    }
-    
-    // Check for chunked transfer encoding in headers
     std::map<std::string, std::string> headers = req.getHeaders();
     bool isChunked = false;
     std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
@@ -1032,18 +957,14 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
         isChunked = true;
     }
     
-    // Set Content-Type header
-    response += "Content-Type: " + contentType + "\r\n";
+    response += "Content-Type: " + req.getContentType() + "\r\n";
     
-    // Choose which content to use for Content-Length
     std::string content = body;
     
-    // CRITICAL FIX: For POST requests, send a success message if body is empty
     if (req.getMethod() == "POST" && content.empty()) {
         content = "Upload successful";
     }
     
-    // Add remaining headers
     if (!isChunked) {
         response += "Content-Length: " + tostring(content.length()) + "\r\n";
     } else {
@@ -1053,58 +974,54 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     response += "Server: WebServ/1.0\r\n";
     response += "Connection: " + connect + "\r\n";
     response += "Access-Control-Allow-Origin: *\r\n";
-    response += "\r\n"; // CRITICAL: Always add the header separator
+    response += "\r\n";
     
-    // CRITICAL FIX: Always send headers first
     ssize_t headerBytes = send(_fd, response.c_str(), response.length(), 0);
     if (headerBytes < 0) {
         std::cerr << RED << _webserv->getTimeStamp() << "Failed to send headers" << RESET << std::endl;
         return -1;
     }
     
-    std::cout << BLUE << _webserv->getTimeStamp() << "Sent headers (" << headerBytes << " bytes)" << RESET << std::endl;
+    std::cout << GREEN << _webserv->getTimeStamp() << "Sent headers " << RESET <<"(" << headerBytes << " bytes)\n";
     
-    // Send body content if there is any
     if (!content.empty()) {
         if (isChunked) {
-            // Format body as chunked if needed
             const size_t chunkSize = 4096;
             size_t remaining = content.length();
             size_t offset = 0;
             
             while (remaining > 0) {
-                size_t currentChunkSize = (remaining < chunkSize) ? remaining : chunkSize;
+                size_t currentChunkSize;
+                if (remaining < chunkSize) 
+                    currentChunkSize = remaining;
+                else 
+                    currentChunkSize = chunkSize;
                 
-                // Add chunk header (size in hex)
                 std::stringstream hexStream;
                 hexStream << std::hex << currentChunkSize;
                 std::string chunkHeader = hexStream.str() + "\r\n";
                 send(_fd, chunkHeader.c_str(), chunkHeader.length(), 0);
-                
-                // Add chunk data
                 send(_fd, content.c_str() + offset, currentChunkSize, 0);
                 send(_fd, "\r\n", 2, 0);
-                
                 offset += currentChunkSize;
                 remaining -= currentChunkSize;
             }
             
-            // Add terminating chunk
             send(_fd, "0\r\n\r\n", 5, 0);
             
-            std::cout << GREEN << _webserv->getTimeStamp() << "Sent chunked body (" << content.length() << " bytes)" << RESET << std::endl;
-            return content.length(); // Return original content length
+            std::cout << GREEN << _webserv->getTimeStamp() << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
+            return content.length();
         } else {
             ssize_t bodyBytes = send(_fd, content.c_str(), content.length(), 0);
             if (bodyBytes < 0) {
-                std::cerr << RED << _webserv->getTimeStamp() << "Failed to send body" << RESET << std::endl;
+                std::cerr << RED << _webserv->getTimeStamp() << "Failed to send body" << RESET <<"\n";
                 return -1;
             }
-            std::cout << GREEN << _webserv->getTimeStamp() << "Sent body (" << bodyBytes << " bytes)" << RESET << std::endl;
+            std::cout << GREEN << _webserv->getTimeStamp() << "Sent body " << RESET << "(" << bodyBytes << " bytes)\n";
             return bodyBytes;
         }
     } else {
-        std::cout << GREEN << _webserv->getTimeStamp() << "Response sent (headers only)" << RESET << std::endl;
+        std::cout << GREEN << _webserv->getTimeStamp() << "Response sent (headers only)" << RESET << "\n";
         return 0;
     }
 }
@@ -1145,15 +1062,14 @@ void Client::sendErrorResponse(int statusCode) {
     fcntl(_fd, F_SETFL, flags | O_NONBLOCK);
     
     while (recv(_fd, trashBuffer, sizeof(trashBuffer), MSG_DONTWAIT) > 0) {
-        // Just discard the data
     }
     
-    fcntl(_fd, F_SETFL, flags); // Restore original flags
+    fcntl(_fd, F_SETFL, flags);
     
     if (!send_all(_fd, response)) {
-        std::cerr << "Failed to send error response" << std::endl;
+        std::cerr << RED << _webserv->getTimeStamp() << "Failed to send error response" << std::endl;
     }
-    std::cerr << RED << _webserv->getTimeStamp() << "Error sent: " << statusCode << RESET << "\n";
+    std::cerr << RED << _webserv->getTimeStamp() << "Error sent: " << statusCode << RESET << std::endl;
 }
 
 bool Client::isChunkedRequest(const Request& req) {
@@ -1173,12 +1089,11 @@ std::string Client::decodeChunkedBody(const std::string& chunkedData) {
               << chunkedData.length() << " bytes" << RESET << std::endl;
     
     while (pos < chunkedData.length()) {
-        // Find the end of the chunk size line (looking for \r\n)
         size_t crlfPos = chunkedData.find("\r\n", pos);
         if (crlfPos == std::string::npos) {
             crlfPos = chunkedData.find("\n", pos);
             if (crlfPos == std::string::npos) {
-                std::cerr << RED << "Malformed chunked data: no CRLF after chunk size" << RESET << std::endl;
+                std::cerr << RED << _webserv->getTimeStamp() << "Malformed chunked data: no CRLF after chunk size" << RESET << std::endl;
                 break;
             }
         }
@@ -1205,11 +1120,15 @@ std::string Client::decodeChunkedBody(const std::string& chunkedData) {
             break;
         }
         
-        pos = crlfPos + (chunkedData[crlfPos] == '\r' ? 2 : 1);
+        if (crlfPos + (chunkedData[crlfPos] == '\r')) {
+            pos = 2;
+        } else {
+            pos = 1;
+        }
         
         // Check if we have enough data for this chunk
         if (pos + chunkSize > chunkedData.length()) {
-            std::cerr << RED << "Incomplete chunk data: expected " << chunkSize 
+            std::cerr << BLUE << "Incomplete chunk data: expected " << chunkSize 
                       << " bytes, but only " << (chunkedData.length() - pos) << " available" << RESET << std::endl;
             break;
         }
