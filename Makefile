@@ -59,6 +59,6 @@ start: re
 	@./webserv
 
 val: re
-	@valgrind --track-origins=yes --leak-check=full --track-fds=all ./webserv config/test.conf
+	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./webserv config/test.conf
 
 .PHONY:		all clean fclean re

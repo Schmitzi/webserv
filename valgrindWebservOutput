@@ -1,0 +1,324 @@
+Removed objects
+All files cleaned
+Compiling exercise
+Exercise built
+Files cleaned and program re-compiled
+[2025-05-26 14:23:07] Initializing server 1 with port 8080
+[2025-05-26 14:23:07] Server started
+[2025-05-26 14:23:07] Server binding to 0.0.0.0:8080
+[2025-05-26 14:23:07] Server 1 is listening on port 8080
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56364
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /index.html HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /index.html
+[2025-05-26 14:23:26] Full file path: local/index.html
+[2025-05-26 14:23:26] Sent headers (138 bytes)
+[2025-05-26 14:23:26] Sent body (2213 bytes)
+[2025-05-26 14:23:26] Successfully sent file: local/index.html
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56368
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /index.html HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /index.html
+[2025-05-26 14:23:26] Full file path: local/index.html
+[2025-05-26 14:23:26] Sent headers (138 bytes)
+[2025-05-26 14:23:26] Sent body (2213 bytes)
+[2025-05-26 14:23:26] Successfully sent file: local/index.html
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56372
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /index.html HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /index.html
+[2025-05-26 14:23:26] Full file path: local/index.html
+[2025-05-26 14:23:26] Sent headers (138 bytes)
+[2025-05-26 14:23:26] Sent body (2213 bytes)
+[2025-05-26 14:23:26] Successfully sent file: local/index.html
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56382
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /nonexistent.html HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /nonexistent.html
+[2025-05-26 14:23:26] Full file path: local/nonexistent.html
+[2025-05-26 14:23:26] File not found: local/nonexistent.html
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56398
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: POST /upload HTTP/1.1
+[2025-05-26 14:23:26] Writing to file: /home/lbaumeis/CCore/projects/webserv/local/upload/upload
+[2025-05-26 14:23:26] Sending success response...
+[2025-05-26 14:23:26] Sent headers (142 bytes)
+[2025-05-26 14:23:26] Sent body (42 bytes)
+[2025-05-26 14:23:26] Successfully uploaded file: /home/lbaumeis/CCore/projects/webserv/local/upload/upload (9 bytes written)
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56414
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: DELETE /upload/testfile.txt HTTP/1.1
+[2025-05-26 14:23:26] File not found for deletion: /home/lbaumeis/CCore/projects/webserv/local/upload/testfile.txt
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56424
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /nonexistent HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /nonexistent
+[2025-05-26 14:23:26] Full file path: local/nonexistent
+[2025-05-26 14:23:26] File not found: local/nonexistent
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56438
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /forbidden HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /forbidden
+[2025-05-26 14:23:26] Full file path: local/forbidden
+[2025-05-26 14:23:26] File not found: local/forbidden
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56442
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Bad request format
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56448
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /test/test.html HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /test/test.html
+[2025-05-26 14:23:26] Full file path: local/test/test.html
+[2025-05-26 14:23:26] Sent headers (135 bytes)
+[2025-05-26 14:23:26] Response sent (headers only)
+[2025-05-26 14:23:26] Successfully sent file: local/test/test.html
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56460
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /test/test.css HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /test/test.css
+[2025-05-26 14:23:26] Full file path: local/test/test.css
+[2025-05-26 14:23:26] Sent headers (134 bytes)
+[2025-05-26 14:23:26] Response sent (headers only)
+[2025-05-26 14:23:26] Successfully sent file: local/test/test.css
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56476
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /test/test.js HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /test/test.js
+[2025-05-26 14:23:26] Full file path: local/test/test.js
+[2025-05-26 14:23:26] Sent headers (148 bytes)
+[2025-05-26 14:23:26] Response sent (headers only)
+[2025-05-26 14:23:26] Successfully sent file: local/test/test.js
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56482
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /test/test.jpg HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /test/test.jpg
+[2025-05-26 14:23:26] Full file path: local/test/test.jpg
+[2025-05-26 14:23:26] Sent headers (136 bytes)
+[2025-05-26 14:23:26] Response sent (headers only)
+[2025-05-26 14:23:26] Successfully sent file: local/test/test.jpg
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56496
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /test/test.png HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /test/test.png
+[2025-05-26 14:23:26] Full file path: local/test/test.png
+[2025-05-26 14:23:26] Sent headers (135 bytes)
+[2025-05-26 14:23:26] Response sent (headers only)
+[2025-05-26 14:23:26] Successfully sent file: local/test/test.png
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56512
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /index.html HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /index.html
+[2025-05-26 14:23:26] Full file path: local/index.html
+[2025-05-26 14:23:26] Sent headers (138 bytes)
+[2025-05-26 14:23:26] Sent body (2213 bytes)
+[2025-05-26 14:23:26] Successfully sent file: local/index.html
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56524
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Recieved: test_upload.txt
+[2025-05-26 14:23:26] Sent headers (137 bytes)
+[2025-05-26 14:23:26] Sent body (43 bytes)
+[2025-05-26 14:23:26] File transfer ended
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56526
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /listing/ HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /listing/
+[2025-05-26 14:23:26] Full file path: /home/lbaumeis/CCore/projects/webserv/local/listing/
+[2025-05-26 14:23:26] Successfully sent directory listing: /home/lbaumeis/CCore/projects/webserv/local/listing/
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56540
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /redirect301 HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /redirect301
+[2025-05-26 14:23:26] Full file path: local/redirect301
+[2025-05-26 14:23:26] File not found: local/redirect301
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56546
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /redirect302 HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /redirect302
+[2025-05-26 14:23:26] Full file path: local/redirect302
+[2025-05-26 14:23:26] File not found: local/redirect302
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56560
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Sent redirect response: 301 Moved Permanently to http://localhost:8080/new.html
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56564
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: POST /cgi-bin/hello.py HTTP/1.1
+Warning: No .php found in request path!
+local/cgi-bin/hello.py
+
+[2025-05-26 14:23:26] Received bytes: 654, Total buffer: 654
+[2025-05-26 14:23:26] Total bytes read: 654
+[2025-05-26 14:23:26] Sent headers (142 bytes)
+[2025-05-26 14:23:26] Sent body (627 bytes)
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56570
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /cgi-bin/hello.php HTTP/1.1
+local/cgi-bin/hello.php
+
+[2025-05-26 14:23:26] Received bytes: 677, Total buffer: 677
+[2025-05-26 14:23:26] Total bytes read: 677
+[2025-05-26 14:23:26] Sent headers (142 bytes)
+[2025-05-26 14:23:26] Sent body (636 bytes)
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56576
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /cgi-bin/env.pl HTTP/1.1
+Warning: No .php found in request path!
+local/cgi-bin/env.pl
+
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56592
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /../../../etc/passwd HTTP/1.1
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56602
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /upload/../../../etc/passwd HTTP/1.1
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56604
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /../config/default.conf HTTP/1.1
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56620
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /./././../etc/passwd HTTP/1.1
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56628
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /test_0 HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /test_0
+[2025-05-26 14:23:26] Full file path: local/test_0
+[2025-05-26 14:23:26] File not found: local/test_0
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56642
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /test_1 HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /test_1
+[2025-05-26 14:23:26] Full file path: local/test_1
+[2025-05-26 14:23:26] File not found: local/test_1
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56650
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:26] Parsed Request: GET /test_2 HTTP/1.1
+[2025-05-26 14:23:26] Handling GET request for path: /test_2
+[2025-05-26 14:23:26] Full file path: local/test_2
+[2025-05-26 14:23:26] File not found: local/test_2
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56662
+[2025-05-26 14:23:26] Chunked body terminator found
+[2025-05-26 14:23:26] Complete request received, processing...
+Transfer-Encoding: chunked detected
+Chunked transfer encoding detected
+POST request with chunked body: 36 bytes of chunked data
+[2025-05-26 14:23:26] Parsed Request: POST /upload/test HTTP/1.1
+[2025-05-26 14:23:26] Processing chunked request
+[2025-05-26 14:23:26] Decoding chunked data, total size: 36 bytes
+[2025-05-26 14:23:26] Chunk size: 0x19 (25 bytes)
+[2025-05-26 14:23:26] Decoded chunk: "This is a chunked request"
+[2025-05-26 14:23:26] Chunk size: 0x0 (0 bytes)
+[2025-05-26 14:23:26] End of chunked data reached
+[2025-05-26 14:23:26] Total decoded body: "This is a chunked request" (25 bytes)
+[2025-05-26 14:23:26] Writing to file: /home/lbaumeis/CCore/projects/webserv/local/upload/test
+[2025-05-26 14:23:26] Sending success response...
+[2025-05-26 14:23:26] Sent headers (150 bytes)
+[2025-05-26 14:23:26] Sent chunked body (43 bytes)
+[2025-05-26 14:23:26] Successfully uploaded file: /home/lbaumeis/CCore/projects/webserv/local/upload/test (25 bytes written)
+[2025-05-26 14:23:26] Client disconnected cleanly: 5
+[2025-05-26 14:23:26] New connection from 127.0.0.1:56676
+[2025-05-26 14:23:26] Complete request received, processing...
+[2025-05-26 14:23:27] Parsed Request: POST /upload/test_512KB.txt HTTP/1.1
+[2025-05-26 14:23:27] Writing to file: /home/lbaumeis/CCore/projects/webserv/local/upload/test_512KB.txt
+[2025-05-26 14:23:27] Sending success response...
+[2025-05-26 14:23:27] Sent headers (142 bytes)
+[2025-05-26 14:23:27] Sent body (47 bytes)
+[2025-05-26 14:23:27] Successfully uploaded file: /home/lbaumeis/CCore/projects/webserv/local/upload/test_512KB.txt (524288 bytes written)
+[2025-05-26 14:23:27] Client disconnected cleanly: 5
+[2025-05-26 14:23:27] New connection from 127.0.0.1:56678
+[2025-05-26 14:23:28] Complete request received, processing...
+[2025-05-26 14:23:28] Parsed Request: POST /upload/test_1MB.txt HTTP/1.1
+[2025-05-26 14:23:28] Writing to file: /home/lbaumeis/CCore/projects/webserv/local/upload/test_1MB.txt
+[2025-05-26 14:23:28] Sending success response...
+[2025-05-26 14:23:28] Sent headers (142 bytes)
+[2025-05-26 14:23:28] Sent body (48 bytes)
+[2025-05-26 14:23:28] Successfully uploaded file: /home/lbaumeis/CCore/projects/webserv/local/upload/test_1MB.txt (1048576 bytes written)
+[2025-05-26 14:23:28] Client disconnected cleanly: 5
+[2025-05-26 14:23:28] New connection from 127.0.0.1:56686
+[2025-05-26 14:23:32] Complete request received, processing...
+[2025-05-26 14:23:32] Parsed Request: POST /upload/test_2MB.txt HTTP/1.1
+[2025-05-26 14:23:32] Writing to file: /home/lbaumeis/CCore/projects/webserv/local/upload/test_2MB.txt
+[2025-05-26 14:23:32] Sending success response...
+[2025-05-26 14:23:32] Sent headers (142 bytes)
+[2025-05-26 14:23:32] Sent body (48 bytes)
+[2025-05-26 14:23:32] Successfully uploaded file: /home/lbaumeis/CCore/projects/webserv/local/upload/test_2MB.txt (2097152 bytes written)
+[2025-05-26 14:23:32] Client disconnected cleanly: 5
+[2025-05-26 14:23:32] New connection from 127.0.0.1:56218
+[2025-05-26 14:24:00] Complete request received, processing...
+[2025-05-26 14:24:00] Parsed Request: POST /upload/test_5MB.txt HTTP/1.1
+[2025-05-26 14:24:00] Writing to file: /home/lbaumeis/CCore/projects/webserv/local/upload/test_5MB.txt
+[2025-05-26 14:24:00] Sending success response...
+[2025-05-26 14:24:00] Sent headers (142 bytes)
+[2025-05-26 14:24:00] Sent body (48 bytes)
+[2025-05-26 14:24:00] Successfully uploaded file: /home/lbaumeis/CCore/projects/webserv/local/upload/test_5MB.txt (5242880 bytes written)
+[2025-05-26 14:24:00] Client disconnected cleanly: 5
+[2025-05-26 14:24:00] New connection from 127.0.0.1:34672
+[2025-05-26 14:25:25] New connection from 127.0.0.1:43430
+[2025-05-26 14:25:25] Complete request received, processing...
+[2025-05-26 14:25:25] Parsed Request: DELETE /upload/test_512KB.txt HTTP/1.1
+[2025-05-26 14:25:25] Sent headers (141 bytes)
+[2025-05-26 14:25:25] Response sent (headers only)
+[2025-05-26 14:25:26] Client disconnected cleanly: 6
+[2025-05-26 14:25:26] New connection from 127.0.0.1:43442
+[2025-05-26 14:25:26] Complete request received, processing...
+[2025-05-26 14:25:26] Parsed Request: DELETE /upload/test_1MB.txt HTTP/1.1
+[2025-05-26 14:25:26] Sent headers (141 bytes)
+[2025-05-26 14:25:26] Response sent (headers only)
+[2025-05-26 14:25:26] Client disconnected cleanly: 6
+[2025-05-26 14:25:26] New connection from 127.0.0.1:43456
+[2025-05-26 14:25:26] Complete request received, processing...
+[2025-05-26 14:25:26] Parsed Request: DELETE /upload/test_2MB.txt HTTP/1.1
+[2025-05-26 14:25:26] Sent headers (141 bytes)
+[2025-05-26 14:25:26] Response sent (headers only)
+[2025-05-26 14:25:26] Client disconnected cleanly: 6
+[2025-05-26 14:25:26] New connection from 127.0.0.1:43464
+[2025-05-26 14:25:26] Complete request received, processing...
+[2025-05-26 14:25:26] Parsed Request: DELETE /upload/test_5MB.txt HTTP/1.1
+[2025-05-26 14:25:26] Sent headers (141 bytes)
+[2025-05-26 14:25:26] Response sent (headers only)
+[2025-05-26 14:25:26] Client disconnected cleanly: 6
+[2025-05-26 14:25:26] New connection from 127.0.0.1:43474
+[2025-05-26 14:25:26] Complete request received, processing...
+[2025-05-26 14:25:26] Parsed Request: GET /index.html HTTP/1.1
+[2025-05-26 14:25:26] Handling GET request for path: /index.html
+[2025-05-26 14:25:26] Full file path: local/index.html
+[2025-05-26 14:25:26] Sent headers (138 bytes)
+[2025-05-26 14:25:26] Sent body (2213 bytes)
+[2025-05-26 14:25:26] Successfully sent file: local/index.html
+[2025-05-26 14:25:26] Client disconnected cleanly: 6
+[2025-05-26 14:25:26] New connection from 127.0.0.1:43480
+[2025-05-26 14:25:49] Complete request received, processing...
+[2025-05-26 14:25:49] Parsed Request: POST /upload/under_1MB.txt HTTP/1.1
+[2025-05-26 14:25:49] Writing to file: /home/lbaumeis/CCore/projects/webserv/local/upload/under_1MB.txt
+[2025-05-26 14:25:49] Sending success response...
+[2025-05-26 14:25:49] Sent headers (142 bytes)
+[2025-05-26 14:25:49] Sent body (48 bytes)
+[2025-05-26 14:25:49] Successfully uploaded file: /home/lbaumeis/CCore/projects/webserv/local/upload/under_1MB.txt (1047552 bytes written)
+[2025-05-26 14:25:49] Client disconnected cleanly: 6
+[2025-05-26 14:25:49] New connection from 127.0.0.1:36978
+[2025-05-26 14:26:25] New connection from 127.0.0.1:53838
+[2025-05-26 14:26:55] New connection from 127.0.0.1:50468
+[2025-05-26 14:26:55] Complete request received, processing...
+[2025-05-26 14:26:55] Parsed Request: DELETE /upload/under_1MB.txt HTTP/1.1
+[2025-05-26 14:26:55] Sent headers (141 bytes)
+[2025-05-26 14:26:55] Response sent (headers only)
+[2025-05-26 14:26:55] Client disconnected cleanly: 7
+[2025-05-26 14:26:55] New connection from 127.0.0.1:50476
+[2025-05-26 14:27:07] Complete request received, processing...
+[2025-05-26 14:27:07] Parsed Request: POST /upload/under_8MB.txt HTTP/1.1
+[2025-05-26 14:27:07] Writing to file: /home/lbaumeis/CCore/projects/webserv/local/upload/under_8MB.txt
+[2025-05-26 14:27:07] Sending success response...
+[2025-05-26 14:27:07] Sent headers (142 bytes)

@@ -1,0 +1,198 @@
+=== Beginning Tests ===
+# [INFO] Checking compilation flags...
+# [PASS] Compilation passed
+# [INFO] Starting server with config: configs/test.conf
+# [PASS] GET / -> 200 OK
+# [INFO] === Testing Basic HTTP Methods ===
+# [PASS] GET / -> 200 OK
+# [PASS] GET /index.html -> 200 OK
+# [PASS] GET /nonexistent.html -> 404 Not Found
+# [PASS] POST /upload -> 200 OK
+# [PASS] DELETE /upload/testfile.txt -> 404 Not Found
+
+
+# [INFO] === Testing Error Handling ===
+# [PASS] GET /nonexistent -> 404 Not Found
+# [PASS] GET /forbidden -> 404 Not Found
+# [PASS] Malformed request sent
+
+
+# [INFO] === Testing MIME Type Detection ===
+# [PASS] GET /test/test.html -> 200 OK
+# [PASS] MIME type for /test/test.html: text/html
+# [PASS] GET /test/test.css -> 200 OK
+# [PASS] MIME type for /test/test.css: text/css
+# [PASS] GET /test/test.js -> 200 OK
+# [PASS] MIME type for /test/test.js: application/javascript
+# [PASS] GET /test/test.jpg -> 200 OK
+# [PASS] MIME type for /test/test.jpg: image/jpeg
+# [PASS] GET /test/test.png -> 200 OK
+# [PASS] MIME type for /test/test.png: image/png
+
+
+# [INFO] === Testing HTTP Headers ===
+# [PASS] GET / -> 200 OK
+# [PASS] Server header: WebServ/1.0
+# [PASS] Content-Length header present: 2213
+
+
+# [INFO] === Testing Multipart File Upload ===
+# [PASS] POST /upload -> 200 OK
+# [PASS] Multipart upload successful
+
+
+# [INFO] === Testing Directory Listing ===
+# [PASS] GET /listing/ -> 200 OK
+# [INFO] Directory listing may be disabled
+
+
+# [INFO] === Testing HTTP Redirections ===
+# [PASS] GET /redirect301 -> 404 Not Found
+# [PASS] GET /redirect302 -> 404 Not Found
+# [PASS] GET /redirectme -> 301 Moved Permanently
+# [PASS] Redirect /redirectme -> http://localhost:8080/new.html
+
+
+# [INFO] === Testing CGI Functionality ===
+# [PASS] POST /cgi-bin/hello.py -> 200 OK
+# [PASS] GET /cgi-bin/hello.php -> 200 OK
+# [PASS] GET /cgi-bin/env.pl -> 500 Internal Server Error
+
+
+# [INFO] === Testing Path Traversal Security ===
+# # [PASS] GET /../../../etc/passwd -> 403 Forbidden
+# # [PASS] Path traversal blocked: /../../../etc/passwd
+# # [PASS] GET /upload/../../../etc/passwd -> 403 Forbidden
+# # [PASS] Path traversal blocked: /upload/../../../etc/passwd
+# [PASS] GET /../config/default.conf -> 403 Forbidden
+# [PASS] Path traversal blocked: /../config/default.conf
+# # [PASS] GET /./././../etc/passwd -> 403 Forbidden
+# # [PASS] Path traversal blocked: /./././../etc/passwd
+
+
+# [INFO] === Testing Keep-Alive Connections ===
+# [PASS] Keep-alive connections working
+
+
+# [INFO] === Testing Chunked Transfer Encoding ===
+# [PASS] POST /upload/test -> 200 OK
+
+
+# [INFO] === Testing Large Request Bodies ===
+# [INFO] Testing various request sizes to find server limit...
+  Testing 512KB (524,288 bytes)...
+# [PASS] POST /upload/test_512KB.txt -> 200 OK
+# [PASS]   512KB: ✅ ACCEPTED
+  Testing 1MB (1,048,576 bytes)...
+# [PASS] POST /upload/test_1MB.txt -> 200 OK
+# [PASS]   1MB: ✅ ACCEPTED
+  Testing 2MB (2,097,152 bytes)...
+# [PASS] POST /upload/test_2MB.txt -> 200 OK
+# [PASS]   2MB: ✅ ACCEPTED
+  Testing 5MB (5,242,880 bytes)...
+# [PASS] POST /upload/test_5MB.txt -> 200 OK
+# [PASS]   5MB: ✅ ACCEPTED
+  Testing 10MB (10,485,760 bytes)...
+# [PASS] POST /upload/test_10MB.txt -> 413 Payload Too Large
+# [INFO]   10MB: ⚠️  REJECTED (413 - too large)
+# [INFO] Cleaning up 4 uploaded test files...
+# [PASS] DELETE /upload/test_512KB.txt -> 200 OK
+# [INFO]   ✅ Deleted /upload/test_512KB.txt
+# [PASS] DELETE /upload/test_1MB.txt -> 200 OK
+# [INFO]   ✅ Deleted /upload/test_1MB.txt
+# [PASS] DELETE /upload/test_2MB.txt -> 200 OK
+# [INFO]   ✅ Deleted /upload/test_2MB.txt
+# [PASS] DELETE /upload/test_5MB.txt -> 200 OK
+# [INFO]   ✅ Deleted /upload/test_5MB.txt
+# [PASS] ✅ All test files cleaned up successfully
+# [PASS] ✅ Server accepts requests up to 5.0MB
+# [PASS] Server has reasonable upload limits
+# [PASS] ⚠️  Server properly rejects requests larger than 10.0MB
+# [INFO] Testing server stability after large request rejection...
+# [PASS] GET / -> 200 OK
+# [PASS] ✅ Server remains stable after rejecting large request
+# [INFO] === Testing Request Size Edge Cases ===
+Testing just under 1MB...
+# [PASS] POST /upload/under_1MB.txt -> 200 OK
+# [PASS]   Just under 1MB: ✅ ACCEPTED
+Testing just under 8MB...
+# [PASS] POST /upload/under_8MB.txt -> 200 OK
+# [PASS]   Just under 8MB: ✅ ACCEPTED
+Testing just under 32MB...
+# [PASS] POST /upload/under_32MB.txt -> 413 Payload Too Large
+# [INFO]   Server limit is below 32MB
+# [INFO] Cleaning up 2 edge case test files...
+# [PASS] DELETE /upload/under_1MB.txt -> 200 OK
+# [INFO]   🗑️  Deleted /upload/under_1MB.txt
+# [PASS] DELETE /upload/under_8MB.txt -> 200 OK
+# [INFO]   🗑️  Deleted /upload/under_8MB.txt
+# [PASS] ✅ All edge case test files cleaned up
+
+
+# [INFO] === Testing Reasonable Upload Handling ===
+# [PASS] POST /upload/reasonable_test.txt -> 200 OK
+# [PASS] ✅ Server accepts reasonable 1MB uploads
+# [PASS] DELETE /upload/reasonable_test.txt -> 200 OK
+# [INFO] 🗑️  Cleaned up test file
+
+
+# [INFO] === Testing Multiple Ports (if configured) ===
+# [PASS] Port 8080 responding
+# [INFO] Port 8081 not available or not configured
+# [INFO] Port 8082 not available or not configured
+
+
+# [INFO] === Testing Concurrent Connections ===
+# [PASS] GET /test_0 -> 404 Not Found
+# [PASS] GET /test_1 -> 404 Not Found
+# [PASS] GET /test_2 -> 404 Not Found
+# [PASS] GET /test_4 -> 404 Not Found
+# [PASS] GET /test_3 -> 404 Not Found
+# [PASS] GET /test_6 -> 404 Not Found
+# [PASS] GET /test_7 -> 404 Not Found
+# [PASS] GET /test_5 -> 404 Not Found
+# [PASS] GET /test_9 -> 404 Not Found
+# [PASS] GET /test_8 -> 404 Not Found
+# [PASS] Concurrent connections: 10/10 successful
+
+
+# [INFO] === Testing Server Resilience ===
+# [PASS] GET / -> 200 OK
+# [PASS] Server resilience test: 5/5 connections successful
+
+
+# [INFO] === Stress Testing ===
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] GET / -> 200 OK
+# [PASS] Stress test completed - server still responsive
+# [INFO] === All tests completed ===
+# [INFO] Stopping server...
