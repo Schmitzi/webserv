@@ -117,12 +117,14 @@ int Client::recieveData() {
         std::cout << BLUE << _webserv->getTimeStamp() 
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
+
         bool hasCompleteHeaders = (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
                                    _requestBuffer.find("\n\n") != std::string::npos);
         
         if (!hasCompleteHeaders) {
             return 0;
         }
+        
         // Check if this is a chunked request
         bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
                           _requestBuffer.find("chunked") != std::string::npos);
@@ -728,11 +730,12 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 
 int Client::handlePostRequest(Request& req) {
 	locationLevel loc;
-	matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
-	std::string fullPath = getLocationPath(req, "POST");
-	if (fullPath.empty())
-		return 1;
-	std::string cgiPath = _server->getWebRoot(loc) + req.getPath();
+    matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
+    std::string fullPath = getLocationPath(req, "POST");
+    if (fullPath.empty())
+        return 1;
+    
+    std::string cgiPath = _server->getWebRoot(loc) + req.getPath();
     if (_cgi.isCGIScript(cgiPath)) {
         return _cgi.executeCGI(*this, req, cgiPath);
     }

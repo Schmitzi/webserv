@@ -136,7 +136,7 @@ void Request::parse(const std::string& rawRequest) {
         requestLine = requestLine.substr(0, end + 1);
     }
 
-	std::istringstream lineStream(requestLine);
+    std::istringstream lineStream(requestLine);
     std::string target;
     lineStream >> _method >> target >> _version;
 
