@@ -1,29 +1,7 @@
 **TODOs**
 
--> change hardcoded values of request to actual values of getConfigValue()
--> maybe implement different split and itoa?
--> make default error page(s)
-
 in config file:
-	- listen/port 8080; #can have multiple
 	- server_name (host header) smth.com #used for virtual hosting, deciding which config to use based on the host header
-	- root (document root) "path to smth"; #directory where the files for this server are stored
-	- index smth.html; #default file to return if a directory is requested
-	- error_page 404 /404.html; #custom error pages
-	- location blocks:
-		- location / {
-			try_files $smth $smth/ =404;
-		}
-		- location /images/ {
-			root "path to smth";
-		}
-	- cgi_pass "path to smth";
-	- cgi_extension .py(?);
-	- limit_except GET POST DELETE {
-		deny all; (?) #specify which methods are allowed
-	}
-	- client_max_body_size 1m;
-	- autoindex on; #show directory listing if no index file is present?
 
 ## 5. Configuration File Implementation
 
@@ -97,7 +75,7 @@ Implement a robust parser for your configuration file:
 
 **🧾 TL;DR — Minimum Required in a Config File**
  *🔧 At the top level (inside server {} block):*
-	Directive	Required?	Why it matters
+	Directive				Required?		 Why it matters
 	listen					✅ YES			Tells the server which port/IP to listen on
 	server_name				✅ YES			Used to match incoming requests (vhosts)
 	root					✅ YES			Tells where to look for static files
@@ -107,7 +85,7 @@ Implement a robust parser for your configuration file:
 	client_max_body_size	⚠️ Optional		 Used to limit POST/PUT request size
 
  *🗂 Inside a location {} block:*
-	Directive	Required?	Why it matters
+	Directive				Required?		 Why it matters
 	root					✅ YES			Can override or inherit from server root
 	index					✅ YES			Same as above, but per location
 	allow_methods			⚠️ Recommended	 Defines which HTTP methods are allowed

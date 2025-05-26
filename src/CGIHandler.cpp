@@ -333,9 +333,6 @@ bool CGIHandler::isCGIScript(const std::string& path) {
                 return true;
             }
         }
-    } else if (path == "/cgi-bin/cgi_tester") {
-        std::cout << RED << "Starting CGI Test\n" << RESET;
-        return true;
     }
     return false;
 }
@@ -469,19 +466,21 @@ void    CGIHandler::findBash() {
             break;
         }
     }
-
-    // Use env as fallback
-    if (cgiPath == "/usr/bin/env") {
+	_args[0] = strdup(cgiPath.c_str());
+    _args[1] = strdup(_path.c_str());
+    _args[2] = NULL;
+    // Use env as fallback//TODO: put those three lines up because the if else doesnt do anything really?
+    // if (cgiPath == "/usr/bin/env") {
         
-        _args[0] = strdup(cgiPath.c_str());
-        _args[1] = strdup(_path.c_str());
-        _args[2] = NULL;
-    } else {
+    //     _args[0] = strdup(cgiPath.c_str());
+    //     _args[1] = strdup(_path.c_str());
+    //     _args[2] = NULL;
+    // } else {
 
-        _args[0] = strdup(cgiPath.c_str());
-        _args[1] = strdup(_path.c_str());
-        _args[2] = NULL;
-    }
+    //     _args[0] = strdup(cgiPath.c_str());
+    //     _args[1] = strdup(_path.c_str());
+    //     _args[2] = NULL;
+    // }
 }
 
 void    CGIHandler::findPython() {
@@ -513,7 +512,7 @@ void    CGIHandler::findPython() {
         _args = new char*[3];
         _args[0] = strdup(_pythonPath.c_str());
         _args[1] = strdup(_path.c_str());
-        _args[2] = NULL;
+		_args[2] = NULL;
     }
 }
 
