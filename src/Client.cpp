@@ -98,19 +98,17 @@ void Client::displayConnection() {
 }
 
 int Client::recieveData() {
-    // Larger buffer for multipart uploads
-    char buffer[1024 * 1024];
-    memset(buffer, 0, sizeof(buffer) - 1);
+    char buffer[4096];
+    memset(buffer, 0, sizeof(buffer));
     
-    // Receive data
-    int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, 0);
+    int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
     
     if (bytesRead > 0) {
-        // Append to request buffer
         _requestBuffer.append(buffer, bytesRead);
 
         if (_requestBuffer.length() > _config.requestLimit) {
-            std::cerr << RED << _webserv->getTimeStamp() << "Buffer size exceeded maximum limit: Error 413" << RESET << std::endl;
+            std::cerr << RED << _webserv->getTimeStamp() 
+                      << "Buffer size exceeded maximum limit: Error 413" << RESET << std::endl;
             sendErrorResponse(413);
             _requestBuffer.clear();
             return 1;
@@ -120,29 +118,130 @@ int Client::recieveData() {
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
 
-		// Try processing the request
-		int processResult = processRequest(_requestBuffer);
-		
-		// If fully processed, clear the buffer
-		if (processResult != -1) {
-			_requestBuffer.clear();
-		}
-
-		return processResult;
+        bool hasCompleteHeaders = (_requestBuffer.find("\r\n\r\n") != std::string::npos || 
+                                   _requestBuffer.find("\n\n") != std::string::npos);
+        
+        if (!hasCompleteHeaders) {
+            return 0;
+        }
+        
+        // Check if this is a chunked request
+        bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
+                          _requestBuffer.find("chunked") != std::string::npos);
+        
+        if (isChunked) {
+            // For chunked requests, check if we have the complete chunked body
+            if (!isChunkedBodyComplete(_requestBuffer)) {
+                std::cout << BLUE << _webserv->getTimeStamp() 
+                          << "Chunked body incomplete, waiting for more data" << RESET << std::endl;
+                return 0;
+            }
+        } else {
+            // For regular requests, check Content-Length if present
+            size_t contentLengthPos = _requestBuffer.find("Content-Length:");
+            if (contentLengthPos != std::string::npos) {
+                // Extract Content-Length value
+                size_t valueStart = contentLengthPos + 15;
+                while (valueStart < _requestBuffer.length() && 
+                       (_requestBuffer[valueStart] == ' ' || _requestBuffer[valueStart] == '\t')) {
+                    valueStart++;
+                }
+                
+                size_t valueEnd = _requestBuffer.find("\r\n", valueStart);
+                if (valueEnd == std::string::npos) {
+                    valueEnd = _requestBuffer.find("\n", valueStart);
+                }
+                
+                if (valueEnd != std::string::npos) {
+                    std::string lengthStr = _requestBuffer.substr(valueStart, valueEnd - valueStart);
+                    size_t expectedLength = strtoul(lengthStr.c_str(), NULL, 10);
+                    
+                    size_t bodyStart = _requestBuffer.find("\r\n\r\n");
+                    if (bodyStart != std::string::npos) {
+                        bodyStart += 4;
+                    } else {
+                        bodyStart = _requestBuffer.find("\n\n");
+                        if (bodyStart != std::string::npos) {
+                            bodyStart += 2;
+                        }
+                    }
+                    
+                    if (bodyStart != std::string::npos) {
+                        size_t actualBodyLength = _requestBuffer.length() - bodyStart;
+                        if (actualBodyLength < expectedLength) {
+                            std::cout << RED << _webserv->getTimeStamp() 
+                                      << "Body incomplete: got " << actualBodyLength 
+                                      << " bytes, expected " << expectedLength << RESET << std::endl;
+                            return 0;
+                        }
+                    }
+                }
+            }
+        }
+        
+        std::cout << GREEN << _webserv->getTimeStamp() 
+                  << "Complete request received, processing..." << RESET << std::endl;
+        
+        int processResult = processRequest(_requestBuffer);
+        
+        if (processResult != -1) {
+            _requestBuffer.clear();
+        }
+        return processResult;
     } 
     else if (bytesRead == 0) {
         std::cout << RED << _webserv->getTimeStamp() 
-                  << "Client disconnected: " << _fd << RESET << "\n";
+                  << "Client disconnected cleanly: " << _fd << RESET << "\n";
         return 1;
     }
-    else { // Error occurred TODO: Possible not allowed?
+    else {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return 0;
-        } else {
-            return (_webserv->ft_error("recv() failed"), 1);
+        } 
+        else if (errno == ECONNRESET) {
+            std::cout << RED << _webserv->getTimeStamp() 
+                      << "Connection reset by peer on fd " << _fd << RESET << "\n";
+            return 1;
+        }
+        else if (errno == EPIPE) {
+            std::cout << RED << _webserv->getTimeStamp() 
+                      << "Broken pipe on fd " << _fd << RESET << "\n";
+            return 1;
+        }
+        else {
+            std::cout << RED << _webserv->getTimeStamp() 
+                      << "recv() error on fd " << _fd << ": " << strerror(errno) << RESET << "\n";
+            return 1;
         }
     }
+}
 
+bool Client::isChunkedBodyComplete(const std::string& buffer) {
+    size_t bodyStart = buffer.find("\r\n\r\n");
+    if (bodyStart == std::string::npos) {
+        bodyStart = buffer.find("\n\n");
+        if (bodyStart == std::string::npos) {
+            return false;
+        }
+        bodyStart += 2;
+    } else {
+        bodyStart += 4;
+    }
+    
+    if (bodyStart >= buffer.length()) {
+        return false;
+    }
+    
+    std::string body = buffer.substr(bodyStart);
+    
+    if (body.find("0\r\n\r\n") != std::string::npos || 
+        body.find("0\n\n") != std::string::npos) {
+        std::cout << GREEN << _webserv->getTimeStamp() 
+                  << "Chunked body terminator found" << RESET << std::endl;
+        return true;
+    }
+    
+    return false;
 }
 
 int Client::processRequest(std::string &buffer) {
@@ -162,14 +261,23 @@ int Client::processRequest(std::string &buffer) {
         _requestBuffer.clear();
         return 1;
     }
-	locationLevel loc;
-	if (matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
-		if (loc.hasRedirect == true) {
-			sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
-			return 0;
-		}
-	}
-    // Handle multipart uploads separately
+    
+    if (req.getMethod() != "GET" && req.getMethod() != "POST" && req.getMethod() != "DELETE") {
+        std::cout << RED << _webserv->getTimeStamp() 
+                << "Method not allowed: " << req.getMethod() << RESET << std::endl;
+        sendErrorResponse(405);
+        _requestBuffer.clear();
+        return 1;
+    }
+
+    locationLevel loc;
+    if (matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+        if (loc.hasRedirect == true) {
+            sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
+            return 0;
+        }
+    }
+    
     if (req.getContentType().find("multipart/form-data") != std::string::npos) {
         int result = handleMultipartPost(req);
         
@@ -178,12 +286,7 @@ int Client::processRequest(std::string &buffer) {
         }
         return 0;
     }
-    if (req.getMethod() == "BAD") {
-        sendErrorResponse(400);
-        return 1;
-    }
 
-    // Debug print
     std::cout << BLUE << _webserv->getTimeStamp();
     std::cout << "Parsed Request: " << RESET << req.getMethod() << " " << req.getPath() << " " << req.getVersion() << "\n";
 
@@ -345,7 +448,7 @@ int Client::handleRegularRequest(Request& req) {
     req.setContentType(contentType);
 
     // Send response
-    sendResponse(req, "keep-alive", req.getBody());
+    sendResponse(req, "close", req.getBody());
     std::cout << GREEN << _webserv->getTimeStamp() << "Successfully sent file: " << RESET << fullPath << std::endl;
     return 0;
 }
@@ -627,52 +730,82 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 
 int Client::handlePostRequest(Request& req) {
 	locationLevel loc;
-	matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
-	std::string fullPath = getLocationPath(req, "POST");
-	if (fullPath.empty())
-		return 1;
-	std::string cgiPath = _server->getWebRoot(loc) + req.getPath();
+    matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
+    std::string fullPath = getLocationPath(req, "POST");
+    if (fullPath.empty())
+        return 1;
+    
+    std::string cgiPath = _server->getWebRoot(loc) + req.getPath();
     if (_cgi.isCGIScript(cgiPath)) {
-		return _cgi.executeCGI(*this, req, cgiPath);
+        return _cgi.executeCGI(*this, req, cgiPath);
     }
-    // Check if this is a multipart/form-data request and handle it separately
+    
     if (req.getContentType().find("multipart/form-data") != std::string::npos) {
-		return handleMultipartPost(req);
+        return handleMultipartPost(req);
     }
-	
+    
     if (req.getPath().find("../") != std::string::npos) {
-		sendErrorResponse(403);
+        sendErrorResponse(403);
         return 1;
     }
-	
-	// Fix: Use the actual file name from the request
+    
+    std::string contentToWrite;
+    
+    if (isChunkedRequest(req)) {
+        std::cout << BLUE << _webserv->getTimeStamp() << "Processing chunked request" << RESET << std::endl;
+        contentToWrite = decodeChunkedBody(req.getBody());
+        
+        if (contentToWrite.empty()) {
+            std::cout << RED << _webserv->getTimeStamp() << "Failed to decode chunked data" << RESET << std::endl;
+            sendErrorResponse(400);
+            return 1;
+        }
+    } else {
+        contentToWrite = req.getBody();
+        
+        if (contentToWrite.empty() && !req.getQuery().empty()) {
+            contentToWrite = req.getQuery();
+        }
+    }
+    
     int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file for writing: " << fullPath << std::endl;
         sendErrorResponse(500);
         return 1;
     }
-
+    
     std::cout << _webserv->getTimeStamp() << "Writing to file: " << fullPath << "\n";
-    std::cout << _webserv->getTimeStamp() << "Content to write: ";
-    if (!req.getQuery().empty()) {
-        std::cout << req.getQuery() << "\n";
-    } else {
-        std::cout << "(none)\n";
-    }
-
-    ssize_t bytesWritten = write(fd, req.getQuery().c_str(), req.getQuery().length());
+    // std::cout << _webserv->getTimeStamp() << "Content to write: ";
+    // if (!contentToWrite.empty()) {
+    //     std::cout << "\"" << contentToWrite << "\" (" << contentToWrite.length() << " bytes)\n";
+    // } else {
+    //     std::cout << "(empty)\n";
+    // }
+    
+    ssize_t bytesWritten = write(fd, contentToWrite.c_str(), contentToWrite.length());
     close(fd);
-
+    
     if (bytesWritten < 0) {
-        std::cout << "Failed to write to file" << "\n";
+        std::cout << "Failed to write to file\n";
         sendErrorResponse(500);
         return 1;
     }
-
-    sendResponse(req, "keep-alive", "");
-
-    std::cout << _webserv->getTimeStamp() << "Successfully uploaded file: " << fullPath << std::endl;
+    
+    std::cout << BLUE << _webserv->getTimeStamp() << "Sending success response..." << RESET << std::endl;
+    
+    std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
+    
+    ssize_t responseResult = sendResponse(req, "keep-alive", responseBody);
+    
+    if (responseResult < 0) {
+        std::cout << RED << _webserv->getTimeStamp() << "Failed to send response" << RESET << std::endl;
+        return 1;
+    }
+    
+    std::cout << GREEN << _webserv->getTimeStamp() << "Successfully uploaded file: " << fullPath 
+              << " (" << bytesWritten << " bytes written)" << RESET << std::endl;
+    
     return 0;
 }
 
@@ -867,18 +1000,19 @@ void Client::findContentType(Request& req) {
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
     // Create HTTP response
-	std::string response = "HTTP/1.1 200 OK\r\n";
+    std::string response = "HTTP/1.1 200 OK\r\n";
     
-    // Get proper content type based on file extension
+    // Get proper content type from the request path, not just the path variable
     std::string contentType;
     
-    if (req.getPath().empty() || req.getPath() == "/") {
+    if (req.getPath().empty() || req.getPath() == "/" || req.getPath() == "/index.html") {
         contentType = "text/html";
     } else {
+        // Use the request's path to determine MIME type
         contentType = req.getMimeType(req.getPath());
     }
     
-    // Check for chunked transfer encoding
+    // Check for chunked transfer encoding in headers
     std::map<std::string, std::string> headers = req.getHeaders();
     bool isChunked = false;
     std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
@@ -890,26 +1024,33 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     response += "Content-Type: " + contentType + "\r\n";
     
     // Choose which content to use for Content-Length
-    std::string content = req.getBody();
-    if (req.getMethod() == "POST" && body.empty()) {
-        content = req.getQuery();
-    } else if (!body.empty()) {
-        content = body;
+    std::string content = body;
+    
+    // CRITICAL FIX: For POST requests, send a success message if body is empty
+    if (req.getMethod() == "POST" && content.empty()) {
+        content = "Upload successful";
     }
     
     // Add remaining headers
     if (!isChunked) {
-        response += "Content-Length: " + std::string(tostring(content.length())) + "\r\n";
+        response += "Content-Length: " + tostring(content.length()) + "\r\n";
     } else {
         response += "Transfer-Encoding: chunked\r\n";
     }
     
     response += "Server: WebServ/1.0\r\n";
     response += "Connection: " + connect + "\r\n";
-    response += "Access-Control-Allow-Origin: *\r\n\r\n";
+    response += "Access-Control-Allow-Origin: *\r\n";
+    response += "\r\n"; // CRITICAL: Always add the header separator
     
-    // Send headers
-    send(_fd, response.c_str(), response.length(), 0);
+    // CRITICAL FIX: Always send headers first
+    ssize_t headerBytes = send(_fd, response.c_str(), response.length(), 0);
+    if (headerBytes < 0) {
+        std::cerr << RED << _webserv->getTimeStamp() << "Failed to send headers" << RESET << std::endl;
+        return -1;
+    }
+    
+    std::cout << BLUE << _webserv->getTimeStamp() << "Sent headers (" << headerBytes << " bytes)" << RESET << std::endl;
     
     // Send body content if there is any
     if (!content.empty()) {
@@ -939,13 +1080,21 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
             // Add terminating chunk
             send(_fd, "0\r\n\r\n", 5, 0);
             
+            std::cout << GREEN << _webserv->getTimeStamp() << "Sent chunked body (" << content.length() << " bytes)" << RESET << std::endl;
             return content.length(); // Return original content length
         } else {
-            return send(_fd, content.c_str(), content.length(), 0);
+            ssize_t bodyBytes = send(_fd, content.c_str(), content.length(), 0);
+            if (bodyBytes < 0) {
+                std::cerr << RED << _webserv->getTimeStamp() << "Failed to send body" << RESET << std::endl;
+                return -1;
+            }
+            std::cout << GREEN << _webserv->getTimeStamp() << "Sent body (" << bodyBytes << " bytes)" << RESET << std::endl;
+            return bodyBytes;
         }
+    } else {
+        std::cout << GREEN << _webserv->getTimeStamp() << "Response sent (headers only)" << RESET << std::endl;
+        return 0;
     }
-    
-    return 0;
 }
 
 bool Client::send_all(int sockfd, const std::string& data) {
@@ -967,29 +1116,111 @@ void Client::sendErrorResponse(int statusCode) {
     std::string statusText = getStatusMessage(statusCode);
     
     resolveErrorResponse(statusCode, *_server, statusText, body);    
+    
     // Construct the HTTP response
     std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
     response += "Content-Type: text/html\r\n";
     response += "Content-Length: " + tostring(body.size()) + "\r\n";
     response += "Server: WebServ/1.0\r\n";
-    
-    // Important: Set Cache-Control to prevent browsers from caching error responses
     response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
     response += "Pragma: no-cache\r\n";
-    
-    // Close the connection after error responses
     response += "Connection: close\r\n";
     response += "\r\n";
     response += body;
-    response += "\r\n";
 
-    char discard_buffer[1024];
-    while (recv(_fd, discard_buffer, sizeof(discard_buffer), MSG_DONTWAIT) > 0) {
+    char trashBuffer[1024];
+    int flags = fcntl(_fd, F_GETFL, 0);
+    fcntl(_fd, F_SETFL, flags | O_NONBLOCK);
+    
+    while (recv(_fd, trashBuffer, sizeof(trashBuffer), MSG_DONTWAIT) > 0) {
         // Just discard the data
     }
+    
+    fcntl(_fd, F_SETFL, flags); // Restore original flags
+    
     if (!send_all(_fd, response)) {
         std::cerr << "Failed to send error response" << std::endl;
     }
     std::cerr << RED << _webserv->getTimeStamp() << "Error sent: " << statusCode << RESET << "\n";
+}
+
+bool Client::isChunkedRequest(const Request& req) {
+    std::map<std::string, std::string> headers = const_cast<Request&>(req).getHeaders();
+    std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
+    if (it != headers.end() && it->second.find("chunked") != std::string::npos) {
+        return true;
+    }   
+    return false;
+}
+
+std::string Client::decodeChunkedBody(const std::string& chunkedData) {
+    std::string decodedBody;
+    size_t pos = 0;
+    
+    std::cout << BLUE << _webserv->getTimeStamp() << "Decoding chunked data, total size: " 
+              << chunkedData.length() << " bytes" << RESET << std::endl;
+    
+    while (pos < chunkedData.length()) {
+        // Find the end of the chunk size line (looking for \r\n)
+        size_t crlfPos = chunkedData.find("\r\n", pos);
+        if (crlfPos == std::string::npos) {
+            crlfPos = chunkedData.find("\n", pos);
+            if (crlfPos == std::string::npos) {
+                std::cerr << RED << "Malformed chunked data: no CRLF after chunk size" << RESET << std::endl;
+                break;
+            }
+        }
+        
+        std::string chunkSizeStr = chunkedData.substr(pos, crlfPos - pos);
+        
+        size_t semicolon = chunkSizeStr.find(';');
+        if (semicolon != std::string::npos) {
+            chunkSizeStr = chunkSizeStr.substr(0, semicolon);
+        }
+        
+        chunkSizeStr.erase(0, chunkSizeStr.find_first_not_of(" \t"));
+        chunkSizeStr.erase(chunkSizeStr.find_last_not_of(" \t") + 1);
+        
+        size_t chunkSize = 0;
+        std::istringstream hexStream(chunkSizeStr);
+        hexStream >> std::hex >> chunkSize;
+        
+        std::cout << BLUE << _webserv->getTimeStamp() << "Chunk size: 0x" << chunkSizeStr 
+                  << " (" << chunkSize << " bytes)" << RESET << std::endl;
+        
+        if (chunkSize == 0) {
+            std::cout << GREEN << _webserv->getTimeStamp() << "End of chunked data reached" << RESET << std::endl;
+            break;
+        }
+        
+        pos = crlfPos + (chunkedData[crlfPos] == '\r' ? 2 : 1);
+        
+        // Check if we have enough data for this chunk
+        if (pos + chunkSize > chunkedData.length()) {
+            std::cerr << RED << "Incomplete chunk data: expected " << chunkSize 
+                      << " bytes, but only " << (chunkedData.length() - pos) << " available" << RESET << std::endl;
+            break;
+        }
+        
+        std::string chunkData = chunkedData.substr(pos, chunkSize);
+        decodedBody += chunkData;
+        
+        std::cout << BLUE << _webserv->getTimeStamp() << "Decoded chunk: \"" 
+                  << chunkData << "\"" << RESET << std::endl;
+        
+        pos += chunkSize;
+        
+        if (pos < chunkedData.length() && chunkedData[pos] == '\r') {
+            pos++;
+        }
+        if (pos < chunkedData.length() && chunkedData[pos] == '\n') {
+            pos++;
+        }
+    }
+    
+    std::cout << GREEN << _webserv->getTimeStamp() << "Total decoded body: \"" 
+              << decodedBody << "\" (" << decodedBody.length() << " bytes)" << RESET << std::endl;
+    
+    return decodedBody;
 }
 

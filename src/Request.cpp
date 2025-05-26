@@ -96,47 +96,49 @@ void    Request::setHeader(std::map<std::string, std::string> map) {
 
 void Request::parse(const std::string& rawRequest) {
     if (rawRequest.empty()) {
-        std::cout << RED << "!\n" << RESET;
+        std::cout << RED << "Empty request!\n" << RESET;
         _method = "BAD";
         return;
     }
 
     checkContentLength(rawRequest);
 
-    // Find headers and body
     size_t headerEnd = rawRequest.find("\r\n\r\n");
+    size_t headerSeparatorLength = 4;
+    
     if (headerEnd == std::string::npos) {
         headerEnd = rawRequest.find("\n\n");
+        headerSeparatorLength = 2;
         if (headerEnd == std::string::npos) {
             headerEnd = rawRequest.length();
-        } else {
-            headerEnd += 2;
+            headerSeparatorLength = 0;
         }
-    } else {
-        headerEnd += 4;
     }
 
     std::string headerSection = rawRequest.substr(0, headerEnd);
-    if (headerEnd < rawRequest.length()) {
-        _body = rawRequest.substr(headerEnd);
+    if (headerEnd + headerSeparatorLength < rawRequest.length()) {
+        _body = rawRequest.substr(headerEnd + headerSeparatorLength);
     }
+
+    parseHeaders(headerSection);
+    parseContentType();
 
     std::istringstream iss(headerSection);
     std::string requestLine;
     std::getline(iss, requestLine);
 
-	size_t end = requestLine.find_last_not_of(" \t\r\n");
+    size_t end = requestLine.find_last_not_of(" \t\r\n");
     if (end != std::string::npos) {
         requestLine = requestLine.substr(0, end + 1);
     }
 
-	std::istringstream lineStream(requestLine);
+    std::istringstream lineStream(requestLine);
     std::string target;
     lineStream >> _method >> target >> _version;
 
     if (_method.empty() || (_method != "GET" && target.empty()) || _version.empty()) {
         _method = "BAD";
-        std::cout << RED << "?\n" << RESET;
+        std::cout << RED << "Invalid request line!\n" << RESET;
         return;
     }
 
@@ -157,16 +159,24 @@ void Request::parse(const std::string& rawRequest) {
     if (end != std::string::npos) {
         _path = _path.substr(0, end + 1);
     }
-	size_t reqPathEnd = _path.find_last_of("/");
-	if (reqPathEnd != std::string::npos)
-		_reqPath = _path.substr(0, reqPathEnd + 1);
-    if (_method != "GET" && _method != "POST" && _method != "DELETE") {
+    
+    size_t reqPathEnd = _path.find_last_of("/");
+    if (reqPathEnd != std::string::npos)
+        _reqPath = _path.substr(0, reqPathEnd + 1);
+    
+    if (_method != "GET" && _method != "POST" && _method != "DELETE" && 
+        _method != "HEAD" && _method != "OPTIONS") {
         _method = "BAD";
         return;
     }
 
-    parseHeaders(headerSection);
-    parseContentType();
+    if (isChunkedTransfer()) {
+        std::cout << BLUE << "Chunked transfer encoding detected" << RESET << std::endl;
+        if (_method == "POST") {
+            std::cout << BLUE << "POST request with chunked body: " << _body.length() 
+                      << " bytes of chunked data" << RESET << std::endl;
+        }
+    }
 }
 
 void Request::parseHeaders(const std::string& headerSection) {
@@ -200,10 +210,30 @@ void Request::checkContentLength(std::string buffer) {
         }
         
         size_t eol = buffer.find("\r\n", pos);
+        if (eol == std::string::npos) {
+            eol = buffer.find("\n", pos);
+        }
         
         if (eol != std::string::npos) {
             std::string valueStr = buffer.substr(pos, eol - pos);
             _contentLength = strtoul(valueStr.c_str(), NULL, 10);
+            return;
+        }
+    }
+    
+    pos = buffer.find("Transfer-Encoding:");
+    if (pos != std::string::npos) {
+        size_t eol = buffer.find("\r\n", pos);
+        if (eol == std::string::npos) {
+            eol = buffer.find("\n", pos);
+        }
+        
+        if (eol != std::string::npos) {
+            std::string transferEncoding = buffer.substr(pos + 18, eol - pos - 18);
+            if (transferEncoding.find("chunked") != std::string::npos) {
+                _contentLength = 0;
+                std::cout << BLUE << "Transfer-Encoding: chunked detected" << RESET << std::endl;
+            }
         }
     }
 }
@@ -239,30 +269,45 @@ std::string Request::getMimeType(std::string const &path) {
     
     if (dotPos != std::string::npos) {
         ext = path.substr(dotPos + 1);
+        
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
     } else if (path == "/" || path.empty()) {
         return "text/html";
     } else {
         return "text/plain";
     }
     
+    // CRITICAL FIX: Proper MIME type mapping
     if (ext == "html" || ext == "htm")
         return "text/html";
-    if (ext == "css")
+    else if (ext == "css")
         return "text/css";
-    if (ext == "js") 
+    else if (ext == "js") 
         return "application/javascript";
-    if (ext == "jpg" || ext == "jpeg") 
+    else if (ext == "jpg" || ext == "jpeg") 
         return "image/jpeg";
-    if (ext == "png")
+    else if (ext == "png")
         return "image/png";
-    if (ext == "gif")
+    else if (ext == "gif")
         return "image/gif";
-    if (ext == "svg")
+    else if (ext == "svg")
         return "image/svg+xml";
-    if (ext == "ico")
+    else if (ext == "ico")
         return "image/vnd.microsoft.icon";
+    else if (ext == "pdf")
+        return "application/pdf";
+    else if (ext == "json")
+        return "application/json";
+    else if (ext == "xml")
+        return "application/xml";
+    else if (ext == "txt")
+        return "text/plain";
+    else if (ext == "mp4")
+        return "video/mp4";
+    else if (ext == "mp3")
+        return "audio/mpeg";
     
-    return "text/plain"; // Default
+    return "application/octet-stream"; // Default for unknown files
 }
 
 bool Request::isChunkedTransfer() const {
