@@ -100,5 +100,6 @@ int main(int ac, char **av, char **envp) {
 	} catch (const std::exception& e) {
 		std::cerr << "Exception: " << e.what() << std::endl;
 	}
+	std::cout << "HUH!\n";
     return 0;
 }

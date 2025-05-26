@@ -528,11 +528,11 @@ def test_path_traversal_security():
 def test_server_resilience():
     print_test("=== Testing Server Resilience ===")
     
-    # FIXED: More gradual and gentle connection testing
     successful_connections = 0
     
     for i in range(5):
         try:
+            print(i)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(5)
             sock.connect((HOST, PORT))
