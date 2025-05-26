@@ -168,21 +168,20 @@ Client* Webserv::findClientByFd(int fd) {
 }
 
 void Webserv::handleErrorEvent(int fd) {
-    // Find and remove client if it exists
+    removeFromEpoll(fd);
+
     for (size_t i = 0; i < _clients.size(); i++) {
         if (_clients[i]->getFd() == fd) {
             std::cout << RED << getTimeStamp() << "Removing client due to error: " << fd << RESET << std::endl;
             
-            // Remove from epoll first
-            removeFromEpoll(fd);
-            
-            // Close and delete client
             close(_clients[i]->getFd());
             delete _clients[i];
             _clients.erase(_clients.begin() + i);
             return;
         }
     }
+    
+    std::cerr << RED << getTimeStamp() << "Error on unknown fd: " << fd << RESET << std::endl;
 }
 
 // Add a file descriptor to the poll array
@@ -201,22 +200,35 @@ int Webserv::addToEpoll(int fd, short events) {
 
 // Remove a file descriptor from the poll array by index
 void Webserv::removeFromEpoll(int fd) {
+    if (_epollFd < 0 || fd < 0) {
+        return;
+    }
+    
     if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, NULL) == -1) {
-        // Don't treat this as a fatal error since the fd might already be closed
-        std::cerr << "Warning: epoll_ctl DEL failed for fd " << fd << ": " << strerror(errno) << std::endl;
+        if (errno != EBADF && errno != ENOENT) {
+            std::cerr << "Warning: epoll_ctl DEL failed for fd " << fd << ": " << strerror(errno) << std::endl;
+        }
     }
 }
 
 void Webserv::handleNewConnection(Server &server) {
-    // Create a new client associated with this Webserv instance
+    if (_clients.size() >= 1000) { // Adjust limit as needed
+        std::cerr << "Connection limit reached, refusing new connection" << std::endl;
+        
+        struct sockaddr_in addr;
+        socklen_t addrLen = sizeof(addr);
+        int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);
+        if (newFd >= 0) {
+            close(newFd);
+        }
+        return;
+    }
+    
     Client* newClient = new Client(server);
     
-    // Now let the client accept the actual connection from the server socket
     if (newClient->acceptConnection(server.getFd()) == 0) {
-        // Connection accepted successfully
         newClient->displayConnection();
         
-        // Add client to epoll and client list
         if (addToEpoll(newClient->getFd(), EPOLLIN) == 0) {
             _clients.push_back(newClient);
         } else {
@@ -225,7 +237,6 @@ void Webserv::handleNewConnection(Server &server) {
             delete newClient;
         }
     } else {
-        // Failed to accept connection
         delete newClient;
     }
 }
@@ -241,15 +252,10 @@ void Webserv::handleClientActivity(int clientFd) {
     }
     
     if (client->recieveData() != 0) {
-        // Client disconnected or error
-        std::cout << RED << getTimeStamp() << "Client disconnected: " << clientFd << RESET << "\n";
-        
-        // Remove from epoll first
         removeFromEpoll(clientFd);
-        
-        // Close and remove client
         close(clientFd);
         
+        // Remove from client list
         for (size_t i = 0; i < _clients.size(); i++) {
             if (_clients[i]->getFd() == clientFd) {
                 delete _clients[i];
@@ -289,18 +295,18 @@ std::string Webserv::getTimeStamp() {
 }
 
 void    Webserv::cleanup() {
-    // Close all client connections
     for (size_t i = 0; i < _clients.size(); ++i) {
-        if (_clients[i]->getFd() >= 0) {
+        if (_clients[i] && _clients[i]->getFd() >= 0) {
+            removeFromEpoll(_clients[i]->getFd());
             close(_clients[i]->getFd());
         }
         delete _clients[i];
     }
     _clients.clear();
 
-    // Close all server sockets
     for (size_t i = 0; i < _servers.size(); i++) {
         if (_servers[i] && _servers[i]->getFd() >= 0) {
+            removeFromEpoll(_servers[i]->getFd());
             close(_servers[i]->getFd());
             delete _servers[i];
             _servers[i] = NULL;
@@ -308,7 +314,6 @@ void    Webserv::cleanup() {
     }
     _servers.clear();
 
-    // Close epoll file descriptor
     if (_epollFd >= 0) {
         close(_epollFd);
         _epollFd = -1;

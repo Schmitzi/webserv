@@ -84,11 +84,32 @@ int Server::openSocket() {
 
 int Server::setOptional() { // Optional: set socket options to reuse address
     int opt = 1;
+    
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-        _webserv->ft_error("setsockopt() failed");
+        _webserv->ft_error("setsockopt(SO_REUSEADDR) failed");
         close(_fd);
         return 1;
     }
+    
+    #ifdef SO_REUSEPORT
+    if (setsockopt(_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0) {
+        std::cerr << "Warning: setsockopt(SO_REUSEPORT) failed: " << strerror(errno) << std::endl;
+    }
+    #endif
+    
+    int flags = fcntl(_fd, F_GETFL, 0);
+    if (flags == -1) {
+        _webserv->ft_error("fcntl(F_GETFL) failed");
+        close(_fd);
+        return 1;
+    }
+    
+    if (fcntl(_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        _webserv->ft_error("fcntl(F_SETFL, O_NONBLOCK) failed");
+        close(_fd);
+        return 1;
+    }
+    
     return 0;
 }
 
@@ -124,7 +145,9 @@ int Server::ft_bind() { // Bind socket to address
 }
 
 int Server::ft_listen() { // Listen for connections
-    if (listen(_fd, 3) < 0) {
+    const int backlog = 128;
+    
+    if (listen(_fd, backlog) < 0) {
         _webserv->ft_error("listen() failed");
         close(_fd);
         return 1;
