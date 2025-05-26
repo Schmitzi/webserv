@@ -70,6 +70,10 @@ class Client {
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
         void                    sendErrorResponse(int statusCode);
         bool					send_all(int sockfd, const std::string& data);
+
+        std::string             decodeChunkedBody(const std::string& chunkedData);
+        bool                    isChunkedRequest(const Request& req);
+        bool                    isChunkedBodyComplete(const std::string& buffer);
     private:
         struct sockaddr_in  _addr;
         socklen_t           _addrLen;
