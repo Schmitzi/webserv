@@ -810,9 +810,21 @@ int Client::handleDeleteRequest(Request& req) {
         fullPath = fullPath.substr(0, end + 1);
     }
 
-    if (unlink(fullPath.c_str()) != 0) {
-        sendErrorResponse(403);
-        return 1;
+    if (unlink(fullPath.c_str()) != 0) {//TODO: was just "sendErrorResponse(403)", is this better or unnecessary?
+		if (errno == ENOENT) {
+			std::cout << RED << _webserv->getTimeStamp() << "File not found for deletion: " << RESET << fullPath << "\n";
+			sendErrorResponse(404);
+			return 1;
+		} else if (errno == EACCES || errno == EPERM) {
+			std::cout << RED << _webserv->getTimeStamp() << "Permission denied for deletion: " << RESET << fullPath << "\n";
+			sendErrorResponse(403);
+			return 1;
+		} else {
+			std::cout << RED << _webserv->getTimeStamp() << "Error deleting file: " << RESET << fullPath
+					  << " - " << strerror(errno) << "\n";
+        	sendErrorResponse(403);
+        	return 1;
+		}
     }
 
     sendResponse(req, "keep-alive", "");

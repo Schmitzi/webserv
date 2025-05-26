@@ -1,0 +1,85 @@
+Starting detailed chunked transfer debugging...
+
+=== Debug Chunked Transfer Test ===
+Chunk size hex: 19
+Chunk data: 'This is a chunked request'
+Full chunked body: '19\r\nThis is a chunked request\r\n0\r\n\r\n'
+
+--- Sending request ---
+send: b'POST /upload/test_chunked HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nAccept-Encoding: identity\r\nTransfer-Encoding: chunked\r\nContent-Type: text/plain\r\n\r\n'
+send: b'19\r\nThis is a chunked request\r\n0\r\n\r\n'
+
+--- Getting response ---
+reply: 'HTTP/1.1 200 OK\r\n'
+header: Content-Type: text/plain
+header: Transfer-Encoding: chunked
+header: Server: WebServ/1.0
+header: Connection: keep-alive
+header: Access-Control-Allow-Origin: *
+Status: 200 OK
+Response headers:
+  Content-Type: text/plain
+  Transfer-Encoding: chunked
+  Server: WebServ/1.0
+  Connection: keep-alive
+  Access-Control-Allow-Origin: *
+
+--- Reading response body ---
+Response body: b'File uploaded successfully. Wrote 25 bytes.'
+Response body (decoded): 'File uploaded successfully. Wrote 25 bytes.'
+
+✅ Chunked request successful!
+
+=== Comparison: Regular POST Test ===
+
+--- Sending regular POST ---
+send: b'POST /upload/test_regular HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nAccept-Encoding: identity\r\nContent-Type: text/plain\r\nContent-Length: 25\r\n\r\n'
+send: b'This is a regular request'
+
+--- Getting response ---
+reply: 'HTTP/1.1 200 OK\r\n'
+header: Content-Type: text/plain
+header: Content-Length: 43
+header: Server: WebServ/1.0
+header: Connection: keep-alive
+header: Access-Control-Allow-Origin: *
+Status: 200 OK
+Response headers:
+  Content-Type: text/plain
+  Content-Length: 43
+  Server: WebServ/1.0
+  Connection: keep-alive
+  Access-Control-Allow-Origin: *
+Response body: 'File uploaded successfully. Wrote 25 bytes.'
+
+✅ Regular POST successful!
+
+=== Manual Socket Test (Low Level) ===
+Raw request:
+'POST /upload/test_manual HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nTransfer-Encoding: chunked\r\nContent-Type: text/plain\r\n\r\n19\r\nThis is a chunked request\r\n0\r\n\r\n'
+
+--- Connecting to 127.0.0.1:8080 ---
+--- Sending raw request ---
+--- Receiving response ---
+Received chunk: 150 bytes
+Received chunk: 54 bytes
+Timeout while receiving response
+
+Full response (204 bytes):
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Transfer-Encoding: chunked
+Server: WebServ/1.0
+Connection: keep-alive
+Access-Control-Allow-Origin: *
+
+2b
+File uploaded successfully. Wrote 25 bytes.
+0
+
+
+
+=== Results ===
+Chunked test: ✅ PASS
+Regular test: ✅ PASS
+Manual test:  ✅ PASS
