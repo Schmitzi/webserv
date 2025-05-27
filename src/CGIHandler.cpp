@@ -30,7 +30,7 @@ std::string CGIHandler::getInfoPath() {
 }
 
 void    CGIHandler::setCGIBin(serverLevel *config) {
-    _cgiBinPath = ""; // Initialize
+    _cgiBinPath = "";
     
     std::map<std::string, locationLevel>::iterator it = config->locations.begin();
     for (; it != config->locations.end(); ++it) {
@@ -50,11 +50,12 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
 int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scriptPath) {
     cleanupResources();
     _path = scriptPath;
-   
-    setPathInfo(req.getPath());
-	std::cout << _path << "\n\n";
+
+    setPathInfo(req);
+
 
     if (doChecks(client) == 1) {
+        cleanupResources();
         return 1;
     }
     prepareEnv(req);
@@ -148,7 +149,6 @@ int CGIHandler::processScriptOutput(Client &client) {
 
     std::cout << BLUE << getTimeStamp() << "Total bytes read: " << RESET << totalBytesRead << std::endl;
 
-    // If no output, send a default response
     if (output.empty()) {
         std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
         defaultResponse += "Content-Type: text/plain\r\n";
@@ -159,15 +159,12 @@ int CGIHandler::processScriptOutput(Client &client) {
         return 0;
     }
 
-    // Split headers and body
     std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(output);
     std::string headerSection = headerAndBody.first;
     std::string bodyContent = headerAndBody.second;
     
-    // Parse headers
     std::map<std::string, std::string> headerMap = parseHeaders(headerSection);
     
-    // Check if we need to handle chunked transfer encoding
     if (isChunkedTransfer(headerMap)) {
         return handleChunkedOutput(headerMap, bodyContent);
     } else {
@@ -184,10 +181,8 @@ bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& hea
 }
 
 int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
-    // Create a temporary request to hold the response information
     Request temp;
     
-    // Set content type from headers
     std::map<std::string, std::string>::const_iterator typeIt = headerMap.find("Content-Type");
     if (typeIt != headerMap.end()) {
         temp.setContentType(typeIt->second);
@@ -325,7 +320,6 @@ bool CGIHandler::isCGIScript(const std::string& path) {
     
     if (dotPos != std::string::npos) {
         std::string ext = path.substr(dotPos + 1);
-        
         static const char* whiteList[] = {"py", "php", "cgi", "pl", NULL};
         
         for (int i = 0; whiteList[i] != NULL; ++i) {
@@ -333,9 +327,6 @@ bool CGIHandler::isCGIScript(const std::string& path) {
                 return true;
             }
         }
-    } else if (path == "/cgi-bin/cgi_tester") {
-        std::cout << RED << "Starting CGI Test\n" << RESET;
-        return true;
     }
     return false;
 }
@@ -422,35 +413,39 @@ std::string CGIHandler::makeAbsolutePath(const std::string& path) {
     return std::string(cwd) + "/" + path;
 }
 
-void CGIHandler::setPathInfo(const std::string& requestPath) {
+void CGIHandler::setPathInfo(Request& req) {
     if (_path.empty()) {
         std::cout << "Error: _path is empty! Using requestPath instead.\n";
-        _path = requestPath;
+        _path = req.getPath();
     }
     
-    size_t phpPos = requestPath.find(".php");
-    if (phpPos == std::string::npos) {
-        std::cout << "Warning: No .php found in request path!\n";
-        _pathInfo = "";
-        return;
-    }
-    
-    size_t scriptPathEnd = phpPos + 4;
-    
-    std::string scriptPath = requestPath.substr(0, scriptPathEnd);
-    
-    if (scriptPathEnd < requestPath.length()) {
-        size_t queryPos = requestPath.find('?', scriptPathEnd);
-        if (queryPos != std::string::npos) {
-            _pathInfo = requestPath.substr(scriptPathEnd, queryPos - scriptPathEnd);
+    size_t extPos = _path.find(".");
+    size_t dotPos = 0;
+    if (extPos == std::string::npos) {
+        if ((extPos!= std::string::npos)) {
+            dotPos = _path.length() - _path.find(".");
         } else {
-            _pathInfo = requestPath.substr(scriptPathEnd);
+            std::cout << "Warning: No valid extention found in request path!\n";
+            _pathInfo = "";
+            return ;
+        }
+    }
+    
+    size_t scriptPathEnd = extPos + dotPos;
+    
+    std::string scriptPath = _path.substr(0, scriptPathEnd);
+    std::cout << "Script Path: " << scriptPath << "\n";
+    if (scriptPathEnd < _path.length()) {
+        size_t queryPos = _path.find('?', scriptPathEnd);
+        if (queryPos != std::string::npos) {
+            _pathInfo = _path.substr(scriptPathEnd, queryPos - scriptPathEnd);
+        } else {
+            _pathInfo = _path.substr(scriptPathEnd);
         }
     } else {
         _pathInfo = "";
     }
-
-    _path = "local" + scriptPath;
+    _path = scriptPath;
 }
 
 void    CGIHandler::findBash() {

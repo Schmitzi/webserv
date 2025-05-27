@@ -315,26 +315,52 @@ bool Client::isFileBrowserRequest(const std::string& path) {
 
 int Client::handleFileBrowserRequest(Request& req, const std::string& requestPath) {
     std::string actualPath;
+    locationLevel loc;
+    
+    if (!matchLocation(requestPath, _server->getConfigClass().getConfig(), loc)) {
+        std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << requestPath << std::endl;
+        sendErrorResponse(404);
+        return 1;
+    }
+    
     if (requestPath == "/root" || requestPath == "/root/") {
         actualPath = "/";
-    } else if (requestPath.find("/root/") == 0) {
-        actualPath = requestPath.substr(5);
-        if (actualPath.empty()) actualPath = "/";
-    } else {
-		locationLevel loc;
-		matchLocation(requestPath, _server->getConfigClass().getConfig(), loc);
-        actualPath = requestPath.substr(5); // Remove the /root prefix
         std::string actualFullPath = _server->getWebRoot(loc) + actualPath;
         
         struct stat fileStat;
         if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-            std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << actualFullPath  << "\n";
+            std::cout << RED << _webserv->getTimeStamp() << "Root directory not found: " << RESET << actualFullPath << std::endl;
             sendErrorResponse(404);
             return 1;
         }
+        
         if (S_ISDIR(fileStat.st_mode)) {
             return createDirList(actualFullPath, actualPath);
-        } else if (S_ISREG(fileStat.st_mode)) {
+        } else {
+            std::cout << RED << _webserv->getTimeStamp() << "Root path is not a directory: " << RESET << actualFullPath << std::endl;
+            sendErrorResponse(403);
+            return 1;
+        }
+    } 
+    else if (requestPath.find("/root/") == 0) {
+        actualPath = requestPath.substr(5); // Remove "/root" prefix
+        if (actualPath.empty()) {
+            actualPath = "/";
+        }
+        
+        std::string actualFullPath = _server->getWebRoot(loc) + actualPath;
+        
+        struct stat fileStat;
+        if (stat(actualFullPath.c_str(), &fileStat) != 0) {
+            std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << actualFullPath << std::endl;
+            sendErrorResponse(404);
+            return 1;
+        }
+        
+        if (S_ISDIR(fileStat.st_mode)) {
+            return createDirList(actualFullPath, actualPath);
+        } 
+        else if (S_ISREG(fileStat.st_mode)) {
             if (buildBody(req, actualFullPath) == 1) {
                 return 1;
             }
@@ -342,15 +368,19 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
             req.setContentType(req.getMimeType(actualFullPath));
             sendResponse(req, "keep-alive", req.getBody());
             std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served file from browser: " 
-                    << RESET << actualFullPath << std::endl;
+                      << RESET << actualFullPath << std::endl;
             return 0;
-        } else {
-            std::cout << _webserv->getTimeStamp() << "Not a regular file or directory: " << actualFullPath << std::endl;
+        } 
+        else {
+            std::cout << RED << _webserv->getTimeStamp() << "Not a regular file or directory: " << RESET << actualFullPath << std::endl;
             sendErrorResponse(403);
             return 1;
         }
     }
-	return 0;
+    
+    std::cout << RED << _webserv->getTimeStamp() << "Invalid file browser request: " << RESET << requestPath << std::endl;
+    sendErrorResponse(400);
+    return 1;
 }
 
 int Client::handleRegularRequest(Request& req) {
@@ -364,7 +394,6 @@ int Client::handleRegularRequest(Request& req) {
 
     std::string reqPath = req.getPath();
     if (reqPath == "/" || reqPath.empty()) {
-        // reqPath = "/index.html";
         reqPath = loc.indexFile;
     }
 
@@ -390,6 +419,10 @@ int Client::handleRegularRequest(Request& req) {
     if (_cgi.isCGIScript(reqPath)) {
 		std::string fullCgiPath = _server->getWebRoot(loc) + reqPath;
         return _cgi.executeCGI(*this, req, fullCgiPath);
+    } else {
+        std::cout << RED << _webserv->getTimeStamp() << "Invalid CGI Request blocked\n" << RESET;
+        sendErrorResponse(403);
+        return 1;
     }
 
     std::cout << BLUE << _webserv->getTimeStamp() << "Handling GET request for path: " << RESET << req.getPath() + "\n";

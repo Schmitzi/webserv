@@ -89,15 +89,18 @@
 </div>
 
 <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Extra</h2>
-<div>  
+<div class="grid grid-cols-3 gap-4 mb-6">  
   <button type="button" data-script="../cgi-bin/env.pl" class="cgi-button bg-pink-500 text-white py-2 px-4 rounded text-center hover:bg-pink-600 transition duration-300">
     Print ENV
   </button>
   <button type="button" data-script="../cgi-bin/jokes.py" class="cgi-button bg-yellow-500 text-white py-2 px-4 rounded text-center hover:bg-yellow-600 transition duration-300">
-    Programming Joke
+    Jokes
   </button>
-  <button type="button" data-script="../cgi-bin/chunk.py" class="cgi-button bg-orange-500 text-white py-2 px-4 rounded text-center hover:bg-orange-600 transition duration-300">
+  <button type="button" data-script="../cgi-bin/chunk.py" class="cgi-button bg-purple-500 text-white py-2 px-4 rounded text-center hover:bg-purple-600 transition duration-300">
     Chunk
+  </button>
+   <button type="button" data-script="../cgi-bin/pathInfo.php" class="cgi-button bg-blue-500 text-white py-2 px-4 rounded text-center hover:bg-blue-600 transition duration-300">
+    Path Info
   </button>
 </div>
 
@@ -178,11 +181,3 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
-
-<!-- <script>
-    document.getElementById('runCGITester').addEventListener('click', function() {
-      window.location.href = '../cgi-bin/cgi_tester';
-    });
-  </script>
-</body>
-</html> -->
