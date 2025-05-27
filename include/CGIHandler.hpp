@@ -23,7 +23,7 @@ class CGIHandler {
         void    setConfig(Config config);
         void    setCGIBin(serverLevel *config);
         std::string getInfoPath();
-        void    setPathInfo(const std::string& requestPath);
+		void    setPathInfo(Request& req);
         bool    isCGIScript(const std::string& path);
         int     doChecks(Client client);
         int     processScriptOutput(Client &client);
