@@ -1,9 +1,8 @@
 #include "../include/Request.hpp"
 
-Request::Request() : _method("GET"), _path(""), _version(""), _body("") {
-}
+Request::Request() {}
 
-Request::Request(const std::string& rawRequest) : 
+Request::Request(const std::string& rawRequest, serverLevel& conf) : 
     _method("GET"),
     _path(""),
     _contentType(""),
@@ -13,7 +12,8 @@ Request::Request(const std::string& rawRequest) :
     _query(""),
     _boundary(""),
 	_reqPath(""),
-	_contentLength(0)
+	_contentLength(0),
+	_conf(conf)
 {
     parse(rawRequest);
 }
@@ -60,6 +60,10 @@ std::string Request::getReqPath() const {
 
 size_t         &Request::getContentLength() {
     return _contentLength;
+}
+
+serverLevel& Request::getConf() {
+	return _conf;
 }
 
 void    Request::setMethod(std::string const method) {
