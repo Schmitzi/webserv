@@ -9,11 +9,12 @@
 #include "../include/ConfigParser.hpp"
 
 struct serverLevel;
+struct locationLevel;
 
 class Request {
     public:
         Request();
-        Request(const std::string& rawRequest);
+        Request(const std::string& rawRequest, serverLevel& conf);
         ~Request();
         std::string &getPath();
         std::string const &getMethod();
@@ -23,6 +24,7 @@ class Request {
         std::string const &getQuery();
         std::string const &getBoundary();
         unsigned long     &getContentLength();
+		serverLevel 	  &getConf();
 		std::string getReqPath() const;
         std::map<std::string, std::string> &getHeaders();
         std::string getMimeType(std::string const &path);
@@ -50,6 +52,7 @@ class Request {
         std::string                         _boundary;
 		std::string						 	_reqPath;
         unsigned long                       _contentLength;
+		serverLevel							_conf;
 };
 
 #endif
