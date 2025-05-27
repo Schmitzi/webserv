@@ -416,8 +416,7 @@ int Client::handleRegularRequest(Request& req) {
     std::string contentType = req.getMimeType(fullPath);
     if (fullPath.find(".html") != std::string::npos || 
         reqPath == "/" || 
-        // reqPath == "/index.html") {
-        reqPath == loc.indexFile) { // TODO: is this correct?
+        reqPath == loc.indexFile) {
         contentType = "text/html";
     }
 
@@ -470,7 +469,6 @@ int Client::viewDirectory(std::string fullPath, std::string requestPath) {
 			std::string indexPath = fullPath;
 			if (indexPath[indexPath.size() - 1] != '/')
 				indexPath += "/";
-			// indexPath += "index.html";
             indexPath += loc.indexFile;
 			struct stat indexStat;
 			if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
@@ -498,7 +496,6 @@ int Client::viewDirectory(std::string fullPath, std::string requestPath) {
             return createDirList(fullPath, requestPath);
         } else {
 
-            // std::string indexPath = fullPath + "/index.html";
             std::string indexPath = fullPath + loc.indexFile;
             struct stat indexStat;
             if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
@@ -529,14 +526,12 @@ int Client::viewDirectory(std::string fullPath, std::string requestPath) {
 }
 
 int Client::createDirList(std::string fullPath, std::string requestPath) {
-    // Generate directory listing without checking for index.html
     std::string dirListing = showDir(fullPath, requestPath);
     if (dirListing.empty()) {
         sendErrorResponse(403);
         return 1;
     }
     
-    // Send directory listing as response
     std::string response = "HTTP/1.1 200 OK\r\n";
     response += "Content-Type: text/html\r\n";
     response += "Content-Length: " + tostring(dirListing.length()) + "\r\n";
