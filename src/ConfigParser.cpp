@@ -99,7 +99,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "root") setRootLoc(loc, s);
 			else if (s[0] == "index") setLocIndexFile(loc, s);
-			else if (s[0] == "methods") setMethods(loc, s);
+			else if (s[0] == "limit_except") setMethods(loc, s);
 			else if (s[0] == "autoindex") setAutoindex(loc, s);
 			else if (s[0] == "return") setRedirection(loc, s);
 			else if (s[0] == "cgi_pass") setCgiProcessorPath(loc, s);

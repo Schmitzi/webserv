@@ -24,7 +24,7 @@ struct locationLevel {
 	std::string									locName;//location
 	std::string									rootLoc;//root
 	std::string									indexFile;//index
-	std::vector<std::string>					methods;//methods
+	std::vector<std::string>					methods;//limit_except
 	bool										autoindexFound;//TODO: can be deleted, just for printing in config.cpp
 	bool										autoindex;//autoindex
 	std::pair<int, std::string>					redirectionHTTP;//redirect
