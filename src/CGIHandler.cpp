@@ -466,7 +466,6 @@ void CGIHandler::setPathInfo(Request& req) {
     } else {
         _pathInfo = "";
     }
-    _path = scriptPath;
 }
 
 void    CGIHandler::findBash(std::string& filePath) {
