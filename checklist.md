@@ -56,9 +56,9 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
   <!-- - [ ] Upload location configuration &#x2611;  -->
 
 ### CGI Requirements
-- [ ] Execute CGI with file as first argument 
+<!-- - [ ] Execute CGI with file as first argument &#x2611; -->
 <!-- - [ ] Run CGI in correct directory &#x2611; -->
-- [ ] Pass full path as PATH_INFO
+<!-- - [ ] Pass full path as PATH_INFO &#x2611; -->
 <!-- - [ ] Handle chunked requests (unchunk before CGI) &#x2611; -->
 <!-- - [ ] Handle CGI output (chunked responses) &#x2611; -->
 <!-- - [ ] Fork only for CGI execution &#x2611; -->
