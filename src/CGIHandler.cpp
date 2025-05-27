@@ -52,7 +52,6 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
     _path = scriptPath;
    
     setPathInfo(req.getPath());
-	std::cout << _path << "\n\n";
 
     if (doChecks(client) == 1) {
         cleanupResources();
@@ -333,32 +332,47 @@ bool CGIHandler::isCGIScript(const std::string& path) {
 
 void CGIHandler::prepareEnv(Request &req) {
     std::string ext = "";
+	std::string filePath = "";
+	std::string fileName = "";
+	if (!req.getQuery().empty()) {
+		fileName = req.getQuery();
+		size_t slashPos1 = fileName.find_first_of('=');
+		size_t slashPos2 = fileName.find_last_of('=');
+		if (slashPos1 != std::string::npos && slashPos2 != std::string::npos && slashPos1 == slashPos2)
+			fileName = fileName.substr(slashPos1 + 1);
+		locationLevel loc;
+		if (!matchUploadLocation("cgi-bin", req.getConf(), loc)) {
+			std::cerr << "Location not found for path: cgi-bin" << std::endl;
+			return;
+		}
+		if (loc.uploadDirPath.empty()) {
+			std::cerr << "Upload directory not set for path: cgi-bin" << std::endl;
+			return;
+		}
+		if (loc.uploadDirPath[loc.uploadDirPath.size() - 1] != '/')
+			filePath = loc.uploadDirPath + '/';
+		filePath += fileName;
+	}
     size_t dotPos = _path.find_last_of('.');
     if (dotPos != std::string::npos) {
         ext = _path.substr(dotPos + 1);
         if (ext == "php") {
-            findPHP(_cgiBinPath);
+            findPHP(_cgiBinPath, filePath);
         } 
         else if (ext == "py") {
-            findPython();
+            findPython(filePath);
         }
         else if (ext == "pl") {
-            findPl();
+            findPl(filePath);
         }
         else if (ext == "cgi") {
-            findBash();
+            findBash(filePath);
         }
         
         else {
             std::cerr << "Unsupported script type: " << ext << std::endl;
         }
-    } else {
-        if (_path == "local/cgi-bin/cgi_tester") {
-            std::cout << RED << "Running CGI Tester\n" << RESET;
-            findBash();
-        }
     }
-
     _env.clear();
     
     std::vector<std::string> tempEnv;
@@ -448,8 +462,8 @@ void CGIHandler::setPathInfo(Request& req) {
     _path = scriptPath;
 }
 
-void    CGIHandler::findBash() {
-    _args = new char*[3];
+void    CGIHandler::findBash(std::string& filePath) {
+    _args = new char*[4];
 
     static const char* cgiLocations[] = {
         "/usr/bin/bash",
@@ -467,21 +481,12 @@ void    CGIHandler::findBash() {
 	_args[0] = strdup(cgiPath.c_str());
     _args[1] = strdup(_path.c_str());
     _args[2] = NULL;
-    // Use env as fallback//TODO: put those three lines up because the if else doesnt do anything really?
-    // if (cgiPath == "/usr/bin/env") {
-        
-    //     _args[0] = strdup(cgiPath.c_str());
-    //     _args[1] = strdup(_path.c_str());
-    //     _args[2] = NULL;
-    // } else {
-
-    //     _args[0] = strdup(cgiPath.c_str());
-    //     _args[1] = strdup(_path.c_str());
-    //     _args[2] = NULL;
-    // }
+	if (!filePath.empty())
+		_args[2] = strdup(filePath.c_str());
+	_args[3] = NULL;
 }
 
-void    CGIHandler::findPython() {
+void    CGIHandler::findPython(std::string& filePath) {
     static const char* pythonLocations[] = {
         "/usr/bin/python3",
         "/run/current-system/sw/bin/python3",
@@ -501,28 +506,37 @@ void    CGIHandler::findPython() {
     // Use env as fallback
     if (_pythonPath == "/usr/bin/env") {
         std::cout << "Python not found in whitelist, using env instead" << std::endl;
-        _args = new char*[4];
+        _args = new char*[5];
         _args[0] = strdup(_pythonPath.c_str());
         _args[1] = strdup("python3");
         _args[2] = strdup(_path.c_str());
-        _args[3] = NULL;
+		_args[3] = NULL;
+		if (!filePath.empty())
+			_args[3] = strdup(filePath.c_str());
+		_args[4] = NULL;
     } else {
-        _args = new char*[3];
+        _args = new char*[4];
         _args[0] = strdup(_pythonPath.c_str());
         _args[1] = strdup(_path.c_str());
 		_args[2] = NULL;
+		if (!filePath.empty())
+			_args[2] = strdup(filePath.c_str());
+		_args[3] = NULL;
     }
 }
 
-void    CGIHandler::findPHP(std::string const &cgiBin) {
+void    CGIHandler::findPHP(std::string const &cgiBin, std::string& filePath) {
     std::string phpPath = cgiBin + "php-cgi";
-    _args = new char*[3];
+    _args = new char*[4];
     _args[0] = strdup(phpPath.c_str());
     _args[1] = strdup("php-cgi");
-    _args[2] = NULL;
+	_args[2] = NULL;
+	if (!filePath.empty())
+		_args[2] = strdup(filePath.c_str());
+	_args[3] = NULL;
 }
 
-void    CGIHandler::findPl() {
+void    CGIHandler::findPl(std::string& filePath) {
      // Whitelist of possible Perl locations
      static const char* perlLocations[] = {
         "/usr/bin/perl",
@@ -541,16 +555,22 @@ void    CGIHandler::findPl() {
     
     // Use env as fallback
     if (perlPath == "/usr/bin/env") {
-        _args = new char*[4];
+        _args = new char*[5];
         _args[0] = strdup(perlPath.c_str());
         _args[1] = strdup("perl");
         _args[2] = strdup(_path.c_str());
-        _args[3] = NULL;
+		_args[3] = NULL;
+		if (!filePath.empty())
+			_args[3] = strdup(filePath.c_str());
+        _args[4] = NULL;
     } else {
-        _args = new char*[3];
+        _args = new char*[4];
         _args[0] = strdup(perlPath.c_str());
         _args[1] = strdup(_path.c_str());
-        _args[2] = NULL;
+		_args[2] = NULL;
+		if (!filePath.empty())
+			_args[2] = strdup(filePath.c_str());
+		_args[3] = NULL;
     }
 }
 
