@@ -323,7 +323,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
     } else {
 		locationLevel loc;
 		matchLocation(requestPath, _server->getConfigClass().getConfig(), loc);
-        actualPath = requestPath.substr(5); // Remove the /root prefix
+        actualPath = requestPath.substr(5);
         std::string actualFullPath = _server->getWebRoot(loc) + actualPath;
         
         struct stat fileStat;
@@ -364,7 +364,6 @@ int Client::handleRegularRequest(Request& req) {
 
     std::string reqPath = req.getPath();
     if (reqPath == "/" || reqPath.empty()) {
-        // reqPath = "/index.html";
         reqPath = loc.indexFile;
     }
 
@@ -674,7 +673,12 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 
 int Client::handlePostRequest(Request& req) {
 	locationLevel loc;
-    matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc);
+    if (!matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+		std::cout << RED << _webserv->getTimeStamp() << "Location not found for POST request: " 
+				  << RESET << req.getPath() << std::endl;
+		sendErrorResponse(404);
+		return 1;
+	}
     std::string fullPath = getLocationPath(req, "POST");
     if (fullPath.empty())
         return 1;
@@ -708,7 +712,24 @@ int Client::handlePostRequest(Request& req) {
         contentToWrite = req.getBody();
         
         if (contentToWrite.empty() && !req.getQuery().empty()) {
-            contentToWrite = req.getQuery();
+			size_t pos = req.getQuery().find("=");
+			if (pos != std::string::npos) {
+				std::string key = req.getQuery().substr(0, pos);
+				std::string value = req.getQuery().substr(pos + 1);
+				if (key == "value" || key == "data")
+					contentToWrite = value;
+				// else {//TODO: MAYBE?
+				// 	std::cout << RED << _webserv->getTimeStamp() 
+				// 			  << "Unsupported query parameter for POST request: " << key << RESET << std::endl;
+				// 	sendErrorResponse(400);
+				// 	return 1;
+				// }
+				//TODO: but for now:
+				else
+					contentToWrite = value;
+			}
+			else
+	            contentToWrite = req.getQuery();
         }
     }
     

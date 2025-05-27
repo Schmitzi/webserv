@@ -41,8 +41,8 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
     }
     
     if (_cgiBinPath.empty()) {
-        std::cout << RED << "Warning: No PHP CGI processor found in config" << RESET << "\n";
-        std::cout << RED << "Setting CGI-Bin to /usr/bin/php-cgi\n" << RESET;
+        // std::cout << RED << "Warning: No PHP CGI processor found in config" << RESET << "\n";
+        // std::cout << RED << "Setting CGI-Bin to /usr/bin/php-cgi\n" << RESET;
         _cgiBinPath = "/usr/bin/php-cgi";
     }
 }
@@ -52,8 +52,6 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
     _path = scriptPath;
    
     setPathInfo(req);
-	std::cout << _path << "\n\n";
-
     if (doChecks(client) == 1) {
         return 1;
     }
@@ -340,13 +338,23 @@ bool CGIHandler::isCGIScript(const std::string& path) {
 void CGIHandler::prepareEnv(Request &req) {
     std::string ext = "";
 	std::string filePath = "";
+	std::string queryType = "";
 	std::string fileName = "";
+	std::string fileContent = "";
 	if (!req.getQuery().empty()) {
-		fileName = req.getQuery();
-		size_t slashPos1 = fileName.find_first_of('=');
-		size_t slashPos2 = fileName.find_last_of('=');
-		if (slashPos1 != std::string::npos && slashPos2 != std::string::npos && slashPos1 == slashPos2)
-			fileName = fileName.substr(slashPos1 + 1);
+		size_t pos1 = req.getQuery().find_first_of('=');
+		size_t pos2 = req.getQuery().find_last_of('=');
+		if (pos1 != std::string::npos && pos2 != std::string::npos && pos1 == pos2) {
+			queryType = req.getQuery().substr(0, pos1);
+			if (queryType == "file")
+				fileName = req.getQuery().substr(pos1 + 1);
+			else if (queryType == "content" || queryType == "body" || queryType == "data" || queryType == "value" || queryType == "text" || queryType == "user")
+				fileContent = req.getQuery().substr(pos1 + 1);
+			else {
+				std::cerr << "Invalid query type: " << queryType << std::endl;//TODO: send error response? is this even valid?
+				return;
+			}
+		}
 		locationLevel loc;
 		if (!matchUploadLocation("cgi-bin", req.getConf(), loc)) {
 			std::cerr << "Location not found for path: cgi-bin" << std::endl;
@@ -455,11 +463,11 @@ void CGIHandler::setPathInfo(Request& req) {
     size_t scriptPathEnd = extPos + dotPos;
     
     std::string scriptPath = _path.substr(0, scriptPathEnd);
-    std::cout << "Script Path: " << scriptPath << "\n";
     if (scriptPathEnd < _path.length()) {
         size_t queryPos = _path.find('?', scriptPathEnd);
         if (queryPos != std::string::npos) {
             _pathInfo = _path.substr(scriptPathEnd, queryPos - scriptPathEnd);
+			std::cout << "Path info: " << _pathInfo << std::endl;
         } else {
             _pathInfo = _path.substr(scriptPathEnd);
         }
