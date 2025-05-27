@@ -1056,15 +1056,6 @@ void Client::sendErrorResponse(int statusCode) {
     response += "Connection: close\r\n";
     response += "\r\n";
     response += body;
-
-    char trashBuffer[1024];
-    int flags = fcntl(_fd, F_GETFL, 0);
-    fcntl(_fd, F_SETFL, flags | O_NONBLOCK);
-    
-    while (recv(_fd, trashBuffer, sizeof(trashBuffer), MSG_DONTWAIT) > 0) {
-    }
-    
-    fcntl(_fd, F_SETFL, flags);
     
     if (!send_all(_fd, response)) {
         std::cerr << RED << _webserv->getTimeStamp() << "Failed to send error response" << std::endl;

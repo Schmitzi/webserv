@@ -97,19 +97,6 @@ int Server::setOptional() { // Optional: set socket options to reuse address
     }
     #endif
     
-    int flags = fcntl(_fd, F_GETFL, 0);
-    if (flags == -1) {
-        _webserv->ft_error("fcntl(F_GETFL) failed");
-        close(_fd);
-        return 1;
-    }
-    
-    if (fcntl(_fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-        _webserv->ft_error("fcntl(F_SETFL, O_NONBLOCK) failed");
-        close(_fd);
-        return 1;
-    }
-    
     return 0;
 }
 
