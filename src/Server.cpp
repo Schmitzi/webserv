@@ -128,7 +128,7 @@ int Server::setServerAddr() {
         inet_pton(AF_INET, ip.c_str(), &(_addr.sin_addr));
     }
 //     std::tuple<std::string, std::string, std::string> hostPortName;
-//    _curConfig.getConfig().servName; 
+//    _config.getConfig().servName; 
     _addr.sin_port = htons(port);
     
     std::cout << GREEN << _webserv->getTimeStamp() << "Server binding to " << RESET << ip << ":" << port << std::endl;
