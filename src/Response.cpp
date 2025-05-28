@@ -13,6 +13,7 @@ bool matchLocation(const std::string& path, const serverLevel& serv, locationLev
 			longestMatch = loc.locName.size();
 		}
 	}
+	// createLocationFromIndex(bestMatch.locName);
 	return found;
 }
 
@@ -25,6 +26,7 @@ bool matchUploadLocation(const std::string& path, const serverLevel& serv, locat
 			locationLevel loc = it->second;
 			if (!loc.uploadDirPath.empty()) {
 				bestMatch = loc;
+				// createLocationFromIndex(loc.uploadDirPath);
 				return true;
 			}
 		}
@@ -38,6 +40,7 @@ bool matchUploadLocation(const std::string& path, const serverLevel& serv, locat
 			}
 		}
 	}
+	// createLocationFromIndex(bestMatch.locName);
 	return found;
 }
 
@@ -55,35 +58,6 @@ bool matchRootLocation(const std::string& uri, serverLevel& serv, locationLevel&
 		}
 	}
 	return found;
-}
-
-std::string resolveFilePathFromUri(const std::string& uri, serverLevel& serv) {
-	locationLevel loc;
-	if (!matchRootLocation(uri, serv, loc)) {
-		if (!serv.rootServ.empty()) {
-			std::string root = serv.rootServ;
-			if (root[root.size() - 1] == '/')
-				root = root.substr(0, root.size() - 1);
-			if (uri[0] == '/')
-				return root + uri;
-			else
-				return root + "/" + uri;
-		} else {
-			std::cout << "No root found for URI: " << uri << std::endl;
-			if (uri[0] == '/')
-				return uri;
-			else
-				return "/" + uri;
-		}
-	}
-	std::string root = loc.rootLoc;
-	std::string locationPath = loc.locName;
-	std::string relativeUri = uri.substr(locationPath.size());
-	if (!root.empty() && root[root.size() - 1] == '/')
-		root = root.substr(0, root.size() - 1);
-	if (!relativeUri.empty() && relativeUri[0] == '/')
-		relativeUri = relativeUri.substr(1);
-	return root + "/" + relativeUri;
 }
 
 const std::string getStatusMessage(int code) {

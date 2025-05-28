@@ -348,7 +348,8 @@ void CGIHandler::prepareEnv(Request &req) {
 			queryType = req.getQuery().substr(0, pos1);
 			if (queryType == "file")
 				fileName = req.getQuery().substr(pos1 + 1);
-			else if (queryType == "content" || queryType == "body" || queryType == "data" || queryType == "value" || queryType == "text" || queryType == "user")
+			else if (queryType == "content" || queryType == "body" || queryType == "data"
+					|| queryType == "value" || queryType == "text" || queryType == "user")
 				fileContent = req.getQuery().substr(pos1 + 1);
 			else {
 				std::cerr << "Invalid query type: " << queryType << std::endl;//TODO: send error response? is this even valid?

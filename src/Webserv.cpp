@@ -46,6 +46,10 @@ Server &Webserv::getServer(int i) {
     return *_servers[i];
 }
 
+ConfigParser &Webserv::getConfigParser() {
+	return _confParser;
+}
+
 void Webserv::setEnvironment(char **envp) {
     _env = envp;
 }

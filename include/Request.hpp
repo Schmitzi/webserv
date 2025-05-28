@@ -15,7 +15,7 @@ struct locationLevel;
 class Request {
     public:
         Request();
-        Request(const std::string& rawRequest, serverLevel& conf);
+        Request(const std::string& rawRequest, serverLevel& conf, ConfigParser& configParser);
         ~Request();
         std::string &getPath();
         std::string const &getMethod();
@@ -44,6 +44,7 @@ class Request {
         bool    isChunkedTransfer() const;
         std::string getTimeStamp();
     private:
+		std::string							_host; 
         std::string                         _method;
         std::string                         _path;
         std::string                         _contentType;
@@ -55,6 +56,7 @@ class Request {
 		std::string						 	_reqPath;
         unsigned long                       _contentLength;
 		serverLevel							_conf;
+		ConfigParser						_configParser;
 };
 
 #endif

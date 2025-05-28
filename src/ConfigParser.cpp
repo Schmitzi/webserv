@@ -1,8 +1,8 @@
 #include "../include/ConfigParser.hpp"
 
-ConfigParser::ConfigParser() : _filepath("config/default.conf") {
-	storeConfigs();
-	parseAndSetConfigs();
+ConfigParser::ConfigParser() {
+	// storeConfigs();
+	// parseAndSetConfigs();
 	// printAllConfigs();
 	// printIpPortToServers();
 }
@@ -11,9 +11,8 @@ ConfigParser::ConfigParser(const std::string& filepath) {
 	_filepath = filepath;
 	std::string s = filepath.substr(strlen(filepath.c_str()) - 5, 5);
 	if (s != ".conf") {
-		std::cerr << "Invalid config file specified -> using default config file" << std::endl;
-		_filepath = "config/default.conf";
-	}
+		std::cerr << "Invalid config file specified" << std::endl;
+		throw configException("Error: Config file must have .conf extension.");}
 	storeConfigs();
 	parseAndSetConfigs();
 }
@@ -236,8 +235,9 @@ void ConfigParser::parseAndSetConfigs() {
             _allConfigs.push_back(nextConf);
         }
     }
-    
+    printAllConfigs();
     setIpPortToServers();
+	printIpPortToServers();
 }
 
 /* *************************************************************************************** */
@@ -251,7 +251,7 @@ std::vector<serverLevel> ConfigParser::getAllConfigs() {
 	return _allConfigs;
 }
 
-std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > ConfigParser::getIPPortToServers() {
+std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > ConfigParser::getIpPortToServers() {
 	return _ipPortToServers;
 }
 
