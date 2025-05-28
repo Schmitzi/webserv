@@ -2,16 +2,21 @@
 #include "../include/Webserv.hpp"
 
 Server::Server(ConfigParser confs, int nbr) {
-    _curConfig = Config(confs, nbr);
-	int port = _curConfig.getPort();
-	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > temp = confs.getIpPortToServers();
-	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = temp.begin();
-    for (; it != confs.getIpPortToServers().end(); ++it) {
-		if (it->first.first.second == port) {
-			_configs = it->second;
-			break;
-		}
-	}
+    // _curConfig = Config(confs, nbr);
+	// int port = _curConfig.getPort();
+	// std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > temp = confs.getIpPortToServers();
+	// std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = temp.begin();
+    // for (; it != confs.getIpPortToServers().end(); ++it) {
+	// 	if (it->first.first.second == port) {
+	// 		_configs = it->second;
+	// 		break;
+	// 	}
+	// }
+    std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > temp = confs.getIpPortToServers();
+    std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = temp.begin();
+    
+	_config = Config(confs, nbr);
+	serverLevel conf = _config.getConfig();
 }
 
 Server::~Server()  {

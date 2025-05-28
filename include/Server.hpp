@@ -50,8 +50,8 @@ class Server {
         struct sockaddr_in  _addr;
         std::string         _uploadDir;
         std::string         _webRoot;
-        Config              _curConfig;
-        std::vector<serverLevel*> _configs;
+        Config              _config;
+        //std::vector<Config> _configs;
         
         Webserv             *_webserv;
 };
