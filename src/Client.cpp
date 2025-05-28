@@ -736,7 +736,6 @@ int Client::handlePostRequest(Request& req) {
     }
     
     std::cout << BLUE << _webserv->getTimeStamp() << "Writing to file: " << RESET << fullPath << "\n";
-
     
     ssize_t bytesWritten = write(fd, contentToWrite.c_str(), contentToWrite.length());
     close(fd);
@@ -789,7 +788,7 @@ int Client::handleDeleteRequest(Request& req) {
 		} else {
 			std::cout << RED << _webserv->getTimeStamp() << "Error deleting file: " << RESET << fullPath
 					  << " - " << strerror(errno) << "\n";
-        	sendErrorResponse(500);
+        	sendErrorResponse(403); //TODO: Maybe this should be 500? If an operation fails
         	return 1;
 		}
     }
