@@ -8,14 +8,16 @@
 #include <cstdlib>
 #include <iomanip>
 #include "../include/ConfigParser.hpp"
+#include "Server.hpp"
 
 struct serverLevel;
 struct locationLevel;
+class Server;
 
 class Request {
     public:
         Request();
-        Request(const std::string& rawRequest, serverLevel& conf, ConfigParser& configParser);
+        Request(const std::string& rawRequest, serverLevel& conf, Server& server);
         ~Request();
         std::string &getPath();
         std::string const &getMethod();
@@ -55,8 +57,8 @@ class Request {
         std::string                         _boundary;
 		std::string						 	_reqPath;
         unsigned long                       _contentLength;
-		serverLevel							_conf;
-		ConfigParser						_configParser;
+		serverLevel							_curConf;
+		std::vector<serverLevel*>			_configs;
 };
 
 #endif

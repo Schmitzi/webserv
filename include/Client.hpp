@@ -25,6 +25,7 @@
 class Webserv;
 class Server;
 class Request;
+class CGIHandler;
 struct serverLevel;
 struct locationLevel;
 
@@ -85,7 +86,7 @@ class Client {
         
         Webserv             *_webserv;
         Server              *_server;
-        CGIHandler          _cgi;
+        CGIHandler          *_cgi;
         serverLevel         _config;
 };
 
