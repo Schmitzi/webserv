@@ -176,9 +176,9 @@ void Request::parse(const std::string& rawRequest) {
     }
 
     if (isChunkedTransfer()) {
-        std::cout << BLUE << "Chunked transfer encoding detected" << RESET << std::endl;
+        std::cout << BLUE << getTimeStamp() << "Chunked transfer encoding detected" << RESET << std::endl;
         if (_method == "POST") {
-            std::cout << BLUE << "POST request with chunked body: " << _body.length() 
+            std::cout << BLUE << getTimeStamp() << "POST request with chunked body: " << _body.length() 
                       << " bytes of chunked data" << RESET << std::endl;
         }
     }
@@ -273,7 +273,7 @@ void Request::checkContentLength(std::string buffer) {
             std::string transferEncoding = buffer.substr(pos + 18, eol - pos - 18);
             if (transferEncoding.find("chunked") != std::string::npos) {
                 _contentLength = 0;
-                std::cout << BLUE << "Transfer-Encoding: chunked detected" << RESET << std::endl;
+                std::cout << BLUE << getTimeStamp() << "Transfer-Encoding: chunked detected" << RESET << std::endl;
             }
         }
     }
@@ -357,4 +357,20 @@ bool Request::isChunkedTransfer() const {
         return true;
     }
     return false;
+}
+
+std::string Request::getTimeStamp() {
+    time_t now = time(NULL);
+    struct tm* tm_info = localtime(&now);
+    
+    std::ostringstream oss;
+    oss << "[" 
+        << (tm_info->tm_year + 1900) << "-"
+        << std::setw(2) << std::setfill('0') << (tm_info->tm_mon + 1) << "-"
+        << std::setw(2) << std::setfill('0') << tm_info->tm_mday << " "
+        << std::setw(2) << std::setfill('0') << tm_info->tm_hour << ":"
+        << std::setw(2) << std::setfill('0') << tm_info->tm_min << ":"
+        << std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
+    
+    return oss.str();
 }

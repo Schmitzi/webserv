@@ -34,7 +34,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
     
     std::map<std::string, locationLevel>::iterator it = config->locations.begin();
     for (; it != config->locations.end(); ++it) {
-        if (it->first.find("php") != std::string::npos) {
+        if (it->first.find("cgi-bin") != std::string::npos) {
             _cgiBinPath = it->second.cgiProcessorPath;
             break;
         }

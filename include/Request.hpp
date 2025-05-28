@@ -6,6 +6,7 @@
 #include <map>
 #include <sstream>
 #include <cstdlib>
+#include <iomanip>
 #include "../include/ConfigParser.hpp"
 
 struct serverLevel;
@@ -41,6 +42,7 @@ class Request {
         void    checkContentLength(std::string buffer);
         void    parseContentType();
         bool    isChunkedTransfer() const;
+        std::string getTimeStamp();
     private:
 		std::string							_host; 
         std::string                         _method;
