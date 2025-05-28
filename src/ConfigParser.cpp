@@ -3,6 +3,9 @@
 ConfigParser::ConfigParser() {
 	// storeConfigs();
 	// parseAndSetConfigs();
+ConfigParser::ConfigParser() {
+	// storeConfigs();
+	// parseAndSetConfigs();
 	// printAllConfigs();
 	// printIpPortToServers();
 }
@@ -237,7 +240,7 @@ void ConfigParser::parseAndSetConfigs() {
     }
     // printAllConfigs();
     setIpPortToServers();
-	// printIpPortToServers();
+	printIpPortToServers();
 }
 
 /* *************************************************************************************** */
