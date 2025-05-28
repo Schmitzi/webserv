@@ -12,9 +12,8 @@
 
 class Client;
 class Server;
-// class Config;
+class Config;
 class Request;
-struct serverLevel;
 
 class CGIHandler {
     public:
