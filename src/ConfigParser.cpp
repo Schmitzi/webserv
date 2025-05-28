@@ -201,6 +201,41 @@ void ConfigParser::setIpPortToServers() {
 //     setIpPortToServers();
 // }
 
+// void ConfigParser::parseAndSetConfigs() {
+//     std::map<std::pair<std::string, int>, bool> usedIpPorts;
+    
+//     for (size_t i = 0; i < _storedConfigs.size(); i++) {
+//         serverLevel nextConf;
+//         setConfigLevels(nextConf, _storedConfigs[i]);
+        
+//         // Check for duplicate IP:port combinations
+//         for (size_t j = 0; j < nextConf.port.size(); j++) {
+//             std::pair<std::pair<std::string, int>, bool> ipPort = nextConf.port[j];
+// 			nextConf.servName
+            
+//             if (usedIpPorts.find(ipPort.first) != usedIpPorts.end()) {
+//                 std::cerr << RED << "Warning: IP:port combination " << ipPort.first.first << ":" << ipPort.first.second 
+//                           << " is already in use by another server. Ignoring duplicate." << RESET << std::endl;
+                
+//                 // Remove this duplicate from the server's port list
+//                 nextConf.port.erase(nextConf.port.begin() + j);
+//                 j--;
+//             } else {
+//                 usedIpPorts[ipPort.first] = true;
+//             }
+//         }
+        
+//         // Only add server if it has at least one valid port
+//         if (!nextConf.port.empty()) {
+//             _allConfigs.push_back(nextConf);
+//         } else {
+//             std::cerr << "Warning: Server skipped because it has no valid ports." << std::endl;
+//         }
+//     }
+//     //printAllConfigs();
+//     setIpPortToServers();
+// }
+
 void ConfigParser::parseAndSetConfigs() {
     std::set<std::string> usedCombinations; // "ip:port:servername"
     
@@ -219,7 +254,7 @@ void ConfigParser::parseAndSetConfigs() {
                     usedCombinations.insert(combination);
                     validServer = true;
                 } else {
-					throw configException("Error: Duplicate server configuration found for " + combination);
+                    std::cerr << RED << "Warning: Duplicate server: " << combination << RESET << std::endl;
                 }
             }
         }

@@ -788,7 +788,7 @@ int Client::handleDeleteRequest(Request& req) {
 		} else {
 			std::cout << RED << _webserv->getTimeStamp() << "Error deleting file: " << RESET << fullPath
 					  << " - " << strerror(errno) << "\n";
-        	sendErrorResponse(403); //TODO: Maybe this should be 500? If an operation fails
+        	sendErrorResponse(500);
         	return 1;
 		}
     }

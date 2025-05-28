@@ -69,6 +69,7 @@ int main(int ac, char **av, char **envp) {
 			webserv = new Webserv(av[1]);
 		else 
 			webserv = new Webserv();
+
 		g_webserv = webserv;
 		webserv->setEnvironment(envp);
 	

@@ -49,14 +49,15 @@ class Server {
         int                 		ft_listen();
 
     private:
-        int                 		_fd;
-        struct sockaddr_in  		_addr;
-        std::string         		_uploadDir;
-        std::string         		_webRoot;
-		ConfigParser	    		_confParser;
-        serverLevel         		_curConfig;
-        std::vector<serverLevel*> 	_configs;
-        Webserv             		*_webserv;
+        Server();
+        int                 _fd;
+        struct sockaddr_in  _addr;
+        std::string         _uploadDir;
+        std::string         _webRoot;
+        Config              _config;
+        //std::vector<Config> _configs;
+        
+        Webserv             *_webserv;
 };
 
 #endif

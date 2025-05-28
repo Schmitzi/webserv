@@ -104,12 +104,12 @@ int Webserv::run() {
    for (size_t i = 0; i < _servers.size(); i++) {
     if (_servers[i]->getFd() > 0) {
         std::cout << BLUE << getTimeStamp() << "Host:Port already opened: " << RESET << 
-            _confParser.getDefaultPortPair(_servers[i]->getCurConfig()).first.first << ":" << 
-            _confParser.getDefaultPortPair(_servers[i]->getCurConfig()).first.second << "\n";
+            _servers[i]->getConfigClass().getDefaultPortPair().first.first << ":" << 
+            _servers[i]->getConfigClass().getDefaultPortPair().first.second << "\n";
         i++;
         continue;
     }
-    std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _confParser.getPort(_servers[i]->getCurConfig()) << std::endl;
+    std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _servers[i]->getConfigClass().getPort() << std::endl;
     if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
         _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {
         std::cerr << RED << getTimeStamp() << "Failed to initialize server: " << RESET << i + 1 << std::endl;
@@ -121,7 +121,15 @@ int Webserv::run() {
     }
     std::cout << GREEN << getTimeStamp() << 
         "Server " << i + 1 << " is listening on port " << RESET << 
-        _confParser.getPort(_servers[i]->getCurConfig()) << "\n";
+        _servers[i]->getConfigClass().getPort() << "\n";
+    }
+
+    if (serverCheck() == 1) {
+        return 1;
+    }
+
+    if (serverCheck() == 1) {
+        return 1;
     }
 
     while (1) {

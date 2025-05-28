@@ -1,20 +1,12 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
 
-Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
-	_fd = -1;
-	_confParser = confs;
-    _curConfig = confs.getConfigByIndex(nbr);
-	int port = confs.getPort(_curConfig);
-	IPPortToServersMap temp = confs.getIpPortToServers();
-	IPPortToServersMap::iterator it = temp.begin();
-    for (; it != confs.getIpPortToServers().end(); ++it) {
-		if (it->first.first.second == port) {
-			_configs = it->second;
-			break;
-		}
-	}
-	_webserv = &webserv;
+Server::Server(ConfigParser confs, int nbr) {
+    std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > temp = confs.getIPPortToServers();
+    std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = temp.begin();
+    
+	_config = Config(confs, nbr);
+	serverLevel conf = _config.getConfig();
 }
 
 Server::~Server()  {
@@ -128,7 +120,7 @@ int Server::setServerAddr() {
         inet_pton(AF_INET, ip.c_str(), &(_addr.sin_addr));
     }
 //     std::tuple<std::string, std::string, std::string> hostPortName;
-//    _curConfig.getConfig().servName; 
+//    _config.getConfig().servName; 
     _addr.sin_port = htons(port);
     
     std::cout << GREEN << _webserv->getTimeStamp() << "Server binding to " << RESET << ip << ":" << port << std::endl;
