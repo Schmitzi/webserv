@@ -213,11 +213,13 @@ void ConfigParser::setIpPortToServers() {
 
 void ConfigParser::parseAndSetConfigs() {
     std::set<std::string> usedCombinations; // "ip:port:servername"
+    std::set<std::string> usedCombinations; // "ip:port:servername"
     
     for (size_t i = 0; i < _storedConfigs.size(); i++) {
         serverLevel nextConf;
         setConfigLevels(nextConf, _storedConfigs[i]);
         
+        bool validServer = false;
         bool validServer = false;
         for (size_t j = 0; j < nextConf.port.size(); j++) {
             for (size_t k = 0; k < nextConf.servName.size(); k++) {
@@ -229,7 +231,7 @@ void ConfigParser::parseAndSetConfigs() {
                     usedCombinations.insert(combination);
                     validServer = true;
                 } else {
-					throw configException("Error: Duplicate server configuration found for " + combination);
+                    std::cerr << RED << "Warning: Duplicate server: " << combination << RESET << std::endl;
                 }
             }
         }
