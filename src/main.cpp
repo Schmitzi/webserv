@@ -82,15 +82,10 @@ int main(int ac, char **av, char **envp) {
 		else 
 			webserv = new Webserv();
 
-		//	webserv->setConfig(av[1]);
 		g_webserv = webserv;
 	
 		webserv->setEnvironment(envp);
-	
-		// if (inputCheck(ac, av, webserv)) {
-		//     return -1;
-		// }
-	
+
 		if (webserv->run()) {
 			webserv->ft_error("Setup failed");
 		}
@@ -100,6 +95,5 @@ int main(int ac, char **av, char **envp) {
 	} catch (const std::exception& e) {
 		std::cerr << "Exception: " << e.what() << std::endl;
 	}
-	std::cout << "HUH!\n";
     return 0;
 }

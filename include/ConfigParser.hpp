@@ -11,8 +11,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
+#include <set>
 #include "Helper.hpp"
 #include "ConfigHelper.hpp"
+
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -69,6 +71,7 @@ class ConfigParser {
 		//getters
 		std::vector<std::vector<std::string> > getStoredConfigs();
 		std::vector<serverLevel> getAllConfigs();
+		std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > getIPPortToServers();
 
 		//extras
 		void printAllConfigs();

@@ -188,7 +188,8 @@ void setCgiProcessorPath(locationLevel& loc, std::vector<std::string>& s) {
 
 void setUploadDirPath(locationLevel& loc, std::vector<std::string>& s) {
 	std::string path = getAbsPath(s[1]);
-	if (!path.empty() && !isValidDir(path))
+	if (!path.empty() && (path.find("..") != std::string::npos || 
+        path.find("/.") != std::string::npos || !isValidDir(path)))
 		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
 	loc.uploadDirPath = path;
 }

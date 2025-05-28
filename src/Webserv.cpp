@@ -81,8 +81,14 @@ int Webserv::run() {
 
    // Initialize server
    for (size_t i = 0; i < _servers.size(); i++) {
+    if (_servers[i]->getFd() > 0) {
+        std::cout << BLUE << getTimeStamp() << "Host:Port already opened: " << RESET << 
+            _servers[i]->getConfigClass().getDefaultPortPair().first.first << ":" << 
+            _servers[i]->getConfigClass().getDefaultPortPair().first.second << "\n";
+        i++;
+        continue;
+    }
     std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _servers[i]->getConfigClass().getPort() << std::endl;
-    
     if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
         _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {
         std::cerr << RED << getTimeStamp() << "Failed to initialize server: " << RESET << i + 1 << std::endl;
@@ -97,6 +103,10 @@ int Webserv::run() {
     std::cout << GREEN << getTimeStamp() << 
         "Server " << i + 1 << " is listening on port " << RESET << 
         _servers[i]->getConfigClass().getPort() << "\n";
+    }
+
+    if (serverCheck() == 1) {
+        return 1;
     }
 
     while (1) {
@@ -142,6 +152,21 @@ int Webserv::run() {
     return 0;
 }
 
+int     Webserv::serverCheck() {
+    bool isValid = false;
+    for (size_t i = 0; i < _servers.size() ; i++) {
+        if (fcntl(_servers[i]->getFd(), F_GETFD) != -1 || errno != EBADF) {
+            isValid = true;
+            break;
+        }
+    }
+    if (isValid == false) {
+        std::cout << RED << getTimeStamp() << "No valid servers, exiting\n" << RESET;
+        return 1;
+    }
+    return 0;
+}
+
 Server* Webserv::findServerByFd(int fd) {
     for (size_t i = 0; i < _servers.size(); i++) {
         if (_servers[i]->getFd() == fd) {
@@ -181,12 +206,10 @@ int Webserv::addToEpoll(int fd, short events) {
     struct epoll_event event;
     event.events = events;
     event.data.fd = fd;
-    
     if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1) {
         ft_error("epoll_ctl ADD failed for fd " + tostring(fd));
         return 1;
     }
-    
     return 0;
 }
 
