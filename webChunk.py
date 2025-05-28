@@ -3,6 +3,7 @@
 import http.client
 import socket
 import time
+import os
 
 HOST = "127.0.0.1"
 PORT = 8080
@@ -44,13 +45,19 @@ def test_chunked_with_debug():
         print(f"Response body (decoded): '{data.decode('utf-8', errors='ignore')}'")
         
         print("\n✅ Chunked request successful!")
+        print("Deleting generated file\n")
+        conn.request("DELETE", "/upload/test_chunked");
         return True
         
     except socket.timeout as e:
         print(f"❌ Timeout error: {e}")
+        print("Deleting generated file\n")
+        conn.request("DELETE", "/upload/test_chunked");
         return False
     except Exception as e:
         print(f"❌ Error: {e}")
+        print("Deleting generated file\n")
+        conn.request("DELETE", "/upload/test_chunked");
         return False
     finally:
         conn.close()
@@ -80,6 +87,8 @@ def test_regular_post_for_comparison():
         print(f"Response body: '{data.decode('utf-8', errors='ignore')}'")
         
         print("\n✅ Regular POST successful!")
+        print("\nDeleting generated file")
+        conn.request("DELETE", "/upload/test_regular");
         return True
         
     except Exception as e:
@@ -125,6 +134,9 @@ def test_with_manual_socket():
         
         print(f"\nFull response ({len(response)} bytes):")
         print(response.decode('utf-8', errors='ignore'))
+        print("Deleting generated file\n")
+        delete_request = "DELETE /upload/test_manual HTTP/1.1"
+        sock.send(delete_request.encode());
         
         return len(response) > 0
         
