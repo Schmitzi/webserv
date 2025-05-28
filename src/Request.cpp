@@ -242,6 +242,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 }
 
 void Request::checkContentLength(std::string buffer) {
+	std::cout << "BUFFER: " << buffer << std::endl;
     size_t pos = buffer.find("Content-Length:");
     if (pos != std::string::npos) {
         pos += 15;
@@ -270,22 +271,28 @@ void Request::checkContentLength(std::string buffer) {
 	// 		if (pos != std::string::npos) {
 	// 			std::string hostName = _host.substr(0, pos);
 	// 			int hostPort = atoi(_host.substr(pos + 1).c_str());
+	// 			//match server_name with hostName
 	// 			bool found = false;
-	// 			for (size_t i = 0; i < _configs.size(); i++) {
-	// 				for (size_t j = 0; j < _configs[i]->servName.size(); j++) {
-	// 					if (_configs[i]->servName[j] == hostName) {
-	// 						found = true;
-	// 						_curConf = *_configs[i];
-	// 						std::cout << BLUE << getTimeStamp() << "Matched server: " << hostName 
-	// 								  << ":" << hostPort << RESET << std::endl;
-	// 						break;
-	// 					}
+	// 			std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = _configParser.getIpPortToServers().begin();
+	// 			for (; it != _configParser.getIpPortToServers().end(); ++it) {
+	// 				if (it->first.first.first == hostName && it->first.first.second == hostPort) {
+	// 					_conf = *(it->second[0]);
+	// 					std::cout << BLUE << "Host: " << hostName << ":" << hostPort << " matched with server config" << RESET << std::endl;
+	// 					found = true;
+	// 					break;
 	// 				}
 	// 			}
-	// 			if (!found) {
-	// 				std::cout << RED << getTimeStamp() << "No matching server for Host: " 
-	// 						  << hostName << ":" << hostPort << RESET << std::endl;
-	// 				_curConf = *_configs[0]; // TODO: ???
+	// 			if (found == false) {
+	// 				it = _configParser.getIpPortToServers().begin();
+	// 				for (; it != _configParser.getIpPortToServers().end(); ++it) {
+	// 					if (it->first.first.second == hostPort && it->first.second == true) {
+	// 						_conf = *(it->second[0]);
+	// 						std::cout << BLUE << "Host: " << hostName << ":" << hostPort << " matched with default server config" << RESET << std::endl;
+	// 						found = true;
+	// 						break;
+	// 					}
+	// 					if (found == false)
+	// 						std::cout << RED << "Host: " << hostName << ":" << hostPort << " not matched with any server config" << RESET << std::endl;
 	// 			}
 	// 		}
 	// 	}

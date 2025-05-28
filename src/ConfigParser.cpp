@@ -1,13 +1,18 @@
 #include "../include/ConfigParser.hpp"
 
 ConfigParser::ConfigParser() {
+	// storeConfigs();
+	// parseAndSetConfigs();
+	// printAllConfigs();
+	// printIpPortToServers();
 }
 
 ConfigParser::ConfigParser(const std::string& filepath) {
 	_filepath = filepath;
 	std::string s = filepath.substr(strlen(filepath.c_str()) - 5, 5);
-	if (s != ".conf")
-		throw configException("Error: Invalid config file specified.");
+	if (s != ".conf") {
+		std::cerr << "Invalid config file specified" << std::endl;
+		throw configException("Error: Config file must have .conf extension.");}
 	storeConfigs();
 	parseAndSetConfigs();
 }
@@ -220,9 +225,9 @@ void ConfigParser::parseAndSetConfigs() {
             _allConfigs.push_back(nextConf);
         }
     }
-    // printAllConfigs();
+    printAllConfigs();
     setIpPortToServers();
-	// printIpPortToServers();
+	printIpPortToServers();
 }
 
 /* *************************************************************************************** */
@@ -232,7 +237,7 @@ std::vector<serverLevel> ConfigParser::getAllConfigs() {
 	return _allConfigs;
 }
 
-IPPortToServersMap ConfigParser::getIpPortToServers() {
+std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > ConfigParser::getIpPortToServers() {
 	return _ipPortToServers;
 }
 
