@@ -737,6 +737,7 @@ int Client::handlePostRequest(Request& req) {
     }
     
     std::cout << BLUE << _webserv->getTimeStamp() << "Writing to file: " << RESET << fullPath << "\n";
+
     
     ssize_t bytesWritten = write(fd, contentToWrite.c_str(), contentToWrite.length());
     close(fd);
