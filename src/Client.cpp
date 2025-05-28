@@ -9,10 +9,10 @@ Client::Client(Server& serv) {
     setWebserv(&serv.getWebServ());
     setServer(&serv);
 	setConfig(Config(serv.getConfigClass()).getConfig());
-    _cgi.setClient(*this);
-    _cgi.setServer(*_server);
-    _cgi.setConfig(serv.getConfigClass());
-    _cgi.setCGIBin(&_config);
+    _cgi->setClient(*this);
+    _cgi->setServer(*_server);
+    _cgi->setConfig(serv.getConfigClass());
+    _cgi->setCGIBin(&_config);
 }
 
 Client::~Client() {
@@ -79,7 +79,7 @@ int Client::acceptConnection(int serverFd) {
     setConfig(temp->getConfig());
     delete temp;
     
-    _cgi.setServer(*_server);
+    _cgi->setServer(*_server);
     
     return 0;
 }
@@ -231,7 +231,7 @@ bool Client::isChunkedBodyComplete(const std::string& buffer) {
 }
 
 int Client::processRequest(std::string &buffer) {
-    Request req(buffer, _config, getWebserv().getConfigParser());
+    Request req(buffer, _config, getServer());
 
     if (req.getContentLength() > _config.requestLimit) {
         std::cerr << RED << "Content-Length too large" << RESET << std::endl;
@@ -386,9 +386,9 @@ int Client::handleRegularRequest(Request& req) {
         return 1;
     }
 
-    if (_cgi.isCGIScript(reqPath)) {
+    if (_cgi->isCGIScript(reqPath)) {
 		std::string fullCgiPath = _server->getWebRoot(loc) + reqPath;
-        return _cgi.executeCGI(*this, req, fullCgiPath);
+        return _cgi->executeCGI(*this, req, fullCgiPath);
     }
 
     std::cout << BLUE << _webserv->getTimeStamp() << "Handling GET request for path: " << RESET << req.getPath() + "\n";
@@ -679,8 +679,8 @@ int Client::handlePostRequest(Request& req) {
         return 1;
     
     std::string cgiPath = _server->getWebRoot(loc) + req.getPath();
-    if (_cgi.isCGIScript(cgiPath)) {
-        return _cgi.executeCGI(*this, req, cgiPath);
+    if (_cgi->isCGIScript(cgiPath)) {
+        return _cgi->executeCGI(*this, req, cgiPath);
     }
     
     if (req.getContentType().find("multipart/form-data") != std::string::npos) {
@@ -767,8 +767,8 @@ int Client::handleDeleteRequest(Request& req) {
 	std::string fullPath = getLocationPath(req, "DELETE");
 	if (fullPath.empty())
 		return 1;
-    if (_cgi.isCGIScript(req.getPath())) {
-        return _cgi.executeCGI(*this, req, fullPath);
+    if (_cgi->isCGIScript(req.getPath())) {
+        return _cgi->executeCGI(*this, req, fullPath);
     }
 
     size_t end = fullPath.find_last_not_of(" \t\r\n");

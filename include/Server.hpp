@@ -29,28 +29,29 @@ class Server {
         Server(ConfigParser confs, int nbr);
         ~Server();
         
-        Webserv             &getWebServ();
-        struct sockaddr_in  &getAddr();
-        int                 &getFd();
-        std::string   		getUploadDir(Client& client, Request& req);
-        std::string			getWebRoot(locationLevel& loc);
-        Config              &getConfigClass();
-        void                setFd(int const fd);
-        void                setWebserv(Webserv* webserv);
-        void                setConfig(Config config);
-        int                 openSocket();
-        int                 setOptional();
-        int                 setServerAddr();
-        int                 ft_bind();
-        int                 ft_listen();
+        Webserv             		&getWebServ();
+        struct sockaddr_in  		&getAddr();
+        int                 		&getFd();
+        std::string   				getUploadDir(Client& client, Request& req);
+        std::string					getWebRoot(locationLevel& loc);
+        Config              		&getConfigClass();
+		std::vector<serverLevel*> 	&getConfigs();
+        void                		setFd(int const fd);
+        void                		setWebserv(Webserv* webserv);
+        void                		setConfig(Config config);
+        int                 		openSocket();
+        int                 		setOptional();
+        int                 		setServerAddr();
+        int                 		ft_bind();
+        int                 		ft_listen();
     private:
         Server();
         int                 _fd;
         struct sockaddr_in  _addr;
         std::string         _uploadDir;
         std::string         _webRoot;
-        Config              _config;
-        //std::vector<Config> _configs;
+        Config              _curConfig;
+        std::vector<serverLevel*> _configs;
         
         Webserv             *_webserv;
 };

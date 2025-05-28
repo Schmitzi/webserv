@@ -13,6 +13,7 @@
 class Client;
 class Server;
 class Config;
+class Request;
 
 class CGIHandler {
     public:

@@ -2,11 +2,16 @@
 #include "../include/Webserv.hpp"
 
 Server::Server(ConfigParser confs, int nbr) {
-    std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > temp = confs.getIPPortToServers();
-    std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = temp.begin();
-    
-	_config = Config(confs, nbr);
-	serverLevel conf = _config.getConfig();
+    _curConfig = Config(confs, nbr);
+	int port = _curConfig.getPort();
+	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > temp = confs.getIpPortToServers();
+	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = temp.begin();
+    for (; it != confs.getIpPortToServers().end(); ++it) {
+		if (it->first.first.second == port) {
+			_configs = it->second;
+			break;
+		}
+	}
 }
 
 Server::~Server()  {
@@ -26,7 +31,7 @@ int &Server::getFd() {
 
 std::string Server::getUploadDir(Client& client, Request& req) {
 	locationLevel loc;
-	if (!matchUploadLocation(req.getReqPath(), _config.getConfig(), loc)) {
+	if (!matchUploadLocation(req.getReqPath(), _curConfig.getConfig(), loc)) {
 		std::cout << "Location not found: " << req.getReqPath() << std::endl;
 		client.sendErrorResponse(403);
 		return "";
@@ -49,16 +54,20 @@ std::string	Server::getWebRoot(locationLevel& loc) {
 			path = loc.rootLoc;
 	}
 	else {
-		if (_config.getConfig().rootServ[_config.getConfig().rootServ.size() - 1] == '/')
-			path = _config.getConfig().rootServ.substr(0, _config.getConfig().rootServ.size() - 1);
+		if (_curConfig.getConfig().rootServ[_curConfig.getConfig().rootServ.size() - 1] == '/')
+			path = _curConfig.getConfig().rootServ.substr(0, _curConfig.getConfig().rootServ.size() - 1);
 		else
-			path = _config.getConfig().rootServ;
+			path = _curConfig.getConfig().rootServ;
 	}
 	return path;
 }
 
 Config &Server::getConfigClass() {
-	return _config;
+	return _curConfig;
+}
+
+std::vector<serverLevel*> &Server::getConfigs() {
+	return _configs;
 }
 
 void Server::setWebserv(Webserv* webserv) {
@@ -66,7 +75,7 @@ void Server::setWebserv(Webserv* webserv) {
 }
 
 void    Server::setConfig(Config config) {
-    _config = config;
+    _curConfig = config;
 }
 
 void    Server::setFd(int const fd) {
@@ -112,7 +121,7 @@ int Server::setServerAddr() {
         inet_pton(AF_INET, ip.c_str(), &(_addr.sin_addr));
     }
 //     std::tuple<std::string, std::string, std::string> hostPortName;
-//    _config.getConfig().servName; 
+//    _curConfig.getConfig().servName; 
     _addr.sin_port = htons(port);
     
     std::cout << GREEN << _webserv->getTimeStamp() << "Server binding to " << RESET << ip << ":" << port << std::endl;
