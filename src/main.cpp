@@ -72,7 +72,7 @@ int main(int ac, char **av, char **envp) {
 
 		g_webserv = webserv;
 		webserv->setEnvironment(envp);
-
+	
 		if (webserv->run()) {
 			webserv->ft_error("Setup failed");
 		}
