@@ -100,6 +100,7 @@ void    Request::setHeader(std::map<std::string, std::string> map) {
 }
 
 void Request::parse(const std::string& rawRequest) {
+    std::cout << "REQ: \n" << rawRequest << "\n";
     if (rawRequest.empty()) {
         std::cout << RED << "Empty request!\n" << RESET;
         _method = "BAD";

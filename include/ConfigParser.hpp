@@ -11,8 +11,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
+#include <set>
 #include "Helper.hpp"
 #include "ConfigHelper.hpp"
+
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"

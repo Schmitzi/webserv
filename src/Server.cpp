@@ -2,6 +2,9 @@
 #include "../include/Webserv.hpp"
 
 Server::Server(ConfigParser confs, int nbr) {
+    std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > temp = confs.getIPPortToServers();
+    std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = temp.begin();
+    
 	_config = Config(confs, nbr);
 	serverLevel conf = _config.getConfig();
 }
@@ -91,12 +94,6 @@ int Server::setOptional() { // Optional: set socket options to reuse address
         return 1;
     }
     
-    #ifdef SO_REUSEPORT
-    if (setsockopt(_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0) {
-        std::cerr << "Warning: setsockopt(SO_REUSEPORT) failed: " << strerror(errno) << std::endl;
-    }
-    #endif
-    
     return 0;
 }
 
@@ -114,7 +111,8 @@ int Server::setServerAddr() {
     } else {
         inet_pton(AF_INET, ip.c_str(), &(_addr.sin_addr));
     }
-    
+//     std::tuple<std::string, std::string, std::string> hostPortName;
+//    _config.getConfig().servName; 
     _addr.sin_port = htons(port);
     
     std::cout << GREEN << _webserv->getTimeStamp() << "Server binding to " << RESET << ip << ":" << port << std::endl;
