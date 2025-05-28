@@ -152,7 +152,7 @@ int Webserv::run() {
     return 0;
 }
 
-int     Webserv::serverCheck() {
+int     Webserv::serverCheck() { //TODO: Does not reliably block servers
     bool isValid = false;
     for (size_t i = 0; i < _servers.size() ; i++) {
         if (fcntl(_servers[i]->getFd(), F_GETFD) != -1 || errno != EBADF) {
