@@ -254,7 +254,7 @@ void ConfigParser::parseAndSetConfigs() {
                     usedCombinations.insert(combination);
                     validServer = true;
                 } else {
-                    std::cerr << RED << "Warning: Duplicate server: " << combination << RESET << std::endl;
+					throw configException("Error: Duplicate server configuration found for " + combination);
                 }
             }
         }
