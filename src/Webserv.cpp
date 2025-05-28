@@ -150,21 +150,7 @@ int Webserv::run() {
             }
         }
     }
-    return 0;
-}
 
-int     Webserv::serverCheck() { //TODO: Does not reliably block servers //TODO: cant use fcntl
-    bool isValid = false;
-    for (size_t i = 0; i < _servers.size() ; i++) {
-        if (fcntl(_servers[i]->getFd(), F_GETFD) != -1 || errno != EBADF) {
-            isValid = true;
-            break;
-        }
-    }
-    if (isValid == false) {
-        std::cout << RED << getTimeStamp() << "No valid servers, exiting\n" << RESET;
-        return 1;
-    }
     return 0;
 }
 
