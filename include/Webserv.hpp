@@ -48,6 +48,7 @@ class Webserv {
         ~Webserv();
 
         Server          &getServer(int i);
+		ConfigParser    &getConfigParser();
         void            setEnvironment(char **envp);
         char            **getEnvironment() const;
         int             setConfig(std::string const filepath);

@@ -69,6 +69,7 @@ class ConfigParser {
 		//getters
 		std::vector<std::vector<std::string> > getStoredConfigs();
 		std::vector<serverLevel> getAllConfigs();
+		std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > getIpPortToServers();
 
 		//extras
 		void printAllConfigs();

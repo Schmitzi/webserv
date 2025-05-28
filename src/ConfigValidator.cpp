@@ -20,7 +20,21 @@ std::string getAbsPath(std::string& path) {
 	return absPath;
 }
 
-bool isValidPath(const std::string &path) {
+void createLocationFromIndex(std::string& path) {
+	if (path.empty())
+		return;
+	std::string absolutePath = getAbsPath(path);
+	if (mkdir(absolutePath.c_str(), 0755) == 0)
+		return;
+	if (errno == EEXIST) {
+		struct stat info;
+		if (stat(absolutePath.c_str(), &info) == 0 && (info.st_mode & S_IFDIR))
+			return;
+	}
+	std::cerr << "Error creating directory: " << absolutePath << " - " << strerror(errno) << std::endl;
+}
+
+bool isValidPath(std::string &path) {
 	struct stat	info;
 	
 	return (stat(path.c_str(), &info) == 0 && !S_ISDIR(info.st_mode) && access(path.c_str(), R_OK) == 0);
@@ -28,13 +42,10 @@ bool isValidPath(const std::string &path) {
 
 bool isValidRedirectPath(const std::string &path) {
 	return (!path.empty() && (path[0] == '/' || path.find("http://") == 0 || path.find("https://") == 0));
-	// return (!path.empty() && path[0] == '/' && path.find("http://") != 0);
-	// if (path.empty() || (path[0] != '/' && path.find("http") != 0))
-	// 	return (false);
-	// return (true);
 }
 
-bool isValidDir(const std::string &path) {
+bool isValidDir(std::string &path) {
+	createLocationFromIndex(path);
 	struct stat	info;
 
 	return (stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode) && access(path.c_str(), R_OK) == 0);

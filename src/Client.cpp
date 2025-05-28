@@ -231,7 +231,7 @@ bool Client::isChunkedBodyComplete(const std::string& buffer) {
 }
 
 int Client::processRequest(std::string &buffer) {
-    Request req(buffer, _config);
+    Request req(buffer, _config, getWebserv().getConfigParser());
 
     if (req.getContentLength() > _config.requestLimit) {
         std::cerr << RED << "Content-Length too large" << RESET << std::endl;
