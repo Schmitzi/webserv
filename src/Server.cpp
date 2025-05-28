@@ -2,9 +2,13 @@
 #include "../include/Webserv.hpp"
 
 Server::Server(ConfigParser confs, int nbr) {
-    std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > temp = confs.getIPPortToServers();
-    std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = temp.begin();
-    
+    // _configs.push_back(Config(confs, nbr));
+    // std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > temp = confs.getIPPortToServers();
+    // std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = temp.begin();
+    // for ( ; it != temp.end() ; it++) {
+    //     std::cout << it->first.first.first << "\n";
+    //     std::cout << it->first.first.second << "\n";
+    // }
 	_config = Config(confs, nbr);
 	serverLevel conf = _config.getConfig();
 }
