@@ -10,12 +10,11 @@ Client::Client(Server& serv) {
 	_fd = serv.getFd();
     setWebserv(&serv.getWebServ());
     setServer(&serv);
-	setConfig(serv.getCurConfig());
-	_cgi = new CGIHandler();
-	_cgi->setClient(*this);
-	_cgi->setServer(serv);
-	_cgi->setConfig(serv.getCurConfig());
-	_cgi->setCGIBin(&serv.getCurConfig());
+	setConfig(Config(serv.getConfigClass()).getConfig());
+    _cgi->setClient(*this);
+    _cgi->setServer(*_server);
+    _cgi->setConfig(serv.getConfigClass());
+    _cgi->setCGIBin(&_config);
 }
 
 Client::~Client() {
@@ -231,7 +230,7 @@ bool Client::isChunkedBodyComplete(const std::string& buffer) {
 }
 
 int Client::processRequest(std::string &buffer) {
-    Request req(buffer, _config, getWebserv().getConfigParser());
+    Request req(buffer, _config, getServer());
 
     if (req.getContentLength() > _config.requestLimit) {
         std::cerr << RED << "Content-Length too large" << RESET << std::endl;
