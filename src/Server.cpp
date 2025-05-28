@@ -77,6 +77,14 @@ std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
 	return path;
 }
 
+Config &Server::getConfigClass() {
+	return _curConfig;
+}
+
+std::vector<serverLevel*> &Server::getConfigs() {
+	return _configs;
+}
+
 void Server::setWebserv(Webserv* webserv) {
     _webserv = webserv;
 }
@@ -128,7 +136,7 @@ int Server::setServerAddr() {
         inet_pton(AF_INET, ip.c_str(), &(_addr.sin_addr));
     }
 //     std::tuple<std::string, std::string, std::string> hostPortName;
-//    _config.getConfig().servName; 
+//    _curConfig.getConfig().servName; 
     _addr.sin_port = htons(port);
     
     std::cout << GREEN << _webserv->getTimeStamp() << "Server binding to " << RESET << ip << ":" << port << std::endl;
