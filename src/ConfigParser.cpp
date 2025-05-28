@@ -255,7 +255,7 @@ void ConfigParser::parseAndSetConfigs() {
     }
     // printAllConfigs();
     setIpPortToServers();
-	// printIpPortToServers();
+	printIpPortToServers();
 }
 
 /* *************************************************************************************** */
