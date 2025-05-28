@@ -53,7 +53,7 @@ class Server {
         std::string         _uploadDir;
         std::string         _webRoot;
         Config              _config;
-        //std::vector<Config> _configs;
+        std::vector<Config> _configs;
         
         Webserv             *_webserv;
 };
