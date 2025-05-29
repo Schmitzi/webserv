@@ -5,14 +5,13 @@
 // Client::Client() : _webserv(NULL), _server(NULL) {
 // }
 
-Client::Client(Server& serv) {//}:  _webserv(NULL),_server(NULL),_cgi(NULL)  {
+Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
     setWebserv(&serv.getWebServ());
     setServer(&serv);
 	setConfig(serv.getCurConfig());
 	_cgi = new CGIHandler();
-	std::cout << "HANDLER CREATED" << std::endl;
 	_cgi->setClient(*this);
 	_cgi->setServer(serv);
 	_cgi->setConfig(serv.getCurConfig());
@@ -20,7 +19,6 @@ Client::Client(Server& serv) {//}:  _webserv(NULL),_server(NULL),_cgi(NULL)  {
 }
 
 Client::~Client() {
-	// std::cout << "Client DESTRUCTOR called" << std::endl;
 	// delete _cgi;
 }
 
