@@ -5,7 +5,7 @@
 // Client::Client() : _webserv(NULL), _server(NULL) {
 // }
 
-Client::Client(Server& serv) {
+Client::Client(Server& serv) {//}:  _webserv(NULL),_server(NULL),_cgi(NULL)  {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
     setWebserv(&serv.getWebServ());
