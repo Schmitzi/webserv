@@ -1,12 +1,16 @@
 #include "../include/CGIHandler.hpp"
 #include "../include/Client.hpp"
 
-CGIHandler::CGIHandler() : _args(NULL) {
+CGIHandler::CGIHandler(Client& client) : _args(NULL) {
     // Initialize arrays
     _input[0] = -1;
     _input[1] = -1;
     _output[0] = -1;
     _output[1] = -1;
+	_client = &client;
+	_server = &_client->getServer();
+	_config = _server->getCurConfig();
+	setCGIBin(&_config);
 }
 
 CGIHandler::~CGIHandler() {
@@ -21,7 +25,7 @@ void    CGIHandler::setServer(Server &server) {
     _server = &server;
 }
 
-void    CGIHandler::setConfig(Config config) {
+void    CGIHandler::setConfig(serverLevel& config) {
     _config = config;
 }
 
@@ -402,7 +406,7 @@ void CGIHandler::prepareEnv(Request &req) {
     tempEnv.push_back("SERVER_NAME=WebServ/1.0");
     tempEnv.push_back("GATEWAY_INTERFACE=CGI/1.1");
     tempEnv.push_back("SERVER_PROTOCOL=WebServ/1.0");
-    tempEnv.push_back("SERVER_PORT=" + tostring(_config.getPort()));
+    tempEnv.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(_config)));
     tempEnv.push_back("REQUEST_METHOD=" + req.getMethod());
     tempEnv.push_back("PATH_INFO=" + getInfoPath());
     size_t slashPos = _path.find_last_of('/');

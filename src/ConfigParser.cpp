@@ -1,18 +1,12 @@
 #include "../include/ConfigParser.hpp"
 
-ConfigParser::ConfigParser() {
-	// storeConfigs();
-	// parseAndSetConfigs();
-	// printAllConfigs();
-	// printIpPortToServers();
-}
+ConfigParser::ConfigParser() {}
 
 ConfigParser::ConfigParser(const std::string& filepath) {
 	_filepath = filepath;
 	std::string s = filepath.substr(strlen(filepath.c_str()) - 5, 5);
-	if (s != ".conf") {
-		std::cerr << "Invalid config file specified" << std::endl;
-		throw configException("Error: Config file must have .conf extension.");}
+	if (s != ".conf")
+		throw configException("Error: Invalid config file specified.");
 	storeConfigs();
 	parseAndSetConfigs();
 }
@@ -27,13 +21,6 @@ ConfigParser &ConfigParser::operator=(const ConfigParser& copy) {
 		_storedConfigs = copy._storedConfigs;
 		_allConfigs = copy._allConfigs;
 		_ipPortToServers = copy._ipPortToServers;
-		// for (size_t i = 0; i < copy._storedConfigs.size(); i++)
-		// 	_storedConfigs.push_back(copy._storedConfigs[i]);
-		// for (size_t i = 0; i < copy._allConfigs.size(); i++)
-		// 	_allConfigs.push_back(copy._allConfigs[i]);
-		// std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::const_iterator it = copy._ipPortToServers.begin();
-		// for (; it != copy._ipPortToServers.end(); ++it)
-		// 	_ipPortToServers.insert(std::pair<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >(it->first, it->second));
 	}
 	return (*this);
 }
@@ -243,16 +230,67 @@ void ConfigParser::parseAndSetConfigs() {
 /* *************************************************************************************** */
 // GETTERS
 
-std::vector<std::vector<std::string> > ConfigParser::getStoredConfigs() {
-	return _storedConfigs;
-}
-
 std::vector<serverLevel> ConfigParser::getAllConfigs() {
 	return _allConfigs;
 }
 
 std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > ConfigParser::getIpPortToServers() {
 	return _ipPortToServers;
+}
+
+int ConfigParser::getPort(serverLevel& conf) {
+	for (size_t i = 0; i < conf.port.size(); i++) {
+		std::pair<std::pair<std::string, int>, bool> ipPort = conf.port[i];
+		if (ipPort.second == true)
+			return ipPort.first.second;
+	}
+	return conf.port[0].first.second;
+}
+
+std::pair<std::pair<std::string, int>, bool> ConfigParser::getDefaultPortPair(serverLevel& conf) {
+	for (size_t i = 0; i < conf.port.size(); i++) {
+		std::pair<std::pair<std::string, int>, bool> ipPort = conf.port[i];
+		if (ipPort.second == true)
+			return ipPort;
+	}
+	return conf.port[0];
+}
+
+serverLevel& ConfigParser::getConfigByIndex(size_t nbr) {//get a config by index
+	if (nbr >= _allConfigs.size())
+		throw configException("Error: Invalid config index specified.");
+	return _allConfigs[nbr];
+}
+
+serverLevel& ConfigParser::getConfigByIpPortPair(const std::pair<std::pair<std::string, int>, bool>& ipPort) {//get a config by ip:port pair
+	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = _ipPortToServers.find(ipPort);
+	if (it == _ipPortToServers.end() || it->second.empty())
+		throw configException("Error: No server found for the specified IP:port pair.");
+	return *(it->second[0]);
+}
+
+serverLevel& ConfigParser::getConfigByServerName(const std::string& servName) {//get a config by server name
+	for (size_t i = 0; i < _allConfigs.size(); i++) {
+		for (size_t j = 0; j < _allConfigs[i].servName.size(); j++) {
+			if (_allConfigs[i].servName[j] == servName)
+				return _allConfigs[i];
+		}
+	}
+	throw configException("Error: No server found with the specified server name.");
+}
+
+serverLevel& ConfigParser::getConfigByServerNameIpPortPair(const std::string& servName, const std::pair<std::string, int>& ipPort) {//get a config by server name and ip:port pair
+	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = _ipPortToServers.find(std::make_pair(ipPort, false));
+	if (it == _ipPortToServers.end() || it->second.empty())
+		throw configException("Error: No server found for the specified server name and IP:port pair.");
+	
+	for (size_t i = 0; i < it->second.size(); i++) {
+		for (size_t j = 0; j < it->second[i]->servName.size(); j++) {
+			if (it->second[i]->servName[j] == servName)
+				return *(it->second[i]);
+		}
+	}
+	throw configException("Error: No server found with the specified server name and IP:port pair.");
 }
 
 /* ************************************************************************************** */
@@ -285,4 +323,75 @@ void ConfigParser::printIpPortToServers() {
 			std::cout << "    - server_name: " << servers[i]->servName[0] << std::endl;
 		std::cout << std::endl;
 	}
+}
+
+void ConfigParser::printConfig(serverLevel& conf) {//only temporary, for debugging
+	std::cout << "___config___" << std::endl
+	<< "server {" << std::endl;
+	if (!conf.rootServ.empty())
+		std::cout << "\troot: " << conf.rootServ << std::endl;
+	if (!conf.indexFile.empty())
+		std::cout << "\tindex: " << conf.indexFile << std::endl;
+	if (!conf.port.empty()) {
+		std::cout << "\tport:" << std::endl;
+		for (size_t i = 0; i < conf.port.size(); i++) {
+			std::cout << "\t\t";
+			std::pair<std::pair<std::string, int>, bool> ipPort = conf.port[i];
+			if (conf.port[i].first.first != "0.0.0.0")
+				std::cout << conf.port[i].first.first << " ";
+			std::cout << conf.port[i].first.first << std::endl;
+			if (conf.port[i].second == true)
+				std::cout << "\t\tdefault_server" << std::endl;
+		}
+	}
+	if (!conf.servName.empty()) {
+		for (size_t i = 0; i < conf.servName.size(); i++) {
+			if (i == 0)
+				std::cout << "\tserver_name:";
+			std::cout << " " << conf.servName[i];
+		}
+		std::cout << std::endl;
+	}
+	std::map<std::vector<int>, std::string>::iterator it = conf.errPages.begin();
+	if (it != conf.errPages.end()) {
+		std::cout << "\terror_page:" << std::endl;
+		while (it != conf.errPages.end()) {
+			std::cout << "\t\t";
+			for (size_t i = 0; i < it->first.size(); i++)
+				std::cout << it->first[i] << " ";
+			std::cout << it->second << std::endl;
+			++it;
+		}
+	}
+	if (!conf.maxRequestSize.empty())
+		std::cout << "\tclient_max_body_size: " << conf.maxRequestSize << std::endl << std::endl;
+	std::map<std::string, locationLevel>::iterator its = conf.locations.begin();
+	while (its != conf.locations.end()) {
+		std::cout << "\tlocation " << its->first << " {" << std::endl;
+		if (!its->second.rootLoc.empty())
+			std::cout << "\t\troot: " << its->second.rootLoc << std::endl;
+		if (!its->second.indexFile.empty())
+			std::cout << "\t\tindex: " << its->second.indexFile << std::endl;
+		if (its->second.methods.size() > 0) {
+			std::cout << "\t\tmethods:";
+			for (size_t i = 0; i < its->second.methods.size(); i++)
+				std::cout << " " << its->second.methods[i];
+		}
+		if (its->second.autoindexFound == true) {
+			std::cout << std::endl << "\t\tautoindex: ";
+			if (its->second.autoindex == true)
+				std::cout << "on" << std::endl;
+			else
+				std::cout << "off" << std::endl;
+		}
+		if (!its->second.redirectionHTTP.second.empty())
+			std::cout << "\t\treturn: " << its->second.redirectionHTTP.first << " " << its->second.redirectionHTTP.second << std::endl;
+		if (!its->second.cgiProcessorPath.empty())
+			std::cout << "\t\tcgi_pass: " << its->second.cgiProcessorPath << std::endl;
+		if (!its->second.uploadDirPath.empty())
+			std::cout << "\t\tupload_store: " << its->second.uploadDirPath << std::endl;
+		std::cout << "\t}" << std::endl << std::endl;
+		++its;
+	}
+	std::cout << "}" << std::endl;
 }

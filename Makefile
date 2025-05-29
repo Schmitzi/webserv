@@ -11,7 +11,6 @@ RESET   =   $(shell tput sgr0)
 
 FILES	=	main \
 			Webserv \
-			Config \
 			ConfigHelper \
 			ConfigParser \
 			ConfigValidator \

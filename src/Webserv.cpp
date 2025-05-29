@@ -65,15 +65,15 @@ int Webserv::setConfig(std::string const filepath) {
     return true;
 }
 
-Config &Webserv::getDefaultConfig() {
+serverLevel &Webserv::getDefaultConfig() {
 	for (size_t i = 0; i < _servers.size(); i++) {
-		serverLevel conf = _servers[i]->getConfigClass().getConfig();
+		serverLevel conf = _servers[i]->getCurConfig();
 		for (size_t j = 0; j < conf.port.size(); j++) {
 			if (conf.port[j].second == true)
-				return _servers[i]->getConfigClass();
+				return _servers[i]->getCurConfig();
 		}
 	}
-	return _servers[0]->getConfigClass();
+	return _servers[0]->getCurConfig();
 }
 
 int Webserv::run() {
@@ -82,37 +82,32 @@ int Webserv::run() {
         ft_error("epoll_create1() failed");
         return 1;
     }
-
    // Initialize server
    for (size_t i = 0; i < _servers.size(); i++) {
     if (_servers[i]->getFd() > 0) {
         std::cout << BLUE << getTimeStamp() << "Host:Port already opened: " << RESET << 
-            _servers[i]->getConfigClass().getDefaultPortPair().first.first << ":" << 
-            _servers[i]->getConfigClass().getDefaultPortPair().first.second << "\n";
+            _confParser.getDefaultPortPair(_servers[i]->getCurConfig()).first.first << ":" << 
+            _confParser.getDefaultPortPair(_servers[i]->getCurConfig()).first.second << "\n";
         i++;
         continue;
     }
-    std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _servers[i]->getConfigClass().getPort() << std::endl;
+    std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _confParser.getPort(_servers[i]->getCurConfig()) << std::endl;
     if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
         _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {
         std::cerr << RED << getTimeStamp() << "Failed to initialize server: " << RESET << i + 1 << std::endl;
         continue;
     }
-    
     if (addToEpoll(_servers[i]->getFd(), EPOLLIN) != 0) {
         std::cerr << RED << getTimeStamp() << "Failed to add server to epoll: " << RESET << i + 1 << std::endl;
         continue;
     }
-    
     std::cout << GREEN << getTimeStamp() << 
         "Server " << i + 1 << " is listening on port " << RESET << 
-        _servers[i]->getConfigClass().getPort() << "\n";
+        _confParser.getPort(_servers[i]->getCurConfig()) << "\n";
     }
-
     if (serverCheck() == 1) {
         return 1;
     }
-
     while (1) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
@@ -122,9 +117,8 @@ int Webserv::run() {
             ft_error("epoll_wait() failed");
             continue;
         }
-        
         for (int i = 0; i < nfds; i++) {
-            int fd = _events[i].data.fd;
+			int fd = _events[i].data.fd;
             uint32_t eventMask = _events[i].events;
             
             if (eventMask & EPOLLHUP) {
@@ -132,15 +126,12 @@ int Webserv::run() {
                 handleClientDisconnect(fd);
                 continue;
             }
-            
             if (eventMask & EPOLLERR) {
                 std::cerr << RED << getTimeStamp() << "Socket error on fd " << fd << RESET << std::endl;
                 handleErrorEvent(fd);
                 continue;
             }
-            
             Server* activeServer = findServerByFd(fd);
-            
             if (activeServer) {
                 if (eventMask & EPOLLIN) {
                     handleNewConnection(*activeServer);
@@ -152,11 +143,10 @@ int Webserv::run() {
             }
         }
     }
-
     return 0;
 }
 
-int     Webserv::serverCheck() { //TODO: Does not reliably block servers
+int     Webserv::serverCheck() { //TODO: Does not reliably block servers //TODO: cant use fcntl
     bool isValid = false;
     for (size_t i = 0; i < _servers.size() ; i++) {
         if (fcntl(_servers[i]->getFd(), F_GETFD) != -1 || errno != EBADF) {
@@ -174,7 +164,7 @@ int     Webserv::serverCheck() { //TODO: Does not reliably block servers
 Server* Webserv::findServerByFd(int fd) {
     for (size_t i = 0; i < _servers.size(); i++) {
         if (_servers[i]->getFd() == fd) {
-            return _servers[i];
+			return _servers[i];
         }
     }
     return NULL;
@@ -247,7 +237,7 @@ void Webserv::handleClientDisconnect(int fd) {
 }
 
 void Webserv::handleNewConnection(Server &server) {
-    if (_clients.size() >= 1000) { // Adjust limit as needed
+	if (_clients.size() >= 1000) { // Adjust limit as needed
         std::cerr << "Connection limit reached, refusing new connection" << std::endl;
         
         struct sockaddr_in addr;
@@ -258,12 +248,11 @@ void Webserv::handleNewConnection(Server &server) {
         }
         return;
     }
-    
     Client* newClient = new Client(server);
     
     if (newClient->acceptConnection(server.getFd()) == 0) {
         newClient->displayConnection();
-        
+
         if (addToEpoll(newClient->getFd(), EPOLLIN) == 0) {
             _clients.push_back(newClient);
         } else {

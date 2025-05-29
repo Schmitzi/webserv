@@ -49,8 +49,8 @@ struct serverLevel {
 class ConfigParser {
 	private:
 		std::string _filepath;
-		std::vector<std::vector<std::string> > _storedConfigs;
-		std::vector<serverLevel> _allConfigs;
+		std::vector<std::vector<std::string> > _storedConfigs;//stores raw config file lines
+		std::vector<serverLevel> _allConfigs;//stores actual server configs!
 		std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > _ipPortToServers;
 
 	public:
@@ -69,13 +69,19 @@ class ConfigParser {
 		void parseAndSetConfigs();
 
 		//getters
-		std::vector<std::vector<std::string> > getStoredConfigs();
 		std::vector<serverLevel> getAllConfigs();
 		std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > getIpPortToServers();
+		int getPort(serverLevel& conf);
+		std::pair<std::pair<std::string, int>, bool> getDefaultPortPair(serverLevel& conf);
+		serverLevel& getConfigByIndex(size_t nbr);//get a config by index
+		serverLevel& getConfigByIpPortPair(const std::pair<std::pair<std::string, int>, bool>& ipPort);//get a config by ip:port pair
+		serverLevel& getConfigByServerName(const std::string& servName);//get a config by server name
+		serverLevel& getConfigByServerNameIpPortPair(const std::string& servName, const std::pair<std::string, int>& ipPort);//get a config by server name and ip:port pair
 
 		//extras
 		void printAllConfigs();
 		void printIpPortToServers();
+		void printConfig(serverLevel& conf);//temporary
 };
 
 class configException : public std::exception {

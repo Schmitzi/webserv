@@ -12,7 +12,7 @@
 #include "../include/Request.hpp"
 #include "../include/CGIHandler.hpp"
 #include "../include/Multipart.hpp"
-#include "../include/Config.hpp"
+// #include "../include/Config.hpp"
 #include "../include/ConfigParser.hpp"
 
 #define BLUE    "\33[34m"
