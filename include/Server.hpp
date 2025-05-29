@@ -47,6 +47,7 @@ class Server {
         int                 		setServerAddr();
         int                 		ft_bind();
         int                 		ft_listen();
+
     private:
         int                 		_fd;
         struct sockaddr_in  		_addr;

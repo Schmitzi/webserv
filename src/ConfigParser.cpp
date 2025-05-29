@@ -1,18 +1,12 @@
 #include "../include/ConfigParser.hpp"
 
-ConfigParser::ConfigParser() {
-	// storeConfigs();
-	// parseAndSetConfigs();
-	// printAllConfigs();
-	// printIpPortToServers();
-}
+ConfigParser::ConfigParser() {}
 
 ConfigParser::ConfigParser(const std::string& filepath) {
 	_filepath = filepath;
 	std::string s = filepath.substr(strlen(filepath.c_str()) - 5, 5);
-	if (s != ".conf") {
-		std::cerr << "Invalid config file specified" << std::endl;
-		throw configException("Error: Config file must have .conf extension.");}
+	if (s != ".conf")
+		throw configException("Error: Invalid config file specified.");
 	storeConfigs();
 	parseAndSetConfigs();
 }
