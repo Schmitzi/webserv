@@ -5,7 +5,7 @@
 // Client::Client() : _webserv(NULL), _server(NULL) {
 // }
 
-Client::Client(Server& serv) {//}:  _webserv(NULL),_server(NULL),_cgi(NULL)  {
+Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
     setWebserv(&serv.getWebServ());
@@ -17,7 +17,6 @@ Client::Client(Server& serv) {//}:  _webserv(NULL),_server(NULL),_cgi(NULL)  {
 }
 
 Client::~Client() {
-	// std::cout << "Client DESTRUCTOR called" << std::endl;
 	// delete _cgi;
 }
 
