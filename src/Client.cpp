@@ -2,21 +2,26 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
 
-Client::Client() : _webserv(NULL), _server(NULL) {
-}
+// Client::Client() : _webserv(NULL), _server(NULL) {
+// }
 
-Client::Client(Server& serv) {
+Client::Client(Server& serv) {//}:  _webserv(NULL),_server(NULL),_cgi(NULL)  {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
     setWebserv(&serv.getWebServ());
     setServer(&serv);
 	setConfig(serv.getCurConfig());
-	_cgi = new CGIHandler(*this);
+	_cgi = new CGIHandler();
+	std::cout << "HANDLER CREATED" << std::endl;
+	_cgi->setClient(*this);
+	_cgi->setServer(serv);
+	_cgi->setConfig(serv.getCurConfig());
+	_cgi->setCGIBin(&serv.getCurConfig());
 }
 
 Client::~Client() {
-	if (_cgi)
-		delete _cgi;
+	// std::cout << "Client DESTRUCTOR called" << std::endl;
+	// delete _cgi;
 }
 
 struct sockaddr_in  &Client::getAddr() {

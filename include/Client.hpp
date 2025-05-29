@@ -31,7 +31,7 @@ struct locationLevel;
 
 class Client {
     public:
-        Client();
+        // Client();
         Client(Server& serv);
         ~Client();
         struct sockaddr_in      &getAddr();

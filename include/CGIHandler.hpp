@@ -18,6 +18,7 @@ struct serverLevel;
 
 class CGIHandler {
     public:
+		CGIHandler();
         CGIHandler(Client& client);
         ~CGIHandler();
         void    setClient(Client &client);

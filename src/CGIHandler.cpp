@@ -1,12 +1,16 @@
 #include "../include/CGIHandler.hpp"
 #include "../include/Client.hpp"
 
-CGIHandler::CGIHandler(Client& client) : _args(NULL) {
-    // Initialize arrays
+CGIHandler::CGIHandler() : _args(NULL) {
+	// Initialize arrays
     _input[0] = -1;
     _input[1] = -1;
     _output[0] = -1;
     _output[1] = -1;
+}
+
+CGIHandler::CGIHandler(Client& client) : _args(NULL) {
+    // Initialize arrays
 	_client = &client;
 	_server = &_client->getServer();
 	_config = _server->getCurConfig();
@@ -70,7 +74,8 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         if (dup2(_input[0], STDIN_FILENO) < 0 || 
             dup2(_output[1], STDOUT_FILENO) < 0) {
             std::cerr << "dup2 failed\n";
-            exit(1);
+            // exit(1);
+			return 1;
         }
         close(_input[0]);
         close(_output[1]);
@@ -78,7 +83,8 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         execve(_args[0], _args, &_env[0]);
         
         std::cerr << "execve failed: " << strerror(errno) << "\n";
-        exit(1);
+        // exit(1);
+		return 1;
     } 
     else if (pid > 0) {  // Parent process
         close(_input[0]);
@@ -606,7 +612,7 @@ void CGIHandler::cleanupResources() {
         for (int i = 0; _args[i]; i++) {
             free(_args[i]);
         }
-        delete[] _args;
+        // delete[] _args;
         _args = NULL;
     }
     
