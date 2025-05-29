@@ -269,7 +269,7 @@ std::vector<serverLevel> ConfigParser::getAllConfigs() {
 	return _allConfigs;
 }
 
-std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > ConfigParser::getIpPortToServers() {
+IPPortToServersMap ConfigParser::getIpPortToServers() {
 	return _ipPortToServers;
 }
 
@@ -298,7 +298,7 @@ serverLevel& ConfigParser::getConfigByIndex(size_t nbr) {//get a config by index
 }
 
 serverLevel& ConfigParser::getConfigByIpPortPair(const std::pair<std::pair<std::string, int>, bool>& ipPort) {//get a config by ip:port pair
-	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = _ipPortToServers.find(ipPort);
+	IPPortToServersMap::iterator it = _ipPortToServers.find(ipPort);
 	if (it == _ipPortToServers.end() || it->second.empty())
 		throw configException("Error: No server found for the specified IP:port pair.");
 	return *(it->second[0]);
@@ -315,7 +315,7 @@ serverLevel& ConfigParser::getConfigByServerName(const std::string& servName) {/
 }
 
 serverLevel& ConfigParser::getConfigByServerNameIpPortPair(const std::string& servName, const std::pair<std::string, int>& ipPort) {//get a config by server name and ip:port pair
-	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = _ipPortToServers.find(std::make_pair(ipPort, false));
+	IPPortToServersMap::iterator it = _ipPortToServers.find(std::make_pair(ipPort, false));
 	if (it == _ipPortToServers.end() || it->second.empty())
 		throw configException("Error: No server found for the specified server name and IP:port pair.");
 	
