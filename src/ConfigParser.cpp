@@ -300,7 +300,7 @@ std::vector<serverLevel> ConfigParser::getAllConfigs() {
 	return _allConfigs;
 }
 
-std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > ConfigParser::getIpPortToServers() {
+IPPortToServersMap ConfigParser::getIpPortToServers() {
 	return _ipPortToServers;
 }
 
