@@ -7,6 +7,10 @@ CGIHandler::CGIHandler() : _args(NULL) {
     _input[1] = -1;
     _output[0] = -1;
     _output[1] = -1;
+	_client = &client;
+	_server = &_client->getServer();
+	_config = _server->getCurConfig();
+	setCGIBin(&_config);
 }
 
 CGIHandler::~CGIHandler() {
