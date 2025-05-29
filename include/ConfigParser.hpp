@@ -15,7 +15,6 @@
 #include "Helper.hpp"
 #include "ConfigHelper.hpp"
 
-
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
 #define RED     "\33[31m"
