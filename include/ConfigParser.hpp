@@ -15,7 +15,6 @@
 #include "Helper.hpp"
 #include "ConfigHelper.hpp"
 
-
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
 #define RED     "\33[31m"
@@ -46,12 +45,14 @@ struct serverLevel {
 	std::map<std::string, locationLevel>		locations;//location
 };
 
+typedef std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > IPPortToServersMap;
+
 class ConfigParser {
 	private:
 		std::string _filepath;
 		std::vector<std::vector<std::string> > _storedConfigs;//stores raw config file lines
 		std::vector<serverLevel> _allConfigs;//stores actual server configs!
-		std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > _ipPortToServers;
+		IPPortToServersMap _ipPortToServers;
 
 	public:
 		ConfigParser();
@@ -70,7 +71,7 @@ class ConfigParser {
 
 		//getters
 		std::vector<serverLevel> getAllConfigs();
-		std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > getIpPortToServers();
+		IPPortToServersMap getIpPortToServers();
 		int getPort(serverLevel& conf);
 		std::pair<std::pair<std::string, int>, bool> getDefaultPortPair(serverLevel& conf);
 		serverLevel& getConfigByIndex(size_t nbr);//get a config by index

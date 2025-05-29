@@ -1,19 +1,20 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
 
-Server::Server(ConfigParser confs, int nbr) {
+Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 	_fd = -1;
 	_confParser = confs;
     _curConfig = confs.getConfigByIndex(nbr);
 	int port = confs.getPort(_curConfig);
-	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > temp = confs.getIpPortToServers();
-	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = temp.begin();
+	IPPortToServersMap temp = confs.getIpPortToServers();
+	IPPortToServersMap::iterator it = temp.begin();
     for (; it != confs.getIpPortToServers().end(); ++it) {
 		if (it->first.first.second == port) {
 			_configs = it->second;
 			break;
 		}
 	}
+	_webserv = &webserv;
 }
 
 Server::~Server()  {

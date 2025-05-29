@@ -10,7 +10,7 @@ import mimetypes
 import uuid
 
 WEBSERV_BINARY = "./webserv"
-CONFIG_PATH = "configs/test.conf"
+CONFIG_PATH = "config/test.conf"
 HOST = "127.0.0.1"
 PORT = 8080
 
