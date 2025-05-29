@@ -17,7 +17,8 @@ Client::Client(Server& serv) {
 }
 
 Client::~Client() {
-	// delete _cgi;
+	if (_cgi)
+		delete _cgi;
 }
 
 struct sockaddr_in  &Client::getAddr() {

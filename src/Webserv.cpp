@@ -73,6 +73,7 @@ int Webserv::setConfig(std::string const filepath) {
 }
 
 serverLevel &Webserv::getDefaultConfig() {
+serverLevel &Webserv::getDefaultConfig() {
 	for (size_t i = 0; i < _servers.size(); i++) {
 		serverLevel conf = _servers[i]->getConfigs()[i];
 		for (size_t j = 0; j < conf.port.size(); j++) {
@@ -112,7 +113,6 @@ int Webserv::run() {
         "Server " << i + 1 << " is listening on port " << RESET << 
         _confParser.getPort(_servers[i]->getConfigs()[0]) << "\n";
     }
-
     while (1) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
@@ -148,11 +148,10 @@ int Webserv::run() {
             }
         }
     }
-
     return 0;
 }
 
-int     Webserv::serverCheck() { //TODO: Does not reliably block servers
+int     Webserv::serverCheck() { //TODO: Does not reliably block servers //TODO: cant use fcntl
     bool isValid = false;
     for (size_t i = 0; i < _servers.size() ; i++) {
         if (fcntl(_servers[i]->getFd(), F_GETFD) != -1 || errno != EBADF) {

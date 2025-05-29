@@ -77,14 +77,6 @@ std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
 	return path;
 }
 
-Config &Server::getConfigClass() {
-	return _curConfig;
-}
-
-std::vector<serverLevel*> &Server::getConfigs() {
-	return _configs;
-}
-
 void Server::setWebserv(Webserv* webserv) {
     _webserv = webserv;
 }

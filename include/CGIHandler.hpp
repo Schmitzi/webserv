@@ -9,11 +9,13 @@
 #include "../include/Request.hpp"
 #include "../include/Helper.hpp"
 // #include "../include/Config.hpp"
+// #include "../include/Config.hpp"
 
 class Client;
 class Server;
-class Config;
+// class Config;
 class Request;
+struct serverLevel;
 
 class CGIHandler {
     public:
