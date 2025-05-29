@@ -8,20 +8,21 @@
 #include <cerrno>
 #include "../include/Request.hpp"
 #include "../include/Helper.hpp"
-#include "../include/Config.hpp"
+// #include "../include/Config.hpp"
 
 class Client;
 class Server;
-class Config;
+// class Config;
 class Request;
+struct serverLevel;
 
 class CGIHandler {
     public:
-        CGIHandler();
+        CGIHandler(Client& client);
         ~CGIHandler();
         void    setClient(Client &client);
         void    setServer(Server &server);
-        void    setConfig(Config config);
+        void    setConfig(serverLevel& config);
         void    setCGIBin(serverLevel *config);
         std::string getInfoPath();
 		void    setPathInfo(Request& req);
@@ -56,7 +57,7 @@ class CGIHandler {
 
         Client                      *_client;
         Server                      *_server;
-        Config                      _config;
+        serverLevel                  _config;
 };
 
 #endif

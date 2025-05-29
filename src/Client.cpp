@@ -8,15 +8,13 @@ Client::Client() : _webserv(NULL), _server(NULL) {
 Client::Client(Server& serv) {
     setWebserv(&serv.getWebServ());
     setServer(&serv);
-	setConfig(Config(serv.getConfigClass()).getConfig());
-    _cgi->setClient(*this);
-    _cgi->setServer(*_server);
-    _cgi->setConfig(serv.getConfigClass());
-    _cgi->setCGIBin(&_config);
+	setConfig(serv.getCurConfig());
+	_cgi = new CGIHandler(*this);
 }
 
 Client::~Client() {
-
+	if (_cgi)
+		delete _cgi;
 }
 
 struct sockaddr_in  &Client::getAddr() {
@@ -74,10 +72,7 @@ int Client::acceptConnection(int serverFd) {
         _webserv->ft_error("Accept failed");
         return 1;
     }
-    
-    Config *temp = new Config(_server->getConfigClass());
-    setConfig(temp->getConfig());
-    delete temp;
+    setConfig(_server->getCurConfig());
     
     _cgi->setServer(*_server);
     
@@ -257,7 +252,7 @@ int Client::processRequest(std::string &buffer) {
     }
 
     locationLevel loc;
-    if (matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+    if (matchLocation(req.getPath(), _server->getCurConfig(), loc)) {
         if (loc.hasRedirect == true) {
             sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
             return 0;
@@ -291,7 +286,7 @@ int Client::processRequest(std::string &buffer) {
 int Client::handleGetRequest(Request& req) {
 	std::string requestPath = req.getPath();
 	locationLevel loc;
-	if (!matchLocation(req.getReqPath(), _server->getConfigClass().getConfig(), loc)) {
+	if (!matchLocation(req.getReqPath(), _server->getCurConfig(), loc)) {
 		std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getReqPath() << std::endl;
 		sendErrorResponse(404);
 		return 1;
@@ -322,7 +317,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         if (actualPath.empty()) actualPath = "/";
     } else {
 		locationLevel loc;
-		matchLocation(requestPath, _server->getConfigClass().getConfig(), loc);
+		matchLocation(requestPath, _server->getCurConfig(), loc);
         actualPath = requestPath.substr(5);
         std::string actualFullPath = _server->getWebRoot(loc) + actualPath;
         
@@ -356,7 +351,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 int Client::handleRegularRequest(Request& req) {
     locationLevel loc;
 
-    if (!matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+    if (!matchLocation(req.getPath(), _server->getCurConfig(), loc)) {
         std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getPath() << std::endl;
         sendErrorResponse(404);
         return 1;
@@ -460,7 +455,7 @@ int Client::buildBody(Request &req, std::string fullPath) {
 
 int Client::viewDirectory(std::string fullPath, std::string requestPath) {
     locationLevel loc;
-	if (matchLocation(requestPath, _server->getConfigClass().getConfig(), loc)) {
+	if (matchLocation(requestPath, _server->getCurConfig(), loc)) {
 		setAutoIndex(loc);
 		if (_autoindex == true) {
 			return createDirList(fullPath, requestPath);
@@ -668,7 +663,7 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 
 int Client::handlePostRequest(Request& req) {
 	locationLevel loc;
-    if (!matchLocation(req.getPath(), _server->getConfigClass().getConfig(), loc)) {
+    if (!matchLocation(req.getPath(), _server->getCurConfig(), loc)) {
 		std::cout << RED << _webserv->getTimeStamp() << "Location not found for POST request: " 
 				  << RESET << req.getPath() << std::endl;
 		sendErrorResponse(404);

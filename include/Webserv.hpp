@@ -18,7 +18,7 @@
 #include <vector>
 #include <signal.h>
 #include <map>
-#include "../include/Config.hpp"
+// #include "../include/Config.hpp"
 #include "../include/Server.hpp"
 #include "../include/Client.hpp"
 #include "../include/ConfigParser.hpp"
@@ -27,7 +27,7 @@
 // Forward declarations
 class Server;
 class Client;
-class Config;
+// class Config;
 
 // COLOURS
 #define BLUE    "\33[34m"
@@ -66,7 +66,7 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-        Config          &getDefaultConfig();
+        serverLevel     &getDefaultConfig();
         void            cleanup();
 
     private:

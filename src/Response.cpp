@@ -1,5 +1,4 @@
 #include "../include/Response.hpp"
-#include "../include/Config.hpp"
 
 bool matchLocation(const std::string& path, const serverLevel& serv, locationLevel& bestMatch) {
 	size_t longestMatch = 0;
@@ -93,7 +92,7 @@ void generateErrorPage(std::string& body, int statusCode, const std::string& sta
 }
 
 std::string findErrorPage(int statusCode, Server& server, const std::string& dir) {
-    std::map<std::vector<int>, std::string> errorPages = server.getConfigClass().getConfig().errPages;
+    std::map<std::vector<int>, std::string> errorPages = server.getCurConfig().errPages;
     std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
     bool foundCustomPage = false;
 	std::string uri;
@@ -111,8 +110,8 @@ std::string findErrorPage(int statusCode, Server& server, const std::string& dir
     
     std::string filePath;
     if (foundCustomPage) {// Use custom error page if defined
-		if (uri.find(server.getConfigClass().getConfig().rootServ) == std::string::npos)
-			filePath = server.getConfigClass().getConfig().rootServ + uri;
+		if (uri.find(server.getCurConfig().rootServ) == std::string::npos)
+			filePath = server.getCurConfig().rootServ + uri;
 		else
 			filePath = uri;
 	}

@@ -69,15 +69,11 @@ int main(int ac, char **av, char **envp) {
 			webserv = new Webserv(av[1]);
 		else 
 			webserv = new Webserv();
-
 		g_webserv = webserv;
-	
 		webserv->setEnvironment(envp);
-	
 		if (webserv->run()) {
 			webserv->ft_error("Setup failed");
 		}
-	
 		delete webserv;
 		g_webserv = NULL;
 	} catch (const std::exception& e) {
