@@ -1,17 +1,13 @@
 #include "../include/CGIHandler.hpp"
 #include "../include/Client.hpp"
 
-CGIHandler::CGIHandler() : _args(NULL) {
-	// Initialize arrays
+CGIHandler::CGIHandler(Client& client) : _args(NULL) {
+    // Initialize arrays
     _input[0] = -1;
     _input[1] = -1;
     _output[0] = -1;
     _output[1] = -1;
-}
-
-CGIHandler::CGIHandler(Client& client) : _args(NULL) {
-    // Initialize arrays
-	_client = &client;
+    _client = &client;
 	_server = &_client->getServer();
 	_config = _server->getCurConfig();
 	setCGIBin(&_config);

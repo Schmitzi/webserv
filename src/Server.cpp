@@ -2,8 +2,10 @@
 #include "../include/Webserv.hpp"
 
 Server::Server(ConfigParser confs, int nbr) {
-    _curConfig = Config(confs, nbr);
-	int port = _curConfig.getPort();
+	_fd = -1;
+	_confParser = confs;
+    _curConfig = confs.getConfigByIndex(nbr);
+	int port = confs.getPort(_curConfig);
 	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > temp = confs.getIpPortToServers();
 	std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >::iterator it = temp.begin();
     for (; it != confs.getIpPortToServers().end(); ++it) {
@@ -43,7 +45,7 @@ ConfigParser &Server::getConfParser() {
 
 std::string Server::getUploadDir(Client& client, Request& req) {
 	locationLevel loc;
-	if (!matchUploadLocation(req.getReqPath(), _curConfig.getConfig(), loc)) {
+	if (!matchUploadLocation(req.getReqPath(), _curConfig, loc)) {
 		std::cout << "Location not found: " << req.getReqPath() << std::endl;
 		client.sendErrorResponse(403);
 		return "";
@@ -66,27 +68,19 @@ std::string	Server::getWebRoot(locationLevel& loc) {
 			path = loc.rootLoc;
 	}
 	else {
-		if (_curConfig.getConfig().rootServ[_curConfig.getConfig().rootServ.size() - 1] == '/')
-			path = _curConfig.getConfig().rootServ.substr(0, _curConfig.getConfig().rootServ.size() - 1);
+		if (_curConfig.rootServ[_curConfig.rootServ.size() - 1] == '/')
+			path = _curConfig.rootServ.substr(0, _curConfig.rootServ.size() - 1);
 		else
-			path = _curConfig.getConfig().rootServ;
+			path = _curConfig.rootServ;
 	}
 	return path;
-}
-
-Config &Server::getConfigClass() {
-	return _curConfig;
-}
-
-std::vector<serverLevel*> &Server::getConfigs() {
-	return _configs;
 }
 
 void Server::setWebserv(Webserv* webserv) {
     _webserv = webserv;
 }
 
-void    Server::setConfig(Config config) {
+void    Server::setConfig(serverLevel& config) {
     _curConfig = config;
 }
 

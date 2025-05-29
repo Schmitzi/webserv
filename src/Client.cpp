@@ -10,15 +10,13 @@ Client::Client(Server& serv) {
 	_fd = serv.getFd();
     setWebserv(&serv.getWebServ());
     setServer(&serv);
-	setConfig(Config(serv.getConfigClass()).getConfig());
-    _cgi->setClient(*this);
-    _cgi->setServer(*_server);
-    _cgi->setConfig(serv.getConfigClass());
-    _cgi->setCGIBin(&_config);
+	setConfig(serv.getCurConfig());
+	_cgi = new CGIHandler(*this);
 }
 
 Client::~Client() {
-	// delete _cgi;
+	if (_cgi)
+		delete _cgi;
 }
 
 struct sockaddr_in  &Client::getAddr() {
