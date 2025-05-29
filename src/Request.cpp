@@ -128,7 +128,6 @@ bool Request::matchHostServerName() {
 }
 
 void Request::parse(const std::string& rawRequest) {
-    std::cout << "REQ: \n" << rawRequest << "\n";
     if (rawRequest.empty()) {
         std::cout << RED << "Empty request!\n" << RESET;
         _method = "BAD";
@@ -242,7 +241,6 @@ void Request::parseHeaders(const std::string& headerSection) {
 }
 
 void Request::checkContentLength(std::string buffer) {
-	std::cout << "BUFFER: " << buffer << std::endl;
     size_t pos = buffer.find("Content-Length:");
     if (pos != std::string::npos) {
         pos += 15;
