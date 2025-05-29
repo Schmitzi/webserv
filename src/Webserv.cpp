@@ -2,20 +2,29 @@
 
 Webserv::Webserv() : _epollFd(-1) { 
     _confParser = ConfigParser();
-	_configs = _confParser.getAllConfigs();
-    for (size_t i = 0; i < _configs.size(); i++) {
-        _servers.push_back(new Server(_confParser, i));
-        _servers[i]->setWebserv(this);
-    }
+	// _configs = _confParser.getAllConfigs();
+    // for (size_t i = 0; i < _configs.size(); i++) {
+    //     _servers.push_back(new Server(_confParser, i));
+    //     _servers[i]->setWebserv(this);
+    // }
 }
 
 Webserv::Webserv(std::string const &config) : _epollFd(-1) {
 	_confParser = ConfigParser(config);
 	_configs = _confParser.getAllConfigs();
-	for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
-		_servers.push_back(new Server(_confParser, i));
-		_servers[i]->setWebserv(this);
+	std::cout << "NBR OF CONFIGS: " << _configs.size() << std::endl;
+	for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {//CHECK ALL CONFIGS
+		bool toAdd = true;
+		for (size_t j = 0; j < _servers.size(); j++) {//CHECK ALL SERVERS FOR CURRENT CONFIG FILE PORT
+			if (_confParser.getDefaultPortPair(_confParser.getConfigByIndex(i)) == _confParser.getDefaultPortPair(_servers[j]->getCurConfig())) {
+				toAdd = false;
+				break;
+			}
+		}
+		if (toAdd)
+			_servers.push_back(new Server(_confParser, i, *this));
 	}
+	std::cout << "NBR OF SERVERS: " << _servers.size() << std::endl;
 }
 
 Webserv::Webserv(Webserv const &other) : _epollFd(-1) {

@@ -28,7 +28,7 @@ class Client;
 
 class Server {
     public:
-        Server(ConfigParser confs, int nbr);
+        Server(ConfigParser confs, int nbr, Webserv& webserv);
         ~Server();
         
         Webserv             		&getWebServ();
