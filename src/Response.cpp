@@ -91,8 +91,8 @@ void generateErrorPage(std::string& body, int statusCode, const std::string& sta
             "</html>";
 }
 
-std::string findErrorPage(int statusCode, Server& server, const std::string& dir) {
-    std::map<std::vector<int>, std::string> errorPages = server.getCurConfig().errPages;
+std::string findErrorPage(int statusCode, const std::string& dir, Request& req) {
+    std::map<std::vector<int>, std::string> errorPages = req.getConf().errPages;
     std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
     bool foundCustomPage = false;
 	std::string uri;
@@ -110,8 +110,8 @@ std::string findErrorPage(int statusCode, Server& server, const std::string& dir
     
     std::string filePath;
     if (foundCustomPage) {// Use custom error page if defined
-		if (uri.find(server.getCurConfig().rootServ) == std::string::npos)
-			filePath = server.getCurConfig().rootServ + uri;
+		if (uri.find(req.getConf().rootServ) == std::string::npos)
+			filePath = req.getConf().rootServ + uri;
 		else
 			filePath = uri;
 	}
@@ -121,10 +121,10 @@ std::string findErrorPage(int statusCode, Server& server, const std::string& dir
     return filePath;
 }
 
-void resolveErrorResponse(int statusCode, Server& server, std::string& statusText, std::string& body) {
+void resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req) {
     std::string dir = "errorPages";
     // Look for custom error page for this status code
-    std::string filePath = findErrorPage(statusCode, server, dir);
+    std::string filePath = findErrorPage(statusCode, dir, req);
     // Make sure error pages directory exists
     struct stat st;
     if (stat(dir.c_str(), &st) != 0) {

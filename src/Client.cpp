@@ -10,12 +10,10 @@ Client::Client(Server& serv) {
 	_fd = serv.getFd();
     setWebserv(&serv.getWebServ());
     setServer(&serv);
-	setConfig(serv.getCurConfig());
+	setConfigs(serv.getConfigs());
 	_cgi = new CGIHandler();
 	_cgi->setClient(*this);
 	_cgi->setServer(serv);
-	_cgi->setConfig(serv.getCurConfig());
-	_cgi->setCGIBin(&serv.getCurConfig());
 }
 
 Client::~Client() {
@@ -58,8 +56,8 @@ Webserv &Client::getWebserv() {
 	return *_webserv;
 }
 
-void    Client::setConfig(serverLevel config) {
-    _config = config;
+void    Client::setConfigs(std::vector<serverLevel*> configs) {
+    _configs = configs;
 }
 
 void    Client::setAutoIndex(locationLevel& loc) {
@@ -77,7 +75,7 @@ int Client::acceptConnection(int serverFd) {
         _webserv->ft_error("Accept failed");
         return 1;
     }
-    setConfig(_server->getCurConfig());
+    setConfigs(_server->getConfigs());
     
     _cgi->setServer(*_server);
     
@@ -103,13 +101,13 @@ int Client::recieveData() {
     if (bytesRead > 0) {
         _requestBuffer.append(buffer, bytesRead);
 
-        if (_requestBuffer.length() > _config.requestLimit) {
-            std::cerr << RED << _webserv->getTimeStamp() 
-                      << "Buffer size exceeded maximum limit: Error 413" << RESET << std::endl;
-            sendErrorResponse(413);
-            _requestBuffer.clear();
-            return 1;
-        }
+        // if (_requestBuffer.length() > _config.requestLimit) {
+        //     std::cerr << RED << _webserv->getTimeStamp() 
+        //               << "Buffer size exceeded maximum limit: Error 413" << RESET << std::endl;
+        //     sendErrorResponse(413, req);
+        //     _requestBuffer.clear();
+        //     return 1;
+        // }
 
         std::cout << BLUE << _webserv->getTimeStamp() 
                   << "Received " << bytesRead << " bytes from " << _fd 
@@ -231,11 +229,11 @@ bool Client::isChunkedBodyComplete(const std::string& buffer) {
 }
 
 int Client::processRequest(std::string &buffer) {
-    Request req(buffer, _config, getServer());
-
-    if (req.getContentLength() > _config.requestLimit) {
+    Request req(buffer, getServer());
+	serverLevel &conf = req.getConf();
+    if (req.getContentLength() > conf.requestLimit) {
         std::cerr << RED << "Content-Length too large" << RESET << std::endl;
-        sendErrorResponse(413);
+        sendErrorResponse(413, req);
         _requestBuffer.clear();
         return 1;
     }
@@ -243,7 +241,7 @@ int Client::processRequest(std::string &buffer) {
     if (req.getMethod() == "BAD") {
         std::cout << RED << _webserv->getTimeStamp() 
                 << "Bad request format" << RESET << std::endl;
-        sendErrorResponse(400);
+        sendErrorResponse(400, req);
         _requestBuffer.clear();
         return 1;
     }
@@ -251,13 +249,13 @@ int Client::processRequest(std::string &buffer) {
     if (req.getMethod() != "GET" && req.getMethod() != "POST" && req.getMethod() != "DELETE") {
         std::cout << RED << _webserv->getTimeStamp() 
                 << "Method not allowed: " << req.getMethod() << RESET << std::endl;
-        sendErrorResponse(405);
+        sendErrorResponse(405, req);
         _requestBuffer.clear();
         return 1;
     }
 
     locationLevel loc;
-    if (matchLocation(req.getPath(), _server->getCurConfig(), loc)) {
+    if (matchLocation(req.getPath(), conf, loc)) {
         if (loc.hasRedirect == true) {
             sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
             return 0;
@@ -283,7 +281,7 @@ int Client::processRequest(std::string &buffer) {
     } else if (req.getMethod() == "DELETE") {
         return handleDeleteRequest(req);
     } else {
-        sendErrorResponse(405);
+        sendErrorResponse(405, req);
         return 1;
     }
 }
@@ -291,13 +289,13 @@ int Client::processRequest(std::string &buffer) {
 int Client::handleGetRequest(Request& req) {
 	std::string requestPath = req.getPath();
 	locationLevel loc;
-	if (!matchLocation(req.getReqPath(), _server->getCurConfig(), loc)) {
+	if (!matchLocation(req.getReqPath(), req.getConf(), loc)) {
 		std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getReqPath() << std::endl;
-		sendErrorResponse(404);
+		sendErrorResponse(404, req);
 		return 1;
 	}
     if (requestPath.find("../") != std::string::npos) {
-        sendErrorResponse(403);
+        sendErrorResponse(403, req);
         return 1;
     }
     setAutoIndex(loc);
@@ -322,18 +320,18 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         if (actualPath.empty()) actualPath = "/";
     } else {
 		locationLevel loc;
-		matchLocation(requestPath, _server->getCurConfig(), loc);
+		matchLocation(requestPath, req.getConf(), loc);
         actualPath = requestPath.substr(5);
-        std::string actualFullPath = _server->getWebRoot(loc) + actualPath;
+        std::string actualFullPath = _server->getWebRoot(req, loc) + actualPath;
         
         struct stat fileStat;
         if (stat(actualFullPath.c_str(), &fileStat) != 0) {
             std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << actualFullPath  << "\n";
-            sendErrorResponse(404);
+            sendErrorResponse(404, req);
             return 1;
         }
         if (S_ISDIR(fileStat.st_mode)) {
-            return createDirList(actualFullPath, actualPath);
+            return createDirList(actualFullPath, actualPath, req);
         } else if (S_ISREG(fileStat.st_mode)) {
             if (buildBody(req, actualFullPath) == 1) {
                 return 1;
@@ -346,7 +344,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
             return 0;
         } else {
             std::cout << _webserv->getTimeStamp() << "Not a regular file or directory: " << actualFullPath << std::endl;
-            sendErrorResponse(403);
+            sendErrorResponse(403, req);
             return 1;
         }
     }
@@ -356,9 +354,9 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 int Client::handleRegularRequest(Request& req) {
     locationLevel loc;
 
-    if (!matchLocation(req.getPath(), _server->getCurConfig(), loc)) {
+    if (!matchLocation(req.getPath(), req.getConf(), loc)) {
         std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getPath() << std::endl;
-        sendErrorResponse(404);
+        sendErrorResponse(404, req);
         return 1;
     }
 
@@ -372,22 +370,23 @@ int Client::handleRegularRequest(Request& req) {
         reqPath = reqPath.substr(0, end + 1);
     }
 
-	std::string fullPath = _server->getWebRoot(loc) + reqPath;
+	std::string fullPath = _server->getWebRoot(req, loc) + reqPath;
 
 	setAutoIndex(loc);
 
     if (fullPath.find("root") != std::string::npos && _autoindex == false) {
         std::cout << RED << "Access to directory browser is forbidden when autoindex is off\n" << RESET;
-        sendErrorResponse(403);
+        sendErrorResponse(403, req);
         return 1;
     }
 
     if (handleRedirect(req) == 0) {
         return 1;
     }
-
+	_cgi->setConfig(req.getConf());
+	_cgi->setCGIBin(&req.getConf());
     if (_cgi->isCGIScript(reqPath)) {
-		std::string fullCgiPath = _server->getWebRoot(loc) + reqPath;
+		std::string fullCgiPath = _server->getWebRoot(req, loc) + reqPath;
         return _cgi->executeCGI(*this, req, fullCgiPath);
     }
 
@@ -396,15 +395,15 @@ int Client::handleRegularRequest(Request& req) {
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
         std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << fullPath << "\n";
-        sendErrorResponse(404);
+        sendErrorResponse(404, req);
         return 1;
     }
     
     if (S_ISDIR(fileStat.st_mode)) {
-        return viewDirectory(fullPath, reqPath);
+        return viewDirectory(fullPath, req);
     } else if (!S_ISREG(fileStat.st_mode)) {
         std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
-        sendErrorResponse(403);
+        sendErrorResponse(403, req);
         return 1;
     }
     
@@ -430,14 +429,14 @@ int Client::buildBody(Request &req, std::string fullPath) {
     int fd = open(fullPath.c_str(), O_RDONLY);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file: " << fullPath << std::endl;
-        sendErrorResponse(500);
+        sendErrorResponse(500, req);
         return 1;
     }
     
     struct stat fileStat;
     if (fstat(fd, &fileStat) < 0) {
         close(fd);
-        sendErrorResponse(500);
+        sendErrorResponse(500, req);
         return 1;
     }
     
@@ -448,7 +447,7 @@ int Client::buildBody(Request &req, std::string fullPath) {
 
     if (bytesRead < 0) {
         std::cout << "Error reading file: " << fullPath << std::endl;
-        sendErrorResponse(500);
+        sendErrorResponse(500, req);
         return 1;
     }
     
@@ -458,12 +457,12 @@ int Client::buildBody(Request &req, std::string fullPath) {
     return 0;
 }
 
-int Client::viewDirectory(std::string fullPath, std::string requestPath) {
+int Client::viewDirectory(std::string fullPath, Request& req) {
     locationLevel loc;
-	if (matchLocation(requestPath, _server->getCurConfig(), loc)) {
+	if (matchLocation(req.getPath(), req.getConf(), loc)) {
 		setAutoIndex(loc);
 		if (_autoindex == true) {
-			return createDirList(fullPath, requestPath);
+			return createDirList(fullPath, req.getPath(), req);
 		} else {
 			std::string indexPath = fullPath;
 			if (indexPath[indexPath.size() - 1] != '/')
@@ -485,14 +484,14 @@ int Client::viewDirectory(std::string fullPath, std::string requestPath) {
 				return 0;
 			} else {
 				std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
-				sendErrorResponse(403);
+				sendErrorResponse(403, req);
 				return 1;
 			}
         }
     } 
-    else if (_config.locations.find("/") != _config.locations.end()) {
-        if (_config.locations.find("/")->second.autoindex) {
-            return createDirList(fullPath, requestPath);
+    else if (req.getConf().locations.find("/") != req.getConf().locations.end()) {
+        if (req.getConf().locations.find("/")->second.autoindex) {
+            return createDirList(fullPath, req.getPath(), req);
         } else {
 
             std::string indexPath = fullPath + loc.indexFile;
@@ -511,23 +510,23 @@ int Client::viewDirectory(std::string fullPath, std::string requestPath) {
                 return 0;
             } else {
                 std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
-                sendErrorResponse(403);
+                sendErrorResponse(403, req);
                 return 1;
             }
         }
     }
     else {
-        std::cout << _webserv->getTimeStamp() << "No matching location for: " << requestPath << std::endl;
-        sendErrorResponse(403);
+        std::cout << _webserv->getTimeStamp() << "No matching location for: " << req.getPath() << std::endl;
+        sendErrorResponse(403, req);
         return 1;
     }
     return 0;
 }
 
-int Client::createDirList(std::string fullPath, std::string requestPath) {
+int Client::createDirList(std::string fullPath, std::string requestPath, Request& req) {
     std::string dirListing = showDir(fullPath, requestPath);
     if (dirListing.empty()) {
-        sendErrorResponse(403);
+        sendErrorResponse(403, req);
         return 1;
     }
     
@@ -635,12 +634,12 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 	locationLevel loc;
 	if (req.getPath().empty()) {
 		std::cout << "Request path is empty for " << method << " request" << std::endl;
-		sendErrorResponse(400);
+		sendErrorResponse(400, req);
 		return "";
 	}
-	if (!matchUploadLocation(req.getPath(), _config, loc)) {
+	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
 		std::cout << "Location not found for " << method << " request: " << req.getPath() << std::endl;
-		sendErrorResponse(404);
+		sendErrorResponse(404, req);
 		return "";
 	}
 	for (size_t i = 0; i < loc.methods.size(); i++) {
@@ -649,13 +648,13 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 		}
 		if (i == loc.methods.size() - 1) {
 			std::cout << "Method not allowed for " << method << " request: " << req.getPath() << std::endl;
-			sendErrorResponse(405);
+			sendErrorResponse(405, req);
 			return "";
 		}
 	}
 	if (loc.uploadDirPath.empty()) {
 		std::cout << "Upload directory not set for " << method << " request: " << req.getPath() << std::endl;
-		sendErrorResponse(403);
+		sendErrorResponse(403, req);
 		return "";
 	}
     std::string fullPath = loc.uploadDirPath;
@@ -668,17 +667,17 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 
 int Client::handlePostRequest(Request& req) {
 	locationLevel loc;
-    if (!matchLocation(req.getPath(), _server->getCurConfig(), loc)) {
+    if (!matchLocation(req.getPath(), req.getConf(), loc)) {
 		std::cout << RED << _webserv->getTimeStamp() << "Location not found for POST request: " 
 				  << RESET << req.getPath() << std::endl;
-		sendErrorResponse(404);
+		sendErrorResponse(404, req);
 		return 1;
 	}
     std::string fullPath = getLocationPath(req, "POST");
     if (fullPath.empty())
         return 1;
     
-    std::string cgiPath = _server->getWebRoot(loc) + req.getPath();
+    std::string cgiPath = _server->getWebRoot(req, loc) + req.getPath();
     if (_cgi->isCGIScript(cgiPath)) {
         return _cgi->executeCGI(*this, req, cgiPath);
     }
@@ -688,7 +687,7 @@ int Client::handlePostRequest(Request& req) {
     }
     
     if (req.getPath().find("../") != std::string::npos) {
-        sendErrorResponse(403);
+        sendErrorResponse(403, req);
         return 1;
     }
     
@@ -700,7 +699,7 @@ int Client::handlePostRequest(Request& req) {
         
         if (contentToWrite.empty()) {
             std::cout << RED << _webserv->getTimeStamp() << "Failed to decode chunked data" << RESET << std::endl;
-            sendErrorResponse(400);
+            sendErrorResponse(400, req);
             return 1;
         }
     } else {
@@ -716,7 +715,7 @@ int Client::handlePostRequest(Request& req) {
 				// else {//TODO: MAYBE?
 				// 	std::cout << RED << _webserv->getTimeStamp() 
 				// 			  << "Unsupported query parameter for POST request: " << key << RESET << std::endl;
-				// 	sendErrorResponse(400);
+				// 	sendErrorResponse(400, req);
 				// 	return 1;
 				// }
 				//TODO: but for now:
@@ -731,7 +730,7 @@ int Client::handlePostRequest(Request& req) {
     int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file for writing: " << fullPath << std::endl;
-        sendErrorResponse(500);
+        sendErrorResponse(500, req);
         return 1;
     }
     
@@ -743,7 +742,7 @@ int Client::handlePostRequest(Request& req) {
     
     if (bytesWritten < 0) {
         std::cout << "Failed to write to file\n";
-        sendErrorResponse(500);
+        sendErrorResponse(500, req);
         return 1;
     }
     
@@ -777,19 +776,19 @@ int Client::handleDeleteRequest(Request& req) {
         fullPath = fullPath.substr(0, end + 1);
     }
 
-    if (unlink(fullPath.c_str()) != 0) {//TODO: was just "sendErrorResponse(403)", is this better or unnecessary?
+    if (unlink(fullPath.c_str()) != 0) {//TODO: was just "sendErrorResponse(403, req)", is this better or unnecessary?
 		if (errno == ENOENT) {
 			std::cout << RED << _webserv->getTimeStamp() << "File not found for deletion: " << RESET << fullPath << "\n";
-			sendErrorResponse(404);
+			sendErrorResponse(404, req);
 			return 1;
 		} else if (errno == EACCES || errno == EPERM) {
 			std::cout << RED << _webserv->getTimeStamp() << "Permission denied for deletion: " << RESET << fullPath << "\n";
-			sendErrorResponse(403);
+			sendErrorResponse(403, req);
 			return 1;
 		} else {
 			std::cout << RED << _webserv->getTimeStamp() << "Error deleting file: " << RESET << fullPath
 					  << " - " << strerror(errno) << "\n";
-        	sendErrorResponse(500);
+        	sendErrorResponse(500, req);
         	return 1;
 		}
     }
@@ -802,20 +801,20 @@ int Client::handleMultipartPost(Request& req) {
     std::string boundary = req.getBoundary();
     
     if (boundary.empty()) {
-        sendErrorResponse(400);
+        sendErrorResponse(400, req);
         return 1;
     }
     
     Multipart parser(_requestBuffer, boundary);
     
     if (!parser.parse()) {
-        sendErrorResponse(400);
+        sendErrorResponse(400, req);
         return 1;
     }
     
     std::string filename = parser.getFilename();
     if (filename.empty()) {
-        sendErrorResponse(400);
+        sendErrorResponse(400, req);
         return 1;
     }
 
@@ -825,7 +824,7 @@ int Client::handleMultipartPost(Request& req) {
     }
     
     if (!saveFile(req, filename, fileContent)) {
-        sendErrorResponse(500);
+        sendErrorResponse(500, req);
         return 1;
     }
     std::cout << GREEN << _webserv->getTimeStamp() << "Recieved: " + parser.getFilename() << "\n" << RESET;
@@ -880,8 +879,8 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 
 int    Client::handleRedirect(Request req) {
     std::string path = req.getPath().substr(1);
-    std::map<std::string, locationLevel>::iterator it = _config.locations.begin();
-    for ( ; it != _config.locations.end() ; it++) {
+    std::map<std::string, locationLevel>::iterator it = req.getConf().locations.begin();
+    for ( ; it != req.getConf().locations.end() ; it++) {
         if (it->first == path) {
             sendRedirect(it->second.redirectionHTTP.first, it->second.redirectionHTTP.second);
             return 0;
@@ -1057,11 +1056,11 @@ bool Client::send_all(int sockfd, const std::string& data) {
 	return true;
 }
 
-void Client::sendErrorResponse(int statusCode) {
+void Client::sendErrorResponse(int statusCode, Request& req) {
     std::string body;
     std::string statusText = getStatusMessage(statusCode);
     
-    resolveErrorResponse(statusCode, *_server, statusText, body);    
+    resolveErrorResponse(statusCode, statusText, body, req);    
     
     // Construct the HTTP response
     std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";

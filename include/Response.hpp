@@ -5,10 +5,12 @@
 #include "ConfigParser.hpp"
 #include "Server.hpp"
 #include "Webserv.hpp"
+#include "Request.hpp"
 
 struct serverLevel;
 struct locationLevel;
 class Server;
+class Request;
 
 #define HTTP_STATUS_CODES \
 	X(100, Continue, "Continue") \
@@ -65,8 +67,8 @@ bool						matchUploadLocation(const std::string&, const serverLevel& serv, locat
 bool						matchRootLocation(const std::string& uri, serverLevel& serv, locationLevel& bestMatch);
 const std::string			getStatusMessage(int code);
 void						generateErrorPage(std::string& body, int statusCode, const std::string& statusText);
-std::string					findErrorPage(int statusCode, Server& server, const std::string& dir);
-void						resolveErrorResponse(int statusCode, Server& server, std::string& statusText, std::string& body);
+std::string					findErrorPage(int statusCode, const std::string& dir, Request& req);
+void						resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req);
 
 
 #endif

@@ -9,14 +9,6 @@ CGIHandler::CGIHandler() : _args(NULL) {
     _output[1] = -1;
 }
 
-CGIHandler::CGIHandler(Client& client) : _args(NULL) {
-    // Initialize arrays
-	_client = &client;
-	_server = &_client->getServer();
-	_config = _server->getCurConfig();
-	setCGIBin(&_config);
-}
-
 CGIHandler::~CGIHandler() {
     cleanupResources();
 }
@@ -60,7 +52,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
     _path = scriptPath;
    
     setPathInfo(req);
-    if (doChecks(client) == 1) {
+    if (doChecks(client, req) == 1) {
         return 1;
     }
     prepareEnv(req);
@@ -110,18 +102,18 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
                 return result;
             } else {
                 std::cerr << RED << getTimeStamp() << "CGI Script exit status: " << RESET << exit_status << "\n";
-                client.sendErrorResponse(500);
+                client.sendErrorResponse(500, req);
                 cleanupResources();
                 return 1;
             }
         } else {
-            client.sendErrorResponse(500);
+            client.sendErrorResponse(500, req);
             cleanupResources();
             return 1;
         }
     }
     
-    client.sendErrorResponse(500);
+    client.sendErrorResponse(500, req);
     cleanupResources();
     return 1;
 }
@@ -659,22 +651,22 @@ Request    CGIHandler::createTempHeader(std::string output) {
     return temp;
 }
 
-int CGIHandler::doChecks(Client client) {
+int CGIHandler::doChecks(Client client, Request& req) {
     if (access(_path.c_str(), F_OK) != 0) {
         std::cerr << getTimeStamp() << "Script does not exist: " << _path << std::endl;
-        client.sendErrorResponse(404);
+        client.sendErrorResponse(404, req);
         return 1;
     }
 
     if (access(_path.c_str(), X_OK) != 0) {
         std::cerr << "Script is not executable: " << _path << std::endl;
-        client.sendErrorResponse(403);
+        client.sendErrorResponse(403, req);
         return 1;
     }
 
     if (pipe(_input) < 0 || pipe(_output) < 0) {
         std::cerr << "Pipe creation failed" << std::endl;
-        client.sendErrorResponse(500);
+        client.sendErrorResponse(500, req);
         return 1;
     }
     return 0;

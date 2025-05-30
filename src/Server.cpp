@@ -4,12 +4,12 @@
 Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 	_fd = -1;
 	_confParser = confs;
-    _curConfig = confs.getConfigByIndex(nbr);
-	int port = confs.getPort(_curConfig);
+    // _curConfig = confs.getConfigByIndex(nbr);
+	std::pair<std::pair<std::string, int>, bool> portPair = confs.getDefaultPortPair(confs.getConfigByIndex(nbr));
 	IPPortToServersMap temp = confs.getIpPortToServers();
 	IPPortToServersMap::iterator it = temp.begin();
     for (; it != confs.getIpPortToServers().end(); ++it) {
-		if (it->first.first.second == port) {
+		if (it->first == portPair) {
 			_configs = it->second;
 			break;
 		}
@@ -32,9 +32,9 @@ int &Server::getFd() {
     return _fd;
 }
 
-serverLevel &Server::getCurConfig() {
-	return _curConfig;
-}
+// serverLevel &Server::getCurConfig() {
+// 	return _curConfig;
+// }
 
 std::vector<serverLevel*> &Server::getConfigs() {
 	return _configs;
@@ -46,21 +46,21 @@ ConfigParser &Server::getConfParser() {
 
 std::string Server::getUploadDir(Client& client, Request& req) {
 	locationLevel loc;
-	if (!matchUploadLocation(req.getReqPath(), _curConfig, loc)) {
+	if (!matchUploadLocation(req.getReqPath(), req.getConf(), loc)) {
 		std::cout << "Location not found: " << req.getReqPath() << std::endl;
-		client.sendErrorResponse(403);
+		client.sendErrorResponse(403, req);
 		return "";
 	}
 	if (loc.uploadDirPath.empty()) {
 		std::cout << "Upload directory not set: " << req.getReqPath() << std::endl;
-		client.sendErrorResponse(403);
+		client.sendErrorResponse(403, req);
 		return "";
 	}
-    std::string fullPath = getWebRoot(loc) + req.getPath();
+    std::string fullPath = getWebRoot(req, loc) + req.getPath();
 	return fullPath;
 }
 
-std::string	Server::getWebRoot(locationLevel& loc) {
+std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
 	std::string path;
 	if (!loc.rootLoc.empty()) {
 		if (loc.rootLoc[loc.rootLoc.size() - 1] == '/')
@@ -69,10 +69,10 @@ std::string	Server::getWebRoot(locationLevel& loc) {
 			path = loc.rootLoc;
 	}
 	else {
-		if (_curConfig.rootServ[_curConfig.rootServ.size() - 1] == '/')
-			path = _curConfig.rootServ.substr(0, _curConfig.rootServ.size() - 1);
+		if (req.getConf().rootServ[req.getConf().rootServ.size() - 1] == '/')
+			path = req.getConf().rootServ.substr(0, req.getConf().rootServ.size() - 1);
 		else
-			path = _curConfig.rootServ;
+			path = req.getConf().rootServ;
 	}
 	return path;
 }
@@ -81,8 +81,8 @@ void Server::setWebserv(Webserv* webserv) {
     _webserv = webserv;
 }
 
-void    Server::setConfig(serverLevel& config) {
-    _curConfig = config;
+void    Server::setConfigs(std::vector<serverLevel*> configs) {
+    _configs = configs;
 }
 
 void    Server::setFd(int const fd) {
@@ -117,7 +117,7 @@ int Server::setServerAddr() {
     memset(&_addr, 0, sizeof(_addr));
     _addr.sin_family = AF_INET;
     
-    std::pair<std::pair<std::string, int>, bool> conf = _confParser.getDefaultPortPair(getCurConfig());
+    std::pair<std::pair<std::string, int>, bool> conf = _confParser.getDefaultPortPair(*getConfigs()[0]);
     std::string ip = conf.first.first;
     int port = conf.first.second;
     

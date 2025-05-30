@@ -37,7 +37,7 @@ std::string skipComments(std::string &s) {
 
 std::vector<std::string> splitIfSemicolon(std::string &configLine) {
 	std::vector<std::string> s;
-	if (!checkSemicolon(configLine)) // && configLine.find("http") == 0)
+	if (!checkSemicolon(configLine))
 		throw configException("Error: missing semicolon in config");
 	configLine = configLine.substr(0, configLine.size() - 1);
 	s = split(configLine);
@@ -50,24 +50,17 @@ void setPort(std::vector<std::string>& s, serverLevel& serv) {
 	bool isDefault = false;
 
 	size_t colon = s[1].find(':');
-	size_t defPort = s[1].find("default_server");
 	if (colon != std::string::npos) {
 		std::string tmp = s[1].substr(0, colon);
 		if (tmp != "localhost")
         	ip = s[1].substr(0, colon);
-		if (defPort != std::string::npos) {
+		if (s.size() == 3 && s[2] == "default_server")
 			isDefault = true;
-        	port = std::atoi(s[1].substr(colon + 1, defPort).c_str());
-		}
-		else
-			port = std::atoi(s[1].substr(colon + 1).c_str());
+		port = std::atoi(s[1].substr(colon + 1).c_str());
     } else {
-		if (defPort != std::string::npos) {
+		if (s.size() == 3 && s[2] == "default_server")
 			isDefault = true;
-			port = std::atoi(s[1].substr(defPort).c_str());
-		}
-        else
-			port = std::atoi(s[1].c_str());
+		port = std::atoi(s[1].c_str());
 	}
 	if (port < 0)
 		port = 8080;
@@ -212,8 +205,9 @@ void setServName(serverLevel& serv, std::vector<std::string>& s) {
 	if (!isValidName(s[1]))
 		serv.servName[0] = "";	
 	else {
-		for (size_t j = 1; j < s.size(); j++)
+		for (size_t j = 1; j < s.size(); j++) {
 			serv.servName.push_back(s[j]);
+		}
 	}
 }
 

@@ -81,7 +81,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 	initLocLevel(s, loc);
 	while (i < conf.size()) {
 		if (conf[i].find("}") != std::string::npos) break;
-		else if (!whiteLine(conf[i])) {
+		else if (!whiteLine(conf[i]) && !foundServer(s) && !foundLocation(s)) {
 			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "root") setRootLoc(loc, s);
 			else if (s[0] == "index") setLocIndexFile(loc, s);
@@ -105,7 +105,7 @@ void ConfigParser::setServerLevel(size_t &i, std::vector<std::string> &s, server
 			i--;
 			return;
 		}
-		if (!whiteLine(conf[i])) {
+		if (!whiteLine(conf[i]) && !foundServer(s) && !foundLocation(s)) {
 			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "listen") setPort(s, serv);
 			else if (s[0] == "root") setRootServ(serv, s);
@@ -126,6 +126,7 @@ void ConfigParser::setConfigLevels(serverLevel& serv, std::vector<std::string>& 
 	std::vector<std::string> s;
 	bracket = false;
 	i = 0;
+	std::cout << "___inside___" << std::endl;
 	while (i < conf.size()) {
 		if (!whiteLine(conf[i])) {
 			s = split(conf[i]);
@@ -142,6 +143,7 @@ void ConfigParser::setConfigLevels(serverLevel& serv, std::vector<std::string>& 
 	if (bracket == false)
 		throw configException("Error: No closing bracket found for server.");
 	checkConfig(serv);
+	std::cout << "___end___" << std::endl;
 }
 
 void ConfigParser::setIpPortToServers() {
@@ -170,7 +172,6 @@ void ConfigParser::setIpPortToServers() {
 //         // Check for duplicate IP:port combinations
 //         for (size_t j = 0; j < nextConf.port.size(); j++) {
 //             std::pair<std::pair<std::string, int>, bool> ipPort = nextConf.port[j];
-// 			nextConf.servName
             
 //             if (usedIpPorts.find(ipPort.first) != usedIpPorts.end()) {
 //                 std::cerr << RED << "Warning: IP:port combination " << ipPort.first.first << ":" << ipPort.first.second 
@@ -197,20 +198,19 @@ void ConfigParser::setIpPortToServers() {
 
 void ConfigParser::parseAndSetConfigs() {
     std::set<std::string> usedCombinations; // "ip:port:servername"
-    
+    std::cout << "STORED CONFS SIZE: " << _storedConfigs.size() << std::endl;
     for (size_t i = 0; i < _storedConfigs.size(); i++) {
+        std::cout << " i --> " << i << std::endl;
         serverLevel nextConf;
         setConfigLevels(nextConf, _storedConfigs[i]);
-        
         bool validServer = false;
+
         for (size_t j = 0; j < nextConf.port.size(); j++) {
-            for (size_t k = 0; k < nextConf.servName.size(); k++) {
-                std::string combination = nextConf.port[j].first.first + ":" + 
-                                        tostring(nextConf.port[j].first.second) + ":" + 
-                                        nextConf.servName[k];
-                
+
+			for (size_t k = 0; k < nextConf.servName.size(); k++) {
+				std::string combination = nextConf.port[j].first.first + ":" + tostring(nextConf.port[j].first.second) + ":" + nextConf.servName[k];
                 if (usedCombinations.find(combination) == usedCombinations.end()) {
-                    usedCombinations.insert(combination);
+					usedCombinations.insert(combination);
                     validServer = true;
                 } else {
 					throw configException("Error: Duplicate server configuration found for " + combination);

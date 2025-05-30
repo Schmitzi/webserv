@@ -2,7 +2,7 @@
 
 Request::Request() {}
 
-Request::Request(const std::string& rawRequest, serverLevel& conf, Server& server) : 
+Request::Request(const std::string& rawRequest, Server& server) : 
     _method("GET"),
     _path(""),
     _contentType(""),
@@ -13,7 +13,7 @@ Request::Request(const std::string& rawRequest, serverLevel& conf, Server& serve
     _boundary(""),
 	_reqPath(""),
 	_contentLength(0),
-	_curConf(conf),
+	_curConf(),
 	_configs(server.getConfigs())
 {
     parse(rawRequest);
@@ -99,6 +99,34 @@ void    Request::setHeader(std::map<std::string, std::string> map) {
     _headers = map;
 }
 
+void Request::setCurConf(serverLevel&conf) {
+	_curConf = conf;
+}
+
+bool Request::matchHostServerName() {
+	std::map<std::string, std::string>::iterator it = _headers.find("Host");
+	std::string servName;
+	if (it != _headers.end())
+		servName = it->second;
+	for (size_t i = 0; i < _configs.size(); i++) {
+		for (size_t j = 0; j < _configs[i]->servName.size(); j++) {
+			if (servName == _configs[i]->servName[j]) {
+				_curConf = *_configs[i];
+				return true;
+			}
+		}
+	}
+	for (size_t i = 0; i < _configs.size(); i++) {
+		for (size_t j = 0; j < _configs[i]->port.size(); j++) {
+			if (_configs[i]->port[j].second == true) {
+				_curConf = *_configs[i];
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void Request::parse(const std::string& rawRequest) {
     if (rawRequest.empty()) {
         std::cout << RED << "Empty request!\n" << RESET;
@@ -126,6 +154,12 @@ void Request::parse(const std::string& rawRequest) {
     }
 
     parseHeaders(headerSection);
+	if (!matchHostServerName()) {
+		std::cerr << RED << "No Host-ServerName match + no default config specified!\n" << RESET;
+		_method = "BAD";
+		return;
+
+	}
     parseContentType();
 
     std::istringstream iss(headerSection);
@@ -225,36 +259,7 @@ void Request::checkContentLength(std::string buffer) {
             return;
         }
     }
-    // pos = buffer.find("Host: ");
-	// if (pos != std::string::npos) {
-	// 	_host = buffer.substr(pos + 6);
-	// 	pos = _host.find("\n");
-	// 	if (pos != std::string::npos) {
-	// 		_host = _host.substr(0, pos);
-	// 		pos = _host.find(":");
-	// 		if (pos != std::string::npos) {
-	// 			std::string hostName = _host.substr(0, pos);
-	// 			int hostPort = atoi(_host.substr(pos + 1).c_str());
-	// 			bool found = false;
-	// 			for (size_t i = 0; i < _configs.size(); i++) {
-	// 				for (size_t j = 0; j < _configs[i]->servName.size(); j++) {
-	// 					if (_configs[i]->servName[j] == hostName) {
-	// 						found = true;
-	// 						_curConf = *_configs[i];
-	// 						std::cout << BLUE << getTimeStamp() << "Matched server: " << hostName 
-	// 								  << ":" << hostPort << RESET << std::endl;
-	// 						break;
-	// 					}
-	// 				}
-	// 			}
-	// 			if (!found) {
-	// 				std::cout << RED << getTimeStamp() << "No matching server for Host: " 
-	// 						  << hostName << ":" << hostPort << RESET << std::endl;
-	// 				_curConf = *_configs[0]; // TODO: ???
-	// 			}
-	// 		}
-	// 	}
-	// }
+    
     pos = buffer.find("Transfer-Encoding:");
     if (pos != std::string::npos) {
         size_t eol = buffer.find("\r\n", pos);

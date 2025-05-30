@@ -2,23 +2,36 @@
 
 Webserv::Webserv() : _epollFd(-1) { 
     _confParser = ConfigParser();
-	// _configs = _confParser.getAllConfigs();
-    // for (size_t i = 0; i < _configs.size(); i++) {
-    //     _servers.push_back(new Server(_confParser, i));
-    //     _servers[i]->setWebserv(this);
-    // }
 }
 
 Webserv::Webserv(std::string const &config) : _epollFd(-1) {
 	_confParser = ConfigParser(config);
 	_configs = _confParser.getAllConfigs();
-	std::cout << "NBR OF CONFIGS: " << _configs.size() << std::endl;
 	for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {//CHECK ALL CONFIGS
 		bool toAdd = true;
 		for (size_t j = 0; j < _servers.size(); j++) {//CHECK ALL SERVERS FOR CURRENT CONFIG FILE PORT
-			if (_confParser.getDefaultPortPair(_confParser.getConfigByIndex(i)) == _confParser.getDefaultPortPair(_servers[j]->getCurConfig())) {
-				toAdd = false;
-				break;
+			for (size_t k = 0; k < _servers[j]->getConfigs().size(); k++) {
+				std::pair<std::pair<std::string, int>, bool> one = _confParser.getDefaultPortPair(_confParser.getConfigByIndex(i));
+				std::cout << "___ONE: " << one.first.first << " " << one.first.second << std::endl;
+				
+				// _confParser.printConfig(*_servers[j]->getConfigs()[k]);
+				
+				for (size_t x = 0; x < _servers[j]->getConfigs()[k]->servName.size(); x++) {
+					std::cout << "PRINT: " << _servers[j]->getConfigs()[k]->servName[x] << std::endl;
+				}
+				// if (_confParser.getDefaultPortPair(*_servers[j]->getConfigs()[k])) {
+				// 	std::cout << "HERE" << std::endl;
+				// 	continue;
+				// }
+				
+				std::cout << "HERE2" << std::endl;
+				std::pair<std::pair<std::string, int>, bool> two = _confParser.getDefaultPortPair(*_servers[j]->getConfigs()[k]);
+				std::cout << "___TWO: " << two.first.first << " " << two.first.second << std::endl;
+				if (one.first.first == two.first.first && one.first.second == two.first.second) {
+					toAdd = false;
+					break;
+				}
+				std::cout << "___2___" << std::endl;
 			}
 		}
 		if (toAdd)
@@ -76,13 +89,13 @@ int Webserv::setConfig(std::string const filepath) {
 
 serverLevel &Webserv::getDefaultConfig() {
 	for (size_t i = 0; i < _servers.size(); i++) {
-		serverLevel conf = _servers[i]->getCurConfig();
+		serverLevel conf = *_servers[i]->getConfigs()[i];
 		for (size_t j = 0; j < conf.port.size(); j++) {
 			if (conf.port[j].second == true)
-				return _servers[i]->getCurConfig();
+				return *_servers[i]->getConfigs()[i];
 		}
 	}
-	return _servers[0]->getCurConfig();
+	return *_servers[0]->getConfigs()[0];
 }
 
 int Webserv::run() {
@@ -95,12 +108,12 @@ int Webserv::run() {
    for (size_t i = 0; i < _servers.size(); i++) {
     if (_servers[i]->getFd() > 0) {
         std::cout << BLUE << getTimeStamp() << "Host:Port already opened: " << RESET << 
-            _confParser.getDefaultPortPair(_servers[i]->getCurConfig()).first.first << ":" << 
-            _confParser.getDefaultPortPair(_servers[i]->getCurConfig()).first.second << "\n";
+            _confParser.getDefaultPortPair(*_servers[i]->getConfigs()[0]).first.first << ":" << 
+            _confParser.getDefaultPortPair(*_servers[i]->getConfigs()[0]).first.second << "\n";
         i++;
         continue;
     }
-    std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _confParser.getPort(_servers[i]->getCurConfig()) << std::endl;
+    std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _confParser.getPort(*_servers[i]->getConfigs()[0]) << std::endl;
     if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
         _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {
         std::cerr << RED << getTimeStamp() << "Failed to initialize server: " << RESET << i + 1 << std::endl;
@@ -112,7 +125,7 @@ int Webserv::run() {
     }
     std::cout << GREEN << getTimeStamp() << 
         "Server " << i + 1 << " is listening on port " << RESET << 
-        _confParser.getPort(_servers[i]->getCurConfig()) << "\n";
+        _confParser.getPort(*_servers[i]->getConfigs()[0]) << "\n";
     }
     if (serverCheck() == 1) {
         return 1;
