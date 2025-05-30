@@ -81,7 +81,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 	initLocLevel(s, loc);
 	while (i < conf.size()) {
 		if (conf[i].find("}") != std::string::npos) break;
-		else if (!whiteLine(conf[i]) && !foundServer(s) && !foundLocation(s)) {
+		else if (!whiteLine(conf[i])) {
 			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "root") setRootLoc(loc, s);
 			else if (s[0] == "index") setLocIndexFile(loc, s);
@@ -105,7 +105,7 @@ void ConfigParser::setServerLevel(size_t &i, std::vector<std::string> &s, server
 			i--;
 			return;
 		}
-		if (!whiteLine(conf[i]) && !foundServer(s) && !foundLocation(s)) {
+		if (!whiteLine(conf[i])) {
 			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "listen") setPort(s, serv);
 			else if (s[0] == "root") setRootServ(serv, s);
