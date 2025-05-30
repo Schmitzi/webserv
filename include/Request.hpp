@@ -49,7 +49,6 @@ class Request {
         std::string getTimeStamp();
     private:
 		std::string							_host; 
-		std::string							_host; 
         std::string                         _method;
         std::string                         _path;
         std::string                         _contentType;

@@ -1,6 +1,7 @@
 #include "../include/ConfigParser.hpp"
 
-ConfigParser::ConfigParser() {}
+ConfigParser::ConfigParser() {
+}
 
 ConfigParser::ConfigParser(const std::string& filepath) {
 	_filepath = filepath;
