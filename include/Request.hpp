@@ -60,7 +60,7 @@ class Request {
 		std::string						 	_reqPath;
         unsigned long                       _contentLength;
 		serverLevel							_curConf;
-		std::vector<serverLevel*>			_configs;
+		std::vector<serverLevel>			_configs;
 };
 
 #endif

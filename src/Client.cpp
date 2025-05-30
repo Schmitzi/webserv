@@ -56,7 +56,7 @@ Webserv &Client::getWebserv() {
 	return *_webserv;
 }
 
-void    Client::setConfigs(std::vector<serverLevel*> configs) {
+void    Client::setConfigs(std::vector<serverLevel> configs) {
     _configs = configs;
 }
 

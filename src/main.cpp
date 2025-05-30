@@ -65,18 +65,15 @@ int main(int ac, char **av, char **envp) {
 		signal(SIGTERM, signalHandler);
 	
 		Webserv* webserv;
-		std::cout << "___HERE___" << std::endl;
 		if (av[1])
 			webserv = new Webserv(av[1]);
 			else 
 			webserv = new Webserv();
-		std::cout << "___HERE1___" << std::endl;
 		g_webserv = webserv;
 		webserv->setEnvironment(envp);
 		if (webserv->run()) {
 			webserv->ft_error("Setup failed");
 		}
-		std::cout << "___HERE2___" << std::endl;
 		delete webserv;
 		g_webserv = NULL;
 	} catch (const std::exception& e) {

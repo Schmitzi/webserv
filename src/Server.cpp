@@ -36,7 +36,7 @@ int &Server::getFd() {
 // 	return _curConfig;
 // }
 
-std::vector<serverLevel*> &Server::getConfigs() {
+std::vector<serverLevel> &Server::getConfigs() {
 	return _configs;
 }
 
@@ -81,7 +81,7 @@ void Server::setWebserv(Webserv* webserv) {
     _webserv = webserv;
 }
 
-void    Server::setConfigs(std::vector<serverLevel*> configs) {
+void    Server::setConfigs(std::vector<serverLevel> configs) {
     _configs = configs;
 }
 
@@ -117,7 +117,7 @@ int Server::setServerAddr() {
     memset(&_addr, 0, sizeof(_addr));
     _addr.sin_family = AF_INET;
     
-    std::pair<std::pair<std::string, int>, bool> conf = _confParser.getDefaultPortPair(*getConfigs()[0]);
+    std::pair<std::pair<std::string, int>, bool> conf = _confParser.getDefaultPortPair(getConfigs()[0]);
     std::string ip = conf.first.first;
     int port = conf.first.second;
     

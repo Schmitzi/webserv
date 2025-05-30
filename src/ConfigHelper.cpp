@@ -28,10 +28,10 @@ std::string skipComments(std::string &s) {
 	std::string ret = s;
 	x = s.find("#");
 	if (x != std::string::npos)
-	ret = s.substr(0, x);
+		ret = s.substr(0, x);
 	x = s.find("//");
 	if (s.find("http") == 0 && x != std::string::npos)
-	ret = s.substr(0, x);
+		ret = s.substr(0, x);
 	return (ret);
 }
 

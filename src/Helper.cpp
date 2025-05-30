@@ -16,3 +16,9 @@ std::vector<std::string> split(const std::string& s) {
 	}
 	return ret;
 }
+
+void printVector(std::vector<std::string> &s, std::string sep) {
+	for (size_t i = 0; i < s.size(); i++)
+		std::cout << s[i] << sep;
+	std::cout << std::endl;
+}

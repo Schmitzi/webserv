@@ -109,17 +109,17 @@ bool Request::matchHostServerName() {
 	if (it != _headers.end())
 		servName = it->second;
 	for (size_t i = 0; i < _configs.size(); i++) {
-		for (size_t j = 0; j < _configs[i]->servName.size(); j++) {
-			if (servName == _configs[i]->servName[j]) {
-				_curConf = *_configs[i];
+		for (size_t j = 0; j < _configs[i].servName.size(); j++) {
+			if (servName == _configs[i].servName[j]) {
+				_curConf = _configs[i];
 				return true;
 			}
 		}
 	}
 	for (size_t i = 0; i < _configs.size(); i++) {
-		for (size_t j = 0; j < _configs[i]->port.size(); j++) {
-			if (_configs[i]->port[j].second == true) {
-				_curConf = *_configs[i];
+		for (size_t j = 0; j < _configs[i].port.size(); j++) {
+			if (_configs[i].port[j].second == true) {
+				_curConf = _configs[i];
 				return true;
 			}
 		}

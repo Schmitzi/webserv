@@ -43,7 +43,7 @@ class Client {
         Server                  &getServer();
         void                    setWebserv(Webserv *webserv);
         void                    setServer(Server *server);
-        void                    setConfigs(std::vector<serverLevel*> configs);
+        void                    setConfigs(std::vector<serverLevel> configs);
         void                    setAutoIndex(locationLevel& loc);
         int                     acceptConnection(int serverFd);
         void                    displayConnection();
@@ -88,7 +88,7 @@ class Client {
         Server              *_server;
         CGIHandler          *_cgi;
         // serverLevel         _config;
-		std::vector<serverLevel*> _configs;
+		std::vector<serverLevel> _configs;
 };
 
 //create buffer

@@ -45,7 +45,7 @@ struct serverLevel {
 	std::map<std::string, locationLevel>		locations;//location
 };
 
-typedef std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> > IPPortToServersMap;
+typedef std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel> > IPPortToServersMap;
 
 class ConfigParser {
 	private:
