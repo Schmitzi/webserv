@@ -1,12 +1,21 @@
 #include "../include/Webserv.hpp"
 
 Webserv::Webserv() : _epollFd(-1) { 
-    _confParser = ConfigParser();
-	// _configs = _confParser.getAllConfigs();
-    // for (size_t i = 0; i < _configs.size(); i++) {
-    //     _servers.push_back(new Server(_confParser, i));
-    //     _servers[i]->setWebserv(this);
-    // }
+    _confParser = ConfigParser("config/default.conf");
+	_configs = _confParser.getAllConfigs();
+	std::cout << "NBR OF CONFIGS: " << _configs.size() << std::endl;
+	for (size_t i = 0; i < _confParser.getAllConfigs().size(); i++) {
+		bool toAdd = true;
+		for (size_t j = 0; j < _servers.size(); j++) {
+			if (_confParser.getDefaultPortPair(_confParser.getConfigByIndex(i)) == _confParser.getDefaultPortPair(_servers[j]->getCurConfig())) {
+				toAdd = false;
+				break;
+			}
+		}
+		if (toAdd)
+			_servers.push_back(new Server(_confParser, i, *this));
+	}
+	std::cout << "NBR OF SERVERS: " << _servers.size() << std::endl;
 }
 
 Webserv::Webserv(std::string const &config) : _epollFd(-1) {
@@ -114,9 +123,7 @@ int Webserv::run() {
         "Server " << i + 1 << " is listening on port " << RESET << 
         _confParser.getPort(_servers[i]->getCurConfig()) << "\n";
     }
-    if (serverCheck() == 1) {
-        return 1;
-    }
+
     while (1) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
@@ -151,21 +158,6 @@ int Webserv::run() {
                 }
             }
         }
-    }
-    return 0;
-}
-
-int     Webserv::serverCheck() { //TODO: Does not reliably block servers //TODO: cant use fcntl
-    bool isValid = false;
-    for (size_t i = 0; i < _servers.size() ; i++) {
-        if (fcntl(_servers[i]->getFd(), F_GETFD) != -1 || errno != EBADF) {
-            isValid = true;
-            break;
-        }
-    }
-    if (isValid == false) {
-        std::cout << RED << getTimeStamp() << "No valid servers, exiting\n" << RESET;
-        return 1;
     }
     return 0;
 }

@@ -17,7 +17,7 @@ class Server;
 class Request {
     public:
         Request();
-        Request(const std::string& rawRequest, serverLevel& conf, Server& server, ConfigParser& configParser);
+        Request(const std::string& rawRequest, serverLevel& conf, Server& server);
         ~Request();
         std::string &getPath();
         std::string const &getMethod();
@@ -46,7 +46,6 @@ class Request {
         bool    isChunkedTransfer() const;
         std::string getTimeStamp();
     private:
-		std::string							_host; 
 		std::string							_host; 
         std::string                         _method;
         std::string                         _path;

@@ -157,7 +157,8 @@ void Request::parse(const std::string& rawRequest) {
     }
 
     if ((_path == "/" || _path == "") && _method == "GET") {
-        _path = "/index.html";
+        // _path = "/index.html";
+        _path = _curConf.indexFile;
     }
 
     end = _path.find_last_not_of(" \t\r\n");
