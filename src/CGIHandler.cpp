@@ -555,6 +555,21 @@ void    CGIHandler::findPl(std::string& filePath) {
 
 
 void CGIHandler::cleanupResources() {
+    for (size_t i = 0; i < _env.size(); i++) {
+        if (_env[i]) {
+            free(_env[i]);
+        }
+    }
+    _env.clear();
+    
+    if (_args) {
+        for (int i = 0; _args[i]; i++) {
+            free(_args[i]);
+        }
+        delete[] _args;
+        _args = NULL;
+    }
+    
     for (int i = 0; i < 2; i++) {
         if (_input[i] >= 0) {
             close(_input[i]);
