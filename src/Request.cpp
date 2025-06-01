@@ -106,8 +106,9 @@ void Request::setCurConf(serverLevel&conf) {
 bool Request::matchHostServerName() {
 	std::map<std::string, std::string>::iterator it = _headers.find("Host");
 	std::string servName;
-	if (it != _headers.end())
-		servName = it->second;
+	if (it != _headers.end()) {
+        servName = it->second;
+    }
 	for (size_t i = 0; i < _configs.size(); i++) {
 		for (size_t j = 0; j < _configs[i].servName.size(); j++) {
 			if (servName == _configs[i].servName[j]) {
@@ -158,7 +159,6 @@ void Request::parse(const std::string& rawRequest) {
 		std::cerr << RED << "No Host-ServerName match + no default config specified!\n" << RESET;
 		_method = "BAD";
 		return;
-
 	}
     parseContentType();
 

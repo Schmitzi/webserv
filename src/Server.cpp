@@ -3,18 +3,27 @@
 
 Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 	_fd = -1;
-	_confParser = confs;
-    // _curConfig = confs.getConfigByIndex(nbr);
-	std::pair<std::pair<std::string, int>, bool> portPair = confs.getDefaultPortPair(confs.getConfigByIndex(nbr));
-	IPPortToServersMap temp = confs.getIpPortToServers();
-	IPPortToServersMap::iterator it = temp.begin();
-    for (; it != confs.getIpPortToServers().end(); ++it) {
-		if (it->first == portPair) {
-			_configs = it->second;
-			break;
-		}
-	}
-	_webserv = &webserv;
+    _confParser = confs;
+    
+    std::pair<std::pair<std::string, int>, bool> portPair = confs.getDefaultPortPair(confs.getConfigByIndex(nbr));
+    std::string targetIp = portPair.first.first;
+    int targetPort = portPair.first.second;
+    
+    IPPortToServersMap temp = confs.getIpPortToServers();
+    _configs.clear();
+    
+    for (IPPortToServersMap::iterator it = temp.begin(); it != temp.end(); ++it) {
+        std::string mapIp = it->first.first.first;
+        int mapPort = it->first.first.second;
+        
+        if (mapIp == targetIp && mapPort == targetPort) {
+            for (size_t i = 0; i < it->second.size(); ++i) {
+                _configs.push_back(it->second[i]);
+            }
+        }
+    }
+    
+    _webserv = &webserv;
 }
 
 Server::~Server()  {

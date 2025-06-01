@@ -369,8 +369,7 @@ int Client::handleRegularRequest(Request& req) {
     if (end != std::string::npos) {
         reqPath = reqPath.substr(0, end + 1);
     }
-
-	std::string fullPath;
+    std::string fullPath;
     if (reqPath.find("/home") == std::string::npos) {
         fullPath = _server->getWebRoot(req, loc) + reqPath;
     } else {
@@ -684,7 +683,6 @@ int Client::handlePostRequest(Request& req) {
         return 1;
     
     std::string cgiPath = _server->getWebRoot(req, loc) + req.getPath();
-	std::cout << "CGIPATH: " << cgiPath << std::endl;
     if (_cgi->isCGIScript(cgiPath)) {
         return _cgi->executeCGI(*this, req, cgiPath);
     }

@@ -112,6 +112,9 @@ int Webserv::run() {
         "Server " << i + 1 << " is listening on port " << RESET << 
         _confParser.getPort(_servers[i]->getConfigs()[0]) << "\n";
     }
+   // if (serverCheck() == 1) {
+   //     return 1;
+   // }
     while (1) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
