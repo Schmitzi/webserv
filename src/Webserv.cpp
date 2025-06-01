@@ -3,6 +3,9 @@
 // Webserv::Webserv() : _epollFd(-1) { 
 //     _confParser = ConfigParser("config/default.conf");
 // }
+// Webserv::Webserv() : _epollFd(-1) { 
+//     _confParser = ConfigParser("config/default.conf");
+// }
 
 Webserv::Webserv(std::string const &config) : _epollFd(-1) {
 	_confParser = ConfigParser(config);

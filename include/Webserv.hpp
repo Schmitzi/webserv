@@ -38,6 +38,7 @@ class Client;
 
 class Webserv {
     public:
+        // Webserv();
         Webserv(std::string const &config = "config/default.conf");
         Webserv(Webserv const &other);
         Webserv &operator=(Webserv const &other);
@@ -50,7 +51,6 @@ class Webserv {
         // int             setConfig(std::string const &filepath);
         // Polling
         //int             serverCheck();
-        void           flipState();
         Server         findServerByFd(int fd, bool& found);
         Client         findClientByFd(int fd, bool& found);
         void            handleErrorEvent(int fd);
