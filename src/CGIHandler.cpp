@@ -9,14 +9,6 @@ CGIHandler::CGIHandler() : _args(NULL) {
     _output[1] = -1;
 }
 
-CGIHandler::CGIHandler(Client& client) : _args(NULL) {
-    // Initialize arrays
-	_client = &client;
-	_server = &_client->getServer();
-	_config = _server->getCurConfig();
-	setCGIBin(&_config);
-}
-
 CGIHandler::~CGIHandler() {
     cleanupResources();
 }
