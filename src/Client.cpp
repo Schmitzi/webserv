@@ -17,7 +17,7 @@ Client::Client(Server& serv) {
 }
 
 Client::~Client() {
-	// delete _cgi;
+	delete _cgi;
 }
 
 struct sockaddr_in  &Client::getAddr() {
@@ -781,7 +781,7 @@ int Client::handleDeleteRequest(Request& req) {
         fullPath = fullPath.substr(0, end + 1);
     }
 
-    if (unlink(fullPath.c_str()) != 0) {//TODO: was just "sendErrorResponse(403, req)", is this better or unnecessary?
+    if (unlink(fullPath.c_str()) != 0) {
 		if (errno == ENOENT) {
 			std::cout << RED << _webserv->getTimeStamp() << "File not found for deletion: " << RESET << fullPath << "\n";
 			sendErrorResponse(404, req);
@@ -868,7 +868,6 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
     int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
         std::cout << "Error: Failed to open file for writing: " << fullPath << std::endl;
-        std::cout << "Error details: " << strerror(errno) << std::endl;
         return false;
     }
     
@@ -876,7 +875,7 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
     close(fd);
     
     if (bytesWritten < 0) {
-        std::cout << "Error: Failed to write to file: " << strerror(errno) << std::endl;
+        std::cout << "Error: Failed to write to file" << std::endl;
         return false;
     }
     return true;

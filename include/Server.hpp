@@ -54,7 +54,6 @@ class Server {
         std::string         		_uploadDir;
         std::string         		_webRoot;
 		ConfigParser	    		_confParser;
-        // serverLevel         		_curConfig;
         std::vector<serverLevel> 	_configs;
         Webserv             		*_webserv;
 };

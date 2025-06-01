@@ -1,8 +1,8 @@
 #include "../include/Webserv.hpp"
 
-Webserv::Webserv() : _epollFd(-1) { 
-    _confParser = ConfigParser();
-}
+// Webserv::Webserv() : _epollFd(-1) { 
+//     _confParser = ConfigParser("config/default.conf");
+// }
 
 Webserv::Webserv(std::string const &config) : _epollFd(-1) {
 	_confParser = ConfigParser(config);
@@ -10,7 +10,7 @@ Webserv::Webserv(std::string const &config) : _epollFd(-1) {
     for (size_t i = 0; i < _configs.size(); i++) {//CHECK ALL CONFIGS
 		bool toAdd = true;
 		for (size_t j = 0; j < _servers.size(); j++) {//CHECK ALL SERVERS FOR CURRENT CONFIG FILE PORT
-            std::vector<serverLevel>& servConfigs = _servers[j]->getConfigs();
+            std::vector<serverLevel>& servConfigs = _servers[j].getConfigs();
             for (size_t k = 0; k < servConfigs.size(); k++) {
                 std::pair<std::pair<std::string, int>, bool> one = _confParser.getDefaultPortPair(_confParser.getConfigByIndex(i));
                 std::pair<std::pair<std::string, int>, bool> two = _confParser.getDefaultPortPair(servConfigs[k]);
@@ -21,7 +21,7 @@ Webserv::Webserv(std::string const &config) : _epollFd(-1) {
             }
         }
 		if (toAdd)
-			_servers.push_back(new Server(_confParser, i, *this));
+			_servers.push_back(Server(_confParser, i, *this));
 	}
 }
 
@@ -50,7 +50,7 @@ Webserv::~Webserv() {
 }
 
 Server &Webserv::getServer(int i) {
-    return *_servers[i];
+    return _servers[i];
 }
 
 ConfigParser &Webserv::getConfigParser() {
@@ -74,13 +74,13 @@ int Webserv::setConfig(std::string const filepath) {
 
 serverLevel &Webserv::getDefaultConfig() {
 	for (size_t i = 0; i < _servers.size(); i++) {
-		serverLevel conf = _servers[i]->getConfigs()[i];
+		serverLevel conf = _servers[i].getConfigs()[i];
 		for (size_t j = 0; j < conf.port.size(); j++) {
 			if (conf.port[j].second == true)
-				return _servers[i]->getConfigs()[i];
+				return _servers[i].getConfigs()[i];
 		}
 	}
-	return _servers[0]->getConfigs()[0];
+	return _servers[0].getConfigs()[0];
 }
 
 int Webserv::run() {
@@ -91,26 +91,26 @@ int Webserv::run() {
     }
    // Initialize server
    for (size_t i = 0; i < _servers.size(); i++) {
-    if (_servers[i]->getFd() > 0) {
+    if (_servers[i].getFd() > 0) {
         std::cout << BLUE << getTimeStamp() << "Host:Port already opened: " << RESET << 
-            _confParser.getDefaultPortPair(_servers[i]->getConfigs()[0]).first.first << ":" << 
-            _confParser.getDefaultPortPair(_servers[i]->getConfigs()[0]).first.second << "\n";
+            _confParser.getDefaultPortPair(_servers[i].getConfigs()[0]).first.first << ":" << 
+            _confParser.getDefaultPortPair(_servers[i].getConfigs()[0]).first.second << "\n";
         i++;
         continue;
     }
-    std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _confParser.getPort(_servers[i]->getConfigs()[0]) << std::endl;
-    if (_servers[i]->openSocket() || _servers[i]->setOptional() || 
-        _servers[i]->setServerAddr() || _servers[i]->ft_bind() || _servers[i]->ft_listen()) {
+    std::cout << BLUE << getTimeStamp() << "Initializing server " << i + 1 << " with port " << RESET << _confParser.getPort(_servers[i].getConfigs()[0]) << std::endl;
+    if (_servers[i].openSocket() || _servers[i].setOptional() || 
+        _servers[i].setServerAddr() || _servers[i].ft_bind() || _servers[i].ft_listen()) {
         std::cerr << RED << getTimeStamp() << "Failed to initialize server: " << RESET << i + 1 << std::endl;
         continue;
     }
-    if (addToEpoll(_servers[i]->getFd(), EPOLLIN) != 0) {
+    if (addToEpoll(_servers[i].getFd(), EPOLLIN) != 0) {
         std::cerr << RED << getTimeStamp() << "Failed to add server to epoll: " << RESET << i + 1 << std::endl;
         continue;
     }
     std::cout << GREEN << getTimeStamp() << 
         "Server " << i + 1 << " is listening on port " << RESET << 
-        _confParser.getPort(_servers[i]->getConfigs()[0]) << "\n";
+        _confParser.getPort(_servers[i].getConfigs()[0]) << "\n";
     }
    // if (serverCheck() == 1) {
    //     return 1;
@@ -138,10 +138,11 @@ int Webserv::run() {
                 handleErrorEvent(fd);
                 continue;
             }
-            Server* activeServer = findServerByFd(fd);
-            if (activeServer) {
+			bool found = false;
+            Server activeServer = findServerByFd(fd, found);
+            if (found) {
                 if (eventMask & EPOLLIN) {
-                    handleNewConnection(*activeServer);
+                    handleNewConnection(activeServer);
                 }
             } else {
                 if (eventMask & EPOLLIN) {
@@ -153,48 +154,36 @@ int Webserv::run() {
     return 0;
 }
 
-// int     Webserv::serverCheck() { //TODO: Does not reliably block servers //TODO: cant use fcntl
-//     bool isValid = false;
-//     for (size_t i = 0; i < _servers.size() ; i++) {
-//         if (fcntl(_servers[i]->getFd(), F_GETFD) != -1 || errno != EBADF) {
-//             isValid = true;
-//             break;
-//         }
-//     }
-//     if (isValid == false) {
-//         std::cout << RED << getTimeStamp() << "No valid servers, exiting\n" << RESET;
-//         return 1;
-//     }
-//     return 0;
-// }
-
-Server* Webserv::findServerByFd(int fd) {
+Server Webserv::findServerByFd(int fd, bool& found) {
     for (size_t i = 0; i < _servers.size(); i++) {
-        if (_servers[i]->getFd() == fd) {
+        if (_servers[i].getFd() == fd) {
+			found = true;
 			return _servers[i];
         }
     }
-    return NULL;
+	throw configException("Can't find server by FD");
+	return _servers[0];
 }
 
-Client* Webserv::findClientByFd(int fd) {
+Client Webserv::findClientByFd(int fd, bool& found) {
     for (size_t i = 0; i < _clients.size(); i++) {
-        if (_clients[i]->getFd() == fd) {
+        if (_clients[i].getFd() == fd) {
+			found = true;
             return _clients[i];
         }
     }
-    return NULL;
+    throw configException("Can't find client by FD");
+	return _clients[0];
 }
 
 void Webserv::handleErrorEvent(int fd) {
     removeFromEpoll(fd);
 
     for (size_t i = 0; i < _clients.size(); i++) {
-        if (_clients[i]->getFd() == fd) {
+        if (_clients[i].getFd() == fd) {
             std::cout << RED << getTimeStamp() << "Removing client due to error: " << fd << RESET << std::endl;
             
-            close(_clients[i]->getFd());
-            delete _clients[i];
+            close(_clients[i].getFd());
             _clients.erase(_clients.begin() + i);
             return;
         }
@@ -230,11 +219,10 @@ void Webserv::handleClientDisconnect(int fd) {
     removeFromEpoll(fd);
 
     for (size_t i = 0; i < _clients.size(); i++) {
-        if (_clients[i]->getFd() == fd) {
+        if (_clients[i].getFd() == fd) {
             std::cout << GREEN << getTimeStamp() << "Cleaned up client connection: " << fd << RESET << std::endl;
             
-            close(_clients[i]->getFd());
-            delete _clients[i];
+            close(_clients[i].getFd());
             _clients.erase(_clients.begin() + i);
             return;
         }
@@ -255,40 +243,37 @@ void Webserv::handleNewConnection(Server &server) {
         }
         return;
     }
-    Client* newClient = new Client(server);
+    Client newClient = Client(server);
     
-    if (newClient->acceptConnection(server.getFd()) == 0) {
-        newClient->displayConnection();
+    if (newClient.acceptConnection(server.getFd()) == 0) {
+        newClient.displayConnection();
 
-        if (addToEpoll(newClient->getFd(), EPOLLIN) == 0) {
+        if (addToEpoll(newClient.getFd(), EPOLLIN) == 0) {
             _clients.push_back(newClient);
         } else {
             printMsg("Failed to add client to epoll", RED, "");
-            close(newClient->getFd());
-            delete newClient;
+            close(newClient.getFd());
         }
-    } else {
-        delete newClient;
     }
 }
 
 void Webserv::handleClientActivity(int clientFd) {
-    Client* client = findClientByFd(clientFd);
+	bool found = false;
+    Client client = findClientByFd(clientFd, found);
     
-    if (!client) {
+    if (!found) {
         std::cerr << RED << getTimeStamp() << "Client not found for fd: " << clientFd << RESET << std::endl;
         removeFromEpoll(clientFd);
         close(clientFd);
         return;
     }
     
-    if (client->recieveData() != 0) {
+    if (client.recieveData() != 0) {
         removeFromEpoll(clientFd);
         close(clientFd);
         
         for (size_t i = 0; i < _clients.size(); i++) {
-            if (_clients[i]->getFd() == clientFd) {
-                delete _clients[i];
+            if (_clients[i].getFd() == clientFd) {
                 _clients.erase(_clients.begin() + i);
                 break;
             }
@@ -326,20 +311,17 @@ std::string Webserv::getTimeStamp() {
 
 void    Webserv::cleanup() {
     for (size_t i = 0; i < _clients.size(); ++i) {
-        if (_clients[i] && _clients[i]->getFd() >= 0) {
-            removeFromEpoll(_clients[i]->getFd());
-            close(_clients[i]->getFd());
+        if (_clients[i].getFd() >= 0) {
+            removeFromEpoll(_clients[i].getFd());
+            close(_clients[i].getFd());
         }
-        delete _clients[i];
     }
     _clients.clear();
 
     for (size_t i = 0; i < _servers.size(); i++) {
-        if (_servers[i] && _servers[i]->getFd() >= 0) {
-            removeFromEpoll(_servers[i]->getFd());
-            close(_servers[i]->getFd());
-            delete _servers[i];
-            _servers[i] = NULL;
+        if (_servers[i].getFd() >= 0) {
+            removeFromEpoll(_servers[i].getFd());
+            close(_servers[i].getFd());
         }
     }
     _servers.clear();

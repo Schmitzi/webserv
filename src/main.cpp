@@ -1,12 +1,7 @@
 #include "../include/Webserv.hpp"
 #include <dirent.h>
 
-Webserv* g_webserv = NULL;
-
-int    ft_error(std::string const errMsg) {
-    std::cerr << "Error: " << errMsg << "\n";
-    return 0;
-}
+Webserv g_webserv;
 
 bool deleteErrorPages() {
 	struct stat info;
@@ -46,10 +41,6 @@ void signalHandler(int signal) {
 
 		if (!deleteErrorPages())
 			std::cerr << "Failed to delete error pages directory.\n";
-        if (g_webserv) {
-            delete g_webserv;
-            g_webserv = NULL;
-        }
     
         std::cout << "Goodbye!" << std::endl;
         std::exit(0); // TEMPORARY!!!!
@@ -64,18 +55,16 @@ int main(int ac, char **av, char **envp) {
 		signal(SIGINT, signalHandler);
 		signal(SIGTERM, signalHandler);
 	
-		Webserv* webserv;
+		Webserv webserv;
 		if (av[1])
-			webserv = new Webserv(av[1]);
-			else 
-			webserv = new Webserv();
+			webserv = Webserv(av[1]);
+		else 
+			webserv = Webserv();
 		g_webserv = webserv;
-		webserv->setEnvironment(envp);
-		if (webserv->run()) {
-			webserv->ft_error("Setup failed");
+		webserv.setEnvironment(envp);
+		if (webserv.run()) {
+			webserv.ft_error("Setup failed");
 		}
-		delete webserv;
-		g_webserv = NULL;
 	} catch (const std::exception& e) {
 		std::cerr << "Exception: " << e.what() << std::endl;
 	}
