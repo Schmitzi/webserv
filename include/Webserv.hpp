@@ -41,8 +41,8 @@ class Client;
 
 class Webserv {
     public:
-        Webserv();
-        Webserv(std::string const &config);
+        // Webserv();
+        Webserv(std::string const &config = "config/default.conf");
         Webserv(Webserv const &other);
         Webserv &operator=(Webserv const &other);
         ~Webserv();
@@ -54,8 +54,8 @@ class Webserv {
         int             setConfig(std::string const filepath);
         // Polling
         //int             serverCheck();
-        Server*         findServerByFd(int fd);
-        Client*         findClientByFd(int fd);
+        Server         findServerByFd(int fd, bool& found);
+        Client         findClientByFd(int fd, bool& found);
         void            handleErrorEvent(int fd);
         int             addToEpoll(int fd, short events);
         void            removeFromEpoll(int fd);
@@ -70,8 +70,8 @@ class Webserv {
         void            cleanup();
 
     private:
-        std::vector<Server *> 		_servers;
-        std::vector<Client *>   	_clients;
+        std::vector<Server> 		_servers;
+        std::vector<Client>   	_clients;
         char                    	**_env;
         int                         _epollFd;
         struct epoll_event          _events[MAX_EVENTS];
