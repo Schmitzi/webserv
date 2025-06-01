@@ -404,7 +404,7 @@ void CGIHandler::prepareEnv(Request &req) {
     tempEnv.push_back("SERVER_NAME=WebServ/1.0");
     tempEnv.push_back("GATEWAY_INTERFACE=CGI/1.1");
     tempEnv.push_back("SERVER_PROTOCOL=WebServ/1.0");
-    tempEnv.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(_config)));
+    tempEnv.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(req.getConf())));
     tempEnv.push_back("REQUEST_METHOD=" + req.getMethod());
     tempEnv.push_back("PATH_INFO=" + getInfoPath());
     size_t slashPos = _path.find_last_of('/');

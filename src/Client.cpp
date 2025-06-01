@@ -394,7 +394,7 @@ int Client::handleRegularRequest(Request& req) {
 
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cout << "HERE! " << fullPath << "\n";
+        // std::cout << "HERE! " << fullPath << "\n";
         std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << fullPath << "\n";
         sendErrorResponse(404, req);
         return 1;
@@ -679,6 +679,7 @@ int Client::handlePostRequest(Request& req) {
         return 1;
     
     std::string cgiPath = _server->getWebRoot(req, loc) + req.getPath();
+	std::cout << "CGIPATH: " << cgiPath << std::endl;
     if (_cgi->isCGIScript(cgiPath)) {
         return _cgi->executeCGI(*this, req, cgiPath);
     }
