@@ -92,7 +92,6 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         execve(_args[0], _args.data(), _env.data());
         
         std::cerr << "execve failed: " << strerror(errno) << "\n";
-        cleanupResources();
 		return 1;
     } 
     else if (pid > 0) {  // Parent process
