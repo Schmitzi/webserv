@@ -38,7 +38,7 @@ std::string skipComments(std::string &s) {
 std::vector<std::string> splitIfSemicolon(std::string &configLine) {
 	std::vector<std::string> s;
 	if (!checkSemicolon(configLine))
-		throw configException("Error: missing semicolon in config");
+		throw configException("Error: missing semicolon in config ->" + configLine);
 	configLine = configLine.substr(0, configLine.size() - 1);
 	s = split(configLine);
 	return s;
