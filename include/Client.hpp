@@ -40,9 +40,9 @@ class Client {
         char                    &getBuffer();
         Webserv					&getWebserv();
         Server                  &getServer();
-        void                    setWebserv(Webserv *webserv);
-        void                    setServer(Server *server);
-        void                    setConfigs(std::vector<serverLevel> configs);
+        void                    setWebserv(Webserv &webserv);
+        void                    setServer(Server &server);
+        void                    setConfigs(std::vector<serverLevel> &configs);
         void                    setAutoIndex(locationLevel& loc);
         int                     acceptConnection(int serverFd);
         void                    displayConnection();

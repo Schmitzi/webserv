@@ -65,7 +65,7 @@ char **Webserv::getEnvironment() const {
     return _env;
 }
 
-int Webserv::setConfig(std::string const filepath) {
+int Webserv::setConfig(std::string const &filepath) {
     std::cout << GREEN << getTimeStamp() << "Config found at " << RESET << filepath << "\n";
 	_confParser = ConfigParser(filepath);
 	_configs = _confParser.getAllConfigs();

@@ -51,9 +51,8 @@ class Webserv {
 		ConfigParser    &getConfigParser();
         void            setEnvironment(char **envp);
         char            **getEnvironment() const;
-        int             setConfig(std::string const filepath);
+        int             setConfig(std::string const &filepath);
         // Polling
-        //int             serverCheck();
         Server         findServerByFd(int fd, bool& found);
         Client         findClientByFd(int fd, bool& found);
         void            handleErrorEvent(int fd);
@@ -71,7 +70,7 @@ class Webserv {
 
     private:
         std::vector<Server> 		_servers;
-        std::vector<Client>   	_clients;
+        std::vector<Client>   	    _clients;
         char                    	**_env;
         int                         _epollFd;
         struct epoll_event          _events[MAX_EVENTS];

@@ -8,8 +8,8 @@
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
-    setWebserv(&serv.getWebServ());
-    setServer(&serv);
+    setWebserv(serv.getWebServ());
+    setServer(serv);
 	setConfigs(serv.getConfigs());
 	_cgi = new CGIHandler();
 	_cgi->setClient(*this);
@@ -40,12 +40,12 @@ char    &Client::getBuffer() {
     return *_buffer;
 }
 
-void Client::setWebserv(Webserv *webserv) {
-    _webserv = webserv;
+void Client::setWebserv(Webserv &webserv) {
+    _webserv = &webserv;
 }
 
-void Client::setServer(Server *server) {
-    _server = server;
+void Client::setServer(Server &server) {
+    _server = &server;
 }
 
 Server &Client::getServer() {
@@ -56,7 +56,7 @@ Webserv &Client::getWebserv() {
 	return *_webserv;
 }
 
-void    Client::setConfigs(std::vector<serverLevel> configs) {
+void    Client::setConfigs(std::vector<serverLevel> &configs) {
     _configs = configs;
 }
 
@@ -842,10 +842,9 @@ int Client::handleMultipartPost(Request& req) {
 bool Client::ensureUploadDirectory(Request& req) {
     struct stat st;
 	std::string uploadDir = _server->getUploadDir(*this, req);
-	const char *path = uploadDir.c_str();
-    if (stat(path, &st) != 0) {
-		std::cout << "Creating upload directory: " << path << std::endl;
-        if (mkdir(path, 0755) != 0) {
+    if (stat(uploadDir.c_str(), &st) != 0) {
+		std::cout << "Creating upload directory: " << uploadDir.c_str() << std::endl;
+        if (mkdir(uploadDir.c_str(), 0755) != 0) {
             std::cout << "Error: Failed to create upload directory" << std::endl;
             return false;
         }

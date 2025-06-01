@@ -1,7 +1,7 @@
 #include "../include/CGIHandler.hpp"
 #include "../include/Client.hpp"
 
-CGIHandler::CGIHandler() : _args(NULL) {
+CGIHandler::CGIHandler() {
 	// Initialize arrays
     _input[0] = -1;
     _input[1] = -1;
@@ -22,7 +22,7 @@ void    CGIHandler::setServer(Server &server) {
 }
 
 void    CGIHandler::setConfig(serverLevel& config) {
-    _config = config;
+    _config = &config;
 }
 
 std::string CGIHandler::getInfoPath() {
@@ -71,7 +71,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         close(_input[0]);
         close(_output[1]);
         
-        execve(_args[0], _args, &_env[0]);
+        execve(_args[0], _args.data(), _env.data());
         
         std::cerr << "execve failed: " << strerror(errno) << "\n";
 		return 1;
@@ -391,39 +391,31 @@ void CGIHandler::prepareEnv(Request &req) {
     }
     _env.clear();
     
-    std::vector<std::string> tempEnv;
 
     // For PHP-CGI
     std::string abs_path = makeAbsolutePath(_path);
-    tempEnv.push_back("SCRIPT_FILENAME=" + std::string(abs_path));
-    tempEnv.push_back("REDIRECT_STATUS=200");
+    _env.push_back(const_cast<char*>(("SCRIPT_FILENAME=" + std::string(abs_path)).c_str()));
+    _env.push_back(const_cast<char*>("REDIRECT_STATUS=200"));
 
-    tempEnv.push_back("SERVER_SOFTWARE=WebServ/1.0");
-    tempEnv.push_back("SERVER_NAME=WebServ/1.0");
-    tempEnv.push_back("GATEWAY_INTERFACE=CGI/1.1");
-    tempEnv.push_back("SERVER_PROTOCOL=WebServ/1.0");
-    tempEnv.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(req.getConf())));
-    tempEnv.push_back("REQUEST_METHOD=" + req.getMethod());
-    tempEnv.push_back("PATH_INFO=" + getInfoPath());
+    _env.push_back(const_cast<char*>("SERVER_SOFTWARE=WebServ/1.0"));
+    _env.push_back(const_cast<char*>("SERVER_NAME=WebServ/1.0"));
+    _env.push_back(const_cast<char*>("GATEWAY_INTERFACE=CGI/1.1"));
+    _env.push_back(const_cast<char*>("SERVER_PROTOCOL=WebServ/1.0"));
+    _env.push_back(const_cast<char*>(("SERVER_PORT=" + tostring(_server->getConfParser().getPort(req.getConf()))).c_str()));
+    _env.push_back(const_cast<char*>(("REQUEST_METHOD=" + req.getMethod()).c_str()));
+    _env.push_back(const_cast<char*>(("PATH_INFO=" + getInfoPath()).c_str()));
     size_t slashPos = _path.find_last_of('/');
     std::string script;
     if (slashPos != std::string::npos) {
         script = _path.substr(slashPos + 1);
-        tempEnv.push_back("SCRIPT_NAME=" + script);
+        _env.push_back(const_cast<char*>(("SCRIPT_NAME=" + script).c_str()));
     }
-    tempEnv.push_back("QUERY_STRING=" + req.getQuery());
-    tempEnv.push_back("CONTENT_TYPE=" + req.getContentType());
-    tempEnv.push_back("CONTENT_LENGTH=" + tostring(req.getBody().length()));
-    tempEnv.push_back("SCRIPT_NAME=" + req.getPath());
-    tempEnv.push_back("SERVER_SOFTWARE=WebServ/1.0");
-
-    for (std::vector<std::string>::iterator it = tempEnv.begin(); it != tempEnv.end(); ++it) {
-        char* envStr = strdup(it->c_str());
-        if (envStr) {
-            _env.push_back(envStr);
-        }
-    }
-    _env.push_back(NULL);
+    _env.push_back(const_cast<char*>(("QUERY_STRING=" + req.getQuery()).c_str()));
+    _env.push_back(const_cast<char*>(("CONTENT_TYPE=" + req.getContentType()).c_str()));
+    _env.push_back(const_cast<char*>(("CONTENT_LENGTH=" + tostring(req.getBody().length())).c_str()));
+    _env.push_back(const_cast<char*>(("SCRIPT_NAME=" + req.getPath()).c_str()));
+    _env.push_back(const_cast<char*>("SERVER_SOFTWARE=WebServ/1.0"));
+	_env.push_back(NULL);
 }
 
 std::string CGIHandler::makeAbsolutePath(const std::string& path) {
@@ -478,40 +470,34 @@ void CGIHandler::setPathInfo(Request& req) {
 }
 
 void    CGIHandler::findBash(std::string& filePath) {
-    _args = new char*[4];
-
-    static const char* cgiLocations[] = {
-        "/usr/bin/bash",
-        "/run/current-system/sw/bin/bash", // NIXOS
-        NULL
-    };
-
+	
+	static std::vector<const char*> cgiLocations;
+	cgiLocations.push_back("/usr/bin/bash");
+	cgiLocations.push_back("/run/current-system/sw/bin/bash");
+	
     std::string cgiPath = "/usr/bin/env";
-    for (int i = 0; cgiLocations[i] != NULL; ++i) {
-        if (access(cgiLocations[i], X_OK) == 0) {
-            cgiPath = cgiLocations[i];
+    for (size_t i = 0; i < cgiLocations.size(); i++) {
+		if (access(cgiLocations[i], X_OK) == 0) {
+			cgiPath = cgiLocations[i];
             break;
         }
     }
-	_args[0] = strdup(cgiPath.c_str());
-    _args[1] = strdup(_path.c_str());
-    _args[2] = NULL;
+	_args.push_back(const_cast<char*>(cgiPath.c_str()));
+	_args.push_back(const_cast<char*>(_path.c_str()));
 	if (!filePath.empty())
-		_args[2] = strdup(filePath.c_str());
-	_args[3] = NULL;
+		_args.push_back(const_cast<char*>(filePath.c_str()));
+	_args.push_back(NULL);
 }
 
 void    CGIHandler::findPython(std::string& filePath) {
-    static const char* pythonLocations[] = {
-        "/usr/bin/python3",
-        "/run/current-system/sw/bin/python3",
-        "/etc/profiles/per-user/schmitzi/bin/python3",
-        "/usr/local/bin/python3",
-        NULL
-    };
+	static std::vector<const char*> pythonLocations;
+        pythonLocations.push_back("/usr/bin/python3");
+        pythonLocations.push_back("/run/current-system/sw/bin/python3");
+        pythonLocations.push_back("/etc/profiles/per-user/schmitzi/bin/python3");
+        pythonLocations.push_back("/usr/local/bin/python3");
     
     std::string _pythonPath = "/usr/bin/env";
-    for (int i = 0; pythonLocations[i] != NULL; ++i) {
+    for (size_t i = 0; i < pythonLocations.size(); i++) {
         if (access(pythonLocations[i], X_OK) == 0) {
             _pythonPath = pythonLocations[i];
             break;
@@ -519,49 +505,35 @@ void    CGIHandler::findPython(std::string& filePath) {
     }
     
     // Use env as fallback
+	_args.push_back(const_cast<char*>(_pythonPath.c_str()));
     if (_pythonPath == "/usr/bin/env") {
         std::cout << "Python not found in whitelist, using env instead" << std::endl;
-        _args = new char*[5];
-        _args[0] = strdup(_pythonPath.c_str());
-        _args[1] = strdup("python3");
-        _args[2] = strdup(_path.c_str());
-		_args[3] = NULL;
-		if (!filePath.empty())
-			_args[3] = strdup(filePath.c_str());
-		_args[4] = NULL;
-    } else {
-        _args = new char*[4];
-        _args[0] = strdup(_pythonPath.c_str());
-        _args[1] = strdup(_path.c_str());
-		_args[2] = NULL;
-		if (!filePath.empty())
-			_args[2] = strdup(filePath.c_str());
-		_args[3] = NULL;
-    }
+		_args.push_back(const_cast<char*>("python3"));
+	}
+	_args.push_back(const_cast<char*>(_path.c_str()));
+	if (!filePath.empty())
+		_args.push_back(const_cast<char*>(filePath.c_str()));
+	_args.push_back(NULL);
 }
 
 void    CGIHandler::findPHP(std::string const &cgiBin, std::string& filePath) {
     std::string phpPath = cgiBin + "php-cgi";
-    _args = new char*[4];
-    _args[0] = strdup(phpPath.c_str());
-    _args[1] = strdup("php-cgi");
-	_args[2] = NULL;
+	_args.push_back(const_cast<char*>(phpPath.c_str()));
+	_args.push_back(const_cast<char*>("php-cgi"));
 	if (!filePath.empty())
-		_args[2] = strdup(filePath.c_str());
-	_args[3] = NULL;
+		_args.push_back(const_cast<char*>(filePath.c_str()));
+	_args.push_back(NULL);
 }
 
 void    CGIHandler::findPl(std::string& filePath) {
      // Whitelist of possible Perl locations
-     static const char* perlLocations[] = {
-        "/usr/bin/perl",
-        "/run/current-system/sw/bin/perl",
-        "/usr/local/bin/perl",
-        NULL
-    };
+    static std::vector<const char*> perlLocations;
+	perlLocations.push_back("/usr/bin/perl");
+    perlLocations.push_back("/run/current-system/sw/bin/perl");
+	perlLocations.push_back("/usr/local/bin/perl");
     
     std::string perlPath = "/usr/bin/env";
-    for (int i = 0; perlLocations[i] != NULL; ++i) {
+    for (size_t i = 0; i < perlLocations.size(); ++i) {
         if (access(perlLocations[i], X_OK) == 0) {
             perlPath = perlLocations[i];
             break;
@@ -569,43 +541,17 @@ void    CGIHandler::findPl(std::string& filePath) {
     }
     
     // Use env as fallback
-    if (perlPath == "/usr/bin/env") {
-        _args = new char*[5];
-        _args[0] = strdup(perlPath.c_str());
-        _args[1] = strdup("perl");
-        _args[2] = strdup(_path.c_str());
-		_args[3] = NULL;
-		if (!filePath.empty())
-			_args[3] = strdup(filePath.c_str());
-        _args[4] = NULL;
-    } else {
-        _args = new char*[4];
-        _args[0] = strdup(perlPath.c_str());
-        _args[1] = strdup(_path.c_str());
-		_args[2] = NULL;
-		if (!filePath.empty())
-			_args[2] = strdup(filePath.c_str());
-		_args[3] = NULL;
-    }
+	_args.push_back(const_cast<char*>(perlPath.c_str()));
+    if (perlPath == "/usr/bin/env")
+		_args.push_back(const_cast<char*>("perl"));
+	_args.push_back(const_cast<char*>(_path.c_str()));
+	if (!filePath.empty())
+		_args.push_back(const_cast<char*>(filePath.c_str()));
+	_args.push_back(NULL);
 }
 
 
 void CGIHandler::cleanupResources() {
-    for (size_t i = 0; i < _env.size(); i++) {
-        if (_env[i]) {
-            free(_env[i]);
-        }
-    }
-    _env.clear();
-    
-    if (_args) {
-        for (int i = 0; _args[i]; i++) {
-            free(_args[i]);
-        }
-        delete[] _args;
-        _args = NULL;
-    }
-    
     for (int i = 0; i < 2; i++) {
         if (_input[i] >= 0) {
             close(_input[i]);
@@ -616,7 +562,6 @@ void CGIHandler::cleanupResources() {
             _output[i] = -1;
         }
     }
-
     _path.clear();
 }
 
