@@ -16,7 +16,8 @@ std::string getAbsPath(std::string& path) {
 	absPath += "/" + path;
 	if (absPath[absPath.size() - 1] == '/')
 		absPath = absPath.substr(0, absPath.size() - 1);
-	
+	//std::cout << "PATH: " << path << "\n";
+	//std::cout << "ABSPATH: " << absPath << "\n";	
 	return absPath;
 }
 

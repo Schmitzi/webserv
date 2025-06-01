@@ -43,7 +43,7 @@ class Client {
         Server                  &getServer();
         void                    setWebserv(Webserv *webserv);
         void                    setServer(Server *server);
-        void                    setConfig(serverLevel config);
+        void                    setConfigs(std::vector<serverLevel> configs);
         void                    setAutoIndex(locationLevel& loc);
         int                     acceptConnection(int serverFd);
         void                    displayConnection();
@@ -61,15 +61,15 @@ class Client {
         int                     handleMultipartPost(Request& req);
         bool                    ensureUploadDirectory(Request& req);
         bool                    saveFile(Request& req, const std::string& filename, const std::string& content);
-        int                     viewDirectory(std::string fullPath, std::string requestPath);
-        int                     createDirList(std::string fullPath, std::string requestPath);
+        int                     viewDirectory(std::string fullPath, Request& req);
+        int                     createDirList(std::string fullPath, std::string requestPath, Request& req);
         std::string             showDir(const std::string& dirPath, const std::string& requestUri);
         int                     handleRedirect(Request eq);
         void                    sendRedirect(int statusCode, const std::string& location);
 
         void                    findContentType(Request &req);
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
-        void                    sendErrorResponse(int statusCode);
+        void                    sendErrorResponse(int statusCode, Request& req);
         bool					send_all(int sockfd, const std::string& data);
 
         std::string             decodeChunkedBody(const std::string& chunkedData);
@@ -87,7 +87,8 @@ class Client {
         Webserv             *_webserv;
         Server              *_server;
         CGIHandler          *_cgi;
-        serverLevel         _config;
+        // serverLevel         _config;
+		std::vector<serverLevel> _configs;
 };
 
 //create buffer

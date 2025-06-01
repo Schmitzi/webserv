@@ -84,7 +84,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 		else if (!whiteLine(conf[i])) {
 			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "root") setRootLoc(loc, s);
-			else if (s[0] == "index") setLocIndexFile(loc, s);
+			else if (s[0] == "index") setLocIndexFile(loc, s, serv);
 			else if (s[0] == "limit_except") setMethods(loc, s);
 			else if (s[0] == "autoindex") setAutoindex(loc, s);
 			else if (s[0] == "return") setRedirection(loc, s);
@@ -152,10 +152,10 @@ void ConfigParser::setIpPortToServers() {
 			IPPortToServersMap::iterator it = _ipPortToServers.begin();
 			while (it != _ipPortToServers.end() && it->first.first.second != port) ++it;
 			if (it == _ipPortToServers.end()) {
-				std::vector<serverLevel*> servers;
-				_ipPortToServers.insert(std::pair<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel*> >(ipPort, servers));
+				std::vector<serverLevel> servers;
+				_ipPortToServers.insert(std::pair<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel> >(ipPort, servers));
 			}
-			_ipPortToServers[ipPort].push_back(&_allConfigs[i]);
+			_ipPortToServers[ipPort].push_back(_allConfigs[i]);
 		}
 	}
 }
@@ -170,42 +170,6 @@ void ConfigParser::setIpPortToServers() {
 //         // Check for duplicate IP:port combinations
 //         for (size_t j = 0; j < nextConf.port.size(); j++) {
 //             std::pair<std::pair<std::string, int>, bool> ipPort = nextConf.port[j];
-// 			nextConf.servName
-            
-//             if (usedIpPorts.find(ipPort.first) != usedIpPorts.end()) {
-//                 std::cerr << RED << "Warning: IP:port combination " << ipPort.first.first << ":" << ipPort.first.second 
-//                           << " is already in use by another server. Ignoring duplicate." << RESET << std::endl;
-                
-//                 // Remove this duplicate from the server's port list
-//                 nextConf.port.erase(nextConf.port.begin() + j);
-//                 j--;
-//             } else {
-//                 usedIpPorts[ipPort.first] = true;
-//             }
-//         }
-        
-//         // Only add server if it has at least one valid port
-//         if (!nextConf.port.empty()) {
-//             _allConfigs.push_back(nextConf);
-//         } else {
-//             std::cerr << "Warning: Server skipped because it has no valid ports." << std::endl;
-//         }
-//     }
-//     //printAllConfigs();
-//     setIpPortToServers();
-// }
-
-// void ConfigParser::parseAndSetConfigs() {
-//     std::map<std::pair<std::string, int>, bool> usedIpPorts;
-    
-//     for (size_t i = 0; i < _storedConfigs.size(); i++) {
-//         serverLevel nextConf;
-//         setConfigLevels(nextConf, _storedConfigs[i]);
-        
-//         // Check for duplicate IP:port combinations
-//         for (size_t j = 0; j < nextConf.port.size(); j++) {
-//             std::pair<std::pair<std::string, int>, bool> ipPort = nextConf.port[j];
-// 			nextConf.servName
             
 //             if (usedIpPorts.find(ipPort.first) != usedIpPorts.end()) {
 //                 std::cerr << RED << "Warning: IP:port combination " << ipPort.first.first << ":" << ipPort.first.second 
@@ -232,20 +196,17 @@ void ConfigParser::setIpPortToServers() {
 
 void ConfigParser::parseAndSetConfigs() {
     std::set<std::string> usedCombinations; // "ip:port:servername"
-    
     for (size_t i = 0; i < _storedConfigs.size(); i++) {
         serverLevel nextConf;
         setConfigLevels(nextConf, _storedConfigs[i]);
-        
         bool validServer = false;
+
         for (size_t j = 0; j < nextConf.port.size(); j++) {
-            for (size_t k = 0; k < nextConf.servName.size(); k++) {
-                std::string combination = nextConf.port[j].first.first + ":" + 
-                                        tostring(nextConf.port[j].first.second) + ":" + 
-                                        nextConf.servName[k];
-                
+
+			for (size_t k = 0; k < nextConf.servName.size(); k++) {
+				std::string combination = nextConf.port[j].first.first + ":" + tostring(nextConf.port[j].first.second) + ":" + nextConf.servName[k];
                 if (usedCombinations.find(combination) == usedCombinations.end()) {
-                    usedCombinations.insert(combination);
+					usedCombinations.insert(combination);
                     validServer = true;
                 } else {
 					throw configException("Error: Duplicate server configuration found for " + combination);
@@ -301,7 +262,7 @@ serverLevel& ConfigParser::getConfigByIpPortPair(const std::pair<std::pair<std::
 	IPPortToServersMap::iterator it = _ipPortToServers.find(ipPort);
 	if (it == _ipPortToServers.end() || it->second.empty())
 		throw configException("Error: No server found for the specified IP:port pair.");
-	return *(it->second[0]);
+	return it->second[0];
 }
 
 serverLevel& ConfigParser::getConfigByServerName(const std::string& servName) {//get a config by server name
@@ -320,9 +281,9 @@ serverLevel& ConfigParser::getConfigByServerNameIpPortPair(const std::string& se
 		throw configException("Error: No server found for the specified server name and IP:port pair.");
 	
 	for (size_t i = 0; i < it->second.size(); i++) {
-		for (size_t j = 0; j < it->second[i]->servName.size(); j++) {
-			if (it->second[i]->servName[j] == servName)
-				return *(it->second[i]);
+		for (size_t j = 0; j < it->second[i].servName.size(); j++) {
+			if (it->second[i].servName[j] == servName)
+				return it->second[i];
 		}
 	}
 	throw configException("Error: No server found with the specified server name and IP:port pair.");
@@ -347,7 +308,7 @@ void ConfigParser::printIpPortToServers() {
 	std::cout << std::endl << "___IP:Port -> Servers___" << std::endl;
 	for (; it != _ipPortToServers.end(); ++it) {
 		std::pair<std::pair<std::string, int>, bool> ipPort = it->first;
-		std::vector<serverLevel*>& servers = it->second;
+		std::vector<serverLevel>& servers = it->second;
 
 		std::cout << "IP: " << it->first.first.first << ", Port: " << it->first.first.second << std::endl;
 		if (it->first.second == true)
@@ -355,7 +316,7 @@ void ConfigParser::printIpPortToServers() {
 		std::cout << "  Associated Servers: " << std::endl;
 
 		for (size_t i = 0; i < servers.size(); ++i)
-			std::cout << "    - server_name: " << servers[i]->servName[0] << std::endl;
+			std::cout << "    - server_name: " << servers[i].servName[0] << std::endl;
 		std::cout << std::endl;
 	}
 }
@@ -372,11 +333,10 @@ void ConfigParser::printConfig(serverLevel& conf) {//only temporary, for debuggi
 		for (size_t i = 0; i < conf.port.size(); i++) {
 			std::cout << "\t\t";
 			std::pair<std::pair<std::string, int>, bool> ipPort = conf.port[i];
-			if (conf.port[i].first.first != "0.0.0.0")
-				std::cout << conf.port[i].first.first << " ";
-			std::cout << conf.port[i].first.first << std::endl;
+			std::cout << conf.port[i].first.first << ":" << conf.port[i].first.second;
 			if (conf.port[i].second == true)
-				std::cout << "\t\tdefault_server" << std::endl;
+				std::cout << " default_server";
+			std::cout << std::endl;
 		}
 	}
 	if (!conf.servName.empty()) {
@@ -411,9 +371,10 @@ void ConfigParser::printConfig(serverLevel& conf) {//only temporary, for debuggi
 			std::cout << "\t\tmethods:";
 			for (size_t i = 0; i < its->second.methods.size(); i++)
 				std::cout << " " << its->second.methods[i];
+			std::cout << std::endl;
 		}
 		if (its->second.autoindexFound == true) {
-			std::cout << std::endl << "\t\tautoindex: ";
+			std::cout << "\t\tautoindex: ";
 			if (its->second.autoindex == true)
 				std::cout << "on" << std::endl;
 			else

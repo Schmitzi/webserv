@@ -17,7 +17,7 @@ class Server;
 class Request {
     public:
         Request();
-        Request(const std::string& rawRequest, serverLevel& conf, Server& server);
+        Request(const std::string& rawRequest, Server& server);
         ~Request();
         std::string &getPath();
         std::string const &getMethod();
@@ -39,6 +39,8 @@ class Request {
         void    setContentType(std::string const content);
         void    setBoundary(std::string boundary);
         void    setHeader(std::map<std::string, std::string> map);
+		void    setCurConf(serverLevel& conf);
+		bool    matchHostServerName();
         void    parse(const std::string& rawRequest);
         void    parseHeaders(const std::string& headerSection);
         void    checkContentLength(std::string buffer);
@@ -58,7 +60,7 @@ class Request {
 		std::string						 	_reqPath;
         unsigned long                       _contentLength;
 		serverLevel							_curConf;
-		std::vector<serverLevel*>			_configs;
+		std::vector<serverLevel>			_configs;
 };
 
 #endif

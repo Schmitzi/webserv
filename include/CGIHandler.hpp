@@ -9,7 +9,6 @@
 #include "../include/Request.hpp"
 #include "../include/Helper.hpp"
 // #include "../include/Config.hpp"
-// #include "../include/Config.hpp"
 
 class Client;
 class Server;
@@ -20,7 +19,6 @@ struct serverLevel;
 class CGIHandler {
     public:
 		CGIHandler();
-        CGIHandler(Client& client);
         ~CGIHandler();
         void    setClient(Client &client);
         void    setServer(Server &server);
@@ -29,7 +27,7 @@ class CGIHandler {
         std::string getInfoPath();
 		void    setPathInfo(Request& req);
         bool    isCGIScript(const std::string& path);
-        int     doChecks(Client client);
+        int     doChecks(Client client, Request& req);
         int     processScriptOutput(Client &client);
         int     handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
         int     handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
