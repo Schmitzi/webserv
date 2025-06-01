@@ -369,10 +369,12 @@ int Client::handleRegularRequest(Request& req) {
     if (end != std::string::npos) {
         reqPath = reqPath.substr(0, end + 1);
     }
-
-	//std::string fullPath = _server->getWebRoot(req, loc) + reqPath;
-    std::string fullPath = reqPath; //TODO: This was changes under SetLocIndexFile
-    std::cout << "Req: " << reqPath << "\n";
+    std::string fullPath;
+    if (reqPath.find("/home") == std::string::npos) {
+        fullPath = _server->getWebRoot(req, loc) + reqPath;
+    } else {
+        fullPath = reqPath; //TODO: This was changes under SetLocIndexFile;
+    }
 
 	setAutoIndex(loc);
 
@@ -396,7 +398,6 @@ int Client::handleRegularRequest(Request& req) {
 
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cout << "HERE! " << fullPath << "\n";
         std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << fullPath << "\n";
         sendErrorResponse(404, req);
         return 1;

@@ -53,7 +53,7 @@ class Webserv {
         char            **getEnvironment() const;
         int             setConfig(std::string const filepath);
         // Polling
-        int             serverCheck();
+        //int             serverCheck();
         Server*         findServerByFd(int fd);
         Client*         findClientByFd(int fd);
         void            handleErrorEvent(int fd);

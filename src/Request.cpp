@@ -193,9 +193,8 @@ void Request::parse(const std::string& rawRequest) {
     if ((_path == "/" || _path == "") && _method == "GET") {
         std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
         if (it != _curConf.locations.end()) {
-            std::cout << it->second.indexFile << "\n";
-        }
-        _path = it->second.indexFile;
+            _path = it->second.indexFile;
+        } 
     }
 
     end = _path.find_last_not_of(" \t\r\n");
