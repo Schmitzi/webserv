@@ -6,8 +6,8 @@
 #include <sys/wait.h>
 #include <cstdlib>
 #include <cerrno>
-#include "Request.hpp"
-#include "Helper.hpp"
+#include "../include/Request.hpp"
+#include "../include/Helper.hpp"
 
 class Client;
 class Server;
