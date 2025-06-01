@@ -73,7 +73,6 @@ int Webserv::setConfig(std::string const filepath) {
 }
 
 serverLevel &Webserv::getDefaultConfig() {
-serverLevel &Webserv::getDefaultConfig() {
 	for (size_t i = 0; i < _servers.size(); i++) {
 		serverLevel conf = _servers[i]->getConfigs()[i];
 		for (size_t j = 0; j < conf.port.size(); j++) {

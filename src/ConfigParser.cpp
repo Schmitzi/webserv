@@ -84,7 +84,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 		else if (!whiteLine(conf[i])) {
 			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "root") setRootLoc(loc, s);
-			else if (s[0] == "index") setLocIndexFile(loc, s);
+			else if (s[0] == "index") setLocIndexFile(loc, s, serv);
 			else if (s[0] == "limit_except") setMethods(loc, s);
 			else if (s[0] == "autoindex") setAutoindex(loc, s);
 			else if (s[0] == "return") setRedirection(loc, s);
@@ -231,7 +231,6 @@ void ConfigParser::setIpPortToServers() {
 
 void ConfigParser::parseAndSetConfigs() {
     std::set<std::string> usedCombinations; // "ip:port:servername"
-    
     for (size_t i = 0; i < _storedConfigs.size(); i++) {
         serverLevel nextConf;
         setConfigLevels(nextConf, _storedConfigs[i]);

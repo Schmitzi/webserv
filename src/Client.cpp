@@ -394,6 +394,7 @@ int Client::handleRegularRequest(Request& req) {
 
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
+        std::cout << "HERE! " << fullPath << "\n";
         std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << fullPath << "\n";
         sendErrorResponse(404, req);
         return 1;
