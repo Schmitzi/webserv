@@ -258,36 +258,36 @@ serverLevel& ConfigParser::getConfigByIndex(size_t nbr) {//get a config by index
 	return _allConfigs[nbr];
 }
 
-serverLevel& ConfigParser::getConfigByIpPortPair(const std::pair<std::pair<std::string, int>, bool>& ipPort) {//get a config by ip:port pair
-	IPPortToServersMap::iterator it = _ipPortToServers.find(ipPort);
-	if (it == _ipPortToServers.end() || it->second.empty())
-		throw configException("Error: No server found for the specified IP:port pair.");
-	return it->second[0];
-}
+// serverLevel& ConfigParser::getConfigByIpPortPair(const std::pair<std::pair<std::string, int>, bool>& ipPort) {//get a config by ip:port pair
+// 	IPPortToServersMap::iterator it = _ipPortToServers.find(ipPort);
+// 	if (it == _ipPortToServers.end() || it->second.empty())
+// 		throw configException("Error: No server found for the specified IP:port pair.");
+// 	return it->second[0];
+// }
 
-serverLevel& ConfigParser::getConfigByServerName(const std::string& servName) {//get a config by server name
-	for (size_t i = 0; i < _allConfigs.size(); i++) {
-		for (size_t j = 0; j < _allConfigs[i].servName.size(); j++) {
-			if (_allConfigs[i].servName[j] == servName)
-				return _allConfigs[i];
-		}
-	}
-	throw configException("Error: No server found with the specified server name.");
-}
+// serverLevel& ConfigParser::getConfigByServerName(const std::string& servName) {//get a config by server name
+// 	for (size_t i = 0; i < _allConfigs.size(); i++) {
+// 		for (size_t j = 0; j < _allConfigs[i].servName.size(); j++) {
+// 			if (_allConfigs[i].servName[j] == servName)
+// 				return _allConfigs[i];
+// 		}
+// 	}
+// 	throw configException("Error: No server found with the specified server name.");
+// }
 
-serverLevel& ConfigParser::getConfigByServerNameIpPortPair(const std::string& servName, const std::pair<std::string, int>& ipPort) {//get a config by server name and ip:port pair
-	IPPortToServersMap::iterator it = _ipPortToServers.find(std::make_pair(ipPort, false));
-	if (it == _ipPortToServers.end() || it->second.empty())
-		throw configException("Error: No server found for the specified server name and IP:port pair.");
+// serverLevel& ConfigParser::getConfigByServerNameIpPortPair(const std::string& servName, const std::pair<std::string, int>& ipPort) {//get a config by server name and ip:port pair
+// 	IPPortToServersMap::iterator it = _ipPortToServers.find(std::make_pair(ipPort, false));
+// 	if (it == _ipPortToServers.end() || it->second.empty())
+// 		throw configException("Error: No server found for the specified server name and IP:port pair.");
 	
-	for (size_t i = 0; i < it->second.size(); i++) {
-		for (size_t j = 0; j < it->second[i].servName.size(); j++) {
-			if (it->second[i].servName[j] == servName)
-				return it->second[i];
-		}
-	}
-	throw configException("Error: No server found with the specified server name and IP:port pair.");
-}
+// 	for (size_t i = 0; i < it->second.size(); i++) {
+// 		for (size_t j = 0; j < it->second[i].servName.size(); j++) {
+// 			if (it->second[i].servName[j] == servName)
+// 				return it->second[i];
+// 		}
+// 	}
+// 	throw configException("Error: No server found with the specified server name and IP:port pair.");
+// }
 
 /* ************************************************************************************** */
 // EXTRAS

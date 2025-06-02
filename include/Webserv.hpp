@@ -12,22 +12,19 @@
 #include <sys/stat.h>
 #include <sstream>
 #include <ctime>
-// #include <poll.h>
 #include <sys/epoll.h>
 #include <iomanip>
 #include <vector>
 #include <signal.h>
 #include <map>
-// #include "../include/Config.hpp"
-#include "../include/Server.hpp"
-#include "../include/Client.hpp"
-#include "../include/ConfigParser.hpp"
-#include "../include/Helper.hpp"
+#include "Server.hpp"
+#include "Client.hpp"
+#include "ConfigParser.hpp"
+#include "Helper.hpp"
 
 // Forward declarations
 class Server;
 class Client;
-// class Config;
 
 // COLOURS
 #define BLUE    "\33[34m"
@@ -41,17 +38,16 @@ class Client;
 
 class Webserv {
     public:
-        // Webserv();
         Webserv(std::string const &config = "config/default.conf");
         Webserv(Webserv const &other);
         Webserv &operator=(Webserv const &other);
         ~Webserv();
 
-        Server          &getServer(int i);
-		ConfigParser    &getConfigParser();
+        // Server          &getServer(int i);
+		// ConfigParser    &getConfigParser();
         void            setEnvironment(char **envp);
-        char            **getEnvironment() const;
-        int             setConfig(std::string const &filepath);
+        // char            **getEnvironment() const;
+        // int             setConfig(std::string const &filepath);
         // Polling
         Server         findServerByFd(int fd, bool& found);
         Client         findClientByFd(int fd, bool& found);
@@ -65,7 +61,7 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-        serverLevel     &getDefaultConfig();
+        // serverLevel     &getDefaultConfig();
         void            cleanup();
 
     private:

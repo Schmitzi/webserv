@@ -8,6 +8,6 @@
 
 std::string tostring(int nbr);//like itoa
 std::vector<std::string> split(const std::string& s);//like split but only for splitting by spaces
-void printVector(std::vector<std::string> &s, std::string sep);
+void printVector(std::vector<std::string> &s, std::string sep);//temporary
 
 #endif
