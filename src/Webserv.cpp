@@ -161,7 +161,6 @@ Server Webserv::findServerByFd(int fd, bool& found) {
 			return _servers[i];
         }
     }
-	throw configException("Can't find server by FD");
 	return _servers[0];
 }
 

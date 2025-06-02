@@ -6,18 +6,28 @@
 // }
 
 Client::Client(Server& serv) {
+	memset(&_addr, 0, sizeof(_addr));
+	_addrLen = 0;
 	_addr = serv.getAddr();
+	_fd = -1;
 	_fd = serv.getFd();
-    setWebserv(serv.getWebServ());
-    setServer(serv);
-	setConfigs(serv.getConfigs());
-	_cgi = new CGIHandler();
+	_requestBuffer = "";
+	_autoindex = false;
+	_server = &serv;
+	_webserv = &serv.getWebServ();
+	_configs = serv.getConfigs();
+	CGIHandler temp = CGIHandler();
+	_cgi = &temp;
+
+    // setWebserv(serv.getWebServ());
+    // setServer(serv);
+	// setConfigs(serv.getConfigs());
+	// _cgi = new CGIHandler();
 	_cgi->setClient(*this);
 	_cgi->setServer(serv);
 }
 
 Client::~Client() {
-	delete _cgi;
 }
 
 // struct sockaddr_in  &Client::getAddr() {

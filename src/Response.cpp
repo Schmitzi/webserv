@@ -60,7 +60,7 @@ bool matchUploadLocation(const std::string& path, const serverLevel& serv, locat
 // }
 
 const std::string getStatusMessage(int code) {
-	for (size_t i = 0; i < sizeof(httpErrors) / sizeof(httpErrors[0]); i++) {
+	for (size_t i = 0; i < sizeof(httpErrors) / sizeof(httpErrors[0]); ++i) {
 		if (httpErrors[i].code == code)
 			return httpErrors[i].message;
 	}

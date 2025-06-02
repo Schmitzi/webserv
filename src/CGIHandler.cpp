@@ -7,6 +7,11 @@ CGIHandler::CGIHandler() {
     _input[1] = -1;
     _output[0] = -1;
     _output[1] = -1;
+	_cgiBinPath = "";
+	_supportedExt.push_back("");
+	_pathInfo = "";
+	_env.push_back(NULL);
+	_args.push_back(NULL);
 }
 
 CGIHandler::~CGIHandler() {
@@ -562,6 +567,10 @@ void CGIHandler::cleanupResources() {
             _output[i] = -1;
         }
     }
+	for (size_t i = 0; i < _env.size(); i++)
+		delete _env[i];
+	for (size_t i = 0; i < _args.size(); i++)
+		delete _args[i];
     _path.clear();
 }
 
