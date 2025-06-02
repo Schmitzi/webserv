@@ -49,39 +49,39 @@ Webserv::~Webserv() {
     cleanup();
 }
 
-Server &Webserv::getServer(int i) {
-    return _servers[i];
-}
+// Server &Webserv::getServer(int i) {
+//     return _servers[i];
+// }
 
-ConfigParser &Webserv::getConfigParser() {
-	return _confParser;
-}
+// ConfigParser &Webserv::getConfigParser() {
+// 	return _confParser;
+// }
 
 void Webserv::setEnvironment(char **envp) {
     _env = envp;
 }
 
-char **Webserv::getEnvironment() const {
-    return _env;
-}
+// char **Webserv::getEnvironment() const {
+//     return _env;
+// }
 
-int Webserv::setConfig(std::string const filepath) {
-    std::cout << GREEN << getTimeStamp() << "Config found at " << RESET << filepath << "\n";
-	_confParser = ConfigParser(filepath);
-	_configs = _confParser.getAllConfigs();
-    return true;
-}
+// int Webserv::setConfig(std::string const &filepath) {
+//     std::cout << GREEN << getTimeStamp() << "Config found at " << RESET << filepath << "\n";
+// 	_confParser = ConfigParser(filepath);
+// 	_configs = _confParser.getAllConfigs();
+//     return true;
+// }
 
-serverLevel &Webserv::getDefaultConfig() {
-	for (size_t i = 0; i < _servers.size(); i++) {
-		serverLevel conf = _servers[i].getConfigs()[i];
-		for (size_t j = 0; j < conf.port.size(); j++) {
-			if (conf.port[j].second == true)
-				return _servers[i].getConfigs()[i];
-		}
-	}
-	return _servers[0].getConfigs()[0];
-}
+// serverLevel &Webserv::getDefaultConfig() {
+// 	for (size_t i = 0; i < _servers.size(); i++) {
+// 		serverLevel conf = _servers[i].getConfigs()[i];
+// 		for (size_t j = 0; j < conf.port.size(); j++) {
+// 			if (conf.port[j].second == true)
+// 				return _servers[i].getConfigs()[i];
+// 		}
+// 	}
+// 	return _servers[0].getConfigs()[0];
+// }
 
 int Webserv::run() {
     _epollFd = epoll_create1(EPOLL_CLOEXEC);

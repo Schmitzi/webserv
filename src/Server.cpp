@@ -86,17 +86,17 @@ std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
 	return path;
 }
 
-void Server::setWebserv(Webserv* webserv) {
-    _webserv = webserv;
-}
+// void Server::setWebserv(Webserv* webserv) {
+//     _webserv = webserv;
+// }
 
-void    Server::setConfigs(std::vector<serverLevel> configs) {
-    _configs = configs;
-}
+// void    Server::setConfigs(std::vector<serverLevel> configs) {
+//     _configs = configs;
+// }
 
-void    Server::setFd(int const fd) {
-    _fd = fd;
-}
+// void    Server::setFd(int const fd) {
+//     _fd = fd;
+// }
 
 int Server::openSocket() {
     // Create a TCP socket

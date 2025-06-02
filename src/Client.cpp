@@ -20,25 +20,25 @@ Client::~Client() {
 	delete _cgi;
 }
 
-struct sockaddr_in  &Client::getAddr() {
-    return _addr;
-}
+// struct sockaddr_in  &Client::getAddr() {
+//     return _addr;
+// }
 
-socklen_t   &Client::getAddrLen() {
-    return _addrLen;
-}
+// socklen_t   &Client::getAddrLen() {
+//     return _addrLen;
+// }
 
 int     &Client::getFd() {
     return _fd;
 }
 
-unsigned char &Client::getIP() {
-    return *_ip;
-}
+// unsigned char &Client::getIP() {
+//     return *_ip;
+// }
 
-char    &Client::getBuffer() {
-    return *_buffer;
-}
+// char    &Client::getBuffer() {
+//     return *_buffer;
+// }
 
 void Client::setWebserv(Webserv *webserv) {
     _webserv = webserv;
@@ -52,9 +52,9 @@ Server &Client::getServer() {
     return *_server;
 }
 
-Webserv &Client::getWebserv() {
-	return *_webserv;
-}
+// Webserv &Client::getWebserv() {
+// 	return *_webserv;
+// }
 
 void    Client::setConfigs(std::vector<serverLevel> configs) {
     _configs = configs;
@@ -918,47 +918,47 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     send(_fd, response.c_str(), response.length(), 0);
 }
 
-void Client::findContentType(Request& req) {
-    std::string raw(_buffer);
-    size_t start = raw.find("Content-Type: ");
+// void Client::findContentType(Request& req) {
+//     std::string raw(_buffer);
+//     size_t start = raw.find("Content-Type: ");
     
-    if (start == std::string::npos) {
-        if (raw.find("POST") == 0) {
-            std::cout << RED <<  "Warning: POST request without Content-Type header\n" << RESET;
-            req.setContentType("application/octet-stream");
-        }
-        return;
-    }
+//     if (start == std::string::npos) {
+//         if (raw.find("POST") == 0) {
+//             std::cout << RED <<  "Warning: POST request without Content-Type header\n" << RESET;
+//             req.setContentType("application/octet-stream");
+//         }
+//         return;
+//     }
     
-    start += 14;
-    size_t end = raw.find("\r\n", start);
-    if (end == std::string::npos) {
-        end = raw.find("\n", start);
-        if (end == std::string::npos) {
-            end = raw.length();
-        }
-    }
+//     start += 14;
+//     size_t end = raw.find("\r\n", start);
+//     if (end == std::string::npos) {
+//         end = raw.find("\n", start);
+//         if (end == std::string::npos) {
+//             end = raw.length();
+//         }
+//     }
     
-    std::string contentType = raw.substr(start, end - start);
-    req.setContentType(contentType);
+//     std::string contentType = raw.substr(start, end - start);
+//     req.setContentType(contentType);
     
-    size_t boundaryPos = contentType.find("; boundary=");
-    if (boundaryPos != std::string::npos) {
-        std::string boundary = contentType.substr(boundaryPos + 11);
+//     size_t boundaryPos = contentType.find("; boundary=");
+//     if (boundaryPos != std::string::npos) {
+//         std::string boundary = contentType.substr(boundaryPos + 11);
         
-        // Clean up boundary if needed
-        size_t quotePos = boundary.find("\"");
-        if (quotePos != std::string::npos) {
-            boundary = boundary.substr(0, quotePos);
-        }
+//         // Clean up boundary if needed
+//         size_t quotePos = boundary.find("\"");
+//         if (quotePos != std::string::npos) {
+//             boundary = boundary.substr(0, quotePos);
+//         }
         
-        if (boundary.empty()) {
-            std::cout << "Warning: Empty boundary found" << std::endl;
-        }
+//         if (boundary.empty()) {
+//             std::cout << "Warning: Empty boundary found" << std::endl;
+//         }
         
-        req.setBoundary(boundary);
-    }
-}
+//         req.setBoundary(boundary);
+//     }
+// }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
     std::string response = "HTTP/1.1 200 OK\r\n";

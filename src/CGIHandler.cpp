@@ -625,33 +625,33 @@ void CGIHandler::cleanupResources() {
 }
 
 
-Request    CGIHandler::createTempHeader(std::string output) {
-    size_t headerEnd = output.find("\r\n\r\n");
-    if (headerEnd == std::string::npos) {
-        headerEnd = output.find("\n\n");
-    }
+// Request    CGIHandler::createTempHeader(std::string output) {
+//     size_t headerEnd = output.find("\r\n\r\n");
+//     if (headerEnd == std::string::npos) {
+//         headerEnd = output.find("\n\n");
+//     }
 
-    Request temp;
-    temp.setContentType("text/html");
-    temp.setBody(output);
-    std::string headers = "Content-Type: text/html\r\n";
+//     Request temp;
+//     temp.setContentType("text/html");
+//     temp.setBody(output);
+//     std::string headers = "Content-Type: text/html\r\n";
 
-    if (headerEnd != std::string::npos) {
-        headers = output.substr(0, headerEnd);
-        temp.setBody(output.substr(headerEnd + (output.find("\r\n\r\n") != std::string::npos ? 4 : 2)));
+//     if (headerEnd != std::string::npos) {
+//         headers = output.substr(0, headerEnd);
+//         temp.setBody(output.substr(headerEnd + (output.find("\r\n\r\n") != std::string::npos ? 4 : 2)));
 
-        size_t typePos = headers.find("Content-Type:");
-        if (typePos != std::string::npos) {
-            std::string tempType = temp.getContentType();
-            size_t lineEnd = headers.find("\n", typePos);
-            temp.setContentType(headers.substr(typePos + 13, lineEnd - typePos - 13));
-            tempType.erase(0, tempType.find_first_not_of(" \t"));
-            tempType.erase(tempType.find_last_not_of(" \t\r\n") + 1);
-            temp.setContentType(tempType);
-        }
-    }
-    return temp;
-}
+//         size_t typePos = headers.find("Content-Type:");
+//         if (typePos != std::string::npos) {
+//             std::string tempType = temp.getContentType();
+//             size_t lineEnd = headers.find("\n", typePos);
+//             temp.setContentType(headers.substr(typePos + 13, lineEnd - typePos - 13));
+//             tempType.erase(0, tempType.find_first_not_of(" \t"));
+//             tempType.erase(tempType.find_last_not_of(" \t\r\n") + 1);
+//             temp.setContentType(tempType);
+//         }
+//     }
+//     return temp;
+// }
 
 int CGIHandler::doChecks(Client client, Request& req) {
     if (access(_path.c_str(), F_OK) != 0) {
