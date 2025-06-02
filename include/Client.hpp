@@ -7,12 +7,12 @@
 #include <map>
 #include <dirent.h>
 #include <fcntl.h>
-#include "../include/Response.hpp"
-#include "../include/Helper.hpp"
-#include "../include/Request.hpp"
-#include "../include/CGIHandler.hpp"
-#include "../include/Multipart.hpp"
-#include "../include/ConfigParser.hpp"
+#include "Response.hpp"
+#include "Helper.hpp"
+#include "Request.hpp"
+#include "CGIHandler.hpp"
+#include "Multipart.hpp"
+#include "ConfigParser.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
