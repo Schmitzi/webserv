@@ -55,7 +55,9 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
     if (doChecks(client, req) == 1) {
         return 1;
     }
-    prepareEnv(req);
+    if (prepareEnv(req) == 1) {
+        return 1;
+    }
 
     pid_t pid = fork();
     
@@ -335,7 +337,7 @@ bool CGIHandler::isCGIScript(const std::string& path) {
     return false;
 }
 
-void CGIHandler::prepareEnv(Request &req) {
+int CGIHandler::prepareEnv(Request &req) { // TODO: Changed from void to int for error handling
     std::string ext = "";
 	std::string filePath = "";
 	std::string queryType = "";
@@ -352,18 +354,19 @@ void CGIHandler::prepareEnv(Request &req) {
 					|| queryType == "value" || queryType == "text" || queryType == "user")
 				fileContent = req.getQuery().substr(pos1 + 1);
 			else {
-				std::cerr << "Invalid query type: " << queryType << std::endl;//TODO: send error response? is this even valid?
-				return;
+				std::cerr << "Invalid query type: " << queryType << std::endl;//TODO: send error response? is this even valid? // I think we should still cover it, just in case
+                
+				return 1;
 			}
 		}
 		locationLevel loc = locationLevel();
 		if (!matchUploadLocation("cgi-bin", req.getConf(), loc)) {
 			std::cerr << "Location not found for path: cgi-bin" << std::endl;
-			return;
+			return 1;
 		}
 		if (loc.uploadDirPath.empty()) {
 			std::cerr << "Upload directory not set for path: cgi-bin" << std::endl;
-			return;
+			return 1;
 		}
 		if (loc.uploadDirPath[loc.uploadDirPath.size() - 1] != '/')
 			filePath = loc.uploadDirPath + '/';

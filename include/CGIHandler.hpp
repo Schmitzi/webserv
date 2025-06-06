@@ -30,7 +30,7 @@ class CGIHandler {
         int     handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
         int     handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
         int     executeCGI(Client &client, Request& req, std::string const &scriptPath);
-        void    prepareEnv(Request &req);
+        int    prepareEnv(Request &req);
         std::string makeAbsolutePath(const std::string& path);
         // Request createTempHeader(std::string output);
         std::map<std::string, std::string> parseHeaders(const std::string& headerSection);
