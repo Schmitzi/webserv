@@ -383,7 +383,7 @@ int Client::handleRegularRequest(Request& req) {
     if (reqPath.find("/home") == std::string::npos) {
         fullPath = _server->getWebRoot(req, loc) + reqPath;
     } else {
-        fullPath = reqPath; //TODO: This was changes under SetLocIndexFile;
+        fullPath = reqPath;
     }
 
 	setAutoIndex(loc);
