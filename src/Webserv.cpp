@@ -112,9 +112,6 @@ int Webserv::run() {
         "Server " << i + 1 << " is listening on port " << RESET << 
         _confParser.getPort(_servers[i].getConfigs()[0]) << "\n";
     }
-   // if (serverCheck() == 1) {
-   //     return 1;
-   // }
     while (1) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
@@ -161,7 +158,10 @@ Server Webserv::findServerByFd(int fd, bool& found) {
 			return _servers[i];
         }
     }
-	return _servers[0];
+    if (!_servers.empty()){ // TODO: Added this to solve issue with FDS
+        return _servers[0];
+    }
+	throw configException("Can't find server by FD");
 }
 
 Client Webserv::findClientByFd(int fd, bool& found) {
