@@ -171,8 +171,9 @@ Client Webserv::findClientByFd(int fd, bool& found) {
             return _clients[i];
         }
     }
-    throw configException("Can't find client by FD");
-	return _clients[0];
+	if (!_clients.empty())
+		return _clients[0];
+	throw configException("Can't find client by FD");
 }
 
 void Webserv::handleErrorEvent(int fd) {

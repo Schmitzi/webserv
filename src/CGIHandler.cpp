@@ -561,20 +561,20 @@ void    CGIHandler::findPl(std::string& filePath) {
 
 
 void CGIHandler::cleanupResources() {
-    for (size_t i = 0; i < _env.size(); i++) {
-        if (_env[i]) {
-            free(_env[i]);
-        }
-    }
-    _env.clear();
+    // for (size_t i = 0; i < _env.size(); i++) {
+    //     if (_env[i]) {
+    //         free(_env[i]);
+    //     }
+    // }
+    // _env.clear();
     
-    if (!_args.empty()) {
-        for (int i = 0; _args[i]; i++) {
-            free(_args[i]);
-        }
+    // if (!_args.empty()) {
+    //     for (int i = 0; _args[i]; i++) {
+    //         free(_args[i]);
+    //     }
         // delete[] _args;
         // _args = NULL;
-    }
+    // }
     
     for (int i = 0; i < 2; i++) {
         if (_input[i] >= 0) {
@@ -586,10 +586,10 @@ void CGIHandler::cleanupResources() {
             _output[i] = -1;
         }
     }
-	for (size_t i = 0; i < _env.size(); i++)
-		delete _env[i];
-	for (size_t i = 0; i < _args.size(); i++)
-		delete _args[i];
+	// for (size_t i = 0; i < _env.size(); i++)
+	// 	delete _env[i];
+	// for (size_t i = 0; i < _args.size(); i++)
+	// 	delete _args[i];
     _path.clear();
 }
 
