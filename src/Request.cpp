@@ -156,7 +156,7 @@ void Request::parse(const std::string& rawRequest) {
 
     parseHeaders(headerSection);
 	if (!matchHostServerName()) {
-		std::cerr << RED << "No Host-ServerName match + no default config specified!\n" << RESET;
+		std::cerr << RED << getTimeStamp() << "No Host-ServerName match + no default config specified!\n" << RESET;
 		_method = "BAD";
 		return;
 	}
