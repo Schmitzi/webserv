@@ -17,7 +17,7 @@ Client::Client(Server& serv) {
 }
 
 Client::~Client() {
-	delete _cgi;
+	//delete _cgi; // TODO: this crashes the program
 }
 
 // struct sockaddr_in  &Client::getAddr() {
