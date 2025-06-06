@@ -30,7 +30,7 @@ Client &Client::operator=(const Client& copy) {
 }
 
 Client::~Client() {
-	delete _cgi;
+	//delete _cgi; // TODO: this crashes the program
 }
 
 int     &Client::getFd() {
