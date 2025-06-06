@@ -424,6 +424,7 @@ int CGIHandler::prepareEnv(Request &req) { // TODO: Changed from void to int for
     _env.push_back(const_cast<char*>(("SCRIPT_NAME=" + req.getPath()).c_str()));
     _env.push_back(const_cast<char*>("SERVER_SOFTWARE=WebServ/1.0"));
 	_env.push_back(NULL);
+	return 0;
 }
 
 std::string CGIHandler::makeAbsolutePath(const std::string& path) {
@@ -567,12 +568,12 @@ void CGIHandler::cleanupResources() {
     }
     _env.clear();
     
-    if (_args) {
+    if (!_args.empty()) {
         for (int i = 0; _args[i]; i++) {
             free(_args[i]);
         }
-        delete[] _args;
-        _args = NULL;
+        // delete[] _args;
+        // _args = NULL;
     }
     
     for (int i = 0; i < 2; i++) {
