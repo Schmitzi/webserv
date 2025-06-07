@@ -50,8 +50,8 @@ class CGIHandler {
         std::string                 _cgiBinPath;
         std::vector<std::string>    _supportedExt;
         std::string                 _pathInfo;
-        std::vector<char*>	_env;
-		std::vector<char*>	_args;
+        std::vector<std::string>	        _env;
+		std::vector<std::string>	        _args;
         std::string                 _path;
 
         Client                      *_client;

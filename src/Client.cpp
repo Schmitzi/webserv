@@ -14,6 +14,7 @@ Client::Client(Server& serv) {
 	_cgi->setServer(serv);
 }
 
+
 Client::Client(const Client& copy) {
 	*this = copy;
 }
