@@ -8,7 +8,6 @@ Client::Client(Server& serv) {
     setWebserv(serv.getWebServ());
     setServer(serv);
 	setConfigs(serv.getConfigs());
-	_cgi = NULL;
 	_cgi = new CGIHandler();
 	_cgi->setClient(*this);
 	_cgi->setServer(serv);
