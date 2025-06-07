@@ -63,28 +63,6 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
     }
 }
 
-void    CGIHandler::setCGIBin(serverLevel *config) {
-    _cgiBinPath = ""; // Initialize
-    
-    std::map<std::string, locationLevel>::iterator it = config->locations.begin();
-    for (; it != config->locations.end(); ++it) {
-        if (it->first.find("php") != std::string::npos) {
-            _cgiBinPath = it->second.cgiProcessorPath;
-            break;
-        }
-    }
-    
-    if (_cgiBinPath.empty()) {
-        std::cout << RED << "Warning: No PHP CGI processor found in config" << RESET << "\n";
-        std::cout << RED << "Setting CGI-Bin to /usr/bin/php-cgi\n" << RESET;
-        _cgiBinPath = "/usr/bin/php-cgi";
-    }
-}
-
-std::string CGIHandler::getInfoPath() {
-    return _pathInfo;
-}
-
 int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scriptPath) {
     cleanupResources();
     _path = scriptPath;
@@ -510,23 +488,6 @@ void CGIHandler::setPathInfo(Request& req) {
     } else {
         _pathInfo = "";
     }
-}
-
-std::string CGIHandler::makeAbsolutePath(const std::string& path) {
-    if (path.empty()) {
-        return "";
-    }
-
-    if (path[0] == '/') {
-        return path;
-    }
-    
-    char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd)) == NULL) {
-        return path;
-    }
-    
-    return std::string(cwd) + "/" + path;
 }
 
 void CGIHandler::setPathInfo(const std::string& requestPath) {

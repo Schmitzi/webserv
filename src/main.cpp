@@ -1,7 +1,7 @@
 #include "../include/Webserv.hpp"
 #include <dirent.h>
 
-Webserv g_webserv;
+Webserv* g_webserv;
 
 bool deleteErrorPages() {
 	struct stat info;
@@ -43,8 +43,7 @@ void signalHandler(int signal) {
 			std::cerr << "Failed to delete error pages directory.\n";
     
         std::cout << "Goodbye!" << std::endl;
-		// std::exit(0); // TEMPORARY!!!!
-        throw configException("ERROR");//TODO: implement flag instead of this
+		g_webserv->flipState();
     }
 }
 
@@ -61,7 +60,7 @@ int main(int ac, char **av, char **envp) {
 			webserv = Webserv(av[1]);
 		else 
 			webserv = Webserv();
-		g_webserv = webserv;
+		g_webserv = &webserv;
 		webserv.setEnvironment(envp);
 		if (webserv.run()) {
 			webserv.ft_error("Setup failed");

@@ -44,6 +44,7 @@ class Webserv {
         ~Webserv();
 
         void            setEnvironment(char **envp);
+        void            flipState();
         // Polling
         Server         findServerByFd(int fd, bool& found);
         Client         findClientByFd(int fd, bool& found);
@@ -60,6 +61,7 @@ class Webserv {
         void            cleanup();
 
     private:
+        bool                        _state;
         std::vector<Server> 		_servers;
         std::vector<Client>   	    _clients;
         char                    	**_env;
