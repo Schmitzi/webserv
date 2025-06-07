@@ -27,6 +27,7 @@ Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 }
 
 Server::~Server()  {
+    _configs.clear();
 }
 
 Webserv &Server::getWebServ() {
