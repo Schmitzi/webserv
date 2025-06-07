@@ -254,20 +254,30 @@ void Webserv::handleNewConnection(Server &server) {
 }
 
 void Webserv::handleClientActivity(int clientFd) {
-	bool found = false;
-    Client client = findClientByFd(clientFd, found);
+	std::cout << BLUE << getTimeStamp() << "Handling activity for fd: " << clientFd << RESET << std::endl;
     
-    if (!found) {
+    // Find the client properly
+    Client* clientPtr = NULL;
+    for (size_t i = 0; i < _clients.size(); i++) {
+        if (_clients[i].getFd() == clientFd) {
+            clientPtr = &_clients[i];
+            break;
+        }
+    }
+    
+    if (!clientPtr) {
         std::cerr << RED << getTimeStamp() << "Client not found for fd: " << clientFd << RESET << std::endl;
         removeFromEpoll(clientFd);
         close(clientFd);
         return;
     }
     
-    if (client.recieveData() != 0) {
+    std::cout << BLUE << getTimeStamp() << "Found client with fd: " << clientPtr->getFd() << RESET << std::endl;
+    
+    if (clientPtr->recieveData() != 0) {
         removeFromEpoll(clientFd);
         close(clientFd);
-        
+
         for (size_t i = 0; i < _clients.size(); i++) {
             if (_clients[i].getFd() == clientFd) {
                 _clients.erase(_clients.begin() + i);
@@ -318,7 +328,9 @@ void    Webserv::cleanup() {
             removeFromEpoll(_servers[i].getFd());
             close(_servers[i].getFd());
         }
+
     }
+
     _servers.clear();
 
     if (_epollFd >= 0) {
