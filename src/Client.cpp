@@ -14,17 +14,23 @@ Client::Client(Server& serv) {
 	_cgi->setServer(serv);
 }
 
-Client::Client(const Client& client) {
-	if (this != &client) {
-		_addr = client._addr;
-		_fd = client._fd;
-		setWebserv(*client._webserv);
-		setServer(*client._server);
-		setConfigs(client._configs);
+Client::Client(const Client& copy) {
+	*this = copy;
+}
+
+Client &Client::operator=(const Client& copy) {
+	if (this != &copy) {
+		_addr = copy._addr;
+		_fd = copy._fd;
+		setWebserv(*copy._webserv);
+		setServer(*copy._server);
+		setConfigs(copy._configs);
+		_cgi = NULL;
 		_cgi = new CGIHandler();
 		_cgi->setClient(*this);
-		_cgi->setServer(*client._server);
+		_cgi->setServer(*copy._server);
 	}
+	return *this;
 }
 
 Client::~Client() {

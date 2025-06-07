@@ -26,6 +26,23 @@ Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
     _webserv = &webserv;
 }
 
+Server::Server(const Server& copy) {
+	*this = copy;
+}
+
+Server &Server::operator=(const Server& copy) {
+	if (this != &copy) {
+		_fd = copy._fd;
+		_addr = copy._addr;
+		_uploadDir = copy._uploadDir;
+		_webRoot = copy._webRoot;
+		_confParser = copy._confParser;
+		_configs = copy._configs;
+		_webserv = copy._webserv;
+	}
+	return *this;
+}
+
 Server::~Server()  {
     _configs.clear();
 }

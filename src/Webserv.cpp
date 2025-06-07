@@ -28,15 +28,12 @@ Webserv::Webserv(Webserv const &other) : _epollFd(-1) {
 Webserv &Webserv::operator=(Webserv const &other) {
     if (this != &other) {
         cleanup();
-		for (size_t i = 0; i < other._servers.size(); i++)
-			_servers.push_back(other._servers[i]);
-		for (size_t i = 0; i < other._clients.size(); i++)
-			_clients.push_back(other._clients[i]);
+		_servers = other._servers;
+		_clients = other._clients;
 		_env = other._env;
-		_confParser = other._confParser;
-		for (size_t i = 0; i < other._configs.size(); i++)
-			_configs.push_back(other._configs[i]);
         _epollFd = other._epollFd;
+		_confParser = other._confParser;
+		_configs = other._configs;
 	}
 	return *this;
 }

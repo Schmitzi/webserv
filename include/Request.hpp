@@ -17,6 +17,8 @@ class Server;
 class Request {
     public:
         Request();
+		Request(const Request& copy);
+		Request &operator=(const Request& copy);
         Request(const std::string& rawRequest, Server& server);
         ~Request();
         std::string &getPath();
