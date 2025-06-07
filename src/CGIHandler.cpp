@@ -10,6 +10,28 @@ CGIHandler::CGIHandler() {
     
 }
 
+CGIHandler::CGIHandler(const CGIHandler& copy) {
+	*this = copy;
+}
+
+CGIHandler &CGIHandler::operator=(const CGIHandler& copy) {
+	if (this != &copy) {
+		_input[0] = copy._input[0];
+		_input[1] = copy._input[1];
+		_output[0] = copy._output[0];
+		_output[1] = copy._output[1];
+		_cgiBinPath = copy._cgiBinPath;
+		_supportedExt = copy._supportedExt;
+		_pathInfo = copy._pathInfo;
+		_env = copy._env;
+		_args = copy._args;
+		_path = copy._path;
+		_client = copy._client;
+		_server = copy._server;
+	}
+	return *this;
+}
+
 CGIHandler::~CGIHandler() {
     cleanupResources();
 }
