@@ -8,7 +8,6 @@ Client::Client(Server& serv) {
     setWebserv(serv.getWebServ());
     setServer(serv);
 	setConfigs(serv.getConfigs());
-	_cgi = NULL;
 	_cgi = new CGIHandler();
 	_cgi->setClient(*this);
 	_cgi->setServer(serv);
@@ -25,10 +24,7 @@ Client &Client::operator=(const Client& copy) {
 		setWebserv(*copy._webserv);
 		setServer(*copy._server);
 		setConfigs(copy._configs);
-		_cgi = NULL;
-		_cgi = new CGIHandler();
-		_cgi->setClient(*this);
-		_cgi->setServer(*copy._server);
+		_cgi = new CGIHandler(*copy._cgi);
 	}
 	return *this;
 }
