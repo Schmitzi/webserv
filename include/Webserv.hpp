@@ -44,6 +44,7 @@ class Webserv {
         ~Webserv();
 
         void            setEnvironment(char **envp);
+        void            flipState();
         // Polling
         Server         findServerByFd(int fd, bool& found);
         Client         findClientByFd(int fd, bool& found);
