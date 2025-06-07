@@ -5,9 +5,8 @@
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
-    std::cout << "FD: " << _fd << "\n";
-    setWebserv(&serv.getWebServ());
-    setServer(&serv);
+    setWebserv(serv.getWebServ());
+    setServer(serv);
 	setConfigs(serv.getConfigs());
 	_cgi = NULL;
 	_cgi = new CGIHandler();
@@ -53,7 +52,7 @@ Client& Client::operator=(const Client& other) {
 }
 
 Client::~Client() {
-	//delete _cgi; // TODO: this crashes the program
+	delete _cgi;
 }
 
 int     &Client::getFd() {
