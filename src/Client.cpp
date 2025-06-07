@@ -5,8 +5,9 @@
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
-    setWebserv(serv.getWebServ());
-    setServer(serv);
+    std::cout << "FD: " << _fd << "\n";
+    setWebserv(&serv.getWebServ());
+    setServer(&serv);
 	setConfigs(serv.getConfigs());
 	_cgi = NULL;
 	_cgi = new CGIHandler();
