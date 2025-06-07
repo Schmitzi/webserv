@@ -67,41 +67,17 @@ serverLevel& Request::getConf() {
 	return _curConf;
 }
 
-// void    Request::setMethod(std::string const method) {
-//     _method = method;
-// }
-
 void    Request::setPath(std::string const path) {
     _path = path;
 }
-
-// void    Request::setVersion(std::string const version) {
-//     _version = version;
-// }
 
 void    Request::setBody(std::string const body) {
     _body = body;
 }
 
-// void    Request::setQuery(std::string const query) {
-//     _query = query;
-// }
-
 void    Request::setContentType(std::string const content) {
     _contentType = content;
 }
-
-// void    Request::setBoundary(std::string boundary) {
-//     _boundary = boundary;
-// }
-
-// void    Request::setHeader(std::map<std::string, std::string> map) {
-//     _headers = map;
-// }
-
-// void Request::setCurConf(serverLevel&conf) {
-// 	_curConf = conf;
-// }
 
 bool Request::matchHostServerName() {
 	std::map<std::string, std::string>::iterator it = _headers.find("Host");

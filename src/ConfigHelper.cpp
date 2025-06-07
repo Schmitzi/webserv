@@ -146,7 +146,6 @@ void setLocIndexFile(locationLevel& loc, std::vector<std::string>& s, serverLeve
 	std::string path = cwdBuffer;
 	path += ("/" + serv.rootServ) + ("/" + s[1]);
 	free(cwdBuffer);
-	//std::string path = getAbsPath(s[1]);
 	if (!path.empty() && !isValidIndexFile(s[1]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
 	loc.indexFile = path;

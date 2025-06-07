@@ -1,12 +1,5 @@
 #include "../include/Webserv.hpp"
 
-// Webserv::Webserv() : _epollFd(-1) { 
-//     _confParser = ConfigParser("config/default.conf");
-// }
-// Webserv::Webserv() : _epollFd(-1) { 
-//     _confParser = ConfigParser("config/default.conf");
-// }
-
 Webserv::Webserv(std::string const &config) : _epollFd(-1) {
 	_confParser = ConfigParser(config);
     _configs = _confParser.getAllConfigs();
@@ -63,28 +56,6 @@ void    Webserv::flipState() {
 void Webserv::setEnvironment(char **envp) {
     _env = envp;
 }
-
-// char **Webserv::getEnvironment() const {
-//     return _env;
-// }
-
-// int Webserv::setConfig(std::string const &filepath) {
-//     std::cout << GREEN << getTimeStamp() << "Config found at " << RESET << filepath << "\n";
-// 	_confParser = ConfigParser(filepath);
-// 	_configs = _confParser.getAllConfigs();
-//     return true;
-// }
-
-// serverLevel &Webserv::getDefaultConfig() {
-// 	for (size_t i = 0; i < _servers.size(); i++) {
-// 		serverLevel conf = _servers[i].getConfigs()[i];
-// 		for (size_t j = 0; j < conf.port.size(); j++) {
-// 			if (conf.port[j].second == true)
-// 				return _servers[i].getConfigs()[i];
-// 		}
-// 	}
-// 	return _servers[0].getConfigs()[0];
-// }
 
 int Webserv::run() {
     _epollFd = epoll_create1(EPOLL_CLOEXEC);
@@ -245,7 +216,7 @@ void Webserv::handleNewConnection(Server &server) {
         }
         return;
     }
-    Client newClient = Client(server);
+    Client newClient(server);
     
     if (newClient.acceptConnection(server.getFd()) == 0) {
         newClient.displayConnection();
@@ -301,7 +272,7 @@ void    Webserv::printMsg(const std::string msg, char const *colour, std::string
     if (opt.empty()) {
         std::cout << colour << getTimeStamp() << msg << RESET << "\n";
     } else {
-        std::cout << colour << getTimeStamp() << msg << ": " << RESET << opt << "\n"; //_address.sin_port
+        std::cout << colour << getTimeStamp() << msg << ": " << RESET << opt << "\n";
     }
 }
 
@@ -328,7 +299,6 @@ void    Webserv::cleanup() {
             close(_clients[i].getFd());
         }
     }
-    // _clients.clear();
 
     for (size_t i = 0; i < _servers.size(); i++) {
         if (_servers[i].getFd() >= 0) {
@@ -337,7 +307,6 @@ void    Webserv::cleanup() {
         }
 
     }
-
     _servers.clear();
 
     if (_epollFd >= 0) {

@@ -43,11 +43,7 @@ class Webserv {
         Webserv &operator=(Webserv const &other);
         ~Webserv();
 
-        // Server          &getServer(int i);
-		// ConfigParser    &getConfigParser();
         void            setEnvironment(char **envp);
-        // char            **getEnvironment() const;
-        // int             setConfig(std::string const &filepath);
         // Polling
         Server         findServerByFd(int fd, bool& found);
         Client         findClientByFd(int fd, bool& found);
@@ -61,7 +57,6 @@ class Webserv {
         void            ft_error(std::string const msg);
         std::string     getTimeStamp();
         void            printMsg(const std::string msg, char const *colour, std::string const opt);
-        // serverLevel     &getDefaultConfig();
         void            cleanup();
 
     private:

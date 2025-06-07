@@ -89,7 +89,6 @@ ConfigParser::~ConfigParser() {
 	std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin();
     for (; it != _storedConfigs.end(); ++it)
         it->clear();
-    }
     _storedConfigs.clear();
 }
 
@@ -133,7 +132,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 			if (s[0] == "root") setRootLoc(loc, s);
 			else if (s[0] == "index") setLocIndexFile(loc, s, serv);
 			else if (s[0] == "limit_except") setMethods(loc, s);
-			else if (s[0] == "autoindex") setAutoindex(loc, s);
+			else if (s[0] == "autoindex") setAutoindex(loc, s);//TODO: remove autoindex bool!
 			else if (s[0] == "return") setRedirection(loc, s);
 			else if (s[0] == "cgi_pass") setCgiProcessorPath(loc, s);
 			else if (s[0] == "upload_store") setUploadDirPath(loc, s);
@@ -207,42 +206,8 @@ void ConfigParser::setIpPortToServers() {
 	}
 }
 
-// void ConfigParser::parseAndSetConfigs() {
-//     std::map<std::pair<std::string, int>, bool> usedIpPorts;
-    
-//     for (size_t i = 0; i < _storedConfigs.size(); i++) {
-//         serverLevel nextConf;
-//         setConfigLevels(nextConf, _storedConfigs[i]);
-        
-//         // Check for duplicate IP:port combinations
-//         for (size_t j = 0; j < nextConf.port.size(); j++) {
-//             std::pair<std::pair<std::string, int>, bool> ipPort = nextConf.port[j];
-            
-//             if (usedIpPorts.find(ipPort.first) != usedIpPorts.end()) {
-//                 std::cerr << RED << "Warning: IP:port combination " << ipPort.first.first << ":" << ipPort.first.second 
-//                           << " is already in use by another server. Ignoring duplicate." << RESET << std::endl;
-                
-//                 // Remove this duplicate from the server's port list
-//                 nextConf.port.erase(nextConf.port.begin() + j);
-//                 j--;
-//             } else {
-//                 usedIpPorts[ipPort.first] = true;
-//             }
-//         }
-        
-//         // Only add server if it has at least one valid port
-//         if (!nextConf.port.empty()) {
-//             _allConfigs.push_back(nextConf);
-//         } else {
-//             std::cerr << "Warning: Server skipped because it has no valid ports." << std::endl;
-//         }
-//     }
-//     //printAllConfigs();
-//     setIpPortToServers();
-// }
-
 void ConfigParser::parseAndSetConfigs() {
-    std::set<std::string> usedCombinations; // "ip:port:servername"
+    std::set<std::string> usedCombinations;
     for (size_t i = 0; i < _storedConfigs.size(); i++) {
         serverLevel nextConf = serverLevel();
         setConfigLevels(nextConf, _storedConfigs[i]);
@@ -265,9 +230,7 @@ void ConfigParser::parseAndSetConfigs() {
             _allConfigs.push_back(nextConf);
         }
     }
-    // printAllConfigs();
     setIpPortToServers();
-	// printIpPortToServers();
 }
 
 /* *************************************************************************************** */
@@ -304,37 +267,6 @@ serverLevel& ConfigParser::getConfigByIndex(size_t nbr) {//get a config by index
 		throw configException("Error: Invalid config index specified.");
 	return _allConfigs[nbr];
 }
-
-// serverLevel& ConfigParser::getConfigByIpPortPair(const std::pair<std::pair<std::string, int>, bool>& ipPort) {//get a config by ip:port pair
-// 	IPPortToServersMap::iterator it = _ipPortToServers.find(ipPort);
-// 	if (it == _ipPortToServers.end() || it->second.empty())
-// 		throw configException("Error: No server found for the specified IP:port pair.");
-// 	return it->second[0];
-// }
-
-// serverLevel& ConfigParser::getConfigByServerName(const std::string& servName) {//get a config by server name
-// 	for (size_t i = 0; i < _allConfigs.size(); i++) {
-// 		for (size_t j = 0; j < _allConfigs[i].servName.size(); j++) {
-// 			if (_allConfigs[i].servName[j] == servName)
-// 				return _allConfigs[i];
-// 		}
-// 	}
-// 	throw configException("Error: No server found with the specified server name.");
-// }
-
-// serverLevel& ConfigParser::getConfigByServerNameIpPortPair(const std::string& servName, const std::pair<std::string, int>& ipPort) {//get a config by server name and ip:port pair
-// 	IPPortToServersMap::iterator it = _ipPortToServers.find(std::make_pair(ipPort, false));
-// 	if (it == _ipPortToServers.end() || it->second.empty())
-// 		throw configException("Error: No server found for the specified server name and IP:port pair.");
-	
-// 	for (size_t i = 0; i < it->second.size(); i++) {
-// 		for (size_t j = 0; j < it->second[i].servName.size(); j++) {
-// 			if (it->second[i].servName[j] == servName)
-// 				return it->second[i];
-// 		}
-// 	}
-// 	throw configException("Error: No server found with the specified server name and IP:port pair.");
-// }
 
 /* ************************************************************************************** */
 // EXTRAS

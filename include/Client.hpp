@@ -30,19 +30,14 @@ struct locationLevel;
 
 class Client {
     public:
-        // Client();
         Client(Server& serv);
+        Client(const Client& client);
         ~Client();
-        // struct sockaddr_in      &getAddr();
-        // socklen_t               &getAddrLen();
         int                     &getFd();
-        // unsigned char           &getIP();
-        // char                    &getBuffer();
-        // Webserv					&getWebserv();
         Server                  &getServer();
         void                    setWebserv(Webserv &webserv);
         void                    setServer(Server &server);
-        void                    setConfigs(std::vector<serverLevel> &configs);
+        void                    setConfigs(const std::vector<serverLevel> &configs);
         void                    setAutoIndex(locationLevel& loc);
         int                     acceptConnection(int serverFd);
         void                    displayConnection();
@@ -66,7 +61,6 @@ class Client {
         int                     handleRedirect(Request eq);
         void                    sendRedirect(int statusCode, const std::string& location);
 
-        // void                    findContentType(Request &req);
         ssize_t                 sendResponse(Request req, std::string connect, std::string body);
         void                    sendErrorResponse(int statusCode, Request& req);
         bool					send_all(int sockfd, const std::string& data);
@@ -78,8 +72,6 @@ class Client {
         struct sockaddr_in  _addr;
         socklen_t           _addrLen;
         int                 _fd;
-        // unsigned char       *_ip;
-        // char                _buffer[16384];
         std::string         _requestBuffer;
         bool                _autoindex;
         

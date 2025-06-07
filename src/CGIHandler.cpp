@@ -21,10 +21,6 @@ void    CGIHandler::setServer(Server &server) {
     _server = &server;
 }
 
-// void    CGIHandler::setConfig(serverLevel& config) {
-//     _config = &config;
-// }
-
 std::string CGIHandler::getInfoPath() {
     return _pathInfo;
 }
@@ -41,8 +37,6 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
     }
     
     if (_cgiBinPath.empty()) {
-        // std::cout << RED << "Warning: No PHP CGI processor found in config" << RESET << "\n";
-        // std::cout << RED << "Setting CGI-Bin to /usr/bin/php-cgi\n" << RESET;
         _cgiBinPath = "/usr/bin/php-cgi";
     }
 }
@@ -402,20 +396,13 @@ int CGIHandler::prepareEnv(Request &req) { // TODO: Changed from void to int for
         script = _path.substr(slashPos + 1);
         _env.push_back(const_cast<char*>(("SCRIPT_NAME=" + script).c_str()));
     }
-    tempEnv.push_back("QUERY_STRING=" + req.getQuery());
-    tempEnv.push_back("CONTENT_TYPE=" + req.getContentType());
-    tempEnv.push_back("CONTENT_LENGTH=" + tostring(req.getBody().length()));
-    tempEnv.push_back("SCRIPT_NAME=" + req.getPath());
-    tempEnv.push_back("SERVER_SOFTWARE=WebServ/1.0");
-
-    for (std::vector<std::string>::iterator it = tempEnv.begin(); it != tempEnv.end(); ++it) {
-        char* envStr = strdup(it->c_str());
-        if (envStr) {
-            _env.push_back(envStr);
-        }
-    }
-    _env.push_back(NULL);
-    return 0;
+    _env.push_back(const_cast<char*>(("QUERY_STRING=" + req.getQuery()).c_str()));
+    _env.push_back(const_cast<char*>(("CONTENT_TYPE=" + req.getContentType()).c_str()));
+    _env.push_back(const_cast<char*>(("CONTENT_LENGTH=" + tostring(req.getBody().length())).c_str()));
+    _env.push_back(const_cast<char*>(("SCRIPT_NAME=" + req.getPath()).c_str()));
+    _env.push_back(const_cast<char*>("SERVER_SOFTWARE=WebServ/1.0"));
+	_env.push_back(NULL);
+	return 0;
 }
 
 std::string CGIHandler::makeAbsolutePath(const std::string& path) {
@@ -552,22 +539,6 @@ void    CGIHandler::findPl(std::string& filePath) {
 
 
 void CGIHandler::cleanupResources() {
-    for (size_t i = 0; i < _env.size(); i++) {
-        if (_env[i]) {
-            free(_env[i]);
-        }
-    }
-    _env.clear();
-
-    
-    if (_args) {
-        for (int i = 0; _args[i]; i++) {
-            free(_args[i]);
-        }
-        delete[] _args;
-        _args = NULL;
-    }
-    
     for (int i = 0; i < 2; i++) {
         if (_input[i] >= 0) {
             close(_input[i]);
@@ -580,35 +551,6 @@ void CGIHandler::cleanupResources() {
     }
     _path.clear();
 }
-
-
-// Request    CGIHandler::createTempHeader(std::string output) {
-//     size_t headerEnd = output.find("\r\n\r\n");
-//     if (headerEnd == std::string::npos) {
-//         headerEnd = output.find("\n\n");
-//     }
-
-//     Request temp;
-//     temp.setContentType("text/html");
-//     temp.setBody(output);
-//     std::string headers = "Content-Type: text/html\r\n";
-
-//     if (headerEnd != std::string::npos) {
-//         headers = output.substr(0, headerEnd);
-//         temp.setBody(output.substr(headerEnd + (output.find("\r\n\r\n") != std::string::npos ? 4 : 2)));
-
-//         size_t typePos = headers.find("Content-Type:");
-//         if (typePos != std::string::npos) {
-//             std::string tempType = temp.getContentType();
-//             size_t lineEnd = headers.find("\n", typePos);
-//             temp.setContentType(headers.substr(typePos + 13, lineEnd - typePos - 13));
-//             tempType.erase(0, tempType.find_first_not_of(" \t"));
-//             tempType.erase(tempType.find_last_not_of(" \t\r\n") + 1);
-//             temp.setContentType(tempType);
-//         }
-//     }
-//     return temp;
-// }
 
 int CGIHandler::doChecks(Client client, Request& req) {
     if (access(_path.c_str(), F_OK) != 0) {

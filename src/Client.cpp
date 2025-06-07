@@ -2,44 +2,38 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
 
-// Client::Client() : _webserv(NULL), _server(NULL) {
-// }
-
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
-    std::cout << "FD: " << _fd << "\n";
-    setWebserv(&serv.getWebServ());
-    setServer(&serv);
+    setWebserv(serv.getWebServ());
+    setServer(serv);
 	setConfigs(serv.getConfigs());
+	_cgi = NULL;
 	_cgi = new CGIHandler();
 	_cgi->setClient(*this);
 	_cgi->setServer(serv);
 }
 
-Client::~Client() {
-	//delete _cgi; // TODO: this crashes the program
+Client::Client(const Client& client) {
+	if (this != &client) {
+		_addr = client._addr;
+		_fd = client._fd;
+		setWebserv(*client._webserv);
+		setServer(*client._server);
+		setConfigs(client._configs);
+		_cgi = new CGIHandler();
+		_cgi->setClient(*this);
+		_cgi->setServer(*client._server);
+	}
 }
 
-// struct sockaddr_in  &Client::getAddr() {
-//     return _addr;
-// }
-
-// socklen_t   &Client::getAddrLen() {
-//     return _addrLen;
-// }
+Client::~Client() {
+	delete _cgi;
+}
 
 int     &Client::getFd() {
     return _fd;
 }
-
-// unsigned char &Client::getIP() {
-//     return *_ip;
-// }
-
-// char    &Client::getBuffer() {
-//     return *_buffer;
-// }
 
 void Client::setWebserv(Webserv &webserv) {
     _webserv = &webserv;
@@ -53,11 +47,7 @@ Server &Client::getServer() {
     return *_server;
 }
 
-// Webserv &Client::getWebserv() {
-// 	return *_webserv;
-// }
-
-void    Client::setConfigs(std::vector<serverLevel> &configs) {
+void    Client::setConfigs(const std::vector<serverLevel> &configs) {
     _configs = configs;
 }
 
@@ -104,14 +94,6 @@ int Client::recieveData() {
     
     if (bytesRead > 0) {
         _requestBuffer.append(buffer, bytesRead);
-
-        // if (_requestBuffer.length() > _config.requestLimit) {
-        //     std::cerr << RED << _webserv->getTimeStamp() 
-        //               << "Buffer size exceeded maximum limit: Error 413" << RESET << std::endl;
-        //     sendErrorResponse(413, req);
-        //     _requestBuffer.clear();
-        //     return 1;
-        // }
 
         std::cout << BLUE << _webserv->getTimeStamp() 
                   << "Received " << bytesRead << " bytes from " << _fd 
@@ -391,9 +373,8 @@ int Client::handleRegularRequest(Request& req) {
     if (handleRedirect(req) == 0) {
         return 1;
     }
-	// _cgi->setConfig(req.getConf());
 	_cgi->setCGIBin(&req.getConf());
-    _cgi->setClient(*this); // TODO This fixes the CGI problem, dont know how goo this fix is
+	_cgi->setClient(*this);
     if (_cgi->isCGIScript(reqPath)) {
 		std::string fullCgiPath = _server->getWebRoot(req, loc) + reqPath;
         return _cgi->executeCGI(*this, req, fullCgiPath);
@@ -721,13 +702,6 @@ int Client::handlePostRequest(Request& req) {
 				std::string value = req.getQuery().substr(pos + 1);
 				if (key == "value" || key == "data")
 					contentToWrite = value;
-				// else {//TODO: MAYBE?
-				// 	std::cout << RED << _webserv->getTimeStamp() 
-				// 			  << "Unsupported query parameter for POST request: " << key << RESET << std::endl;
-				// 	sendErrorResponse(400, req);
-				// 	return 1;
-				// }
-				//TODO: but for now:
 				else
 					contentToWrite = value;
 			}
@@ -921,49 +895,9 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     send(_fd, response.c_str(), response.length(), 0);
 }
 
-// void Client::findContentType(Request& req) {
-//     std::string raw(_buffer);
-//     size_t start = raw.find("Content-Type: ");
-    
-//     if (start == std::string::npos) {
-//         if (raw.find("POST") == 0) {
-//             std::cout << RED <<  "Warning: POST request without Content-Type header\n" << RESET;
-//             req.setContentType("application/octet-stream");
-//         }
-//         return;
-//     }
-    
-//     start += 14;
-//     size_t end = raw.find("\r\n", start);
-//     if (end == std::string::npos) {
-//         end = raw.find("\n", start);
-//         if (end == std::string::npos) {
-//             end = raw.length();
-//         }
-//     }
-    
-//     std::string contentType = raw.substr(start, end - start);
-//     req.setContentType(contentType);
-    
-//     size_t boundaryPos = contentType.find("; boundary=");
-//     if (boundaryPos != std::string::npos) {
-//         std::string boundary = contentType.substr(boundaryPos + 11);
-        
-//         // Clean up boundary if needed
-//         size_t quotePos = boundary.find("\"");
-//         if (quotePos != std::string::npos) {
-//             boundary = boundary.substr(0, quotePos);
-//         }
-        
-//         if (boundary.empty()) {
-//             std::cout << "Warning: Empty boundary found" << std::endl;
-//         }
-        
-//         req.setBoundary(boundary);
-//     }
-// }
-
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
+
+    
     if (_fd <= 0) {
         std::cerr << "ERROR: Invalid file descriptor in sendResponse: " << _fd << std::endl;
         return -1;

@@ -12,7 +12,6 @@ bool matchLocation(const std::string& path, const serverLevel& serv, locationLev
 			longestMatch = loc.locName.size();
 		}
 	}
-	// createLocationFromIndex(bestMatch.locName);
 	return found;
 }
 
@@ -25,7 +24,6 @@ bool matchUploadLocation(const std::string& path, const serverLevel& serv, locat
 			locationLevel loc = it->second;
 			if (!loc.uploadDirPath.empty()) {
 				bestMatch = loc;
-				// createLocationFromIndex(loc.uploadDirPath);
 				return true;
 			}
 		}
@@ -39,25 +37,8 @@ bool matchUploadLocation(const std::string& path, const serverLevel& serv, locat
 			}
 		}
 	}
-	// createLocationFromIndex(bestMatch.locName);
 	return found;
 }
-
-// bool matchRootLocation(const std::string& uri, serverLevel& serv, locationLevel& bestMatch) {
-// 	bool found = false;
-// 	size_t longestMatch = 0;
-
-// 	std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
-// 	for (; it != serv.locations.end(); ++it) {
-// 		locationLevel loc = it->second;
-// 		if (uri.find(loc.rootLoc) == 0 && loc.rootLoc.size() > longestMatch) {
-// 			bestMatch = loc;
-// 			longestMatch = loc.rootLoc.size();
-// 			found = true;
-// 		}
-// 	}
-// 	return found;
-// }
 
 const std::string getStatusMessage(int code) {
 	for (size_t i = 0; i < sizeof(httpErrors) / sizeof(httpErrors[0]); i++) {
