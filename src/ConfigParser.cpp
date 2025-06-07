@@ -89,6 +89,7 @@ ConfigParser::~ConfigParser() {
 	std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin();
     for (; it != _storedConfigs.end(); ++it)
         it->clear();
+    }
     _storedConfigs.clear();
 }
 
