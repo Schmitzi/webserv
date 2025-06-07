@@ -8,8 +8,9 @@
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
-    setWebserv(serv.getWebServ());
-    setServer(serv);
+    std::cout << "FD: " << _fd << "\n";
+    setWebserv(&serv.getWebServ());
+    setServer(&serv);
 	setConfigs(serv.getConfigs());
 	_cgi = new CGIHandler();
 	_cgi->setClient(*this);
@@ -963,7 +964,6 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
 // }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
-    
     if (_fd <= 0) {
         std::cerr << "ERROR: Invalid file descriptor in sendResponse: " << _fd << std::endl;
         return -1;
