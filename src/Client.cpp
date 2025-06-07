@@ -5,14 +5,26 @@
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
-    std::cout << "FD: " << _fd << "\n";
-    setWebserv(&serv.getWebServ());
-    setServer(&serv);
+    setWebserv(serv.getWebServ());
+    setServer(serv);
 	setConfigs(serv.getConfigs());
 	_cgi = NULL;
 	_cgi = new CGIHandler();
 	_cgi->setClient(*this);
 	_cgi->setServer(serv);
+}
+
+Client::Client(const Client& client) {
+	if (this != &client) {
+		_addr = client._addr;
+		_fd = client._fd;
+		setWebserv(*client._webserv);
+		setServer(*client._server);
+		setConfigs(client._configs);
+		_cgi = new CGIHandler();
+		_cgi->setClient(*this);
+		_cgi->setServer(*client._server);
+	}
 }
 
 Client::Client(const Client& copy) {
