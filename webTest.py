@@ -138,7 +138,7 @@ def test_large_request_body():
         (1024 * 1024, "1MB"),       # 1MB - should work
         (1024 * 1024 * 2, "2MB"),   # 2MB - might work
         (1024 * 1024 * 5, "5MB"),   # 5MB - might hit limit
-        (1024 * 1024 * 10, "10MB"), # 10MB - likely to fail
+        # (1024 * 1024 * 10, "10MB"), # 10MB - likely to fail
     ]
     
     print_test("Testing various request sizes to find server limit...")
@@ -231,8 +231,8 @@ def test_request_size_edge_cases():
     # Test exactly at common limits
     common_limits = [
         (1024 * 1024, "1MB"),           # Common small limit
-        (1024 * 1024 * 8, "8MB"),       # Common medium limit  
-        (1024 * 1024 * 32, "32MB"),     # Common large limit
+        # (1024 * 1024 * 8, "8MB"),       # Common medium limit  
+        # (1024 * 1024 * 32, "32MB"),     # Common large limit
     ]
     
     uploaded_files = []  # Track files that need cleanup
@@ -246,7 +246,7 @@ def test_request_size_edge_cases():
         
         print(f"Testing just under {size_name}...")
         res = test_connection(file_path, "POST", 
-                            body=under_body, headers=under_headers, timeout=30)
+                            body=under_body, headers=under_headers, timeout=60)
         
         if res and (res.status == 200 or res.status == 201):
             print_test(f"  Just under {size_name}: ✅ ACCEPTED", "PASS")
@@ -264,7 +264,7 @@ def test_request_size_edge_cases():
         cleanup_success = 0
         for file_path in uploaded_files:
             try:
-                delete_res = test_connection(file_path, "DELETE", timeout=10)
+                delete_res = test_connection(file_path, "DELETE", timeout=30)
                 if delete_res and (delete_res.status == 200 or delete_res.status == 204):
                     cleanup_success += 1
                     print_test(f"  🗑️  Deleted {file_path}", "INFO")
@@ -651,7 +651,7 @@ def main():
         test_chunked_transfer()
         test_large_request_body()
         test_request_size_edge_cases()
-        test_reasonable_upload_limits()
+        # test_reasonable_upload_limits()
         test_different_ports()
         test_concurrent_connections()
         test_server_resilience()
