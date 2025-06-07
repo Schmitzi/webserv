@@ -42,10 +42,6 @@ int &Server::getFd() {
     return _fd;
 }
 
-// serverLevel &Server::getCurConfig() {
-// 	return _curConfig;
-// }
-
 std::vector<serverLevel> &Server::getConfigs() {
 	return _configs;
 }
@@ -87,18 +83,6 @@ std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
 	return path;
 }
 
-// void Server::setWebserv(Webserv* webserv) {
-//     _webserv = webserv;
-// }
-
-// void    Server::setConfigs(std::vector<serverLevel> configs) {
-//     _configs = configs;
-// }
-
-// void    Server::setFd(int const fd) {
-//     _fd = fd;
-// }
-
 int Server::openSocket() {
     // Create a TCP socket
     _fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
@@ -137,8 +121,6 @@ int Server::setServerAddr() {
     } else {
         inet_pton(AF_INET, ip.c_str(), &(_addr.sin_addr));
     }
-//     std::tuple<std::string, std::string, std::string> hostPortName;
-//    _curConfig.getConfig().servName; 
     _addr.sin_port = htons(port);
     
     std::cout << GREEN << _webserv->getTimeStamp() << "Server binding to " << RESET << ip << ":" << port << std::endl;

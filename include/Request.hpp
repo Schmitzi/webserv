@@ -31,15 +31,9 @@ class Request {
 		std::string getReqPath() const;
         std::map<std::string, std::string> &getHeaders();
         std::string getMimeType(std::string const &path);
-        // void    setMethod(std::string const method);
         void    setPath(std::string const path);
-        // void    setVersion(std::string const version);
         void    setBody(std::string const body);
-        // void    setQuery(std::string const query);
         void    setContentType(std::string const content);
-        // void    setBoundary(std::string boundary);
-        // void    setHeader(std::map<std::string, std::string> map);
-		// void    setCurConf(serverLevel& conf);
 		bool    matchHostServerName();
         void    parse(const std::string& rawRequest);
         void    parseHeaders(const std::string& headerSection);

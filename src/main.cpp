@@ -43,7 +43,8 @@ void signalHandler(int signal) {
 			std::cerr << "Failed to delete error pages directory.\n";
     
         std::cout << "Goodbye!" << std::endl;
-        std::exit(0); // TEMPORARY!!!!
+		// std::exit(0); // TEMPORARY!!!!
+        throw configException("ERROR");//TODO: implement flag instead of this
     }
 }
 

@@ -36,9 +36,6 @@ class Server {
 		ConfigParser				&getConfParser();
         std::string   				getUploadDir(Client& client, Request& req);
         std::string					getWebRoot(Request& req, locationLevel& loc);
-        // void                		setWebserv(Webserv* webserv);
-        // void                		setConfigs(std::vector<serverLevel> configs);
-        // void                		setFd(int const fd);
         int                 		openSocket();
         int                 		setOptional();
         int                 		setServerAddr();

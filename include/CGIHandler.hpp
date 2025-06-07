@@ -20,7 +20,6 @@ class CGIHandler {
         ~CGIHandler();
         void    setClient(Client &client);
         void    setServer(Server &server);
-        // void    setConfig(serverLevel &config);
         void    setCGIBin(serverLevel *config);
         std::string getInfoPath();
 		void    setPathInfo(Request& req);
@@ -32,7 +31,6 @@ class CGIHandler {
         int     executeCGI(Client &client, Request& req, std::string const &scriptPath);
         int    prepareEnv(Request &req);
         std::string makeAbsolutePath(const std::string& path);
-        // Request createTempHeader(std::string output);
         std::map<std::string, std::string> parseHeaders(const std::string& headerSection);
         std::pair<std::string, std::string> splitHeaderAndBody(const std::string& output);
         void    findBash(std::string& filePath);
@@ -55,7 +53,6 @@ class CGIHandler {
 
         Client                      *_client;
         Server                      *_server;
-        // serverLevel                  *_config;
 };
 
 #endif
