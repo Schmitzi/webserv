@@ -307,6 +307,7 @@ void    Webserv::cleanup() {
         }
 
     }
+
     _servers.clear();
 
     if (_epollFd >= 0) {
