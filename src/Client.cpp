@@ -8,6 +8,7 @@
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
+    std::cout << "FD: " << _fd << "\n";
     setWebserv(&serv.getWebServ());
     setServer(&serv);
 	setConfigs(serv.getConfigs());
@@ -70,14 +71,17 @@ void    Client::setAutoIndex(locationLevel& loc) {
 
 int Client::acceptConnection(int serverFd) {
     _addrLen = sizeof(_addr);
-    _fd = accept(serverFd, (struct sockaddr *)&_addr, &_addrLen);
-    if (_fd < 0) {
+    int newFd = accept(serverFd, (struct sockaddr *)&_addr, &_addrLen);
+    if (newFd < 0) {
         _webserv->ft_error("Accept failed");
         return 1;
     }
-    setConfigs(_server->getConfigs());
     
+    _fd = newFd;
+    setConfigs(_server->getConfigs());
     _cgi->setServer(*_server);
+    
+    std::cout << BLUE << _webserv->getTimeStamp() << "Client accepted with fd: " << _fd << RESET << std::endl;
     
     return 0;
 }
@@ -387,7 +391,7 @@ int Client::handleRegularRequest(Request& req) {
     if (handleRedirect(req) == 0) {
         return 1;
     }
-	_cgi->setConfig(req.getConf());
+	_cgi->setConfig(req.getConf()); //????
 	_cgi->setCGIBin(&req.getConf());
     if (_cgi->isCGIScript(reqPath)) {
 		std::string fullCgiPath = _server->getWebRoot(req, loc) + reqPath;
@@ -960,14 +964,14 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
 // }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
-    std::string response = "HTTP/1.1 200 OK\r\n";
-    // std::string contentType;
+    std::cout << "DEBUG: sendResponse called with client fd: " << _fd << std::endl;
     
-    // if (req.getPath().empty() || req.getPath() == "/" || req.getPath() == "/index.html") {
-    //     contentType = "text/html";
-    // } else {
-    //     contentType = req.getMimeType(req.getPath());
-    // }
+    if (_fd <= 0) {
+        std::cerr << "ERROR: Invalid file descriptor in sendResponse: " << _fd << std::endl;
+        return -1;
+    }
+    
+    std::string response = "HTTP/1.1 200 OK\r\n";
     
     std::map<std::string, std::string> headers = req.getHeaders();
     bool isChunked = false;
@@ -994,10 +998,20 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     response += "Connection: " + connect + "\r\n";
     response += "Access-Control-Allow-Origin: *\r\n";
     response += "\r\n";
+
+    std::cout << BLUE << _webserv->getTimeStamp() << "Attempting to send " << response.length() 
+              << " bytes to fd " << _fd << RESET << std::endl;
+    
+    // Validate fd again before sending
+    if (_fd <= 0) {
+        std::cerr << "ERROR: File descriptor became invalid before send: " << _fd << std::endl;
+        return -1;
+    }
     
     ssize_t headerBytes = send(_fd, response.c_str(), response.length(), 0);
     if (headerBytes < 0) {
-        std::cerr << RED << _webserv->getTimeStamp() << "Failed to send headers" << RESET << std::endl;
+        std::cerr << RED << _webserv->getTimeStamp() << "Failed to send headers to fd " << _fd 
+                  << ": " << strerror(errno) << RESET << std::endl;
         return -1;
     }
     

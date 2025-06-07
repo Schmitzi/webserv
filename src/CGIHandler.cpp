@@ -76,6 +76,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         execve(_args[0], _args, &_env[0]);
         
         std::cerr << "execve failed: " << strerror(errno) << "\n";
+        cleanupResources();
 		return 1;
     } 
     else if (pid > 0) {  // Parent process
@@ -601,6 +602,7 @@ void CGIHandler::cleanupResources() {
         }
     }
     _env.clear();
+
     
     if (_args) {
         for (int i = 0; _args[i]; i++) {

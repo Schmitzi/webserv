@@ -28,21 +28,25 @@ ConfigParser &ConfigParser::operator=(const ConfigParser& copy) {
 ConfigParser::~ConfigParser() {
     _ipPortToServers.clear();
 
-	std::vector<serverLevel>::iterator servIt = _allConfigs.begin();
-	for (; servIt != _allConfigs.end(); ++servIt) {
-		std::map<std::string, locationLevel>::iterator locIt = servIt->locations.begin();
-		for (; locIt != servIt->locations.end(); ++locIt)
+    for (std::vector<serverLevel>::iterator servIt = _allConfigs.begin(); 
+         servIt != _allConfigs.end(); ++servIt) {
+        
+        for (std::map<std::string, locationLevel>::iterator locIt = servIt->locations.begin(); 
+             locIt != servIt->locations.end(); ++locIt) {
             locIt->second.methods.clear();
+        }
+        
         servIt->locations.clear();
         servIt->port.clear();
         servIt->servName.clear();
         servIt->errPages.clear();
-	}
-	_allConfigs.clear();
+    }
+    _allConfigs.clear();
 
-    std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin();
-    for (; it != _storedConfigs.end(); ++it)
+    for (std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin(); 
+         it != _storedConfigs.end(); ++it) {
         it->clear();
+    }
     _storedConfigs.clear();
 }
 
