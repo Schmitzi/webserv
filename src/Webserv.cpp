@@ -86,7 +86,7 @@ int Webserv::run() {
         "Server " << i + 1 << " is listening on port " << RESET << 
         _confParser.getPort(_servers[i].getConfigs()[0]) << "\n";
     }
-    while (!_state) {
+    while (_state) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
             if (errno == EINTR) {

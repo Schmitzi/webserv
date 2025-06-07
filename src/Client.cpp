@@ -26,7 +26,9 @@ Client &Client::operator=(const Client& copy) {
 		setWebserv(*copy._webserv);
 		setServer(*copy._server);
 		setConfigs(copy._configs);
-		_cgi = new CGIHandler(*copy._cgi);
+		_cgi = new CGIHandler();
+		_cgi->setClient(*this);
+		_cgi->setServer(*copy._server);
 	}
 	return *this;
 }
