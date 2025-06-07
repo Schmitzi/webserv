@@ -1,6 +1,7 @@
 #include "../include/Webserv.hpp"
 
 Webserv::Webserv(std::string const &config) : _epollFd(-1) {
+	_state = false;
 	_confParser = ConfigParser(config);
     _configs = _confParser.getAllConfigs();
     for (size_t i = 0; i < _configs.size(); i++) {//CHECK ALL CONFIGS
@@ -28,6 +29,7 @@ Webserv::Webserv(Webserv const &other) : _epollFd(-1) {
 Webserv &Webserv::operator=(Webserv const &other) {
     if (this != &other) {
         cleanup();
+		_state = other._state;
 		_servers = other._servers;
 		_clients = other._clients;
 		_env = other._env;
