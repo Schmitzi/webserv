@@ -110,7 +110,6 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         return 1;
     } 
     else if (pid > 0) {  // Parent process
-
         close(_input[0]);
         close(_output[1]);
 

@@ -15,6 +15,7 @@ Client::Client(Server& serv) {
 }
 
 
+
 Client::Client(const Client& copy) {
 	*this = copy;
 }
