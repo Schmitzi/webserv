@@ -566,6 +566,7 @@ void CGIHandler::cleanupResources() {
         }
     }
     _env.clear();
+
     
     if (_args) {
         for (int i = 0; _args[i]; i++) {
