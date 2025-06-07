@@ -20,7 +20,7 @@ class CGIHandler {
         ~CGIHandler();
         void    setClient(Client &client);
         void    setServer(Server &server);
-        void    setConfig(serverLevel &config);
+        // void    setConfig(serverLevel &config);
         void    setCGIBin(serverLevel *config);
         std::string getInfoPath();
 		void    setPathInfo(Request& req);
@@ -55,7 +55,7 @@ class CGIHandler {
 
         Client                      *_client;
         Server                      *_server;
-        serverLevel                  *_config;
+        // serverLevel                  *_config;
 };
 
 #endif

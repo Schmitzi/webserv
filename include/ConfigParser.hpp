@@ -22,6 +22,8 @@
 #define RESET   "\33[0m" // No Colour
 
 struct locationLevel {
+	locationLevel();
+	~locationLevel();
 	std::string									locName;//location
 	std::string									rootLoc;//root
 	std::string									indexFile;//index
@@ -35,6 +37,8 @@ struct locationLevel {
 };
 
 struct serverLevel {
+	serverLevel();
+	~serverLevel();
 	std::vector<std::pair<std::pair<std::string, int>, bool> >	port;//listen
 	std::string									rootServ;//root
 	std::string									indexFile;//index

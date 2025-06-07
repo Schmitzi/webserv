@@ -1,6 +1,49 @@
 #include "../include/ConfigParser.hpp"
 
-ConfigParser::ConfigParser() {}
+serverLevel::serverLevel() : 
+		port(),
+		rootServ(""),
+		indexFile(""),
+		servName(),
+		errPages(),
+		maxRequestSize(""),
+		requestLimit(0),
+		locations() {}
+
+locationLevel::locationLevel() :
+		locName(""),
+		rootLoc(""),
+		indexFile(""),
+		methods(),
+		autoindexFound(false),
+		autoindex(false),
+		redirectionHTTP(std::make_pair(0, "")),
+		hasRedirect(false),
+		cgiProcessorPath(""),
+		uploadDirPath("") {}
+
+serverLevel::~serverLevel() {}
+
+locationLevel::~locationLevel() {}
+
+ConfigParser::ConfigParser() {
+	_filepath = "";
+	std::vector<std::string> temp;
+	temp.push_back("");
+	_storedConfigs.push_back(temp);
+	serverLevel serv = serverLevel();
+	_allConfigs.push_back(serv);
+	std::pair<std::string, int> first;
+	first.first = "";
+	first.second = -1;
+	std::pair<std::pair<std::string, int>, bool> second;
+	second.first = first;
+	second.second = false;	
+	std::vector<serverLevel> third;
+	third.push_back(serv);
+	_ipPortToServers.insert(std::pair<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel> >(second, third));
+}
+
 
 ConfigParser::ConfigParser(const std::string& filepath) {
 	_filepath = filepath;
@@ -39,8 +82,8 @@ ConfigParser::~ConfigParser() {
         servIt->errPages.clear();
 	}
 	_allConfigs.clear();
-
-    std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin();
+	
+	std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin();
     for (; it != _storedConfigs.end(); ++it)
         it->clear();
     _storedConfigs.clear();
@@ -77,7 +120,7 @@ void ConfigParser::storeConfigs() {
 }
 
 void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serverLevel &serv, std::vector<std::string> &conf) {
-	locationLevel loc;
+	locationLevel loc = locationLevel();
 	initLocLevel(s, loc);
 	while (i < conf.size()) {
 		if (conf[i].find("}") != std::string::npos) break;
@@ -197,7 +240,7 @@ void ConfigParser::setIpPortToServers() {
 void ConfigParser::parseAndSetConfigs() {
     std::set<std::string> usedCombinations; // "ip:port:servername"
     for (size_t i = 0; i < _storedConfigs.size(); i++) {
-        serverLevel nextConf;
+        serverLevel nextConf = serverLevel();
         setConfigLevels(nextConf, _storedConfigs[i]);
         bool validServer = false;
 

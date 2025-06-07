@@ -161,8 +161,9 @@ Server Webserv::findServerByFd(int fd, bool& found) {
 			return _servers[i];
         }
     }
+	if (!_servers.empty())
+		return _servers[0];
 	throw configException("Can't find server by FD");
-	return _servers[0];
 }
 
 Client Webserv::findClientByFd(int fd, bool& found) {
@@ -172,8 +173,9 @@ Client Webserv::findClientByFd(int fd, bool& found) {
             return _clients[i];
         }
     }
+	if (!_clients.empty())
+		return _clients[0];
     throw configException("Can't find client by FD");
-	return _clients[0];
 }
 
 void Webserv::handleErrorEvent(int fd) {
@@ -316,7 +318,7 @@ void    Webserv::cleanup() {
             close(_clients[i].getFd());
         }
     }
-    _clients.clear();
+    // _clients.clear();
 
     for (size_t i = 0; i < _servers.size(); i++) {
         if (_servers[i].getFd() >= 0) {

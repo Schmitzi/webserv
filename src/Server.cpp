@@ -54,7 +54,7 @@ ConfigParser &Server::getConfParser() {
 }
 
 std::string Server::getUploadDir(Client& client, Request& req) {
-	locationLevel loc;
+	locationLevel loc = locationLevel();
 	if (!matchUploadLocation(req.getReqPath(), req.getConf(), loc)) {
 		std::cout << "Location not found: " << req.getReqPath() << std::endl;
 		client.sendErrorResponse(403, req);
