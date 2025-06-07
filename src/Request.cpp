@@ -19,6 +19,29 @@ Request::Request(const std::string& rawRequest, Server& server) :
     parse(rawRequest);
 }
 
+Request::Request(const Request& copy) {
+	*this = copy;
+}
+
+Request &Request::operator=(const Request& copy) {
+	if (this != &copy) {
+		_host = copy._host;
+		_method = copy._method;
+		_path = copy._path;
+		_contentType = copy._contentType;
+		_version = copy._version;
+		_headers = copy._headers;
+		_body = copy._body;
+		_query = copy._query;
+		_boundary = copy._boundary;
+		_reqPath = copy._reqPath;
+		_contentLength = copy._contentLength;
+		_curConf = copy._curConf;
+		_configs = copy._configs;
+	}
+	return *this;
+}
+
 Request::~Request() {
 
 }

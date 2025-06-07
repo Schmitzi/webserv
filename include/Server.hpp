@@ -27,6 +27,8 @@ class Client;
 class Server {
     public:
         Server(ConfigParser confs, int nbr, Webserv& webserv);
+		Server(const Server& copy);
+		Server &operator=(const Server& copy);
         ~Server();
         
         Webserv             		&getWebServ();

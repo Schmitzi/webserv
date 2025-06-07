@@ -6,7 +6,8 @@
 class Multipart {
     public:
         Multipart(const std::string& data, const std::string& boundary);
-        
+        ~Multipart();
+
         bool parse();
         std::string getFilename() const;
         std::string getFileContent() const;
