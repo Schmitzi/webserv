@@ -21,9 +21,9 @@ void    CGIHandler::setServer(Server &server) {
     _server = &server;
 }
 
-void    CGIHandler::setConfig(serverLevel& config) {
-    _config = &config;
-}
+// void    CGIHandler::setConfig(serverLevel& config) {
+//     _config = &config;
+// }
 
 std::string CGIHandler::getInfoPath() {
     return _pathInfo;
@@ -347,7 +347,7 @@ int CGIHandler::prepareEnv(Request &req) { // TODO: Changed from void to int for
 				return 1;
 			}
 		}
-		locationLevel loc;
+		locationLevel loc = locationLevel();
 		if (!matchUploadLocation("cgi-bin", req.getConf(), loc)) {
 			std::cerr << "Location not found for path: cgi-bin" << std::endl;
 			return 1;

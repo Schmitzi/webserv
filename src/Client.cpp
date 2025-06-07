@@ -17,7 +17,7 @@ Client::Client(Server& serv) {
 }
 
 Client::~Client() {
-	delete _cgi;
+	// delete _cgi;
 }
 
 // struct sockaddr_in  &Client::getAddr() {
@@ -257,7 +257,7 @@ int Client::processRequest(std::string &buffer) {
         return 1;
     }
 
-    locationLevel loc;
+    locationLevel loc = locationLevel();
     if (matchLocation(req.getPath(), conf, loc)) {
         if (loc.hasRedirect == true) {
             sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
@@ -291,7 +291,7 @@ int Client::processRequest(std::string &buffer) {
 
 int Client::handleGetRequest(Request& req) {
 	std::string requestPath = req.getPath();
-	locationLevel loc;
+	locationLevel loc = locationLevel();
 	if (!matchLocation(req.getReqPath(), req.getConf(), loc)) {
 		std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getReqPath() << std::endl;
 		sendErrorResponse(404, req);
@@ -322,7 +322,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         actualPath = requestPath.substr(5);
         if (actualPath.empty()) actualPath = "/";
     } else {
-		locationLevel loc;
+		locationLevel loc = locationLevel();
 		matchLocation(requestPath, req.getConf(), loc);
         actualPath = requestPath.substr(5);
         std::string actualFullPath = _server->getWebRoot(req, loc) + actualPath;
@@ -355,7 +355,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 }
 
 int Client::handleRegularRequest(Request& req) {
-    locationLevel loc;
+    locationLevel loc = locationLevel();
 
     if (!matchLocation(req.getPath(), req.getConf(), loc)) {
         std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getPath() << std::endl;
@@ -390,7 +390,7 @@ int Client::handleRegularRequest(Request& req) {
     if (handleRedirect(req) == 0) {
         return 1;
     }
-	_cgi->setConfig(req.getConf()); //????
+	// _cgi->setConfig(req.getConf());
 	_cgi->setCGIBin(&req.getConf());
     _cgi->setClient(*this); // TODO This fixes the CGI problem, dont know how goo this fix is
     if (_cgi->isCGIScript(reqPath)) {
@@ -466,7 +466,7 @@ int Client::buildBody(Request &req, std::string fullPath) {
 }
 
 int Client::viewDirectory(std::string fullPath, Request& req) {
-    locationLevel loc;
+    locationLevel loc = locationLevel();
 	if (matchLocation(req.getPath(), req.getConf(), loc)) {
 		setAutoIndex(loc);
 		if (_autoindex == true) {
@@ -639,7 +639,7 @@ std::string Client::extractFileName(const std::string& path) {
 }
 
 std::string Client::getLocationPath(Request& req, const std::string& method) {	
-	locationLevel loc;
+	locationLevel loc = locationLevel();
 	if (req.getPath().empty()) {
 		std::cout << "Request path is empty for " << method << " request" << std::endl;
 		sendErrorResponse(400, req);
@@ -674,7 +674,7 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 }
 
 int Client::handlePostRequest(Request& req) {
-	locationLevel loc;
+	locationLevel loc = locationLevel();
     if (!matchLocation(req.getPath(), req.getConf(), loc)) {
 		std::cout << RED << _webserv->getTimeStamp() << "Location not found for POST request: " 
 				  << RESET << req.getPath() << std::endl;
