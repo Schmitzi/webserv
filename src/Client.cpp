@@ -8,7 +8,6 @@
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
-    std::cout << "FD: " << _fd << "\n";
     setWebserv(&serv.getWebServ());
     setServer(&serv);
 	setConfigs(serv.getConfigs());
@@ -393,6 +392,7 @@ int Client::handleRegularRequest(Request& req) {
     }
 	_cgi->setConfig(req.getConf()); //????
 	_cgi->setCGIBin(&req.getConf());
+    _cgi->setClient(*this); // TODO This fixes the CGI problem, dont know how goo this fix is
     if (_cgi->isCGIScript(reqPath)) {
 		std::string fullCgiPath = _server->getWebRoot(req, loc) + reqPath;
         return _cgi->executeCGI(*this, req, fullCgiPath);
@@ -964,7 +964,6 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
 // }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
-    std::cout << "DEBUG: sendResponse called with client fd: " << _fd << std::endl;
     
     if (_fd <= 0) {
         std::cerr << "ERROR: Invalid file descriptor in sendResponse: " << _fd << std::endl;

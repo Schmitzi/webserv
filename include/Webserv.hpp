@@ -50,6 +50,7 @@ class Webserv {
         // int             setConfig(std::string const &filepath);
         // Polling
         //int             serverCheck();
+        void           flipState();
         Server         findServerByFd(int fd, bool& found);
         Client         findClientByFd(int fd, bool& found);
         void            handleErrorEvent(int fd);
@@ -66,6 +67,7 @@ class Webserv {
         void            cleanup();
 
     private:
+        bool                    _state;
         std::vector<Server> 		_servers;
         std::vector<Client>   	_clients;
         char                    	**_env;
