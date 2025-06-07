@@ -32,6 +32,7 @@ class Client {
     public:
         Client(Server& serv);
         Client(const Client& client);
+        Client& operator=(const Client& other);
         ~Client();
         int                     &getFd();
         Server                  &getServer();
