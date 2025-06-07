@@ -96,6 +96,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
 		return 1;
     } 
     else if (pid > 0) {  // Parent process
+
         close(_input[0]);
         close(_output[1]);
 
@@ -162,7 +163,6 @@ int CGIHandler::processScriptOutput(Client &client) {
     
     close(_output[0]);
     _output[0] = -1;
-
     std::cout << BLUE << getTimeStamp() << "Total bytes read: " << RESET << totalBytesRead << std::endl;
 
     // If no output, send a default response
@@ -201,10 +201,8 @@ bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& hea
 }
 
 int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
-    // Create a temporary request to hold the response information
     Request temp;
     
-    // Set content type from headers
     std::map<std::string, std::string>::const_iterator typeIt = headerMap.find("Content-Type");
     if (typeIt != headerMap.end()) {
         temp.setContentType(typeIt->second);
@@ -212,26 +210,20 @@ int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& h
         temp.setContentType("text/html");
     }
     
-    // Set the body
     temp.setBody(initialBody);
-    
-    // Send standard response
     _client->sendResponse(temp, "keep-alive", temp.getBody());
     return 0;
 }
 
 int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
-    // Build HTTP chunked response
     std::string response = "HTTP/1.1 200 OK\r\n";
     
-    // Add all headers except Content-Length (which doesn't apply to chunked responses)
     for (std::map<std::string, std::string>::const_iterator it = headerMap.begin(); it != headerMap.end(); ++it) {
         if (it->first != "Content-Length") {
             response += it->first + ": " + it->second + "\r\n";
         }
     }
     
-    // Make sure Transfer-Encoding: chunked is included
     if (headerMap.find("Transfer-Encoding") == headerMap.end()) {
         response += "Transfer-Encoding: chunked\r\n";
     }
@@ -239,10 +231,8 @@ int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& he
     response += "Connection: keep-alive\r\n";
     response += "\r\n";
     
-    // Format body as chunked
     response += formatChunkedResponse(initialBody);
     
-    // Send the chunked response
     if (!_client->send_all(_client->getFd(), response)) {
         std::cerr << "Failed to send chunked response" << std::endl;
         return 1;
@@ -254,13 +244,11 @@ int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& he
 std::string CGIHandler::formatChunkedResponse(const std::string& body) {
     std::string chunkedBody = "";
     
-    // If body is empty, just send a terminating chunk
     if (body.empty()) {
         chunkedBody = "0\r\n\r\n";
         return chunkedBody;
     }
     
-    // Define chunk size (we could optimize by using different sizes)
     const size_t chunkSize = 4096;
     size_t remaining = body.length();
     size_t offset = 0;

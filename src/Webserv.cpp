@@ -20,6 +20,7 @@ Webserv::Webserv(std::string const &config) : _epollFd(-1) {
 		if (toAdd)
 			_servers.push_back(Server(_confParser, i, *this));
 	}
+    _state = true;
 }
 
 Webserv::Webserv(Webserv const &other) : _epollFd(-1) {
@@ -62,7 +63,7 @@ int Webserv::run() {
         ft_error("epoll_create1() failed");
         return 1;
     }
-   // Initialize server
+
    for (size_t i = 0; i < _servers.size(); i++) {
     if (_servers[i].getFd() > 0) {
         std::cout << BLUE << getTimeStamp() << "Host:Port already opened: " << RESET << 
@@ -230,30 +231,20 @@ void Webserv::handleNewConnection(Server &server) {
 }
 
 void Webserv::handleClientActivity(int clientFd) {
-	std::cout << BLUE << getTimeStamp() << "Handling activity for fd: " << clientFd << RESET << std::endl;
+	bool found = false;
+    Client client = findClientByFd(clientFd, found);
     
-    // Find the client properly
-    Client* clientPtr = NULL;
-    for (size_t i = 0; i < _clients.size(); i++) {
-        if (_clients[i].getFd() == clientFd) {
-            clientPtr = &_clients[i];
-            break;
-        }
-    }
-    
-    if (!clientPtr) {
+    if (!found) {
         std::cerr << RED << getTimeStamp() << "Client not found for fd: " << clientFd << RESET << std::endl;
         removeFromEpoll(clientFd);
         close(clientFd);
         return;
     }
     
-    std::cout << BLUE << getTimeStamp() << "Found client with fd: " << clientPtr->getFd() << RESET << std::endl;
-    
-    if (clientPtr->recieveData() != 0) {
+    if (client.recieveData() != 0) {
         removeFromEpoll(clientFd);
         close(clientFd);
-
+        
         for (size_t i = 0; i < _clients.size(); i++) {
             if (_clients[i].getFd() == clientFd) {
                 _clients.erase(_clients.begin() + i);
@@ -304,9 +295,7 @@ void    Webserv::cleanup() {
             removeFromEpoll(_servers[i].getFd());
             close(_servers[i].getFd());
         }
-
     }
-
     _servers.clear();
 
     if (_epollFd >= 0) {
