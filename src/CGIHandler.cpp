@@ -346,13 +346,15 @@ int CGIHandler::prepareEnv(Request &req) { // TODO: Changed from void to int for
             queryType = req.getQuery().substr(0, pos1);
             if (queryType == "file")
                 fileName = req.getQuery().substr(pos1 + 1);
-            else if (queryType == "content" || queryType == "body" || queryType == "data"
-                    || queryType == "value" || queryType == "text" || queryType == "user")
-                fileContent = req.getQuery().substr(pos1 + 1);
-            else {
-                std::cerr << "Invalid query type: " << queryType << std::endl;
-                return 1;
-            }
+			else
+				fileContent = req.getQuery().substr(pos1 + 1);
+            // else if (queryType == "content" || queryType == "body" || queryType == "data"
+            //         || queryType == "value" || queryType == "text" || queryType == "user")
+            //     fileContent = req.getQuery().substr(pos1 + 1);
+            // else {
+            //     std::cerr << "Invalid query type: " << queryType << std::endl;
+            //     return 1;
+            // }
         }
         locationLevel loc = locationLevel();
         if (!matchUploadLocation("cgi-bin", req.getConf(), loc)) {
