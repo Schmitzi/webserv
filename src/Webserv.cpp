@@ -46,11 +46,12 @@ Webserv::~Webserv() {
 }
 
 void Webserv::flipState() {
-    if (_state == true) {
-        _state = false;
-    } else {
-        _state = true;
-    }
+	_state = false;
+	// if (_state == true) {
+    //     _state = false;
+    // } else {
+    //     _state = false;
+    // }
 }
 
 void Webserv::setEnvironment(char **envp) {
@@ -86,7 +87,7 @@ int Webserv::run() {
         "Server " << i + 1 << " is listening on port " << RESET << 
         _confParser.getPort(_servers[i].getConfigs()[0]) << "\n";
     }
-    while (_state) {
+    while (_state == true) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
             if (errno == EINTR) {
