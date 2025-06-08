@@ -20,8 +20,6 @@ struct serverLevel;
 class CGIHandler {
     public:
 		CGIHandler();
-		CGIHandler(const CGIHandler& copy);
-		CGIHandler &operator=(const CGIHandler& copy);
         ~CGIHandler();
         void    setClient(Client &client);
         void    setServer(Server &server);
