@@ -22,6 +22,7 @@ class Request {
         Request(const std::string& rawRequest, Server& server);
         ~Request();
         std::string &getPath();
+		std::string &getHost();
         std::string const &getMethod();
         std::string const &getVersion();
         std::string const &getBody();
@@ -38,7 +39,7 @@ class Request {
         void    setContentType(std::string const content);
 		bool    matchHostServerName();
         void    parse(const std::string& rawRequest);
-        void    parseHeaders(const std::string& headerSection);
+        int    parseHeaders(const std::string& headerSection);
         void    checkContentLength(std::string buffer);
         void    parseContentType();
         bool    isChunkedTransfer() const;
