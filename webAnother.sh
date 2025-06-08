@@ -4,7 +4,7 @@ HOST="localhost"
 PORT="8080"
 BASE_URL="http://$HOST:$PORT"
 TMP_FILE="upload_test.txt"
-BIG_BODY_FILE="big_body.tmp"
+BIG_BODY_FILE="big_body.txt"
 PASS_COUNT=0
 TOTAL_COUNT=0
 
@@ -38,7 +38,7 @@ echo "Webserv Testing Started at $BASE_URL"
 echo "====================================="
 
 echo "this is a test upload" > "$TMP_FILE"
-dd if=/dev/zero bs=1M count=2 of=$BIG_BODY_FILE status=none
+dd if=/dev/zero bs=10M count=2 of=$BIG_BODY_FILE status=none
 
 # ========== TESTS ==========
 
@@ -90,20 +90,21 @@ run_test "Method Not Allowed (PUT)" \
 run_test "Keep-Alive Header (Connection reuse)" \
   "curl -fs --header 'Connection: keep-alive' $BASE_URL/"
 
-# run_test "Large Request Body (2MB)" \
+run_test "Unsupported HTTP Version" \
+  "printf 'GET / HTTP/0.9\r\nHost: localhost\r\n\r\n' | nc $HOST $PORT | grep -q 'HTTP/1.1 400 Bad Request'"
+
+run_test "Missing Host Header (HTTP/1.1)" \
+  "printf 'GET / HTTP/1.1\r\n\r\n' | nc $HOST $PORT | grep -q 'HTTP/1.1 400 Bad Request'"
+
+run_test "Multiple Concurrent GET Requests (x10)" \
+  "seq 1 10 | xargs -n1 -P10 -I{} curl -fs -w 'Request {}: %{http_code}\n' -o /dev/null $BASE_URL/"
+
+run_test "Invalid HTTP Method (via netcat workaround)" \
+  "printf 'FOO / HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc $HOST $PORT | grep -q 'HTTP/1.1 400 Bad Request'"
+
+# works but takes a long time:
+# run_test "Large Request Body (20MB)" \
 #   "! curl -fs -X POST --data-binary @$BIG_BODY_FILE $BASE_URL/upload"
-
-# run_test "Invalid HTTP Method (via netcat workaround)" \
-#   "! printf 'FOO / HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc $HOST $PORT"
-
-# run_test "Unsupported HTTP Version" \
-#   "! printf 'GET / HTTP/0.9\r\nHost: localhost\r\n\r\n' | nc $HOST $PORT"
-
-# run_test "Missing Host Header (HTTP/1.1)" \
-#   "! printf 'GET / HTTP/1.1\r\n\r\n' | nc $HOST $PORT"
-
-# run_test "Multiple Concurrent GET Requests (x10)" \
-#   "seq 1 10 | xargs -n1 -P10 curl -fs $BASE_URL/ > /dev/null"
 
 # ========== CLEANUP ==========
 rm -f "$TMP_FILE" "$BIG_BODY_FILE"

@@ -46,12 +46,12 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
 <!-- - [ ] Default server for host:port &#x2611; -->
 <!-- - [ ] Custom error pages &#x2611; -->
 <!-- - [ ] Client body size limits &#x2611; -->
-- [ ] Route configuration with:
+<!-- - [ ] Route configuration with: -->
  <!-- - [ ] Accepted HTTP methods per route &#x2611; -->
   <!-- - [ ] HTTP redirects &#x2611; -->
   <!-- - [ ] Root directory/file location &#x2611; -->
   <!-- - [ ] Directory listing enable/disable &#x2611; -->
-  - [ ] Default file for directories
+  <!-- - [ ] Default file for directories -->
   <!-- - [ ] CGI execution based on file extension &#x2611; -->
   <!-- - [ ] Upload location configuration &#x2611;  -->
 
