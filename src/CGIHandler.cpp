@@ -469,14 +469,16 @@ void CGIHandler::setPathInfo(Request& req) {
 }
 
 void    CGIHandler::findBash(std::string& filePath) {
-	_args.push_back("/usr/bin/bash");
+	// _args.push_back("/usr/bin/bash");
+    _args.push_back("/run/current-system/sw/bin/bash");
 	_args.push_back(_path);
 	if (!filePath.empty())
 		_args.push_back(filePath);
 }
 
 void    CGIHandler::findPython(std::string& filePath) {
-    _args.push_back("/usr/bin/python3");
+    // _args.push_back("/usr/bin/python3");
+    _args.push_back("/etc/profiles/per-user/schmitzi/bin/python3");
 	_args.push_back(_path);
 	if (!filePath.empty())
 		_args.push_back(filePath);
@@ -491,7 +493,8 @@ void    CGIHandler::findPHP(std::string const &cgiBin, std::string& filePath) {
 }
 
 void    CGIHandler::findPl(std::string& filePath) {
-	_args.push_back("/usr/bin/perl");
+	// _args.push_back("/usr/bin/perl");
+    _args.push_back("/run/current-system/sw/bin/perl");
 	_args.push_back(_path);
 	if (!filePath.empty())
 		_args.push_back(filePath);

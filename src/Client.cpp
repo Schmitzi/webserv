@@ -122,6 +122,8 @@ int Client::recieveData() {
         std::cout << BLUE << _webserv->getTimeStamp() 
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
+
+        Request req(_requestBuffer, getServer());
         
         bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
                           _requestBuffer.find("chunked") != std::string::npos);
@@ -133,50 +135,41 @@ int Client::recieveData() {
                 return 0;
             }
         } else {
-            size_t contentLengthPos = _requestBuffer.find("Content-Length:");
-            if (contentLengthPos != std::string::npos) {
-                size_t valueStart = contentLengthPos + 15;
-                while (valueStart < _requestBuffer.length() && 
-                       (_requestBuffer[valueStart] == ' ' || _requestBuffer[valueStart] == '\t')) {
-                    valueStart++;
+            size_t bodyStart = _requestBuffer.find("\r\n\r\n");
+            if (bodyStart == std::string::npos) {
+                bodyStart = _requestBuffer.find("\n\n");
+                if (bodyStart == std::string::npos) {
+                    return 0;
                 }
-                
-                size_t valueEnd = _requestBuffer.find("\r\n", valueStart);
-                if (valueEnd == std::string::npos) {
-                    valueEnd = _requestBuffer.find("\n", valueStart);
-                }
-                
-                if (valueEnd != std::string::npos) {
-                    std::string lengthStr = _requestBuffer.substr(valueStart, valueEnd - valueStart);
-                    size_t expectedLength = strtoul(lengthStr.c_str(), NULL, 10);
-                    
-                    size_t bodyStart = _requestBuffer.find("\r\n\r\n");
-                    if (bodyStart != std::string::npos) {
-                        bodyStart += 4;
-                    } else {
-                        bodyStart = _requestBuffer.find("\n\n");
-                        if (bodyStart != std::string::npos) {
-                            bodyStart += 2;
-                        }
-                    }
-                    
-                    if (bodyStart != std::string::npos) {
-                        size_t actualBodyLength = _requestBuffer.length() - bodyStart;
-                        if (actualBodyLength < expectedLength) {
-                            std::cout << RED << _webserv->getTimeStamp() 
-                                      << "Body incomplete: got " << actualBodyLength 
-                                      << " bytes, expected " << expectedLength << RESET << std::endl;
-                            return 0;
-                        }
-                    }
-                }
+                bodyStart += 2;
+            } else {
+                bodyStart += 4;
+            }
+            
+            size_t actualBodyLength = _requestBuffer.length() - bodyStart;
+
+            if (req.getContentLength() > req.getConf().requestLimit) {
+                std::cerr << RED << _webserv->getTimeStamp() << "Content-Length (" << req.getContentLength() 
+                          << " bytes) exceeds server limit (" << req.getConf().requestLimit << " bytes)" 
+                          << RESET << std::endl;
+                sendErrorResponse(413, req);
+                _requestBuffer.clear();
+                return 1;
+            }
+            
+            // Check if we have received the complete body
+            if (actualBodyLength < req.getContentLength()) {
+                std::cout << BLUE << _webserv->getTimeStamp() 
+                          << "Body incomplete: got " << actualBodyLength 
+                          << " bytes, expected " << req.getContentLength() << RESET << std::endl;
+                return 0;
             }
         }
-        
+
         std::cout << GREEN << _webserv->getTimeStamp() 
                   << "Complete request received, processing..." << RESET << std::endl;
         
-        int processResult = processRequest(_requestBuffer);
+        int processResult = processRequest(req);
         
         if (processResult != -1) {
             _requestBuffer.clear();
@@ -238,15 +231,15 @@ bool Client::isChunkedBodyComplete(const std::string& buffer) {
     return false;
 }
 
-int Client::processRequest(std::string &buffer) {
-    Request req(buffer, getServer());
+int Client::processRequest(Request &req) {
+    // Request req(buffer, getServer());
 	serverLevel &conf = req.getConf();
-    if (req.getContentLength() > conf.requestLimit) {
-        std::cerr << RED << "Content-Length too large" << RESET << std::endl;
-        sendErrorResponse(413, req);
-        _requestBuffer.clear();
-        return 1;
-    }
+    // if (req.getContentLength() > conf.requestLimit) {
+    //     std::cerr << RED << "Content-Length too large" << RESET << std::endl;
+    //     sendErrorResponse(413, req);
+    //     _requestBuffer.clear();
+    //     return 1;
+    // }
 
     if (req.getMethod() == "BAD") {
         std::cout << RED << _webserv->getTimeStamp() 
