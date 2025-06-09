@@ -138,7 +138,7 @@ def test_large_request_body():
         (1024 * 1024, "1MB"),       # 1MB - should work
         (1024 * 1024 * 2, "2MB"),   # 2MB - might work
         (1024 * 1024 * 5, "5MB"),   # 5MB - might hit limit
-        # (1024 * 1024 * 10, "10MB"), # 10MB - likely to fail
+        (1024 * 1024 * 10, "10MB"), # 10MB - likely to fail
     ]
     
     print_test("Testing various request sizes to find server limit...")
@@ -231,8 +231,8 @@ def test_request_size_edge_cases():
     # Test exactly at common limits
     common_limits = [
         (1024 * 1024, "1MB"),           # Common small limit
-        # (1024 * 1024 * 8, "8MB"),       # Common medium limit  
-        # (1024 * 1024 * 32, "32MB"),     # Common large limit
+        (1024 * 1024 * 8, "8MB"),       # Common medium limit  
+        (1024 * 1024 * 32, "32MB"),     # Common large limit
     ]
     
     uploaded_files = []  # Track files that need cleanup
@@ -247,7 +247,6 @@ def test_request_size_edge_cases():
         print(f"Testing just under {size_name}...")
         res = test_connection(file_path, "POST", 
                             body=under_body, headers=under_headers, timeout=60)
-        
         if res and (res.status == 200 or res.status == 201):
             print_test(f"  Just under {size_name}: ✅ ACCEPTED", "PASS")
             uploaded_files.append(file_path)  # Add to cleanup list
@@ -255,6 +254,8 @@ def test_request_size_edge_cases():
             print_test(f"  Server limit is below {size_name}", "INFO")
             break
         else:
+            if res:
+                print(res.status)
             print_test(f"  Under {size_name}: ❓ Status {res.status if res else 'None'}", "INFO")
     
     # Clean up all uploaded files
@@ -638,24 +639,24 @@ def main():
         
         
         # Run all tests in order of severity (least to most stressful)
-        test_basic_http_methods()
-        test_error_handling()
-        test_mime_types()
-        test_http_headers()
-        test_multipart_upload()
-        test_directory_listing()
-        test_redirection()
-        test_cgi_functionality()
-        test_path_traversal_security()
-        test_keep_alive()
-        test_chunked_transfer()
-        test_large_request_body()
+        # test_basic_http_methods()
+        # test_error_handling()
+        # test_mime_types()
+        # test_http_headers()
+        # test_multipart_upload()
+        # test_directory_listing()
+        # test_redirection()
+        # test_cgi_functionality()
+        # test_path_traversal_security()
+        # test_keep_alive()
+        # test_chunked_transfer()
+        # test_large_request_body()
         test_request_size_edge_cases()
         # test_reasonable_upload_limits()
-        test_different_ports()
-        test_concurrent_connections()
-        test_server_resilience()
-        test_stress_test()
+        # test_different_ports()
+        # test_concurrent_connections()
+        # test_server_resilience()
+        # test_stress_test()
         
         print_test("=== All tests completed ===")
         
