@@ -28,7 +28,6 @@ struct locationLevel {
 	std::string									rootLoc;//root
 	std::string									indexFile;//index
 	std::vector<std::string>					methods;//limit_except
-	bool										autoindexFound;//TODO: can be deleted, just for printing in config.cpp
 	bool										autoindex;//autoindex
 	std::pair<int, std::string>					redirectionHTTP;//redirect
 	bool										hasRedirect;

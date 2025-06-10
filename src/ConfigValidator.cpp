@@ -139,7 +139,7 @@ void checkRoot(serverLevel &serv) {
 	std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 	while (it != serv.locations.end()) {
 		if (it->second.rootLoc.empty() && serv.rootServ.empty())
-			throw configException("Error: No root for server and locations specified.\n-> Requests to / may return 403 or 404");
+			throw configException("Error: No root found.\n-> Requests to / may return 403 or 404");
 		else if (it->second.rootLoc.empty())
 			it->second.rootLoc = serv.rootServ;//take default value from server if not specified
 		++it;
@@ -151,7 +151,7 @@ void checkIndex(serverLevel &serv) {
 		std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 		while (it != serv.locations.end()) {
 			if (it->second.indexFile.empty())
-				throw configException("Error: No default index for server and locations specified.\n-> Requests to / may return 403 or 404");
+				throw configException("Error: No default index found.\n-> Requests to / may return 403 or 404");
 			++it;
 		}
 	}
@@ -187,7 +187,6 @@ void checkMethods(locationLevel& loc) {
 void initLocLevel(std::vector<std::string>& s, locationLevel& loc) {
 	loc.hasRedirect = false;
 	loc.autoindex = false;
-	loc.autoindexFound = false;
 	for (size_t x = 1; x < s.size() && s[x] != "{"; x++) {
 		loc.locName += s[x];
 		if (x < s.size() - 1 && s[x + 1] != "{")

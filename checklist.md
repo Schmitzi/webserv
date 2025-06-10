@@ -90,3 +90,19 @@ Make sure to also:
 - Compare behavior with NGINX for edge cases
 - Write stress tests in various languages
 - Ensure the server never hangs or crashes
+
+//TODO: means we always need a host specified?
+   [from RFC] A client MUST include a Host header field in all HTTP/1.1 request
+   messages . If the requested URI does not include an Internet host
+   name for the service being requested, then the Host header field MUST
+   be given with an empty value. An HTTP/1.1 proxy MUST ensure that any
+   request message it forwards does contain an appropriate Host header
+   field that identifies the service being requested by the proxy. All
+   Internet-based HTTP/1.1 servers MUST respond with a 400 (Bad Request)
+   status code to any HTTP/1.1 request message which lacks a Host header
+   field.
+
+   [from Claude] The HTTP/1.1 specification requires that every request include a Host header, and servers are required to reject any HTTP/1.1 request that lacks this header with a 400 status code.
+   So the protection works at two levels:
+   Client level: Most HTTP clients (like curl) won't let you make requests without specifying where to connect
+   Server level: If somehow a malformed request gets through, HTTP/1.1 servers will reject it with 400 Bad Request

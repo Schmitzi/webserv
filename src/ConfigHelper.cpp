@@ -161,7 +161,6 @@ void setMethods(locationLevel& loc, std::vector<std::string>& s) {
 }
 
 void setAutoindex(locationLevel& loc, std::vector<std::string>& s) {
-	loc.autoindexFound = true;
 	if (s[1] == "on")
 		loc.autoindex = true;
 	else if (s[1] == "off")
@@ -213,16 +212,13 @@ void setServName(serverLevel& serv, std::vector<std::string>& s) {
 	if (!isValidName(s[1]))
 		serv.servName[0] = "";	
 	else {
-		for (size_t j = 1; j < s.size(); j++) {
+		for (size_t j = 1; j < s.size(); j++)
 			serv.servName.push_back(s[j]);
-		}
 	}
 }
 
 void setMaxRequestSize(serverLevel& serv, std::vector<std::string>& s) {
-	if (s.size() != 2)
-		throw configException("Error: invalid client_max_body_size -> " + s[0] + s[1]);
-	if (!onlyDigits(s[1]) && s[1].find_first_not_of("0123456789kKmMgG") != std::string::npos)
+	if (s.size() != 2 || (!onlyDigits(s[1]) && s[1].find_first_not_of("0123456789kKmMgG") != std::string::npos))
 		throw configException("Error: invalid client_max_body_size -> " + s[0] + s[1]);
 	serv.maxRequestSize = s[1];
 	parseClientMaxBodySize(serv);

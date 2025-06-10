@@ -102,9 +102,8 @@ run_test "Multiple Concurrent GET Requests (x10)" \
 run_test "Invalid HTTP Method (via netcat workaround)" \
   "printf 'FOO / HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc $HOST $PORT | grep -q 'HTTP/1.1 400 Bad Request'"
 
-# works but takes a long time:
-# run_test "Large Request Body (20MB)" \
-#   "! curl -fs -X POST --data-binary @$BIG_BODY_FILE $BASE_URL/upload"
+run_test "Large Request Body (20MB)" \
+  "! curl -fs -X POST --data-binary @$BIG_BODY_FILE $BASE_URL/upload"
 
 # ========== CLEANUP ==========
 rm -f "$TMP_FILE" "$BIG_BODY_FILE"
