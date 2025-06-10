@@ -61,7 +61,7 @@ class Webserv {
         void            cleanup();
 
     private:
-        bool                        _state;
+        bool                    _state;
         std::vector<Server> 		_servers;
         std::vector<Client>   	    _clients;
         char                    	**_env;

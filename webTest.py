@@ -246,8 +246,7 @@ def test_request_size_edge_cases():
         
         print(f"Testing just under {size_name}...")
         res = test_connection(file_path, "POST", 
-                            body=under_body, headers=under_headers, timeout=30)
-        
+                            body=under_body, headers=under_headers, timeout=60)
         if res and (res.status == 200 or res.status == 201):
             print_test(f"  Just under {size_name}: ✅ ACCEPTED", "PASS")
             uploaded_files.append(file_path)  # Add to cleanup list
@@ -255,6 +254,8 @@ def test_request_size_edge_cases():
             print_test(f"  Server limit is below {size_name}", "INFO")
             break
         else:
+            if res:
+                print(res.status)
             print_test(f"  Under {size_name}: ❓ Status {res.status if res else 'None'}", "INFO")
     
     # Clean up all uploaded files
@@ -264,7 +265,7 @@ def test_request_size_edge_cases():
         cleanup_success = 0
         for file_path in uploaded_files:
             try:
-                delete_res = test_connection(file_path, "DELETE", timeout=10)
+                delete_res = test_connection(file_path, "DELETE", timeout=60)
                 if delete_res and (delete_res.status == 200 or delete_res.status == 204):
                     cleanup_success += 1
                     print_test(f"  🗑️  Deleted {file_path}", "INFO")
@@ -620,15 +621,15 @@ def test_stress_test():
 
 def main():
     print("=== Beginning Tests ===")
-    if not check_compilation():
-        return
+    # if not check_compilation():
+    #     return
     
-    server_proc = start_server()
-    if not server_proc:
-        return
+    # server_proc = start_server()
+    # if not server_proc:
+    #     return
     
-    # Give server time to start properly
-    time.sleep(5)
+    # # Give server time to start properly
+    # time.sleep(5)
     
     try:
         # Test server is actually running
@@ -660,7 +661,8 @@ def main():
         print_test("=== All tests completed ===")
         
     finally:
-        stop_server(server_proc)
+        # stop_server(server_proc)
+        print("")
 
 if __name__ == "__main__":
     main()

@@ -31,8 +31,8 @@ struct locationLevel;
 class Client {
     public:
         Client(Server& serv);
-        Client(const Client& copy);
-		Client &operator=(const Client& copy);
+        Client(const Client& client);
+        Client& operator=(const Client& other);
         ~Client();
         int                     &getFd();
         Server                  &getServer();
@@ -43,7 +43,7 @@ class Client {
         int                     acceptConnection(int serverFd);
         void                    displayConnection();
         int                     recieveData();
-        int                     processRequest(std::string &buffer);
+        int                     processRequest(Request &req);
         int                     handleGetRequest(Request& req);
         bool                    isFileBrowserRequest(const std::string& path);
         int                     handleFileBrowserRequest(Request& req, const std::string& requestPath);

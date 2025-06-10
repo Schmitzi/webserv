@@ -14,23 +14,41 @@ Client::Client(Server& serv) {
 	_cgi->setServer(serv);
 }
 
-Client::Client(const Client& copy) {
-	*this = copy;
+
+Client::Client(const Client& client) {
+    _addr = client._addr;        
+    _fd = client._fd;            
+    _addrLen = client._addrLen;
+    _requestBuffer = client._requestBuffer; 
+    _autoindex = client._autoindex;
+    _webserv = client._webserv;
+    _server = client._server;
+    _configs = client._configs;
+    _cgi = new CGIHandler();
+    _cgi->setClient(*this);
+    _cgi->setServer(*_server); 
 }
 
-Client &Client::operator=(const Client& copy) {
-	if (this != &copy) {
-		_addr = copy._addr;
-		_fd = copy._fd;
-		setWebserv(*copy._webserv);
-		setServer(*copy._server);
-		setConfigs(copy._configs);
-		_cgi = NULL;
-		_cgi = new CGIHandler();
-		_cgi->setClient(*this);
-		_cgi->setServer(*copy._server);
-	}
-	return *this;
+Client& Client::operator=(const Client& other) {
+    if (this != &other) {
+        delete _cgi;
+        
+        _addr = other._addr;
+        _fd = other._fd;
+        _addrLen = other._addrLen;
+        _requestBuffer = other._requestBuffer;
+        _autoindex = other._autoindex;
+        _webserv = other._webserv;
+        _server = other._server;
+        _configs = other._configs;
+        
+        _cgi = new CGIHandler();
+        _cgi->setClient(*this);
+        if (_server) {
+            _cgi->setServer(*_server);
+        }
+    }
+    return *this;
 }
 
 Client::~Client() {
@@ -93,7 +111,7 @@ void Client::displayConnection() {
 }
 
 int Client::recieveData() {
-    char buffer[4096];
+    char buffer[1000000];
     memset(buffer, 0, sizeof(buffer));
     
     int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
@@ -104,6 +122,8 @@ int Client::recieveData() {
         std::cout << BLUE << _webserv->getTimeStamp() 
                   << "Received " << bytesRead << " bytes from " << _fd 
                   << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
+
+        Request req(_requestBuffer, getServer());
         
         bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
                           _requestBuffer.find("chunked") != std::string::npos);
@@ -115,50 +135,31 @@ int Client::recieveData() {
                 return 0;
             }
         } else {
-            size_t contentLengthPos = _requestBuffer.find("Content-Length:");
-            if (contentLengthPos != std::string::npos) {
-                size_t valueStart = contentLengthPos + 15;
-                while (valueStart < _requestBuffer.length() && 
-                       (_requestBuffer[valueStart] == ' ' || _requestBuffer[valueStart] == '\t')) {
-                    valueStart++;
+            size_t bodyStart = _requestBuffer.find("\r\n\r\n");
+            if (bodyStart == std::string::npos) {
+                bodyStart = _requestBuffer.find("\n\n");
+                if (bodyStart == std::string::npos) {
+                    return 0;
                 }
-                
-                size_t valueEnd = _requestBuffer.find("\r\n", valueStart);
-                if (valueEnd == std::string::npos) {
-                    valueEnd = _requestBuffer.find("\n", valueStart);
-                }
-                
-                if (valueEnd != std::string::npos) {
-                    std::string lengthStr = _requestBuffer.substr(valueStart, valueEnd - valueStart);
-                    size_t expectedLength = strtoul(lengthStr.c_str(), NULL, 10);
-                    
-                    size_t bodyStart = _requestBuffer.find("\r\n\r\n");
-                    if (bodyStart != std::string::npos) {
-                        bodyStart += 4;
-                    } else {
-                        bodyStart = _requestBuffer.find("\n\n");
-                        if (bodyStart != std::string::npos) {
-                            bodyStart += 2;
-                        }
-                    }
-                    
-                    if (bodyStart != std::string::npos) {
-                        size_t actualBodyLength = _requestBuffer.length() - bodyStart;
-                        if (actualBodyLength < expectedLength) {
-                            std::cout << RED << _webserv->getTimeStamp() 
-                                      << "Body incomplete: got " << actualBodyLength 
-                                      << " bytes, expected " << expectedLength << RESET << std::endl;
-                            return 0;
-                        }
-                    }
-                }
+                bodyStart += 2;
+            } else {
+                bodyStart += 4;
+            }
+            
+            size_t actualBodyLength = _requestBuffer.length() - bodyStart;
+
+            if (actualBodyLength < req.getContentLength()) {
+                std::cout << BLUE << _webserv->getTimeStamp() 
+                          << "Body incomplete: got " << actualBodyLength 
+                          << " bytes, expected " << req.getContentLength() << RESET << std::endl;
+                return 0;
             }
         }
-        
+
         std::cout << GREEN << _webserv->getTimeStamp() 
                   << "Complete request received, processing..." << RESET << std::endl;
         
-        int processResult = processRequest(_requestBuffer);
+        int processResult = processRequest(req);
         
         if (processResult != -1) {
             _requestBuffer.clear();
@@ -220,11 +221,10 @@ bool Client::isChunkedBodyComplete(const std::string& buffer) {
     return false;
 }
 
-int Client::processRequest(std::string &buffer) {
-    Request req(buffer, getServer());
+int Client::processRequest(Request &req) {
 	serverLevel &conf = req.getConf();
     if (req.getContentLength() > conf.requestLimit) {
-        std::cerr << RED << "Content-Length too large" << RESET << std::endl;
+        std::cerr << RED << _webserv->getTimeStamp() << "Content-Length too large" << RESET << std::endl;
         sendErrorResponse(413, req);
         _requestBuffer.clear();
         return 1;
@@ -901,12 +901,45 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     send(_fd, response.c_str(), response.length(), 0);
 }
 
-ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
-    // std::cout << "DEBUG: sendResponse called with client fd: " << _fd << std::endl;
+void Client::findContentType(Request& req) {
+    std::string raw(_buffer);
+    size_t start = raw.find("Content-Type: ");
     
-    if (_fd <= 0) {
-        std::cerr << "ERROR: Invalid file descriptor in sendResponse: " << _fd << std::endl;
-        return -1;
+    if (start == std::string::npos) {
+        if (raw.find("POST") == 0) {
+            std::cout << RED <<  "Warning: POST request without Content-Type header\n" << RESET;
+            req.setContentType("application/octet-stream");
+        }
+        return;
+    }
+    
+    start += 14;
+    size_t end = raw.find("\r\n", start);
+    if (end == std::string::npos) {
+        end = raw.find("\n", start);
+        if (end == std::string::npos) {
+            end = raw.length();
+        }
+    }
+    
+    std::string contentType = raw.substr(start, end - start);
+    req.setContentType(contentType);
+    
+    size_t boundaryPos = contentType.find("; boundary=");
+    if (boundaryPos != std::string::npos) {
+        std::string boundary = contentType.substr(boundaryPos + 11);
+        
+        // Clean up boundary if needed
+        size_t quotePos = boundary.find("\"");
+        if (quotePos != std::string::npos) {
+            boundary = boundary.substr(0, quotePos);
+        }
+        
+        if (boundary.empty()) {
+            std::cout << "Warning: Empty boundary found" << std::endl;
+        }
+        
+        req.setBoundary(boundary);
     }
     
     std::string response = "HTTP/1.1 200 OK\r\n";

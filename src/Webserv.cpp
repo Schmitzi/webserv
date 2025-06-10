@@ -20,6 +20,7 @@ Webserv::Webserv(std::string const &config) : _epollFd(-1) {
 		if (toAdd)
 			_servers.push_back(Server(_confParser, i, *this));
 	}
+    _state = true;
 }
 
 Webserv::Webserv(Webserv const &other) : _epollFd(-1) {
@@ -44,12 +45,11 @@ Webserv::~Webserv() {
     cleanup();
 }
 
-void Webserv::flipState() {
-    if (_state == true) {
+void    Webserv::flipState() {
+    if (_state == true)
         _state = false;
-    } else {
-        _state = true;
-    }
+    else
+        _state = false;
 }
 
 void Webserv::setEnvironment(char **envp) {
@@ -62,7 +62,7 @@ int Webserv::run() {
         ft_error("epoll_create1() failed");
         return 1;
     }
-   // Initialize server
+
    for (size_t i = 0; i < _servers.size(); i++) {
     if (_servers[i].getFd() > 0) {
         std::cout << BLUE << getTimeStamp() << "Host:Port already opened: " << RESET << 
@@ -85,7 +85,7 @@ int Webserv::run() {
         "Server " << i + 1 << " is listening on port " << RESET << 
         _confParser.getPort(_servers[i].getConfigs()[0]) << "\n";
     }
-    while (!_state) {
+    while (_state == true) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
             if (errno == EINTR) {
