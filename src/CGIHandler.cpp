@@ -2,7 +2,6 @@
 #include "../include/Client.hpp"
 
 CGIHandler::CGIHandler() {
-	// Initialize arrays
     _input[0] = -1;
     _input[1] = -1;
     _output[0] = -1;
@@ -136,7 +135,7 @@ int CGIHandler::processScriptOutput(Client &client) {
     FD_SET(_output[0], &readfds);
     
     struct timeval timeout;
-    timeout.tv_sec = 10;  // 10 seconds timeout
+    timeout.tv_sec = 10;
     timeout.tv_usec = 0;
     
     int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, &timeout);
@@ -155,7 +154,6 @@ int CGIHandler::processScriptOutput(Client &client) {
     _output[0] = -1;
     std::cout << BLUE << getTimeStamp() << "Total bytes read: " << RESET << totalBytesRead << std::endl;
 
-    // If no output, send a default response
     if (output.empty()) {
         std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
         defaultResponse += "Content-Type: text/plain\r\n";
@@ -166,15 +164,12 @@ int CGIHandler::processScriptOutput(Client &client) {
         return 0;
     }
 
-    // Split headers and body
     std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(output);
     std::string headerSection = headerAndBody.first;
     std::string bodyContent = headerAndBody.second;
     
-    // Parse headers
     std::map<std::string, std::string> headerMap = parseHeaders(headerSection);
     
-    // Check if we need to handle chunked transfer encoding
     if (isChunkedTransfer(headerMap)) {
         return handleChunkedOutput(headerMap, bodyContent);
     } else {
@@ -243,23 +238,19 @@ std::string CGIHandler::formatChunkedResponse(const std::string& body) {
     size_t remaining = body.length();
     size_t offset = 0;
     
-    // Break body into chunks
     while (remaining > 0) {
         size_t currentChunkSize = (remaining < chunkSize) ? remaining : chunkSize;
         
-        // Add chunk header (size in hex)
         std::stringstream hexStream;
         hexStream << std::hex << currentChunkSize;
         chunkedBody += hexStream.str() + "\r\n";
         
-        // Add chunk data
         chunkedBody += body.substr(offset, currentChunkSize) + "\r\n";
         
         offset += currentChunkSize;
         remaining -= currentChunkSize;
     }
     
-    // Add terminating chunk
     chunkedBody += "0\r\n\r\n";
     
     return chunkedBody;
@@ -270,7 +261,6 @@ std::pair<std::string, std::string> CGIHandler::splitHeaderAndBody(const std::st
     if (headerEnd == std::string::npos) {
         headerEnd = output.find("\n\n");
         if (headerEnd == std::string::npos) {
-            // If no header/body separator found, assume it's all body
             return std::make_pair("", output);
         } else {
             return std::make_pair(
@@ -332,7 +322,7 @@ bool CGIHandler::isCGIScript(const std::string& path) {
     return false;
 }
 
-int CGIHandler::prepareEnv(Request &req) { // TODO: Changed from void to int for error handling
+int CGIHandler::prepareEnv(Request &req) {
     std::string ext = "";
     std::string filePath = "";
     std::string queryType = "";
@@ -388,11 +378,9 @@ int CGIHandler::prepareEnv(Request &req) { // TODO: Changed from void to int for
         }
     }
     
-    // Clear previous environment
     _env.clear();
     
-    // Store environment variables as STRINGS, not char* pointers
-    std::string abs_path = makeAbsolutePath(_path);
+    std::string abs_path = getAbsPath(_path);
     _env.push_back("SCRIPT_FILENAME=" + abs_path);
     _env.push_back("REDIRECT_STATUS=200");
     _env.push_back("SERVER_SOFTWARE=WebServ/1.0");
@@ -415,23 +403,6 @@ int CGIHandler::prepareEnv(Request &req) { // TODO: Changed from void to int for
     _env.push_back("SCRIPT_NAME=" + req.getPath());
     
     return 0;
-}
-
-std::string CGIHandler::makeAbsolutePath(const std::string& path) {
-    if (path.empty()) {
-        return "";
-    }
-
-    if (path[0] == '/') {
-        return path;
-    }
-    
-    char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd)) == NULL) {
-        return path;
-    }
-    
-    return std::string(cwd) + "/" + path;
 }
 
 void CGIHandler::setPathInfo(Request& req) {
@@ -469,16 +440,22 @@ void CGIHandler::setPathInfo(Request& req) {
 }
 
 void    CGIHandler::findBash(std::string& filePath) {
-	// _args.push_back("/usr/bin/bash");
-    _args.push_back("/run/current-system/sw/bin/bash");
+    if (NIX == false) 
+    	_args.push_back("/usr/bin/bash");
+    else {
+        _args.push_back("/run/current-system/sw/bin/bash");
+    }
 	_args.push_back(_path);
 	if (!filePath.empty())
 		_args.push_back(filePath);
 }
 
 void    CGIHandler::findPython(std::string& filePath) {
-    // _args.push_back("/usr/bin/python3");
-    _args.push_back("/etc/profiles/per-user/schmitzi/bin/python3");
+    if (NIX == false) 
+        _args.push_back("/usr/bin/python3");
+    else {
+        _args.push_back("/etc/profiles/per-user/schmitzi/bin/python3");
+    }
 	_args.push_back(_path);
 	if (!filePath.empty())
 		_args.push_back(filePath);
@@ -493,8 +470,11 @@ void    CGIHandler::findPHP(std::string const &cgiBin, std::string& filePath) {
 }
 
 void    CGIHandler::findPl(std::string& filePath) {
-	// _args.push_back("/usr/bin/perl");
-    _args.push_back("/run/current-system/sw/bin/perl");
+    if (NIX == false) 
+	    _args.push_back("/usr/bin/perl");
+    else {
+        _args.push_back("/run/current-system/sw/bin/perl");
+    }
 	_args.push_back(_path);
 	if (!filePath.empty())
 		_args.push_back(filePath);

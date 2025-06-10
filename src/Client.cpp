@@ -111,7 +111,7 @@ void Client::displayConnection() {
 }
 
 int Client::recieveData() {
-    char buffer[4096];
+    char buffer[1000000];
     memset(buffer, 0, sizeof(buffer));
     
     int bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
@@ -148,16 +148,6 @@ int Client::recieveData() {
             
             size_t actualBodyLength = _requestBuffer.length() - bodyStart;
 
-            if (req.getContentLength() > req.getConf().requestLimit) {
-                std::cerr << RED << _webserv->getTimeStamp() << "Content-Length (" << req.getContentLength() 
-                          << " bytes) exceeds server limit (" << req.getConf().requestLimit << " bytes)" 
-                          << RESET << std::endl;
-                sendErrorResponse(413, req);
-                _requestBuffer.clear();
-                return 1;
-            }
-            
-            // Check if we have received the complete body
             if (actualBodyLength < req.getContentLength()) {
                 std::cout << BLUE << _webserv->getTimeStamp() 
                           << "Body incomplete: got " << actualBodyLength 
@@ -232,14 +222,13 @@ bool Client::isChunkedBodyComplete(const std::string& buffer) {
 }
 
 int Client::processRequest(Request &req) {
-    // Request req(buffer, getServer());
 	serverLevel &conf = req.getConf();
-    // if (req.getContentLength() > conf.requestLimit) {
-    //     std::cerr << RED << "Content-Length too large" << RESET << std::endl;
-    //     sendErrorResponse(413, req);
-    //     _requestBuffer.clear();
-    //     return 1;
-    // }
+    if (req.getContentLength() > conf.requestLimit) {
+        std::cerr << RED << _webserv->getTimeStamp() << "Content-Length too large" << RESET << std::endl;
+        sendErrorResponse(413, req);
+        _requestBuffer.clear();
+        return 1;
+    }
 
     if (req.getMethod() == "BAD") {
         std::cout << RED << _webserv->getTimeStamp() 

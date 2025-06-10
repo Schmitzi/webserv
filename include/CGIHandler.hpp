@@ -8,11 +8,14 @@
 #include <cerrno>
 #include "Request.hpp"
 #include "Helper.hpp"
+#include "ConfigValidator.hpp"
 
 class Client;
 class Server;
 class Request;
 struct serverLevel;
+
+#define NIX false
 
 class CGIHandler {
     public:
@@ -30,7 +33,6 @@ class CGIHandler {
         int     handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
         int     executeCGI(Client &client, Request& req, std::string const &scriptPath);
         int    prepareEnv(Request &req);
-        std::string makeAbsolutePath(const std::string& path);
         std::map<std::string, std::string> parseHeaders(const std::string& headerSection);
         std::pair<std::string, std::string> splitHeaderAndBody(const std::string& output);
         void    findBash(std::string& filePath);
