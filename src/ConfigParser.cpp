@@ -15,7 +15,6 @@ locationLevel::locationLevel() :
 		rootLoc(""),
 		indexFile(""),
 		methods(),
-		autoindexFound(false),
 		autoindex(false),
 		redirectionHTTP(std::make_pair(0, "")),
 		hasRedirect(false),
@@ -132,7 +131,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 			if (s[0] == "root") setRootLoc(loc, s);
 			else if (s[0] == "index") setLocIndexFile(loc, s, serv);
 			else if (s[0] == "limit_except") setMethods(loc, s);
-			else if (s[0] == "autoindex") setAutoindex(loc, s);//TODO: remove autoindex bool!
+			else if (s[0] == "autoindex") setAutoindex(loc, s);
 			else if (s[0] == "return") setRedirection(loc, s);
 			else if (s[0] == "cgi_pass") setCgiProcessorPath(loc, s);
 			else if (s[0] == "upload_store") setUploadDirPath(loc, s);
@@ -352,13 +351,13 @@ void ConfigParser::printConfig(serverLevel& conf) {//only temporary, for debuggi
 				std::cout << " " << its->second.methods[i];
 			std::cout << std::endl;
 		}
-		if (its->second.autoindexFound == true) {
-			std::cout << "\t\tautoindex: ";
-			if (its->second.autoindex == true)
-				std::cout << "on" << std::endl;
-			else
-				std::cout << "off" << std::endl;
-		}
+		// if (its->second.autoindexFound == true) {
+		std::cout << "\t\tautoindex: ";
+		if (its->second.autoindex == true)
+			std::cout << "on" << std::endl;
+		else
+			std::cout << "off" << std::endl;
+		// }
 		if (!its->second.redirectionHTTP.second.empty())
 			std::cout << "\t\treturn: " << its->second.redirectionHTTP.first << " " << its->second.redirectionHTTP.second << std::endl;
 		if (!its->second.cgiProcessorPath.empty())
