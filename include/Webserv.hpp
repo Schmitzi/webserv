@@ -23,8 +23,8 @@
 #include "Helper.hpp"
 
 // Forward declarations
-class Server;
-class Client;
+class	Server;
+class	Client;
 
 // COLOURS
 #define BLUE    "\33[34m"
@@ -43,22 +43,21 @@ class Webserv {
         Webserv &operator=(Webserv const &other);
         ~Webserv();
 
-        void            setEnvironment(char **envp);
-        void            flipState();
-        // Polling
-        Server         findServerByFd(int fd, bool& found);
-        Client         findClientByFd(int fd, bool& found);
-        void            handleErrorEvent(int fd);
-        int             addToEpoll(int fd, short events);
-        void            removeFromEpoll(int fd);
-        void            handleClientDisconnect(int fd);
-        int             run();
-        void            handleNewConnection(Server& server);
-        void            handleClientActivity(int clientFd);
-        void            ft_error(std::string const msg);
-        std::string     getTimeStamp();
-        void            printMsg(const std::string msg, char const *colour, std::string const opt);
-        void            cleanup();
+        void            			setEnvironment(char **envp);
+        void            			flipState();
+        Server        				findServerByFd(int fd, bool& found);
+        Client        				findClientByFd(int fd, bool& found);
+        void            			handleErrorEvent(int fd);
+        int             			addToEpoll(int fd, short events);
+        void            			removeFromEpoll(int fd);
+        void            			handleClientDisconnect(int fd);
+        int             			run();
+        void            			handleNewConnection(Server& server);
+        void            			handleClientActivity(int clientFd);
+        void            			ft_error(std::string const msg);
+        std::string     			getTimeStamp();
+        void            			printMsg(const std::string msg, char const *colour, std::string const opt);
+        void            			cleanup();
 
     private:
         bool                        _state;

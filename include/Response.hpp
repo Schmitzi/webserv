@@ -7,10 +7,10 @@
 #include "Webserv.hpp"
 #include "Request.hpp"
 
-struct serverLevel;
-struct locationLevel;
-class Server;
-class Request;
+struct	serverLevel;
+struct	locationLevel;
+class	Server;
+class	Request;
 
 struct HttpErrorFormat {
 	int code;

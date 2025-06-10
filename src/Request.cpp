@@ -51,10 +51,6 @@ std::string &Request::getPath() {
     return _path;
 }
 
-std::string &Request::getHost() {
-	return _host;
-}
-
 std::string const &Request::getMethod() {
     return _method;
 }
