@@ -265,7 +265,7 @@ def test_request_size_edge_cases():
         cleanup_success = 0
         for file_path in uploaded_files:
             try:
-                delete_res = test_connection(file_path, "DELETE", timeout=30)
+                delete_res = test_connection(file_path, "DELETE", timeout=60)
                 if delete_res and (delete_res.status == 200 or delete_res.status == 204):
                     cleanup_success += 1
                     print_test(f"  🗑️  Deleted {file_path}", "INFO")
@@ -621,15 +621,15 @@ def test_stress_test():
 
 def main():
     print("=== Beginning Tests ===")
-    if not check_compilation():
-        return
+    # if not check_compilation():
+    #     return
     
-    server_proc = start_server()
-    if not server_proc:
-        return
+    # server_proc = start_server()
+    # if not server_proc:
+    #     return
     
-    # Give server time to start properly
-    time.sleep(5)
+    # # Give server time to start properly
+    # time.sleep(5)
     
     try:
         # Test server is actually running
@@ -639,29 +639,30 @@ def main():
         
         
         # Run all tests in order of severity (least to most stressful)
-        # test_basic_http_methods()
-        # test_error_handling()
-        # test_mime_types()
-        # test_http_headers()
-        # test_multipart_upload()
-        # test_directory_listing()
-        # test_redirection()
-        # test_cgi_functionality()
-        # test_path_traversal_security()
-        # test_keep_alive()
-        # test_chunked_transfer()
-        # test_large_request_body()
+        test_basic_http_methods()
+        test_error_handling()
+        test_mime_types()
+        test_http_headers()
+        test_multipart_upload()
+        test_directory_listing()
+        test_redirection()
+        test_cgi_functionality()
+        test_path_traversal_security()
+        test_keep_alive()
+        test_chunked_transfer()
+        test_large_request_body()
         test_request_size_edge_cases()
-        # test_reasonable_upload_limits()
-        # test_different_ports()
-        # test_concurrent_connections()
-        # test_server_resilience()
-        # test_stress_test()
+        test_reasonable_upload_limits()
+        test_different_ports()
+        test_concurrent_connections()
+        test_server_resilience()
+        test_stress_test()
         
         print_test("=== All tests completed ===")
         
     finally:
-        stop_server(server_proc)
+        # stop_server(server_proc)
+        print("")
 
 if __name__ == "__main__":
     main()

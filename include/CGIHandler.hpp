@@ -8,11 +8,14 @@
 #include <cerrno>
 #include "Request.hpp"
 #include "Helper.hpp"
+#include "ConfigValidator.hpp"
 
 class Client;
 class Server;
 class Request;
 struct serverLevel;
+
+#define NIX false
 
 class CGIHandler {
     public:
