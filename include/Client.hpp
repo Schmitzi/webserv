@@ -31,8 +31,8 @@ struct locationLevel;
 class Client {
     public:
         Client(Server& serv);
-        Client(const Client& copy);
-		Client &operator=(const Client& copy);
+        Client(const Client& client);
+		Client &operator=(const Client& other);
         ~Client();
         int                     &getFd();
         Server                  &getServer();
