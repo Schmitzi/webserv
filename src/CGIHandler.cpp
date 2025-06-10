@@ -9,50 +9,6 @@ CGIHandler::CGIHandler() {
     
 }
 
-CGIHandler::CGIHandler(const CGIHandler& copy) {
-	*this = copy;
-}
-
-CGIHandler &CGIHandler::operator=(const CGIHandler& copy) {
-	if (this != &copy) {
-		_input[0] = copy._input[0];
-		_input[1] = copy._input[1];
-		_output[0] = copy._output[0];
-		_output[1] = copy._output[1];
-		_cgiBinPath = copy._cgiBinPath;
-		_supportedExt = copy._supportedExt;
-		_pathInfo = copy._pathInfo;
-		_env = copy._env;
-		_args = copy._args;
-		_path = copy._path;
-		_client = copy._client;
-		_server = copy._server;
-	}
-	return *this;
-}
-
-CGIHandler::CGIHandler(const CGIHandler& copy) {
-	*this = copy;
-}
-
-CGIHandler &CGIHandler::operator=(const CGIHandler& copy) {
-	if (this != &copy) {
-		_input[0] = copy._input[0];
-		_input[1] = copy._input[1];
-		_output[0] = copy._output[0];
-		_output[1] = copy._output[1];
-		_cgiBinPath = copy._cgiBinPath;
-		_supportedExt = copy._supportedExt;
-		_pathInfo = copy._pathInfo;
-		_env = copy._env;
-		_args = copy._args;
-		_path = copy._path;
-		_client = copy._client;
-		_server = copy._server;
-	}
-	return *this;
-}
-
 CGIHandler::~CGIHandler() {
     cleanupResources();
 }
@@ -483,37 +439,6 @@ void CGIHandler::setPathInfo(Request& req) {
     } else {
         _pathInfo = "";
     }
-}
-
-void CGIHandler::setPathInfo(const std::string& requestPath) {
-    if (_path.empty()) {
-        std::cout << "Error: _path is empty! Using requestPath instead.\n";
-        _path = requestPath;
-    }
-    
-    size_t phpPos = requestPath.find(".php");
-    if (phpPos == std::string::npos) {
-        std::cout << "Warning: No .php found in request path!\n";
-        _pathInfo = "";
-        return;
-    }
-    
-    size_t scriptPathEnd = phpPos + 4;
-    
-    std::string scriptPath = requestPath.substr(0, scriptPathEnd);
-    
-    if (scriptPathEnd < requestPath.length()) {
-        size_t queryPos = requestPath.find('?', scriptPathEnd);
-        if (queryPos != std::string::npos) {
-            _pathInfo = requestPath.substr(scriptPathEnd, queryPos - scriptPathEnd);
-        } else {
-            _pathInfo = requestPath.substr(scriptPathEnd);
-        }
-    } else {
-        _pathInfo = "";
-    }
-
-    _path = "local" + scriptPath;
 }
 
 void    CGIHandler::findBash(std::string& filePath) {
