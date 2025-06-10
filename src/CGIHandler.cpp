@@ -337,7 +337,7 @@ int CGIHandler::prepareEnv(Request &req) {
             if (queryType == "file")
                 fileName = req.getQuery().substr(pos1 + 1);
 			else
-				fileContent = req.getQuery().substr(pos1 + 1);
+				fileContent = req.getQuery().substr(pos1 + 1);//TODO: should we check the stuff underneath or just leave it like this?
             // else if (queryType == "content" || queryType == "body" || queryType == "data"
             //         || queryType == "value" || queryType == "text" || queryType == "user")
             //     fileContent = req.getQuery().substr(pos1 + 1);

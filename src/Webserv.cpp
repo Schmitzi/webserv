@@ -45,11 +45,13 @@ Webserv::~Webserv() {
     cleanup();
 }
 
-void    Webserv::flipState() {
-    if (_state == true)
-        _state = false;
-    else
-        _state = false;
+void Webserv::flipState() {
+	_state = false;
+	// if (_state == true) {
+    //     _state = false;
+    // } else {
+    //     _state = false;
+    // }
 }
 
 void Webserv::setEnvironment(char **envp) {
