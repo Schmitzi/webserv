@@ -902,8 +902,7 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
 }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
-    // std::cout << "DEBUG: sendResponse called with client fd: " << _fd << std::endl;
-    
+ 
     if (_fd <= 0) {
         std::cerr << "ERROR: Invalid file descriptor in sendResponse: " << _fd << std::endl;
         return -1;
