@@ -461,37 +461,6 @@ void CGIHandler::setPathInfo(Request& req) {
     }
 }
 
-void CGIHandler::setPathInfo(const std::string& requestPath) {
-    if (_path.empty()) {
-        std::cout << "Error: _path is empty! Using requestPath instead.\n";
-        _path = requestPath;
-    }
-    
-    size_t phpPos = requestPath.find(".php");
-    if (phpPos == std::string::npos) {
-        std::cout << "Warning: No .php found in request path!\n";
-        _pathInfo = "";
-        return;
-    }
-    
-    size_t scriptPathEnd = phpPos + 4;
-    
-    std::string scriptPath = requestPath.substr(0, scriptPathEnd);
-    
-    if (scriptPathEnd < requestPath.length()) {
-        size_t queryPos = requestPath.find('?', scriptPathEnd);
-        if (queryPos != std::string::npos) {
-            _pathInfo = requestPath.substr(scriptPathEnd, queryPos - scriptPathEnd);
-        } else {
-            _pathInfo = requestPath.substr(scriptPathEnd);
-        }
-    } else {
-        _pathInfo = "";
-    }
-
-    _path = "local" + scriptPath;
-}
-
 void    CGIHandler::findBash(std::string& filePath) {
     if (NIX == false) 
     	_args.push_back("/usr/bin/bash");

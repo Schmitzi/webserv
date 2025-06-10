@@ -901,45 +901,11 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     send(_fd, response.c_str(), response.length(), 0);
 }
 
-void Client::findContentType(Request& req) {
-    std::string raw(_buffer);
-    size_t start = raw.find("Content-Type: ");
-    
-    if (start == std::string::npos) {
-        if (raw.find("POST") == 0) {
-            std::cout << RED <<  "Warning: POST request without Content-Type header\n" << RESET;
-            req.setContentType("application/octet-stream");
-        }
-        return;
-    }
-    
-    start += 14;
-    size_t end = raw.find("\r\n", start);
-    if (end == std::string::npos) {
-        end = raw.find("\n", start);
-        if (end == std::string::npos) {
-            end = raw.length();
-        }
-    }
-    
-    std::string contentType = raw.substr(start, end - start);
-    req.setContentType(contentType);
-    
-    size_t boundaryPos = contentType.find("; boundary=");
-    if (boundaryPos != std::string::npos) {
-        std::string boundary = contentType.substr(boundaryPos + 11);
-        
-        // Clean up boundary if needed
-        size_t quotePos = boundary.find("\"");
-        if (quotePos != std::string::npos) {
-            boundary = boundary.substr(0, quotePos);
-        }
-        
-        if (boundary.empty()) {
-            std::cout << "Warning: Empty boundary found" << std::endl;
-        }
-        
-        req.setBoundary(boundary);
+ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
+ 
+    if (_fd <= 0) {
+        std::cerr << "ERROR: Invalid file descriptor in sendResponse: " << _fd << std::endl;
+        return -1;
     }
     
     std::string response = "HTTP/1.1 200 OK\r\n";
