@@ -43,6 +43,7 @@ class Client {
         int                     acceptConnection(int serverFd);
         void                    displayConnection();
         int                     recieveData();
+        int                     checkLength();
         int                     processRequest(std::string requestBuffer);
         int                     handleGetRequest(Request& req);
         bool                    isFileBrowserRequest(const std::string& path);

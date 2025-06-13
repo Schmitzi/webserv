@@ -29,6 +29,7 @@ void createLocationFromIndex(std::string& path) {
 		struct stat info;
 		if (stat(absolutePath.c_str(), &info) == 0 && (info.st_mode & S_IFDIR))
 			return;
+		return;
 	}
 	std::cerr << "Error creating directory: " << absolutePath << " - " << strerror(errno) << std::endl;
 }
@@ -48,6 +49,24 @@ bool isValidDir(std::string &path) {
 	struct stat	info;
 
 	return (stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode) && access(path.c_str(), R_OK) == 0);
+}
+
+bool isValidExecutable(const std::string& path) {
+    struct stat info;
+    
+    if (stat(path.c_str(), &info) != 0) {
+        return false;
+    }
+    
+    if (!S_ISREG(info.st_mode)) {
+        return false;
+    }
+    
+    if (access(path.c_str(), X_OK) != 0) {
+        return false;
+    }
+    
+    return true;
 }
 
 bool isValidName(const std::string& name) {

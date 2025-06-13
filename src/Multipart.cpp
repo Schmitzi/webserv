@@ -111,7 +111,7 @@ bool Multipart::parseContent(size_t contentStart, const std::string& fullBoundar
     
     if (contentEnd == std::string::npos) {
         _isComplete = false;
-        return true; // Partial upload
+        return true;
     }
     
     _fileContent = _data.substr(contentStart, contentEnd - contentStart);
