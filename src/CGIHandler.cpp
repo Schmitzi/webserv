@@ -346,17 +346,17 @@ int CGIHandler::prepareEnv(Request &req) {
             //     return 1;
             // }
         }
-        locationLevel loc = locationLevel();
+        locationLevel* loc = NULL;
         if (!matchUploadLocation("cgi-bin", req.getConf(), loc)) {
             std::cerr << "Location not found for path: cgi-bin" << std::endl;
             return 1;
         }
-        if (loc.uploadDirPath.empty()) {
+        if (loc->uploadDirPath.empty()) {
             std::cerr << "Upload directory not set for path: cgi-bin" << std::endl;
             return 1;
         }
-        if (loc.uploadDirPath[loc.uploadDirPath.size() - 1] != '/')
-            filePath = loc.uploadDirPath + '/';
+        if (loc->uploadDirPath[loc->uploadDirPath.size() - 1] != '/')
+            filePath = loc->uploadDirPath + '/';
         filePath += fileName;
     }
     

@@ -68,18 +68,18 @@ ConfigParser &Server::getConfParser() {
 }
 
 std::string Server::getUploadDir(Client& client, Request& req) {
-	locationLevel loc = locationLevel();
+	locationLevel* loc = NULL;
 	if (!matchUploadLocation(req.getReqPath(), req.getConf(), loc)) {
 		std::cout << "Location not found: " << req.getReqPath() << std::endl;
 		client.sendErrorResponse(403, req);
 		return "";
 	}
-	if (loc.uploadDirPath.empty()) {
+	if (loc->uploadDirPath.empty()) {
 		std::cout << "Upload directory not set: " << req.getReqPath() << std::endl;
 		client.sendErrorResponse(403, req);
 		return "";
 	}
-    std::string fullPath = getWebRoot(req, loc) + req.getPath();
+    std::string fullPath = getWebRoot(req, *loc) + req.getPath();
 	return fullPath;
 }
 

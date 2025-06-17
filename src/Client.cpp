@@ -246,10 +246,10 @@ int Client::processRequest(Request &req) {
         return 1;
     }
 
-    locationLevel loc = locationLevel();
+    locationLevel* loc = NULL;
     if (matchLocation(req.getPath(), conf, loc)) {
-        if (loc.hasRedirect == true) {
-            sendRedirect(loc.redirectionHTTP.first, loc.redirectionHTTP.second);
+        if (loc->hasRedirect == true) {
+            sendRedirect(loc->redirectionHTTP.first, loc->redirectionHTTP.second);
             return 0;
         }
     }
@@ -280,7 +280,7 @@ int Client::processRequest(Request &req) {
 
 int Client::handleGetRequest(Request& req) {
 	std::string requestPath = req.getPath();
-	locationLevel loc = locationLevel();
+	locationLevel* loc = NULL;
 	if (!matchLocation(req.getReqPath(), req.getConf(), loc)) {
 		std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getReqPath() << std::endl;
 		sendErrorResponse(404, req);
@@ -290,7 +290,7 @@ int Client::handleGetRequest(Request& req) {
         sendErrorResponse(403, req);
         return 1;
     }
-    setAutoIndex(loc);
+    setAutoIndex(*loc);
     if (_autoindex == true && isFileBrowserRequest(requestPath)) {
         return handleFileBrowserRequest(req, requestPath);
     } else {
@@ -311,10 +311,10 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
         actualPath = requestPath.substr(5);
         if (actualPath.empty()) actualPath = "/";
     } else {
-		locationLevel loc = locationLevel();
+		locationLevel* loc = NULL;
 		matchLocation(requestPath, req.getConf(), loc);
         actualPath = requestPath.substr(5);
-        std::string actualFullPath = _server->getWebRoot(req, loc) + actualPath;
+        std::string actualFullPath = _server->getWebRoot(req, *loc) + actualPath;
         
         struct stat fileStat;
         if (stat(actualFullPath.c_str(), &fileStat) != 0) {
@@ -344,7 +344,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 }
 
 int Client::handleRegularRequest(Request& req) {
-    locationLevel loc = locationLevel();
+    locationLevel* loc = NULL;
 
     if (!matchLocation(req.getPath(), req.getConf(), loc)) {
         std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getPath() << std::endl;
@@ -354,7 +354,7 @@ int Client::handleRegularRequest(Request& req) {
 
     std::string reqPath = req.getPath();
     if (reqPath == "/" || reqPath.empty()) {
-        reqPath = loc.indexFile;
+        reqPath = loc->indexFile;
     }
 
     size_t end = reqPath.find_last_not_of(" \t\r\n");
@@ -363,12 +363,12 @@ int Client::handleRegularRequest(Request& req) {
     }
     std::string fullPath;
     if (reqPath.find("/home") == std::string::npos) {
-        fullPath = _server->getWebRoot(req, loc) + reqPath;
+        fullPath = _server->getWebRoot(req, *loc) + reqPath;
     } else {
         fullPath = reqPath;
     }
 
-	setAutoIndex(loc);
+	setAutoIndex(*loc);
 
     if (fullPath.find("root") != std::string::npos && _autoindex == false) {
         std::cout << RED << "Access to directory browser is forbidden when autoindex is off\n" << RESET;
@@ -382,7 +382,7 @@ int Client::handleRegularRequest(Request& req) {
 	_cgi->setCGIBin(&req.getConf());
 	_cgi->setClient(*this);
     if (_cgi->isCGIScript(reqPath)) {
-		std::string fullCgiPath = _server->getWebRoot(req, loc) + reqPath;
+		std::string fullCgiPath = _server->getWebRoot(req, *loc) + reqPath;
         return _cgi->executeCGI(*this, req, fullCgiPath);
     }
 
@@ -410,7 +410,7 @@ int Client::handleRegularRequest(Request& req) {
     std::string contentType = req.getMimeType(fullPath);
     if (fullPath.find(".html") != std::string::npos || 
         reqPath == "/" || 
-        reqPath == loc.indexFile) {
+        reqPath == loc->indexFile) {
         contentType = "text/html";
     }
 
@@ -454,16 +454,16 @@ int Client::buildBody(Request &req, std::string fullPath) {
 }
 
 int Client::viewDirectory(std::string fullPath, Request& req) {
-    locationLevel loc = locationLevel();
+    locationLevel* loc = NULL;
 	if (matchLocation(req.getPath(), req.getConf(), loc)) {
-		setAutoIndex(loc);
+		setAutoIndex(*loc);
 		if (_autoindex == true) {
 			return createDirList(fullPath, req.getPath(), req);
 		} else {
 			std::string indexPath = fullPath;
 			if (indexPath[indexPath.size() - 1] != '/')
 				indexPath += "/";
-            indexPath += loc.indexFile;
+            indexPath += loc->indexFile;
 			struct stat indexStat;
 			if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
 
@@ -490,7 +490,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
             return createDirList(fullPath, req.getPath(), req);
         } else {
 
-            std::string indexPath = fullPath + loc.indexFile;
+            std::string indexPath = fullPath + loc->indexFile;
             struct stat indexStat;
             if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
                 Request req;
@@ -627,7 +627,7 @@ std::string Client::extractFileName(const std::string& path) {
 }
 
 std::string Client::getLocationPath(Request& req, const std::string& method) {	
-	locationLevel loc = locationLevel();
+	locationLevel* loc = NULL;
 	if (req.getPath().empty()) {
 		std::cout << "Request path is empty for " << method << " request" << std::endl;
 		sendErrorResponse(400, req);
@@ -638,22 +638,22 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 		sendErrorResponse(404, req);
 		return "";
 	}
-	for (size_t i = 0; i < loc.methods.size(); i++) {
-		if (loc.methods[i] == method) {
+	for (size_t i = 0; i < loc->methods.size(); i++) {
+		if (loc->methods[i] == method) {
 			break;
 		}
-		if (i == loc.methods.size() - 1) {
+		if (i == loc->methods.size() - 1) {
 			std::cout << "Method not allowed for " << method << " request: " << req.getPath() << std::endl;
 			sendErrorResponse(405, req);
 			return "";
 		}
 	}
-	if (loc.uploadDirPath.empty()) {
+	if (loc->uploadDirPath.empty()) {
 		std::cout << "Upload directory not set for " << method << " request: " << req.getPath() << std::endl;
 		sendErrorResponse(403, req);
 		return "";
 	}
-    std::string fullPath = loc.uploadDirPath;
+    std::string fullPath = loc->uploadDirPath;
     if (!fullPath.empty() && fullPath[fullPath.size() - 1] != '/')
         fullPath += "/";
     std::string fileName = extractFileName(req.getPath());
@@ -662,7 +662,7 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 }
 
 int Client::handlePostRequest(Request& req) {
-	locationLevel loc = locationLevel();
+	locationLevel* loc = NULL;
     if (!matchLocation(req.getPath(), req.getConf(), loc)) {
 		std::cout << RED << _webserv->getTimeStamp() << "Location not found for POST request: " 
 				  << RESET << req.getPath() << std::endl;
@@ -673,7 +673,7 @@ int Client::handlePostRequest(Request& req) {
     if (fullPath.empty())
         return 1;
     
-    std::string cgiPath = _server->getWebRoot(req, loc) + req.getPath();
+    std::string cgiPath = _server->getWebRoot(req, *loc) + req.getPath();
     if (_cgi->isCGIScript(cgiPath)) {
         return _cgi->executeCGI(*this, req, cgiPath);
     }

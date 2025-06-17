@@ -55,15 +55,20 @@ int main(int ac, char **av, char **envp) {
 		signal(SIGINT, signalHandler);
 		signal(SIGTERM, signalHandler);
 	
-		Webserv webserv;
-		if (av[1])
-			webserv = Webserv(av[1]);
-		else 
-			webserv = Webserv();
-		g_webserv = &webserv;
-		webserv.setEnvironment(envp);
-		if (webserv.run()) {
-			webserv.ft_error("Setup failed");
+		if (av[1]) {
+			Webserv webserv = Webserv(av[1]);
+			g_webserv = &webserv;
+			webserv.setEnvironment(envp);
+			if (webserv.run()) {
+				webserv.ft_error("Setup failed");
+			}
+		} else {
+			Webserv webserv = Webserv();
+			g_webserv = &webserv;
+			webserv.setEnvironment(envp);
+			if (webserv.run()) {
+				webserv.ft_error("Setup failed");
+			}
 		}
 	} catch (const std::exception& e) {
 		std::cerr << "Exception: " << e.what() << std::endl;

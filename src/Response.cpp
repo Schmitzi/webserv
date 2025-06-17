@@ -1,39 +1,40 @@
 #include "../include/Response.hpp"
 
-bool matchLocation(const std::string& path, const serverLevel& serv, locationLevel& bestMatch) {
+bool matchLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch) {
 	size_t longestMatch = 0;
 	bool found = false;
+
 	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
 	for (; it != serv.locations.end(); ++it) {
-		locationLevel loc = it->second;
-		if (path.find(loc.locName) == 0 && loc.locName.size() > longestMatch) {
+		locationLevel* loc = const_cast<locationLevel*>(&(it->second));
+		if ((path.find(loc->locName) != std::string::npos && loc->locName.size() > longestMatch)) {
 			bestMatch = loc;
 			found = true;
-			longestMatch = loc.locName.size();
+			longestMatch = loc->locName.size();
 		}
 	}
 	return found;
 }
 
-bool matchUploadLocation(const std::string& path, const serverLevel& serv, locationLevel& bestMatch) {
+bool matchUploadLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch) {
 	size_t longestMatch = 0;
 	bool found = false;
 	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
 	if (path.empty()) {
 		for (; it != serv.locations.end(); ++it) {
-			locationLevel loc = it->second;
-			if (!loc.uploadDirPath.empty()) {
+			locationLevel* loc = const_cast<locationLevel*>(&(it->second));
+			if (!loc->uploadDirPath.empty()) {
 				bestMatch = loc;
 				return true;
 			}
 		}
 	} else {
 		for (; it != serv.locations.end(); ++it) {
-			locationLevel loc = it->second;
-			if (path.find(loc.locName) == 0 && loc.locName.size() > longestMatch) {
+			locationLevel* loc = const_cast<locationLevel*>(&(it->second));
+			if (path.find(loc->locName) == 0 && loc->locName.size() > longestMatch) {
 				bestMatch = loc;
 				found = true;
-				longestMatch = loc.locName.size();
+				longestMatch = loc->locName.size();
 			}
 		}
 	}
