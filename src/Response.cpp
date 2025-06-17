@@ -91,13 +91,13 @@ std::string findErrorPage(int statusCode, const std::string& dir, Request& req) 
     }
     
     std::string filePath;
-    if (foundCustomPage) {// Use custom error page if defined
+    if (foundCustomPage) {
 		if (uri.find(req.getConf().rootServ) == std::string::npos)
 			filePath = req.getConf().rootServ + uri;
 		else
 			filePath = uri;
 	}
-    else {// Otherwise use default error page
+    else {
         filePath = dir + "/" + tostring(statusCode) + ".html";
 	}
     return filePath;
@@ -105,14 +105,12 @@ std::string findErrorPage(int statusCode, const std::string& dir, Request& req) 
 
 void resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req) {
     std::string dir = "errorPages";
-    // Look for custom error page for this status code
     std::string filePath = findErrorPage(statusCode, dir, req);
-    // Make sure error pages directory exists
+
     struct stat st;
     if (stat(dir.c_str(), &st) != 0) {
     	mkdir(dir.c_str(), 0755);
 	}
-    // Try to read existing error page file
     std::ifstream file(filePath.c_str());
     if (file) {
         std::stringstream buffer;
@@ -120,9 +118,7 @@ void resolveErrorResponse(int statusCode, std::string& statusText, std::string& 
         body = buffer.str();
         file.close();
     } else {
-        // Generate a basic error page with no external resources
         generateErrorPage(body, statusCode, statusText);
-        // Save the generated error page for future use
         std::ofstream out(filePath.c_str());
         if (out) {
             out << body;

@@ -62,7 +62,8 @@ int main(int ac, char **av, char **envp) {
 			if (webserv.run()) {
 				webserv.ft_error("Setup failed");
 			}
-		} else {
+		}
+		else {
 			Webserv webserv = Webserv();
 			g_webserv = &webserv;
 			webserv.setEnvironment(envp);

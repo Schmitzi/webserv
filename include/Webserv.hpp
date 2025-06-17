@@ -38,7 +38,7 @@ class	Client;
 
 class Webserv {
     public:
-        Webserv(std::string const &config = "config/default.conf");
+        Webserv(std::string config = "config/default.conf");
         Webserv(Webserv const &other);
         Webserv &operator=(Webserv const &other);
         ~Webserv();

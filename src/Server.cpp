@@ -101,7 +101,6 @@ std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
 }
 
 int Server::openSocket() {
-    // Create a TCP socket
     _fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (_fd < 0) {
         _webserv->ft_error("Socket creation error");
@@ -112,7 +111,7 @@ int Server::openSocket() {
     return 0;
 }
 
-int Server::setOptional() { // Optional: set socket options to reuse address
+int Server::setOptional() { 
     int opt = 1;
     
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
@@ -132,7 +131,6 @@ int Server::setServerAddr() {
     std::string ip = conf.first.first;
     int port = conf.first.second;
     
-    // Convert string IP to network format
     if (ip == "0.0.0.0" || ip.empty()) {
         _addr.sin_addr.s_addr = INADDR_ANY;
     } else {
@@ -145,7 +143,7 @@ int Server::setServerAddr() {
     return 0;
 }
 
-int Server::ft_bind() { // Bind socket to address
+int Server::ft_bind() {
     if (bind(_fd, (struct sockaddr *)&_addr, sizeof(_addr)) < 0) {
         _webserv->ft_error("bind() failed");
         close(_fd);
@@ -154,7 +152,7 @@ int Server::ft_bind() { // Bind socket to address
     return 0;
 }
 
-int Server::ft_listen() { // Listen for connections
+int Server::ft_listen() {
     const int backlog = 128;
     
     if (listen(_fd, backlog) < 0) {

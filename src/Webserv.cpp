@@ -1,12 +1,12 @@
 #include "../include/Webserv.hpp"
 
-Webserv::Webserv(std::string const &config) : _epollFd(-1) {
+Webserv::Webserv(std::string config) : _epollFd(-1) {
 	_state = false;
 	_confParser = ConfigParser(config);
     _configs = _confParser.getAllConfigs();
-    for (size_t i = 0; i < _configs.size(); i++) {//CHECK ALL CONFIGS
+    for (size_t i = 0; i < _configs.size(); i++) {
 		bool toAdd = true;
-		for (size_t j = 0; j < _servers.size(); j++) {//CHECK ALL SERVERS FOR CURRENT CONFIG FILE PORT
+		for (size_t j = 0; j < _servers.size(); j++) {
             std::vector<serverLevel>& servConfigs = _servers[j].getConfigs();
             for (size_t k = 0; k < servConfigs.size(); k++) {
                 std::pair<std::pair<std::string, int>, bool> one = _confParser.getDefaultPortPair(_confParser.getConfigByIndex(i));

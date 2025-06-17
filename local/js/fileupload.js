@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Display file size warning for large files
+        // Display file size info for debugging
         const fileSizeMB = file.size / (1024 * 1024);
         const fileSizeGB = fileSizeMB / 1024;
         
@@ -48,29 +48,6 @@ FormData contains:
 - Filename: ${file.name}
 `;
         
-        // DIRECT SIZE CHECK - Very important for WebServ which has limited file size support
-        if (fileSizeMB > 50) { // Adjust this threshold based on your server limits
-            statusDiv.innerHTML = `<span style="color: red;">✗</span> Error: File too large (${fileSizeStr})
-<br><br>
-Your file exceeds the server's size limit. The maximum file size for upload is likely around 1-10MB.
-<br><br>
-To upload larger files, please:
-<br>
-1. Use a smaller file, or<br>
-2. Contact the server administrator to increase the limit`;
-            
-            debugResponse.textContent = `CLIENT ERROR: File size (${fileSizeStr}) exceeds server limit.
-            
-The server's client_max_body_size setting in the configuration file is likely too small for this file.
-Based on the file size, you would need to increase this setting to at least ${Math.ceil(fileSizeGB + 1)}G in your server config.`;
-
-            // Show debug panel automatically
-            if (debugToggle && !debugPanel.classList.contains('hidden')) {
-                debugToggle.checked = true;
-            }
-            return;
-        }
-        
         // Create FormData object to send the file
         const formData = new FormData();
         formData.append('file', file);
@@ -78,7 +55,7 @@ Based on the file size, you would need to increase this setting to at least ${Ma
         statusDiv.textContent = 'Uploading...';
         
         try {
-            // Use XMLHttpRequest instead of fetch for better debugging
+            // Use XMLHttpRequest for better debugging and progress tracking
             const xhr = new XMLHttpRequest();
             
             // Set up progress tracking
@@ -100,20 +77,23 @@ Based on the file size, you would need to increase this setting to at least ${Ma
                 };
                 
                 xhr.onerror = function() {
-                    // If there's a network error and the file is large, provide a specific message
+                    // Network error occurred
                     debugResponse.textContent = `Error: Network request failed
-Status: N/A
-Status Text: Network Error
+Status: ${xhr.status}
+Status Text: ${xhr.statusText}
+Response: ${xhr.responseText}
 
-This is most likely because:
-1. The file (${fileSizeStr}) exceeds the server's maximum allowed size
-2. The server closed the connection without sending a proper HTTP response
-3. The server's 'client_max_body_size' setting is too small for this file`;
+This could be due to:
+1. Network connectivity issues
+2. Server is unreachable
+3. Connection was terminated by the server
+4. CORS issues`;
 
                     reject({
-                        status: 413, // Assume 413 for network errors with large files
-                        statusText: 'Payload Too Large (Connection Terminated)',
-                        message: `File size (${fileSizeStr}) likely exceeds server limit`
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        message: xhr.responseText || 'Network request failed',
+                        responseText: xhr.responseText
                     });
                 };
                 
@@ -128,33 +108,51 @@ This is most likely because:
             debugResponse.textContent = `Status: ${response.status} ${response.statusText}
 Response body: ${response.text}`;
             
-            // Update status
+            // Update status based on server response
             if (response.status >= 200 && response.status < 300) {
                 statusDiv.innerHTML = '<span style="color: green;">✓</span> Upload successful';
                 form.reset();
+                document.getElementById('file-name').textContent = 'No file selected';
             } else {
-                const errorMsg = response.status === 413 
-                    ? `File size (${fileSizeStr}) exceeds server limit` 
-                    : `Error ${response.status}: ${response.statusText}`;
+                // Display the actual server error message
+                let errorMessage = response.text || response.statusText || 'Unknown error';
                 
-                statusDiv.innerHTML = `<span style="color: red;">✗</span> Upload failed: ${errorMsg}`;
+                statusDiv.innerHTML = `<span style="color: red;">✗</span> Upload failed: ${errorMessage}`;
+                
+                // Show debug panel automatically for server errors
+                if (debugToggle && debugPanel.classList.contains('hidden')) {
+                    debugToggle.checked = true;
+                    debugPanel.classList.remove('hidden');
+                    
+                    // Update toggle UI
+                    const track = document.getElementById('toggle-track');
+                    const thumb = document.getElementById('toggle-thumb');
+                    track.classList.add('bg-blue-500');
+                    track.classList.remove('bg-gray-300');
+                    thumb.classList.add('transform', 'translate-x-4');
+                }
             }
         } catch (error) {
-            // For network errors that are likely size-related
-            if (error.status === 413 || fileSizeMB > 10) {
-                statusDiv.innerHTML = `<span style="color: red;">✗</span> Upload failed: ${error.message}
-<br><br>
-This is likely because your file (${fileSizeStr}) exceeds the server's size limit.
-<br><br>
-Please try with a smaller file or contact the server administrator.`;
-            } else {
-                statusDiv.innerHTML = `<span style="color: red;">✗</span> Upload error: ${error.message || 'Unknown error'}`;
+            let errorMessage = error.message || 'Unknown error';
+            
+            // If we have a response text from the server, use that
+            if (error.responseText) {
+                errorMessage = error.responseText;
             }
+            
+            statusDiv.innerHTML = `<span style="color: red;">✗</span> Upload error: ${errorMessage}`;
             
             // Show debug panel automatically for errors
             if (debugToggle && debugPanel.classList.contains('hidden')) {
                 debugToggle.checked = true;
                 debugPanel.classList.remove('hidden');
+                
+                // Update toggle UI
+                const track = document.getElementById('toggle-track');
+                const thumb = document.getElementById('toggle-thumb');
+                track.classList.add('bg-blue-500');
+                track.classList.remove('bg-gray-300');
+                thumb.classList.add('transform', 'translate-x-4');
             }
         }
     });

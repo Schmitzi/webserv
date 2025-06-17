@@ -38,6 +38,8 @@ struct locationLevel {
 struct serverLevel {
 	serverLevel();
 	~serverLevel();
+	serverLevel();
+	~serverLevel();
 	std::vector<std::pair<std::pair<std::string, int>, bool> >	port;//listen
 	std::string													rootServ;//root
 	std::string													indexFile;//index

@@ -36,10 +36,7 @@ class CGIHandler {
         int										prepareEnv(Request &req);
         std::map<std::string, std::string>		parseHeaders(const std::string& headerSection);
         std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
-        void									findBash(std::string& filePath);
-        void									findPHP(std::string const &cgiBin, std::string& filePath);
-        void									findPython(std::string& filePath);
-        void									findPl(std::string& filePath);
+		void									makeArgs(std::string const &cgiBin, std::string& filePath);
         void									cleanupResources();
         std::string								getTimeStamp();
         std::string								formatChunkedResponse(const std::string& body);

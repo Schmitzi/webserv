@@ -325,8 +325,7 @@ std::string Request::getMimeType(std::string const &path) {
     } else {
         return "text/plain";
     }
-    
-    // CRITICAL FIX: Proper MIME type mapping
+   
     if (ext == "html" || ext == "htm")
         return "text/html";
     else if (ext == "css")
@@ -356,7 +355,7 @@ std::string Request::getMimeType(std::string const &path) {
     else if (ext == "mp3")
         return "audio/mpeg";
     
-    return "application/octet-stream"; // Default for unknown files
+    return "application/octet-stream";
 }
 
 bool Request::isChunkedTransfer() const {
