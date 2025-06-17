@@ -352,39 +352,39 @@ int CGIHandler::prepareEnv(Request &req) {
         if (dotPos != std::string::npos) {
             ext = "." + _path.substr(dotPos + 1); 
             
-            locationLevel loc = locationLevel();
+            locationLevel* loc = NULL;
             if (!matchLocation(ext, req.getConf(), loc)) {
                 std::cerr << "Location not found for extension: " << ext << std::endl;
                 return 1;
             }
             
-            if (loc.uploadDirPath.empty()) {
+            if (loc->uploadDirPath.empty()) {
                 std::cerr << "Upload directory not set for extension: " << ext << std::endl;
                 return 1;
             }
             
-            if (loc.uploadDirPath[loc.uploadDirPath.size() - 1] != '/')
-                filePath = loc.uploadDirPath + '/';
+            if (loc->uploadDirPath[loc->uploadDirPath.size() - 1] != '/')
+                filePath = loc->uploadDirPath + '/';
             else
-                filePath = loc.uploadDirPath;
+                filePath = loc->uploadDirPath;
             filePath += fileName;
             
-            std::cout << "CGI Processor Path: " << loc.cgiProcessorPath << std::endl;
-            makeArgs(loc.cgiProcessorPath, filePath);
+            std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
+            makeArgs(loc->cgiProcessorPath, filePath);
         }
     } else {
         size_t dotPos = _path.find_last_of('.');
         if (dotPos != std::string::npos) {
             ext = "." + _path.substr(dotPos + 1);
             
-            locationLevel loc = locationLevel();
+            locationLevel* loc = NULL;
             if (!matchLocation(ext, req.getConf(), loc)) {
                 std::cerr << "Location not found for extension: " << ext << std::endl;
                 return 1;
             }
             
-            std::cout << "CGI Processor Path: " << loc.cgiProcessorPath << std::endl;
-            makeArgs(loc.cgiProcessorPath, filePath);
+            std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
+            makeArgs(loc->cgiProcessorPath, filePath);
         }
     }
     
