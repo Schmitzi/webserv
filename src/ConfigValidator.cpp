@@ -11,11 +11,8 @@ std::string getAbsPath(std::string& path) {
 		return ".";
 	
 	std::string absPath = cwdBuffer;
+	absPath = combinePath(absPath, path);
 	free(cwdBuffer);
-	
-	absPath += "/" + path;
-	if (absPath[absPath.size() - 1] == '/')
-		absPath = absPath.substr(0, absPath.size() - 1);
 	return absPath;
 }
 
@@ -155,12 +152,16 @@ void parseClientMaxBodySize(serverLevel &serv) {
 }
 
 void checkRoot(serverLevel &serv) {
+	if (!serv.rootServ.empty())
+		serv.rootServ = getAbsPath(serv.rootServ);
 	std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 	while (it != serv.locations.end()) {
 		if (it->second.rootLoc.empty() && serv.rootServ.empty())
-			throw configException("Error: No root found.\n-> Requests to / may return 403 or 404");
+			throw configException("Error: No rootLoc found.");
 		else if (it->second.rootLoc.empty())
 			it->second.rootLoc = serv.rootServ;//take default value from server if not specified
+		else
+			it->second.rootLoc = getAbsPath(it->second.rootLoc);
 		++it;
 	}
 }
@@ -170,11 +171,13 @@ void checkIndex(serverLevel &serv) {
 		std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 		while (it != serv.locations.end()) {
 			if (it->second.indexFile.empty())
-				throw configException("Error: No default index found.\n-> Requests to / may return 403 or 404");
+				throw configException("Error: No default index found.");
+			it->second.indexFile = combinePath(it->second.rootLoc, it->second.indexFile);
 			++it;
 		}
 	}
 	else if (!serv.indexFile.empty()) {
+		serv.indexFile = combinePath(serv.rootServ, serv.indexFile);
 		std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 		while (it != serv.locations.end()) {
 			if (it->second.indexFile.empty())
@@ -204,11 +207,19 @@ void checkMethods(locationLevel& loc) {
 }
 
 void initLocLevel(std::vector<std::string>& s, locationLevel& loc) {
-	loc.hasRedirect = false;
-	loc.autoindex = false;
-	for (size_t x = 1; x < s.size() && s[x] != "{"; x++) {
-		loc.locName += s[x];
-		if (x < s.size() - 1 && s[x + 1] != "{")
-			loc.locName += " ";
+	if (s.size() == 4 && s[1] == "~" && s[2][0] == '\\' && s[2][s[2].size() - 1] == '$') {
+		loc.isRegex = true;
+		for (size_t x = 2; x < s.size() && s[x] != "{"; x++) {
+			for (size_t y = 0; y < s[x].size(); y++) {
+				if (s[x][y] != '\\' && s[x][y] != '$')
+					loc.locName += s[x][y];
+			}
+		}
+	} else {
+		for (size_t x = 1; x < s.size() && s[x] != "{"; x++) {
+			loc.locName += s[x];
+			if (x < s.size() - 1 && s[x + 1] != "{")
+				loc.locName += " ";
+		}
 	}
 }

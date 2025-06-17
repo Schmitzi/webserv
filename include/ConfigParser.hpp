@@ -33,6 +33,8 @@ struct locationLevel {
 	bool														hasRedirect;
 	std::string													cgiProcessorPath;//cgi_pass
 	std::string													uploadDirPath;//upload_store
+	std::string													fullPath;//rootLoc + locName//TODO: idk if needed
+	bool														isRegex;
 };
 
 struct serverLevel {

@@ -69,35 +69,35 @@ ConfigParser &Server::getConfParser() {
 
 std::string Server::getUploadDir(Client& client, Request& req) {
 	locationLevel* loc = NULL;
-	if (!matchUploadLocation(req.getReqPath(), req.getConf(), loc)) {
-		std::cout << "Location not found: " << req.getReqPath() << std::endl;
+	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
+		std::cout << "Location not found: " << req.getPath() << std::endl;
 		client.sendErrorResponse(403, req);
 		return "";
 	}
 	if (loc->uploadDirPath.empty()) {
-		std::cout << "Upload directory not set: " << req.getReqPath() << std::endl;
+		std::cout << "Upload directory not set: " << req.getPath() << std::endl;
 		client.sendErrorResponse(403, req);
 		return "";
 	}
-    std::string fullPath = getWebRoot(req, *loc) + req.getPath();
+    std::string fullPath = combinePath(getWebRoot(req, *loc), req.getPath());
 	return fullPath;
 }
 
 std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
-	std::string path;
-	if (!loc.rootLoc.empty()) {
-		if (loc.rootLoc[loc.rootLoc.size() - 1] == '/')
-			path = loc.rootLoc.substr(0, loc.rootLoc.size() - 1);
-		else
-			path = loc.rootLoc;
-	}
-	else {
-		if (req.getConf().rootServ[req.getConf().rootServ.size() - 1] == '/')
-			path = req.getConf().rootServ.substr(0, req.getConf().rootServ.size() - 1);
-		else
-			path = req.getConf().rootServ;
-	}
-	return path;
+	// std::string path;
+	if (!loc.rootLoc.empty())
+		return loc.rootLoc;
+		// if (loc.rootLoc[loc.rootLoc.size() - 1] == '/')
+		// 	path = loc.rootLoc.substr(0, loc.rootLoc.size() - 1);
+		// else
+			// path = loc.rootLoc;
+	else
+		return req.getConf().rootServ;
+		// if (req.getConf().rootServ[req.getConf().rootServ.size() - 1] == '/')
+		// 	path = req.getConf().rootServ.substr(0, req.getConf().rootServ.size() - 1);
+		// else
+		// 	path = req.getConf().rootServ;
+	// return path;
 }
 
 int Server::openSocket() {

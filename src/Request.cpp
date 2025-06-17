@@ -12,7 +12,6 @@ Request::Request(const std::string& rawRequest, Server& server) :
     _body(""),
     _query(""),
     _boundary(""),
-	_reqPath(""),
 	_contentLength(0),
 	_curConf(),
 	_configs(server.getConfigs())
@@ -35,7 +34,6 @@ Request &Request::operator=(const Request& copy) {
 		_body = copy._body;
 		_query = copy._query;
 		_boundary = copy._boundary;
-		_reqPath = copy._reqPath;
 		_contentLength = copy._contentLength;
 		_curConf = copy._curConf;
 		_configs = copy._configs;
@@ -77,10 +75,6 @@ std::string const &Request::getBoundary() {
 
 std::map<std::string, std::string> &Request::getHeaders() {
     return _headers;
-}
-
-std::string Request::getReqPath() const {
-	return _reqPath;
 }
 
 size_t         &Request::getContentLength() {
@@ -205,10 +199,6 @@ void Request::parse(const std::string& rawRequest) {
     if (end != std::string::npos) {
         _path = _path.substr(0, end + 1);
     }
-    
-    size_t reqPathEnd = _path.find_last_of("/");
-    if (reqPathEnd != std::string::npos)
-        _reqPath = _path.substr(0, reqPathEnd + 1);
     
     if (_method != "GET" && _method != "POST" && _method != "DELETE" && 
         _method != "HEAD" && _method != "OPTIONS") {

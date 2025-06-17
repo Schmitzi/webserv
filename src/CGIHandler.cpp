@@ -40,7 +40,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
         if (NIX == true) {
             _cgiBinPath = "/etc/profiles/per-user/schmitzi/bin/php-cgi";
         } else {
-            _cgiBinPath = "/usr/bin/php-cgi";
+            _cgiBinPath = "/usr/bin/cgi-bin";
         }
     }
 }
@@ -363,11 +363,7 @@ int CGIHandler::prepareEnv(Request &req) {
                 return 1;
             }
             
-            if (loc->uploadDirPath[loc->uploadDirPath.size() - 1] != '/')
-                filePath = loc->uploadDirPath + '/';
-            else
-                filePath = loc->uploadDirPath;
-            filePath += fileName;
+            filePath = combinePath(loc->uploadDirPath, fileName);
             
             std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
             makeArgs(loc->cgiProcessorPath, filePath);
@@ -396,7 +392,7 @@ int CGIHandler::prepareEnv(Request &req) {
     _env.push_back("SERVER_SOFTWARE=WebServ/1.0");
     _env.push_back("SERVER_NAME=WebServ/1.0");
     _env.push_back("GATEWAY_INTERFACE=CGI/1.1");
-    _env.push_back("SERVER_PROTOCOL=HTTP/1.1");  // Fix: should be HTTP/1.1
+    _env.push_back("SERVER_PROTOCOL=HTTP/1.1");
     _env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(req.getConf())));
     _env.push_back("REQUEST_METHOD=" + req.getMethod());
     _env.push_back("PATH_INFO=" + getInfoPath());

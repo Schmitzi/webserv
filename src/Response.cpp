@@ -6,11 +6,21 @@ bool matchLocation(const std::string& path, const serverLevel& serv, locationLev
 
 	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
 	for (; it != serv.locations.end(); ++it) {
-		locationLevel* loc = const_cast<locationLevel*>(&(it->second));
-		if ((path.find(loc->locName) != std::string::npos && loc->locName.size() > longestMatch)) {
-			bestMatch = loc;
-			found = true;
-			longestMatch = loc->locName.size();
+		if (it->second.isRegex) {
+			size_t end = path.find_last_of(".");
+			if (end != std::string::npos) {
+				std::string ext = path.substr(end);
+				if (ext == it->first) {
+					bestMatch = const_cast<locationLevel*>(&(it->second));
+					return true;
+				}
+			}
+		} else {
+			if (path.find(it->second.locName) != std::string::npos && it->second.locName.size() > longestMatch) {
+				bestMatch = const_cast<locationLevel*>(&(it->second));
+				found = true;
+				longestMatch = it->second.locName.size();
+			}
 		}
 	}
 	return found;
@@ -93,13 +103,12 @@ std::string findErrorPage(int statusCode, const std::string& dir, Request& req) 
     std::string filePath;
     if (foundCustomPage) {
 		if (uri.find(req.getConf().rootServ) == std::string::npos)
-			filePath = req.getConf().rootServ + uri;
+			filePath = combinePath(req.getConf().rootServ, uri);
 		else
 			filePath = uri;
 	}
-    else {
-        filePath = dir + "/" + tostring(statusCode) + ".html";
-	}
+    else
+        filePath = combinePath(dir, tostring(statusCode)) + ".html";
     return filePath;
 }
 

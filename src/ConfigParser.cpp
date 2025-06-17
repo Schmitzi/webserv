@@ -19,7 +19,8 @@ locationLevel::locationLevel() :
 		redirectionHTTP(std::make_pair(0, "")),
 		hasRedirect(false),
 		cgiProcessorPath(""),
-		uploadDirPath("") {}
+		uploadDirPath(""),
+		isRegex(false) {}
 
 serverLevel::~serverLevel() {}
 
@@ -131,7 +132,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 			if (s[0] == "root") setRootLoc(loc, s);
 			else if (s[0] == "index") setLocIndexFile(loc, s, serv);
 			else if (s[0] == "limit_except") setMethods(loc, s);
-			else if (s[0] == "autoindex") setAutoindex(loc, s);//TODO: remove autoindex bool!
+			else if (s[0] == "autoindex") setAutoindex(loc, s);
 			else if (s[0] == "return") setRedirection(loc, s);
 			else if (s[0] == "cgi_pass") setCgiProcessorPath(loc, s);
 			else if (s[0] == "upload_store") setUploadDirPath(loc, s);
@@ -141,6 +142,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 	if (conf[i].find("}") == std::string::npos)
 		throw configException("Error: no closing bracket found for location.");
 	checkMethods(loc);
+	loc.fullPath = combinePath(loc.rootLoc, loc.locName);
 	serv.locations.insert(std::pair<std::string, locationLevel>(loc.locName, loc));
 }
 
@@ -261,7 +263,7 @@ std::pair<std::pair<std::string, int>, bool> ConfigParser::getDefaultPortPair(se
 	return conf.port[0];
 }
 
-serverLevel& ConfigParser::getConfigByIndex(size_t nbr) {//get a config by index
+serverLevel& ConfigParser::getConfigByIndex(size_t nbr) {
 	if (nbr >= _allConfigs.size())
 		throw configException("Error: Invalid config index specified.");
 	return _allConfigs[nbr];
@@ -351,7 +353,6 @@ void ConfigParser::printConfig(serverLevel& conf) {//only temporary, for debuggi
 				std::cout << " " << its->second.methods[i];
 			std::cout << std::endl;
 		}
-		// if (its->second.autoindexFound == true) {
 		std::cout << "\t\tautoindex: ";
 		if (its->second.autoindex == true)
 			std::cout << "on" << std::endl;
