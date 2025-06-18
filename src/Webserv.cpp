@@ -1,6 +1,7 @@
 #include "../include/Webserv.hpp"
 
 Webserv::Webserv(std::string config) : _epollFd(-1) {
+	_state = false;
 	_confParser = ConfigParser(config);
     _configs = _confParser.getAllConfigs();
     for (size_t i = 0; i < _configs.size(); i++) {
@@ -29,15 +30,13 @@ Webserv::Webserv(Webserv const &other) : _epollFd(-1) {
 Webserv &Webserv::operator=(Webserv const &other) {
     if (this != &other) {
         cleanup();
-		for (size_t i = 0; i < other._servers.size(); i++)
-			_servers.push_back(other._servers[i]);
-		for (size_t i = 0; i < other._clients.size(); i++)
-			_clients.push_back(other._clients[i]);
+		_state = other._state;
+		_servers = other._servers;
+		_clients = other._clients;
 		_env = other._env;
-		_confParser = other._confParser;
-		for (size_t i = 0; i < other._configs.size(); i++)
-			_configs.push_back(other._configs[i]);
         _epollFd = other._epollFd;
+		_confParser = other._confParser;
+		_configs = other._configs;
 	}
 	return *this;
 }
@@ -46,11 +45,13 @@ Webserv::~Webserv() {
     cleanup();
 }
 
-void    Webserv::flipState() {
-    if (_state == true)
-        _state = false;
-    else
-        _state = false;
+void Webserv::flipState() {
+	_state = false;
+	// if (_state == true) {
+    //     _state = false;
+    // } else {
+    //     _state = false;
+    // }
 }
 
 void Webserv::setEnvironment(char **envp) {

@@ -3,7 +3,8 @@
 Request::Request() {}
 
 Request::Request(const std::string& rawRequest, Server& server) : 
-    _method("GET"),
+	_host(""),
+	_method("GET"),
     _path(""),
     _contentType(""),
     _version(""),
@@ -11,12 +12,33 @@ Request::Request(const std::string& rawRequest, Server& server) :
     _body(""),
     _query(""),
     _boundary(""),
-	_reqPath(""),
 	_contentLength(0),
 	_curConf(),
 	_configs(server.getConfigs())
 {
     parse(rawRequest);
+}
+
+Request::Request(const Request& copy) {
+	*this = copy;
+}
+
+Request &Request::operator=(const Request& copy) {
+	if (this != &copy) {
+		_host = copy._host;
+		_method = copy._method;
+		_path = copy._path;
+		_contentType = copy._contentType;
+		_version = copy._version;
+		_headers = copy._headers;
+		_body = copy._body;
+		_query = copy._query;
+		_boundary = copy._boundary;
+		_contentLength = copy._contentLength;
+		_curConf = copy._curConf;
+		_configs = copy._configs;
+	}
+	return *this;
 }
 
 Request::~Request() {
@@ -53,10 +75,6 @@ std::string const &Request::getBoundary() {
 
 std::map<std::string, std::string> &Request::getHeaders() {
     return _headers;
-}
-
-std::string Request::getReqPath() const {
-	return _reqPath;
 }
 
 size_t         &Request::getContentLength() {
@@ -129,8 +147,12 @@ void Request::parse(const std::string& rawRequest) {
     if (headerEnd + headerSeparatorLength < rawRequest.length()) {
         _body = rawRequest.substr(headerEnd + headerSeparatorLength);
     }
-
-    parseHeaders(headerSection);
+	
+    if (!parseHeaders(headerSection)) {
+		std::cerr << RED << getTimeStamp() << "Missing Host Header\n" << RESET;
+		_method = "BAD";
+		return;
+	}
 	if (!matchHostServerName()) {
 		std::cerr << RED << getTimeStamp() << "No Host-ServerName match + no default config specified!\n" << RESET;
 		_method = "BAD";
@@ -151,9 +173,9 @@ void Request::parse(const std::string& rawRequest) {
     std::string target;
     lineStream >> _method >> target >> _version;
 
-    if (_method.empty() || (_method != "GET" && target.empty()) || _version.empty()) {
+    if (_method.empty() || (_method != "GET" && target.empty()) || _version.empty() || _version != "HTTP/1.1") {
         _method = "BAD";
-        std::cout << RED << "Invalid request line!\n" << RESET;
+        // std::cout << RED << "Invalid request line!\n" << RESET;
         return;
     }
 
@@ -178,10 +200,6 @@ void Request::parse(const std::string& rawRequest) {
         _path = _path.substr(0, end + 1);
     }
     
-    size_t reqPathEnd = _path.find_last_of("/");
-    if (reqPathEnd != std::string::npos)
-        _reqPath = _path.substr(0, reqPathEnd + 1);
-    
     if (_method != "GET" && _method != "POST" && _method != "DELETE" && 
         _method != "HEAD" && _method != "OPTIONS") {
         _method = "BAD";
@@ -197,9 +215,10 @@ void Request::parse(const std::string& rawRequest) {
     }
 }
 
-void Request::parseHeaders(const std::string& headerSection) {
+int Request::parseHeaders(const std::string& headerSection) {
     std::istringstream iss(headerSection);
     std::string line;
+	bool host = false;
     
     std::getline(iss, line);
     
@@ -213,10 +232,12 @@ void Request::parseHeaders(const std::string& headerSection) {
             key.erase(key.find_last_not_of(" \t\r\n") + 1);
             value.erase(0, value.find_first_not_of(" \t"));
             value.erase(value.find_last_not_of(" \t\r\n") + 1);
-            
+            if (key == "Host")
+				host = true;
             _headers[key] = value;
         }
     }
+	return host;
 }
 
 void Request::checkContentLength(std::string buffer) {

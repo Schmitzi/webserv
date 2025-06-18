@@ -15,12 +15,12 @@ locationLevel::locationLevel() :
 		rootLoc(""),
 		indexFile(""),
 		methods(),
-		autoindexFound(false),
 		autoindex(false),
 		redirectionHTTP(std::make_pair(0, "")),
 		hasRedirect(false),
 		cgiProcessorPath(""),
-		uploadDirPath("") {}
+		uploadDirPath(""),
+		isRegex(false) {}
 
 serverLevel::~serverLevel() {}
 
@@ -142,6 +142,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 	if (conf[i].find("}") == std::string::npos)
 		throw configException("Error: no closing bracket found for location.");
 	checkMethods(loc);
+	loc.fullPath = combinePath(loc.rootLoc, loc.locName);
 	serv.locations.insert(std::pair<std::string, locationLevel>(loc.locName, loc));
 }
 
@@ -262,7 +263,7 @@ std::pair<std::pair<std::string, int>, bool> ConfigParser::getDefaultPortPair(se
 	return conf.port[0];
 }
 
-serverLevel& ConfigParser::getConfigByIndex(size_t nbr) {//get a config by index
+serverLevel& ConfigParser::getConfigByIndex(size_t nbr) {
 	if (nbr >= _allConfigs.size())
 		throw configException("Error: Invalid config index specified.");
 	return _allConfigs[nbr];
@@ -352,13 +353,12 @@ void ConfigParser::printConfig(serverLevel& conf) {//only temporary, for debuggi
 				std::cout << " " << its->second.methods[i];
 			std::cout << std::endl;
 		}
-		if (its->second.autoindexFound == true) {
-			std::cout << "\t\tautoindex: ";
-			if (its->second.autoindex == true)
-				std::cout << "on" << std::endl;
-			else
-				std::cout << "off" << std::endl;
-		}
+		std::cout << "\t\tautoindex: ";
+		if (its->second.autoindex == true)
+			std::cout << "on" << std::endl;
+		else
+			std::cout << "off" << std::endl;
+		// }
 		if (!its->second.redirectionHTTP.second.empty())
 			std::cout << "\t\treturn: " << its->second.redirectionHTTP.first << " " << its->second.redirectionHTTP.second << std::endl;
 		if (!its->second.cgiProcessorPath.empty())

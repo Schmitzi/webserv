@@ -3,6 +3,8 @@
 Multipart::Multipart(const std::string& data, const std::string& boundary) 
             : _data(data), _boundary(boundary), _isComplete(false) {}
 
+Multipart::~Multipart () {}
+
 bool Multipart::parse() {
     std::string fullBoundary = "--" + _boundary;
     

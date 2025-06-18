@@ -19,14 +19,16 @@
 #define RESET   "\33[0m" // No Colour
 
 // Forward declaration
-struct serverLevel;
-class Webserv;
-class Request;
-class Client;
+struct	serverLevel;
+class	Webserv;
+class	Request;
+class	Client;
 
 class Server {
     public:
         Server(ConfigParser confs, int nbr, Webserv& webserv);
+		Server(const Server& copy);
+		Server &operator=(const Server& copy);
         ~Server();
         
         Webserv             		&getWebServ();

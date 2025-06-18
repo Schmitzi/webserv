@@ -6,6 +6,7 @@ CGIHandler::CGIHandler() {
     _input[1] = -1;
     _output[0] = -1;
     _output[1] = -1;
+    
 }
 
 CGIHandler::~CGIHandler() {
@@ -39,7 +40,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
         if (NIX == true) {
             _cgiBinPath = "/etc/profiles/per-user/schmitzi/bin/php-cgi";
         } else {
-            _cgiBinPath = "/usr/bin/php-cgi";
+            _cgiBinPath = "/usr/bin/cgi-bin";
         }
     }
 }
@@ -336,52 +337,50 @@ int CGIHandler::prepareEnv(Request &req) {
             queryType = req.getQuery().substr(0, pos1);
             if (queryType == "file")
                 fileName = req.getQuery().substr(pos1 + 1);
-            else if (queryType == "content" || queryType == "body" || queryType == "data"
-                    || queryType == "value" || queryType == "text" || queryType == "user")
-                fileContent = req.getQuery().substr(pos1 + 1);
-            else {
-                std::cerr << "Invalid query type: " << queryType << std::endl;
-                return 1;
-            }
+            else
+				fileContent = req.getQuery().substr(pos1 + 1);//TODO: should we check the stuff underneath or just leave it like this?
+            // else if (queryType == "content" || queryType == "body" || queryType == "data"
+            //         || queryType == "value" || queryType == "text" || queryType == "user")
+            //     fileContent = req.getQuery().substr(pos1 + 1);
+            // else {
+            //     std::cerr << "Invalid query type: " << queryType << std::endl;
+            //     return 1;
+            // }
         }
         
         size_t dotPos = _path.find_last_of('.');
         if (dotPos != std::string::npos) {
             ext = "." + _path.substr(dotPos + 1); 
             
-            locationLevel loc = locationLevel();
+            locationLevel* loc = NULL;
             if (!matchLocation(ext, req.getConf(), loc)) {
                 std::cerr << "Location not found for extension: " << ext << std::endl;
                 return 1;
             }
             
-            if (loc.uploadDirPath.empty()) {
+            if (loc->uploadDirPath.empty()) {
                 std::cerr << "Upload directory not set for extension: " << ext << std::endl;
                 return 1;
             }
             
-            if (loc.uploadDirPath[loc.uploadDirPath.size() - 1] != '/')
-                filePath = loc.uploadDirPath + '/';
-            else
-                filePath = loc.uploadDirPath;
-            filePath += fileName;
+            filePath = combinePath(loc->uploadDirPath, fileName);
             
-            std::cout << "CGI Processor Path: " << loc.cgiProcessorPath << std::endl;
-            makeArgs(loc.cgiProcessorPath, filePath);
+            std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
+            makeArgs(loc->cgiProcessorPath, filePath);
         }
     } else {
         size_t dotPos = _path.find_last_of('.');
         if (dotPos != std::string::npos) {
             ext = "." + _path.substr(dotPos + 1);
             
-            locationLevel loc = locationLevel();
+            locationLevel* loc = NULL;
             if (!matchLocation(ext, req.getConf(), loc)) {
                 std::cerr << "Location not found for extension: " << ext << std::endl;
                 return 1;
             }
             
-            std::cout << "CGI Processor Path: " << loc.cgiProcessorPath << std::endl;
-            makeArgs(loc.cgiProcessorPath, filePath);
+            std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
+            makeArgs(loc->cgiProcessorPath, filePath);
         }
     }
     
@@ -393,7 +392,7 @@ int CGIHandler::prepareEnv(Request &req) {
     _env.push_back("SERVER_SOFTWARE=WebServ/1.0");
     _env.push_back("SERVER_NAME=WebServ/1.0");
     _env.push_back("GATEWAY_INTERFACE=CGI/1.1");
-    _env.push_back("SERVER_PROTOCOL=HTTP/1.1");  // Fix: should be HTTP/1.1
+    _env.push_back("SERVER_PROTOCOL=HTTP/1.1");
     _env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(req.getConf())));
     _env.push_back("REQUEST_METHOD=" + req.getMethod());
     _env.push_back("PATH_INFO=" + getInfoPath());

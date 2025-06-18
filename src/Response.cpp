@@ -1,39 +1,50 @@
 #include "../include/Response.hpp"
 
-bool matchLocation(const std::string& path, const serverLevel& serv, locationLevel& bestMatch) {
+bool matchLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch) {
 	size_t longestMatch = 0;
 	bool found = false;
+
 	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
 	for (; it != serv.locations.end(); ++it) {
-		locationLevel loc = it->second;
-		if (path.find(loc.locName) == 0 && loc.locName.size() > longestMatch) {
-			bestMatch = loc;
-			found = true;
-			longestMatch = loc.locName.size();
+		if (it->second.isRegex) {
+			size_t end = path.find_last_of(".");
+			if (end != std::string::npos) {
+				std::string ext = path.substr(end);
+				if (ext == it->first) {
+					bestMatch = const_cast<locationLevel*>(&(it->second));
+					return true;
+				}
+			}
+		} else {
+			if (path.find(it->second.locName) != std::string::npos && it->second.locName.size() > longestMatch) {
+				bestMatch = const_cast<locationLevel*>(&(it->second));
+				found = true;
+				longestMatch = it->second.locName.size();
+			}
 		}
 	}
 	return found;
 }
 
-bool matchUploadLocation(const std::string& path, const serverLevel& serv, locationLevel& bestMatch) {
+bool matchUploadLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch) {
 	size_t longestMatch = 0;
 	bool found = false;
 	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
 	if (path.empty()) {
 		for (; it != serv.locations.end(); ++it) {
-			locationLevel loc = it->second;
-			if (!loc.uploadDirPath.empty()) {
+			locationLevel* loc = const_cast<locationLevel*>(&(it->second));
+			if (!loc->uploadDirPath.empty()) {
 				bestMatch = loc;
 				return true;
 			}
 		}
 	} else {
 		for (; it != serv.locations.end(); ++it) {
-			locationLevel loc = it->second;
-			if (path.find(loc.locName) == 0 && loc.locName.size() > longestMatch) {
+			locationLevel* loc = const_cast<locationLevel*>(&(it->second));
+			if (path.find(loc->locName) == 0 && loc->locName.size() > longestMatch) {
 				bestMatch = loc;
 				found = true;
-				longestMatch = loc.locName.size();
+				longestMatch = loc->locName.size();
 			}
 		}
 	}
@@ -92,13 +103,12 @@ std::string findErrorPage(int statusCode, const std::string& dir, Request& req) 
     std::string filePath;
     if (foundCustomPage) {
 		if (uri.find(req.getConf().rootServ) == std::string::npos)
-			filePath = req.getConf().rootServ + uri;
+			filePath = combinePath(req.getConf().rootServ, uri);
 		else
 			filePath = uri;
 	}
-    else {
-        filePath = dir + "/" + tostring(statusCode) + ".html";
-	}
+    else
+        filePath = combinePath(dir, tostring(statusCode)) + ".html";
     return filePath;
 }
 
