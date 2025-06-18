@@ -163,7 +163,6 @@ void Request::parse(const std::string& rawRequest) {
     std::istringstream iss(headerSection);
     std::string requestLine;
     std::getline(iss, requestLine);
-
     size_t end = requestLine.find_last_not_of(" \t\r\n");
     if (end != std::string::npos) {
         requestLine = requestLine.substr(0, end + 1);
@@ -187,7 +186,6 @@ void Request::parse(const std::string& rawRequest) {
         _path = target;
         _query = "";
     }
-
     if ((_path == "/" || _path == "") && _method == "GET") {
         std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
         if (it != _curConf.locations.end()) {

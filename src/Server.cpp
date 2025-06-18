@@ -79,25 +79,19 @@ std::string Server::getUploadDir(Client& client, Request& req) {
 		client.sendErrorResponse(403, req);
 		return "";
 	}
-    std::string fullPath = combinePath(getWebRoot(req, *loc), req.getPath());
+    std::string fullPath = matchAndAppendPath(getWebRoot(req, *loc), req.getPath());
 	return fullPath;
 }
 
 std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
-	// std::string path;
-	if (!loc.rootLoc.empty())
-		return loc.rootLoc;
-		// if (loc.rootLoc[loc.rootLoc.size() - 1] == '/')
-		// 	path = loc.rootLoc.substr(0, loc.rootLoc.size() - 1);
-		// else
-			// path = loc.rootLoc;
+	if (!loc.rootLoc.empty()) {
+		if (loc.isRegex)
+			return loc.rootLoc;
+		std::string x = combinePath(loc.rootLoc, loc.locName);
+		return x;
+	}
 	else
 		return req.getConf().rootServ;
-		// if (req.getConf().rootServ[req.getConf().rootServ.size() - 1] == '/')
-		// 	path = req.getConf().rootServ.substr(0, req.getConf().rootServ.size() - 1);
-		// else
-		// 	path = req.getConf().rootServ;
-	// return path;
 }
 
 int Server::openSocket() {

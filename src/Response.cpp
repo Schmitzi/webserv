@@ -41,10 +41,21 @@ bool matchUploadLocation(const std::string& path, const serverLevel& serv, locat
 	} else {
 		for (; it != serv.locations.end(); ++it) {
 			locationLevel* loc = const_cast<locationLevel*>(&(it->second));
-			if (path.find(loc->locName) == 0 && loc->locName.size() > longestMatch) {
-				bestMatch = loc;
-				found = true;
-				longestMatch = loc->locName.size();
+			if (loc->isRegex) {
+				size_t end = path.find_last_of(".");
+				if (end != std::string::npos) {
+					std::string ext = path.substr(end);
+					if (ext == it->first) {
+						bestMatch = loc;
+						return true;
+					}
+				}
+			} else {
+				if (path.find(loc->locName) == 0 && loc->locName.size() > longestMatch) {
+					bestMatch = loc;
+					found = true;
+					longestMatch = loc->locName.size();
+				}
 			}
 		}
 	}

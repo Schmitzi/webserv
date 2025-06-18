@@ -26,14 +26,14 @@ class CGIHandler {
         void									setServer(Server &server);
         void									setCGIBin(serverLevel *config);
         std::string								getInfoPath();
-		void									setPathInfo(Request& req);
         bool									isCGIScript(const std::string& path);
         int										doChecks(Client client, Request& req);
         int										processScriptOutput(Client &client);
         int										handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
         int										handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
         int										executeCGI(Client &client, Request& req, std::string const &scriptPath);
-        int										prepareEnv(Request &req);
+        void									doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent);
+		int										prepareEnv(Request &req);
         std::map<std::string, std::string>		parseHeaders(const std::string& headerSection);
         std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
 		void									makeArgs(std::string const &cgiBin, std::string& filePath);

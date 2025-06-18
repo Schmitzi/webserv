@@ -22,3 +22,46 @@ void printVector(std::vector<std::string> &s, std::string sep) {
 		std::cout << s[i] << sep;
 	std::cout << std::endl;
 }
+
+std::vector<std::string> splitPath(const std::string& path) {
+	std::vector<std::string> parts;
+	std::stringstream ss(path);
+	std::string item;
+	while (std::getline(ss, item, '/')) {
+		if (!item.empty())
+			parts.push_back(item);
+	}
+	return parts;
+}
+
+std::string joinPath(const std::vector<std::string>& parts) {
+	std::string result;
+	for (size_t i = 0; i < parts.size(); ++i)
+		result = combinePath(result, parts[i]);
+	return result;
+}
+
+std::string matchAndAppendPath(const std::string& fullPath, const std::string& reqPath) {
+	std::vector<std::string> baseParts = splitPath(fullPath);
+	std::vector<std::string> reqParts = splitPath(reqPath);
+
+	size_t overlap = 0;
+	size_t max = std::min(baseParts.size(), reqParts.size());
+
+	for (size_t i = 0; i < max; ++i) {
+		bool match = true;
+		for (size_t j = 0; j <= i; ++j) {
+			if (baseParts[baseParts.size() - 1 - i + j] != reqParts[j]) {
+				match = false;
+				break;
+			}
+		}
+		if (match)
+			overlap = i + 1;
+	}
+
+	std::vector<std::string> result = baseParts;
+	result.insert(result.end(), reqParts.begin() + overlap, reqParts.end());
+	return joinPath(result);
+}
+

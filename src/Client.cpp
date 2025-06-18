@@ -85,13 +85,6 @@ void    Client::setAutoIndex(locationLevel& loc) {
 
 int Client::acceptConnection(int serverFd) {
     _addrLen = sizeof(_addr);
-    //int newFd = accept(serverFd, (struct sockaddr *)&_addr, &_addrLen);
-    //if (newFd < 0) {
-    //    _webserv->ft_error("Accept failed");
-    //    return 1;
-    //}
-
-    //_fd = newFd;
     _fd  = accept(serverFd, (struct sockaddr *)&_addr, &_addrLen);
     if (_fd < 0) {
         _webserv->ft_error("Accept failed");
@@ -281,16 +274,13 @@ int Client::processRequest(std::string requestBuffer) {
             return 0;
         }
     }
-    
     if (req.getContentType().find("multipart/form-data") != std::string::npos) {
         int result = handleMultipartPost(req);
-        
         if (result != -1) {
             return result;
         }
         return 0;
     }
-
     std::cout << BLUE << _webserv->getTimeStamp() << "Parsed Request: " << RESET << 
         req.getMethod() << " " << req.getPath() << " " << req.getVersion() << "\n";
 
@@ -343,7 +333,7 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 		locationLevel* loc = NULL;
 		matchLocation(requestPath, req.getConf(), loc);
         actualPath = requestPath.substr(5);
-        std::string actualFullPath = combinePath(_server->getWebRoot(req, *loc), actualPath);
+        std::string actualFullPath = matchAndAppendPath(_server->getWebRoot(req, *loc), actualPath);
         
         struct stat fileStat;
         if (stat(actualFullPath.c_str(), &fileStat) != 0) {
@@ -374,7 +364,6 @@ int Client::handleFileBrowserRequest(Request& req, const std::string& requestPat
 
 int Client::handleRegularRequest(Request& req) {
     locationLevel* loc = NULL;
-
     if (!matchLocation(req.getPath(), req.getConf(), loc)) {
         std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getPath() << std::endl;
         sendErrorResponse(404, req);
@@ -392,11 +381,10 @@ int Client::handleRegularRequest(Request& req) {
     }
     std::string fullPath;
     if (reqPath.find("/home") == std::string::npos) {
-        fullPath = combinePath(_server->getWebRoot(req, *loc), reqPath);
+        fullPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
     } else {
         fullPath = reqPath;
     }
-
 	setAutoIndex(*loc);
 
     if (fullPath.find("root") != std::string::npos && _autoindex == false) {
@@ -411,7 +399,7 @@ int Client::handleRegularRequest(Request& req) {
 	_cgi->setCGIBin(&req.getConf());
 	_cgi->setClient(*this);
     if (_cgi->isCGIScript(reqPath)) {
-		std::string fullCgiPath = combinePath(_server->getWebRoot(req, *loc), req.getPath().substr(req.getPath().find_last_of("/")));
+		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
         return _cgi->executeCGI(*this, req, fullCgiPath);
     }
 
@@ -631,11 +619,21 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
     return html;
 }
 
-std::string Client::extractFileName(const std::string& path) {
-    size_t pos = path.find_last_of("/\\");
-    if (pos == std::string::npos)
-        return path;
-    return path.substr(pos + 1);
+std::string Client::extractFileName(const std::string& path, const std::string& method) {
+    std::string name;
+	size_t pos = path.find_last_of("/\\");
+    if (pos != std::string::npos) {
+		name = path.substr(pos + 1);
+		size_t isDefinitlyFile = name.find_last_of(".");
+		if (isDefinitlyFile == std::string::npos) {
+			if (method == "DELETE" || method == "GET" || method == "POST") {
+				struct stat st;
+				if (stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+					return name;
+			}
+		}
+	}
+	return name;
 }
 
 std::string Client::getLocationPath(Request& req, const std::string& method) {	
@@ -664,7 +662,8 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 		sendErrorResponse(403, req);
 		return "";
 	}
-    std::string fullPath = combinePath(loc->uploadDirPath, extractFileName(req.getPath()));
+	std::string fullPath = matchAndAppendPath(loc->rootLoc, loc->uploadDirPath);
+	fullPath = matchAndAppendPath(fullPath, req.getPath());
     return fullPath;
 }
 
@@ -680,7 +679,7 @@ int Client::handlePostRequest(Request& req) {
     if (fullPath.empty())
         return 1;
     if (_cgi->isCGIScript(req.getPath())) {
-		std::string cgiPath = combinePath(_server->getWebRoot(req, *loc), req.getPath().substr(req.getPath().find_last_of("/")));
+		std::string cgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), req.getPath());
         return _cgi->executeCGI(*this, req, cgiPath);
     }
     
@@ -705,22 +704,13 @@ int Client::handlePostRequest(Request& req) {
         }
     } else {
         contentToWrite = req.getBody();
-        
-        if (contentToWrite.empty() && !req.getQuery().empty()) {
-			size_t pos = req.getQuery().find("=");
-			if (pos != std::string::npos) {
-				std::string key = req.getQuery().substr(0, pos);//TODO: pos -1 to erase the '='?
-				std::string value = req.getQuery().substr(pos + 1);
-				if (key == "value" || key == "data")//TODO: this doesnt make sense?
-					contentToWrite = value;
-				else
-					contentToWrite = value;
-			}
-			else
-	            contentToWrite = req.getQuery();
-        }
+		std::string fileName;
+        if (contentToWrite.empty() && !req.getQuery().empty())
+			_cgi->doQueryStuff(req.getQuery(), fileName, contentToWrite);
+        else
+			_cgi->doQueryStuff(req.getBody(), fileName, contentToWrite);
+		fullPath = matchAndAppendPath(fullPath, fileName);
     }
-    
     int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
         std::cout << _webserv->getTimeStamp() << "Failed to open file for writing: " << fullPath << std::endl;
@@ -729,7 +719,6 @@ int Client::handlePostRequest(Request& req) {
     }
     
     std::cout << BLUE << _webserv->getTimeStamp() << "Writing to file: " << RESET << fullPath << "\n";
-
     
     ssize_t bytesWritten = write(fd, contentToWrite.c_str(), contentToWrite.length());
     close(fd);
@@ -840,10 +829,7 @@ bool Client::ensureUploadDirectory(Request& req) {
 }
 
 bool Client::saveFile(Request& req, const std::string& filename, const std::string& content) {
-    std::string uploadDir = _server->getUploadDir(*this, req);
-	if (uploadDir[uploadDir.size() - 1] != '/')
-		uploadDir += "/";
-	std::string fullPath = uploadDir + filename;
+	std::string fullPath = matchAndAppendPath(_server->getUploadDir(*this, req), filename);
 	if (fullPath.empty())
 		return false;
 	if (!ensureUploadDirectory(req)) {

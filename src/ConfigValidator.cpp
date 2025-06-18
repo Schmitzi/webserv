@@ -1,6 +1,6 @@
 #include "../include/ConfigValidator.hpp"
 
-std::string getAbsPath(std::string& path) {
+std::string getAbsPath(const std::string& path) {
 	if (path.empty())
 		return ".";
 	if (path[0] == '/')
@@ -42,7 +42,6 @@ bool isValidRedirectPath(const std::string &path) {
 }
 
 bool isValidDir(std::string &path) {
-	createLocationFromIndex(path);
 	struct stat	info;
 
 	return (stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode) && access(path.c_str(), R_OK) == 0);
@@ -152,16 +151,12 @@ void parseClientMaxBodySize(serverLevel &serv) {
 }
 
 void checkRoot(serverLevel &serv) {
-	if (!serv.rootServ.empty())
-		serv.rootServ = getAbsPath(serv.rootServ);
 	std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 	while (it != serv.locations.end()) {
 		if (it->second.rootLoc.empty() && serv.rootServ.empty())
 			throw configException("Error: No rootLoc found.");
 		else if (it->second.rootLoc.empty())
 			it->second.rootLoc = serv.rootServ;//take default value from server if not specified
-		else
-			it->second.rootLoc = getAbsPath(it->second.rootLoc);
 		++it;
 	}
 }

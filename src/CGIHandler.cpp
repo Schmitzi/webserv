@@ -323,30 +323,52 @@ bool CGIHandler::isCGIScript(const std::string& path) {
     return false;
 }
 
+void CGIHandler::doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent) {
+	if (!text.empty()) {
+		std::istringstream ss(text);
+		std::string pair;
+
+		while (std::getline(ss, pair, '&')) {
+			size_t pos = pair.find('=');
+			if (pos == std::string::npos)
+				continue;
+			std::string key = pair.substr(0, pos);
+			std::string value = pair.substr(pos + 1);
+
+			if (key == "file" || key == "name" || key == "test")
+				fileName = value;
+			else if (key == "content" || key == "body" || key == "data" || key == "text" || key == "value")
+				fileContent = value;
+			else {
+				fileContent = value;
+				std::cerr << "Unknown query key: " << key << "\n-> using its value as content" << std::endl;
+			}
+		}
+	}
+}
+
 int CGIHandler::prepareEnv(Request &req) {
-    std::string ext = "";
-    std::string filePath = "";
-    std::string queryType = "";
-    std::string fileName = "";
-    std::string fileContent = "";
+    std::string ext;
+    std::string filePath;
+    // std::string queryType;
+    std::string fileName;
+    std::string fileContent;
     
-    if (!req.getQuery().empty()) {
-        size_t pos1 = req.getQuery().find_first_of('=');
-        size_t pos2 = req.getQuery().find_last_of('=');
-        if (pos1 != std::string::npos && pos2 != std::string::npos && pos1 == pos2) {
-            queryType = req.getQuery().substr(0, pos1);
-            if (queryType == "file")
-                fileName = req.getQuery().substr(pos1 + 1);
-            else
-				fileContent = req.getQuery().substr(pos1 + 1);//TODO: should we check the stuff underneath or just leave it like this?
-            // else if (queryType == "content" || queryType == "body" || queryType == "data"
-            //         || queryType == "value" || queryType == "text" || queryType == "user")
-            //     fileContent = req.getQuery().substr(pos1 + 1);
-            // else {
-            //     std::cerr << "Invalid query type: " << queryType << std::endl;
-            //     return 1;
-            // }
-        }
+	if (!req.getQuery().empty()) {
+		doQueryStuff(req.getQuery(), fileName, fileContent);
+        // size_t pos1 = req.getQuery().find_first_of('=');
+        // size_t pos2 = req.getQuery().find_last_of('=');
+        // if (pos1 != std::string::npos && pos2 != std::string::npos && pos1 == pos2) {
+        //     queryType = req.getQuery().substr(0, pos1);
+        //     if (queryType == "file" || queryType == "name")
+		// 		fileName = req.getQuery().substr(pos1 + 1);
+		// 	else if (queryType == "content" || queryType == "body" || queryType == "data")
+		// 		fileContent = req.getQuery().substr(pos1 + 1);
+		// 	else {
+		// 		std::cerr << "Warning: unknown query type '" << queryType << "'. Defaulting to file content.\n";
+		// 		fileContent = req.getQuery().substr(pos1 + 1);
+		// 	}
+        // }
         
         size_t dotPos = _path.find_last_of('.');
         if (dotPos != std::string::npos) {
@@ -386,7 +408,7 @@ int CGIHandler::prepareEnv(Request &req) {
     
     _env.clear();
     
-    std::string abs_path = getAbsPath(_path);
+    const std::string abs_path = getAbsPath(_path);
     _env.push_back("SCRIPT_FILENAME=" + abs_path);
     _env.push_back("REDIRECT_STATUS=200");
     _env.push_back("SERVER_SOFTWARE=WebServ/1.0");
