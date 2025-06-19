@@ -131,7 +131,7 @@ void resolveErrorResponse(int statusCode, std::string& statusText, std::string& 
     	mkdir(dir.c_str(), 0755);
 	}
     std::ifstream file(filePath.c_str());
-    if (file) {
+    if (file.good()) {
         std::stringstream buffer;
         buffer << file.rdbuf();
         body = buffer.str();
