@@ -87,7 +87,7 @@ std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
 	if (!loc.rootLoc.empty()) {
 		if (loc.isRegex)
 			return loc.rootLoc;
-		std::string x = combinePath(loc.rootLoc, loc.locName);
+		std::string x = matchAndAppendPath(loc.rootLoc, loc.locName);
 		return x;
 	}
 	else

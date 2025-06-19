@@ -190,7 +190,7 @@ void setAutoindex(locationLevel& loc, std::vector<std::string>& s) {
 
 void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
 	if (s.size() != 3 || !onlyDigits(s[1]))
-		throw configException("Error: invalid redirection!\n");
+		throw configException("Error: invalid redirection!");
 	if (!s[2].empty() && !isValidRedirectPath(s[2]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1] + " " + s[2]);
 	loc.redirectionHTTP.first = atoi(s[1].c_str());
@@ -208,8 +208,7 @@ void setCgiProcessorPath(locationLevel& loc, std::vector<std::string>& s) {
 
 void setUploadDirPath(locationLevel& loc, std::vector<std::string>& s) {
 	std::string path = s[1];
-	if (!path.empty() && (path.find("..") != std::string::npos || 
-        path.find("/.") != std::string::npos))
+	if (!path.empty() && (path.find("..") != std::string::npos || path.find("/.") != std::string::npos))
 		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
 	loc.uploadDirPath = path;
 }

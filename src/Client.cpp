@@ -474,7 +474,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 		if (_autoindex == true) {
 			return createDirList(fullPath, req.getPath(), req);
 		} else {
-			std::string indexPath = combinePath(fullPath, loc->indexFile);
+			std::string indexPath = matchAndAppendPath(fullPath, loc->indexFile);
 			struct stat indexStat;
 			if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
 				Request req;
@@ -496,7 +496,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
         if (req.getConf().locations.find("/")->second.autoindex) {
             return createDirList(fullPath, req.getPath(), req);
         } else {
-            std::string indexPath = combinePath(fullPath, loc->indexFile);
+            std::string indexPath = matchAndAppendPath(fullPath, loc->indexFile);
             struct stat indexStat;
             if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
                 Request req;
@@ -617,23 +617,6 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
         
     closedir(dir);
     return html;
-}
-
-std::string Client::extractFileName(const std::string& path, const std::string& method) {
-    std::string name;
-	size_t pos = path.find_last_of("/\\");
-    if (pos != std::string::npos) {
-		name = path.substr(pos + 1);
-		size_t isDefinitlyFile = name.find_last_of(".");
-		if (isDefinitlyFile == std::string::npos) {
-			if (method == "DELETE" || method == "GET" || method == "POST") {
-				struct stat st;
-				if (stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode))
-					return name;
-			}
-		}
-	}
-	return name;
 }
 
 std::string Client::getLocationPath(Request& req, const std::string& method) {	

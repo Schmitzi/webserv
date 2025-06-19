@@ -350,26 +350,11 @@ void CGIHandler::doQueryStuff(const std::string text, std::string& fileName, std
 int CGIHandler::prepareEnv(Request &req) {
     std::string ext;
     std::string filePath;
-    // std::string queryType;
     std::string fileName;
     std::string fileContent;
     
 	if (!req.getQuery().empty()) {
 		doQueryStuff(req.getQuery(), fileName, fileContent);
-        // size_t pos1 = req.getQuery().find_first_of('=');
-        // size_t pos2 = req.getQuery().find_last_of('=');
-        // if (pos1 != std::string::npos && pos2 != std::string::npos && pos1 == pos2) {
-        //     queryType = req.getQuery().substr(0, pos1);
-        //     if (queryType == "file" || queryType == "name")
-		// 		fileName = req.getQuery().substr(pos1 + 1);
-		// 	else if (queryType == "content" || queryType == "body" || queryType == "data")
-		// 		fileContent = req.getQuery().substr(pos1 + 1);
-		// 	else {
-		// 		std::cerr << "Warning: unknown query type '" << queryType << "'. Defaulting to file content.\n";
-		// 		fileContent = req.getQuery().substr(pos1 + 1);
-		// 	}
-        // }
-        
         size_t dotPos = _path.find_last_of('.');
         if (dotPos != std::string::npos) {
             ext = "." + _path.substr(dotPos + 1); 
@@ -385,7 +370,7 @@ int CGIHandler::prepareEnv(Request &req) {
                 return 1;
             }
             
-            filePath = combinePath(loc->uploadDirPath, fileName);
+            filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
             
             std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
             makeArgs(loc->cgiProcessorPath, filePath);
