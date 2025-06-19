@@ -31,7 +31,6 @@ class Request {
         std::string const 					&getBoundary();
         unsigned long     					&getContentLength();
 		serverLevel 	  					&getConf();
-		std::string 						getReqPath() const;
         std::map<std::string, std::string>	&getHeaders();
         std::string							getMimeType(std::string const &path);
         void    							setPath(std::string const path);
@@ -54,7 +53,6 @@ class Request {
         std::string                         _body;
         std::string                         _query;
         std::string                         _boundary;
-		std::string						 	_reqPath;
         unsigned long                       _contentLength;
 		serverLevel							_curConf;
 		std::vector<serverLevel>			_configs;

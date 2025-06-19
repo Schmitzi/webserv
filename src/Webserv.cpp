@@ -1,12 +1,12 @@
 #include "../include/Webserv.hpp"
 
-Webserv::Webserv(std::string const &config) : _epollFd(-1) {
+Webserv::Webserv(std::string config) : _epollFd(-1) {
 	_state = false;
 	_confParser = ConfigParser(config);
     _configs = _confParser.getAllConfigs();
-    for (size_t i = 0; i < _configs.size(); i++) {//CHECK ALL CONFIGS
+    for (size_t i = 0; i < _configs.size(); i++) {
 		bool toAdd = true;
-		for (size_t j = 0; j < _servers.size(); j++) {//CHECK ALL SERVERS FOR CURRENT CONFIG FILE PORT
+		for (size_t j = 0; j < _servers.size(); j++) {
             std::vector<serverLevel>& servConfigs = _servers[j].getConfigs();
             for (size_t k = 0; k < servConfigs.size(); k++) {
                 std::pair<std::pair<std::string, int>, bool> one = _confParser.getDefaultPortPair(_confParser.getConfigByIndex(i));
@@ -47,11 +47,6 @@ Webserv::~Webserv() {
 
 void Webserv::flipState() {
 	_state = false;
-	// if (_state == true) {
-    //     _state = false;
-    // } else {
-    //     _state = false;
-    // }
 }
 
 void Webserv::setEnvironment(char **envp) {
@@ -162,7 +157,6 @@ void Webserv::handleErrorEvent(int fd) {
             return;
         }
     }
-    
     std::cerr << RED << getTimeStamp() << "Error on unknown fd: " << fd << RESET << std::endl;
 }
 
@@ -178,14 +172,11 @@ int Webserv::addToEpoll(int fd, short events) {
 }
 
 void Webserv::removeFromEpoll(int fd) {
-    if (_epollFd < 0 || fd < 0) {
+    if (_epollFd < 0 || fd < 0)
         return;
-    }
-    
     if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, NULL) == -1) {
-        if (errno != EBADF && errno != ENOENT) {
+        if (errno != EBADF && errno != ENOENT)
             std::cerr << "Warning: epoll_ctl DEL failed for fd " << fd << ": " << strerror(errno) << std::endl;
-        }
     }
 }
 
@@ -201,7 +192,6 @@ void Webserv::handleClientDisconnect(int fd) {
             return;
         }
     }
-    
     std::cerr << RED << getTimeStamp() << "Disconnect on unknown fd: " << fd << RESET << std::endl;
 }
 
@@ -212,9 +202,8 @@ void Webserv::handleNewConnection(Server &server) {
         struct sockaddr_in addr;
         socklen_t addrLen = sizeof(addr);
         int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);
-        if (newFd >= 0) {
+        if (newFd >= 0)
             close(newFd);
-        }
         return;
     }
     Client newClient(server);
@@ -222,9 +211,9 @@ void Webserv::handleNewConnection(Server &server) {
     if (newClient.acceptConnection(server.getFd()) == 0) {
         newClient.displayConnection();
 
-        if (addToEpoll(newClient.getFd(), EPOLLIN) == 0) {
+        if (addToEpoll(newClient.getFd(), EPOLLIN) == 0)
             _clients.push_back(newClient);
-        } else {
+        else {
             printMsg("Failed to add client to epoll", RED, "");
             close(newClient.getFd());
         }
@@ -270,11 +259,10 @@ void    Webserv::ft_error(std::string const msg) {
 }
 
 void    Webserv::printMsg(const std::string msg, char const *colour, std::string const opt) {
-    if (opt.empty()) {
+    if (opt.empty())
         std::cout << colour << getTimeStamp() << msg << RESET << "\n";
-    } else {
+    else
         std::cout << colour << getTimeStamp() << msg << ": " << RESET << opt << "\n";
-    }
 }
 
 std::string Webserv::getTimeStamp() {

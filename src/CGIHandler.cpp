@@ -37,7 +37,11 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
     }
     
     if (_cgiBinPath.empty()) {
-        _cgiBinPath = "/usr/bin/php-cgi";
+        if (NIX == true) {
+            _cgiBinPath = "/etc/profiles/per-user/schmitzi/bin/php-cgi";
+        } else {
+            _cgiBinPath = "/usr/bin/cgi-bin";
+        }
     }
 }
 
@@ -45,7 +49,6 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
     cleanupResources();
     _path = scriptPath;
    
-    setPathInfo(req);
     if (doChecks(client, req) == 1) {
         return 1;
     }
@@ -282,7 +285,6 @@ std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& h
     std::string line;
     
     while (std::getline(iss, line) && !line.empty() && line != "\r") {
-        // Remove trailing '\r' if present
         if (!line.empty() && line[line.length() - 1] == '\r') {
             line.erase(line.length() - 1);
         }
@@ -292,7 +294,6 @@ std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& h
             std::string key = line.substr(0, colonPos);
             std::string value = line.substr(colonPos + 1);
             
-            // Trim whitespace
             key.erase(0, key.find_first_not_of(" \t"));
             key.erase(key.find_last_not_of(" \t") + 1);
             value.erase(0, value.find_first_not_of(" \t"));
@@ -322,73 +323,83 @@ bool CGIHandler::isCGIScript(const std::string& path) {
     return false;
 }
 
+void CGIHandler::doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent) {
+	if (!text.empty()) {
+		std::istringstream ss(text);
+		std::string pair;
+
+		while (std::getline(ss, pair, '&')) {
+			size_t pos = pair.find('=');
+			if (pos == std::string::npos)
+				continue;
+			std::string key = pair.substr(0, pos);
+			std::string value = pair.substr(pos + 1);
+
+			if (key == "file" || key == "name" || key == "test")
+				fileName = value;
+			else if (key == "content" || key == "body" || key == "data" || key == "text" || key == "value")
+				fileContent = value;
+			else {
+				fileContent = value;
+				std::cerr << "Unknown query key: " << key << "\n-> using its value as content" << std::endl;
+			}
+		}
+	}
+}
+
 int CGIHandler::prepareEnv(Request &req) {
-    std::string ext = "";
-    std::string filePath = "";
-    std::string queryType = "";
-    std::string fileName = "";
-    std::string fileContent = "";
+    std::string ext;
+    std::string filePath;
+    std::string fileName;
+    std::string fileContent;
     
-    if (!req.getQuery().empty()) {
-        size_t pos1 = req.getQuery().find_first_of('=');
-        size_t pos2 = req.getQuery().find_last_of('=');
-        if (pos1 != std::string::npos && pos2 != std::string::npos && pos1 == pos2) {
-            queryType = req.getQuery().substr(0, pos1);
-            if (queryType == "file")
-                fileName = req.getQuery().substr(pos1 + 1);
-			else
-				fileContent = req.getQuery().substr(pos1 + 1);//TODO: should we check the stuff underneath or just leave it like this?
-            // else if (queryType == "content" || queryType == "body" || queryType == "data"
-            //         || queryType == "value" || queryType == "text" || queryType == "user")
-            //     fileContent = req.getQuery().substr(pos1 + 1);
-            // else {
-            //     std::cerr << "Invalid query type: " << queryType << std::endl;
-            //     return 1;
-            // }
+	if (!req.getQuery().empty()) {
+		doQueryStuff(req.getQuery(), fileName, fileContent);
+        size_t dotPos = _path.find_last_of('.');
+        if (dotPos != std::string::npos) {
+            ext = "." + _path.substr(dotPos + 1); 
+            
+            locationLevel* loc = NULL;
+            if (!matchLocation(ext, req.getConf(), loc)) {
+                std::cerr << "Location not found for extension: " << ext << std::endl;
+                return 1;
+            }
+            
+            if (loc->uploadDirPath.empty()) {
+                std::cerr << "Upload directory not set for extension: " << ext << std::endl;
+                return 1;
+            }
+            
+            filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
+            
+            std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
+            makeArgs(loc->cgiProcessorPath, filePath);
         }
-        locationLevel loc = locationLevel();
-        if (!matchUploadLocation("cgi-bin", req.getConf(), loc)) {
-            std::cerr << "Location not found for path: cgi-bin" << std::endl;
-            return 1;
-        }
-        if (loc.uploadDirPath.empty()) {
-            std::cerr << "Upload directory not set for path: cgi-bin" << std::endl;
-            return 1;
-        }
-        if (loc.uploadDirPath[loc.uploadDirPath.size() - 1] != '/')
-            filePath = loc.uploadDirPath + '/';
-        filePath += fileName;
-    }
-    
-    size_t dotPos = _path.find_last_of('.');
-    if (dotPos != std::string::npos) {
-        ext = _path.substr(dotPos + 1);
-        if (ext == "php") {
-            findPHP(_cgiBinPath, filePath);
-        } 
-        else if (ext == "py") {
-            findPython(filePath);
-        }
-        else if (ext == "pl") {
-            findPl(filePath);
-        }
-        else if (ext == "cgi") {
-            findBash(filePath);
-        }
-        else {
-            std::cerr << "Unsupported script type: " << ext << std::endl;
+    } else {
+        size_t dotPos = _path.find_last_of('.');
+        if (dotPos != std::string::npos) {
+            ext = "." + _path.substr(dotPos + 1);
+            
+            locationLevel* loc = NULL;
+            if (!matchLocation(ext, req.getConf(), loc)) {
+                std::cerr << "Location not found for extension: " << ext << std::endl;
+                return 1;
+            }
+            
+            std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
+            makeArgs(loc->cgiProcessorPath, filePath);
         }
     }
     
     _env.clear();
     
-    std::string abs_path = getAbsPath(_path);
+    const std::string abs_path = getAbsPath(_path);
     _env.push_back("SCRIPT_FILENAME=" + abs_path);
     _env.push_back("REDIRECT_STATUS=200");
     _env.push_back("SERVER_SOFTWARE=WebServ/1.0");
     _env.push_back("SERVER_NAME=WebServ/1.0");
     _env.push_back("GATEWAY_INTERFACE=CGI/1.1");
-    _env.push_back("SERVER_PROTOCOL=WebServ/1.0");
+    _env.push_back("SERVER_PROTOCOL=HTTP/1.1");
     _env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(req.getConf())));
     _env.push_back("REQUEST_METHOD=" + req.getMethod());
     _env.push_back("PATH_INFO=" + getInfoPath());
@@ -397,91 +408,23 @@ int CGIHandler::prepareEnv(Request &req) {
     std::string script;
     if (slashPos != std::string::npos) {
         script = _path.substr(slashPos + 1);
-        _env.push_back("SCRIPT_NAME=" + script);
+        _env.push_back("SCRIPT_NAME=/" + script);
     }
     _env.push_back("QUERY_STRING=" + req.getQuery());
     _env.push_back("CONTENT_TYPE=" + req.getContentType());
     _env.push_back("CONTENT_LENGTH=" + tostring(req.getBody().length()));
-    _env.push_back("SCRIPT_NAME=" + req.getPath());
     
     return 0;
 }
 
-void CGIHandler::setPathInfo(Request& req) {
-    if (_path.empty()) {
-        std::cout << "Error: _path is empty! Using requestPath instead.\n";
-        _path = req.getPath();
-    }
-    
-    size_t extPos = _path.find(".");
-    size_t dotPos = 0;
-    if (extPos == std::string::npos) {
-        if ((extPos!= std::string::npos)) {
-            dotPos = _path.length() - _path.find(".");
-        } else {
-            std::cout << "Warning: No valid extention found in request path!\n";
-            _pathInfo = "";
-            return ;
-        }
-    }
-    
-    size_t scriptPathEnd = extPos + dotPos;
-    
-    std::string scriptPath = _path.substr(0, scriptPathEnd);
-    if (scriptPathEnd < _path.length()) {
-        size_t queryPos = _path.find('?', scriptPathEnd);
-        if (queryPos != std::string::npos) {
-            _pathInfo = _path.substr(scriptPathEnd, queryPos - scriptPathEnd);
-			std::cout << "Path info: " << _pathInfo << std::endl;
-        } else {
-            _pathInfo = _path.substr(scriptPathEnd);
-        }
-    } else {
-        _pathInfo = "";
+void    CGIHandler::makeArgs(std::string const &cgiBin, std::string& filePath) {
+    _args.clear();  
+    _args.push_back(cgiBin);
+    _args.push_back(_path);
+    if (!filePath.empty()) {
+        _args.push_back(filePath);
     }
 }
-
-void    CGIHandler::findBash(std::string& filePath) {
-    if (NIX == false) 
-    	_args.push_back("/usr/bin/bash");
-    else {
-        _args.push_back("/run/current-system/sw/bin/bash");
-    }
-	_args.push_back(_path);
-	if (!filePath.empty())
-		_args.push_back(filePath);
-}
-
-void    CGIHandler::findPython(std::string& filePath) {
-    if (NIX == false) 
-        _args.push_back("/usr/bin/python3");
-    else {
-        _args.push_back("/etc/profiles/per-user/schmitzi/bin/python3");
-    }
-	_args.push_back(_path);
-	if (!filePath.empty())
-		_args.push_back(filePath);
-}
-
-void    CGIHandler::findPHP(std::string const &cgiBin, std::string& filePath) {
-    std::string phpPath = cgiBin + "php-cgi";
-	_args.push_back(phpPath);
-	_args.push_back("php-cgi");
-	if (!filePath.empty())
-		_args.push_back(filePath);
-}
-
-void    CGIHandler::findPl(std::string& filePath) {
-    if (NIX == false) 
-	    _args.push_back("/usr/bin/perl");
-    else {
-        _args.push_back("/run/current-system/sw/bin/perl");
-    }
-	_args.push_back(_path);
-	if (!filePath.empty())
-		_args.push_back(filePath);
-}
-
 
 void CGIHandler::cleanupResources() {
     for (int i = 0; i < 2; i++) {

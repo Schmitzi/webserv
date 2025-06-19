@@ -8,11 +8,12 @@
 struct	serverLevel;
 struct	locationLevel;
 
-std::string	getAbsPath(std::string& path);
+std::string	getAbsPath(const std::string& path);
 void		createLocationFromIndex(std::string& path);
 bool		isValidPath(std::string& path);
 bool		isValidRedirectPath(const std::string &path);
 bool		isValidDir(std::string &path);
+bool		isValidExecutable(const std::string& path);
 bool		isValidName(const std::string& name);
 bool		isValidIndexFile(const std::string& indexFile);
 void		parseClientMaxBodySize(serverLevel& serv);

@@ -12,7 +12,6 @@ Request::Request(const std::string& rawRequest, Server& server) :
     _body(""),
     _query(""),
     _boundary(""),
-	_reqPath(""),
 	_contentLength(0),
 	_curConf(),
 	_configs(server.getConfigs())
@@ -35,7 +34,6 @@ Request &Request::operator=(const Request& copy) {
 		_body = copy._body;
 		_query = copy._query;
 		_boundary = copy._boundary;
-		_reqPath = copy._reqPath;
 		_contentLength = copy._contentLength;
 		_curConf = copy._curConf;
 		_configs = copy._configs;
@@ -81,10 +79,6 @@ std::string const &Request::getBoundary() {
 
 std::map<std::string, std::string> &Request::getHeaders() {
     return _headers;
-}
-
-std::string Request::getReqPath() const {
-	return _reqPath;
 }
 
 size_t         &Request::getContentLength() {
@@ -173,7 +167,6 @@ void Request::parse(const std::string& rawRequest) {
     std::istringstream iss(headerSection);
     std::string requestLine;
     std::getline(iss, requestLine);
-
     size_t end = requestLine.find_last_not_of(" \t\r\n");
     if (end != std::string::npos) {
         requestLine = requestLine.substr(0, end + 1);
@@ -197,7 +190,6 @@ void Request::parse(const std::string& rawRequest) {
         _path = target;
         _query = "";
     }
-
     if ((_path == "/" || _path == "") && _method == "GET") {
         std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
         if (it != _curConf.locations.end()) {
@@ -209,10 +201,6 @@ void Request::parse(const std::string& rawRequest) {
     if (end != std::string::npos) {
         _path = _path.substr(0, end + 1);
     }
-    
-    size_t reqPathEnd = _path.find_last_of("/");
-    if (reqPathEnd != std::string::npos)
-        _reqPath = _path.substr(0, reqPathEnd + 1);
     
     if (_method != "GET" && _method != "POST" && _method != "DELETE" && 
         _method != "HEAD" && _method != "OPTIONS") {
@@ -258,14 +246,12 @@ void Request::checkContentLength(std::string buffer) {
     size_t pos = buffer.find("Content-Length:");
     if (pos != std::string::npos) {
         pos += 15;
-        while (pos < buffer.size() && (buffer[pos] == ' ' || buffer[pos] == '\t')) {
+        while (pos < buffer.size() && (buffer[pos] == ' ' || buffer[pos] == '\t'))
             pos++;
-        }
         
         size_t eol = buffer.find("\r\n", pos);
-        if (eol == std::string::npos) {
+        if (eol == std::string::npos)
             eol = buffer.find("\n", pos);
-        }
         
         if (eol != std::string::npos) {
             std::string valueStr = buffer.substr(pos, eol - pos);
@@ -277,9 +263,8 @@ void Request::checkContentLength(std::string buffer) {
     pos = buffer.find("Transfer-Encoding:");
     if (pos != std::string::npos) {
         size_t eol = buffer.find("\r\n", pos);
-        if (eol == std::string::npos) {
+        if (eol == std::string::npos)
             eol = buffer.find("\n", pos);
-        }
         
         if (eol != std::string::npos) {
             std::string transferEncoding = buffer.substr(pos + 18, eol - pos - 18);
@@ -307,13 +292,11 @@ void Request::parseContentType() {
                         boundary = boundary.substr(1, endQuote - 1);
                     }
                 }
-                
                 _boundary = boundary;
             }
         }
-    } else if (_method == "POST") {
+    } else if (_method == "POST")
         _contentType = "application/octet-stream";
-    }
 }
 
 std::string Request::getMimeType(std::string const &path) {
@@ -322,15 +305,12 @@ std::string Request::getMimeType(std::string const &path) {
     
     if (dotPos != std::string::npos) {
         ext = path.substr(dotPos + 1);
-        
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    } else if (path == "/" || path.empty()) {
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    } else if (path == "/" || path.empty())
         return "text/html";
-    } else {
+    else
         return "text/plain";
-    }
-    
-    // CRITICAL FIX: Proper MIME type mapping
+   
     if (ext == "html" || ext == "htm")
         return "text/html";
     else if (ext == "css")
@@ -360,14 +340,13 @@ std::string Request::getMimeType(std::string const &path) {
     else if (ext == "mp3")
         return "audio/mpeg";
     
-    return "application/octet-stream"; // Default for unknown files
+    return "application/octet-stream";
 }
 
 bool Request::isChunkedTransfer() const {
     std::map<std::string, std::string>::const_iterator it = _headers.find("Transfer-Encoding");
-    if (it != _headers.end() && it->second.find("chunked") != std::string::npos) {
+    if (it != _headers.end() && it->second.find("chunked") != std::string::npos)
         return true;
-    }
     return false;
 }
 

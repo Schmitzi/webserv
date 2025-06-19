@@ -9,6 +9,7 @@ struct	serverLevel;
 struct	locationLevel;
 class	ConfigParser;
 
+std::string					combinePath(std::string first, std::string second);
 bool						onlyDigits(const std::string& s);
 bool						whiteLine(std::string& line);
 bool						checkSemicolon(std::string& line);

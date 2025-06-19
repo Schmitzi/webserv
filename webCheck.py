@@ -123,7 +123,7 @@ def test_post_upload_with_content():
 def test_delete():
     print("[*] Testing DELETE method...")
     # Try deleting a known file (adjust filename if needed)
-    res = test_connection("/upload/upload", "DELETE")
+    res = test_connection("/upload/test", "DELETE")
     if res is not None:
         status, _, _ = res
         if status in (200, 204):

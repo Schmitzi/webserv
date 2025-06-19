@@ -1,39 +1,61 @@
 #include "../include/Response.hpp"
 
-bool matchLocation(const std::string& path, const serverLevel& serv, locationLevel& bestMatch) {
+bool matchLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch) {
 	size_t longestMatch = 0;
 	bool found = false;
+
 	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
 	for (; it != serv.locations.end(); ++it) {
-		locationLevel loc = it->second;
-		if (path.find(loc.locName) == 0 && loc.locName.size() > longestMatch) {
-			bestMatch = loc;
-			found = true;
-			longestMatch = loc.locName.size();
+		if (it->second.isRegex) {
+			size_t end = path.find_last_of(".");
+			if (end != std::string::npos) {
+				std::string ext = path.substr(end);
+				if (ext == it->first) {
+					bestMatch = const_cast<locationLevel*>(&(it->second));
+					return true;
+				}
+			}
+		} else {
+			if (path.find(it->second.locName) != std::string::npos && it->second.locName.size() > longestMatch) {
+				bestMatch = const_cast<locationLevel*>(&(it->second));
+				found = true;
+				longestMatch = it->second.locName.size();
+			}
 		}
 	}
 	return found;
 }
 
-bool matchUploadLocation(const std::string& path, const serverLevel& serv, locationLevel& bestMatch) {
+bool matchUploadLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch) {
 	size_t longestMatch = 0;
 	bool found = false;
 	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
 	if (path.empty()) {
 		for (; it != serv.locations.end(); ++it) {
-			locationLevel loc = it->second;
-			if (!loc.uploadDirPath.empty()) {
+			locationLevel* loc = const_cast<locationLevel*>(&(it->second));
+			if (!loc->uploadDirPath.empty()) {
 				bestMatch = loc;
 				return true;
 			}
 		}
 	} else {
 		for (; it != serv.locations.end(); ++it) {
-			locationLevel loc = it->second;
-			if (path.find(loc.locName) == 0 && loc.locName.size() > longestMatch) {
-				bestMatch = loc;
-				found = true;
-				longestMatch = loc.locName.size();
+			locationLevel* loc = const_cast<locationLevel*>(&(it->second));
+			if (loc->isRegex) {
+				size_t end = path.find_last_of(".");
+				if (end != std::string::npos) {
+					std::string ext = path.substr(end);
+					if (ext == it->first) {
+						bestMatch = loc;
+						return true;
+					}
+				}
+			} else {
+				if (path.find(loc->locName) == 0 && loc->locName.size() > longestMatch) {
+					bestMatch = loc;
+					found = true;
+					longestMatch = loc->locName.size();
+				}
 			}
 		}
 	}
@@ -78,7 +100,6 @@ std::string findErrorPage(int statusCode, const std::string& dir, Request& req) 
     bool foundCustomPage = false;
 	std::string uri;
     while (it != errorPages.end() && !foundCustomPage) {
-        // Check if this status code is in the vector of codes
         for (size_t i = 0; i < it->first.size(); i++) {
             if (it->first[i] == statusCode) {
                 foundCustomPage = true;
@@ -90,38 +111,33 @@ std::string findErrorPage(int statusCode, const std::string& dir, Request& req) 
     }
     
     std::string filePath;
-    if (foundCustomPage) {// Use custom error page if defined
+    if (foundCustomPage) {
 		if (uri.find(req.getConf().rootServ) == std::string::npos)
-			filePath = req.getConf().rootServ + uri;
+			filePath = matchAndAppendPath(req.getConf().rootServ, uri);
 		else
 			filePath = uri;
 	}
-    else {// Otherwise use default error page
-        filePath = dir + "/" + tostring(statusCode) + ".html";
-	}
+    else
+        filePath = matchAndAppendPath(dir, tostring(statusCode)) + ".html";
     return filePath;
 }
 
 void resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req) {
     std::string dir = "errorPages";
-    // Look for custom error page for this status code
     std::string filePath = findErrorPage(statusCode, dir, req);
-    // Make sure error pages directory exists
+
     struct stat st;
     if (stat(dir.c_str(), &st) != 0) {
     	mkdir(dir.c_str(), 0755);
 	}
-    // Try to read existing error page file
     std::ifstream file(filePath.c_str());
-    if (file) {
+    if (file.good()) {
         std::stringstream buffer;
         buffer << file.rdbuf();
         body = buffer.str();
         file.close();
     } else {
-        // Generate a basic error page with no external resources
         generateErrorPage(body, statusCode, statusText);
-        // Save the generated error page for future use
         std::ofstream out(filePath.c_str());
         if (out) {
             out << body;

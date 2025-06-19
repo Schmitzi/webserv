@@ -13,7 +13,7 @@ import tempfile
 import sys
 
 WEBSERV_BINARY = "./webserv"
-CONFIG_PATH = "configs/test.conf"
+CONFIG_PATH = "config/test.conf"
 HOST = "127.0.0.1"
 PORT = 8080
 
@@ -102,7 +102,7 @@ def test_basic_http_methods():
     
     # Test POST
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    body = "test=data"
+    body = "test=testfile.txt"
     test_connection("/upload", "POST", body=body, headers=headers)
     
     # Test DELETE

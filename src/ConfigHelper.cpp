@@ -1,5 +1,34 @@
 #include "../include/ConfigHelper.hpp"
 
+std::string combinePath(std::string first, std::string second) {
+	std::string ret;
+	if (first.empty()) {
+		if (!second.empty()) {
+			ret = second;
+			if (ret[ret.size() - 1] == '/') 
+				ret = ret.substr(0, ret.size() - 1);
+			if (ret[0] == '/')
+				ret = ret.substr(1);
+		}
+		return ret;
+	}
+	else if (second.empty()) {
+		ret = first;
+		if (ret[ret.size() - 1] == '/')
+			ret = ret.substr(0, ret.size() - 1);
+		return ret;
+	}
+	if (first[first.size() - 1] != '/' && second[0] != '/')
+		ret = first + "/" + second;
+	else if (first[first.size() - 1] == '/' && second[0] == '/')
+		ret = first.substr(0, first.size() - 1) + second;
+	else
+		ret = first + second;
+	if (ret[ret.size() - 1] == '/')
+		ret = ret.substr(0, ret.size() - 1);
+	return ret;
+}
+
 bool onlyDigits(const std::string &s) {
 	for (size_t i = 0; i < s.size(); i++) {
 		if (!isdigit(s[i]))
@@ -83,7 +112,6 @@ void setErrorPages(std::vector<std::string>& s, serverLevel &serv) {
 		}
 		else if (waitingForPath == true && !onlyDigits(s[j]) && !errCodes.empty()) {
 			site = s[j].substr(0, s[j].size());
-			// site = getAbsPath(site);
 			if (!isValidPath(site))
 				throw configException("Error: Invalid path (error_page) -> " + site);
 			serv.errPages.insert(std::pair<std::vector<int>, std::string>(errCodes, site));
@@ -130,25 +158,16 @@ void checkBracket(std::vector<std::string>& s, bool& bracket) {
 /* ____________________________set Location Level____________________________ */
 
 void setRootLoc(locationLevel& loc, std::vector<std::string>& s) {
-	std::string path = getAbsPath(s[1]);
-	if (!path.empty() && !isValidDir(path))
+	if (!s[1].empty() && !isValidDir(s[1]))
 		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
-	loc.rootLoc = path;
+	loc.rootLoc = s[1];
 }
 
 void setLocIndexFile(locationLevel& loc, std::vector<std::string>& s, serverLevel &serv) {
-	char* cwdBuffer = getcwd(NULL, 0);
-	if (cwdBuffer == NULL) {
-		loc.indexFile = "";
-		return ;
-	}
-	
-	std::string path = cwdBuffer;
-	path += ("/" + serv.rootServ) + ("/" + s[1]);
-	free(cwdBuffer);
-	if (!path.empty() && !isValidIndexFile(s[1]))
+	if (!s[1].empty() && !isValidIndexFile(s[1]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
-	loc.indexFile = path;
+	loc.indexFile = s[1];
+	(void)serv;
 }
 
 void setMethods(locationLevel& loc, std::vector<std::string>& s) {
@@ -171,7 +190,7 @@ void setAutoindex(locationLevel& loc, std::vector<std::string>& s) {
 
 void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
 	if (s.size() != 3 || !onlyDigits(s[1]))
-		throw configException("Error: invalid redirection!\n");
+		throw configException("Error: invalid redirection!");
 	if (!s[2].empty() && !isValidRedirectPath(s[2]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1] + " " + s[2]);
 	loc.redirectionHTTP.first = atoi(s[1].c_str());
@@ -180,16 +199,16 @@ void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
 }
 
 void setCgiProcessorPath(locationLevel& loc, std::vector<std::string>& s) {
-	std::string path = getAbsPath(s[1]);
-	if (!path.empty() && !isValidDir(path))
-		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
-	loc.cgiProcessorPath = path;
+	std::string path = s[1];
+    if (!path.empty() && !isValidExecutable(path)) {
+        throw configException("Error: invalid executable path for " + s[0] + " -> " + s[1]);
+    }
+    loc.cgiProcessorPath = path;
 }
 
 void setUploadDirPath(locationLevel& loc, std::vector<std::string>& s) {
-	std::string path = getAbsPath(s[1]);
-	if (!path.empty() && (path.find("..") != std::string::npos || 
-        path.find("/.") != std::string::npos || !isValidDir(path)))
+	std::string path = s[1];
+	if (!path.empty() && (path.find("..") != std::string::npos || path.find("/.") != std::string::npos))
 		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
 	loc.uploadDirPath = path;
 }

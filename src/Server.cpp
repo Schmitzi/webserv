@@ -17,12 +17,10 @@ Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
         int mapPort = it->first.first.second;
         
         if (mapIp == targetIp && mapPort == targetPort) {
-            for (size_t i = 0; i < it->second.size(); ++i) {
+            for (size_t i = 0; i < it->second.size(); ++i)
                 _configs.push_back(it->second[i]);
-            }
         }
     }
-    
     _webserv = &webserv;
 }
 
@@ -68,51 +66,43 @@ ConfigParser &Server::getConfParser() {
 }
 
 std::string Server::getUploadDir(Client& client, Request& req) {
-	locationLevel loc = locationLevel();
-	if (!matchUploadLocation(req.getReqPath(), req.getConf(), loc)) {
-		std::cout << "Location not found: " << req.getReqPath() << std::endl;
+	locationLevel* loc = NULL;
+	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
+		std::cerr << "Location not found: " << req.getPath() << std::endl;
 		client.sendErrorResponse(403, req);
 		return "";
 	}
-	if (loc.uploadDirPath.empty()) {
-		std::cout << "Upload directory not set: " << req.getReqPath() << std::endl;
+	if (loc->uploadDirPath.empty()) {
+		std::cerr << "Upload directory not set: " << req.getPath() << std::endl;
 		client.sendErrorResponse(403, req);
 		return "";
 	}
-    std::string fullPath = getWebRoot(req, loc) + req.getPath();
+    std::string fullPath = matchAndAppendPath(getWebRoot(req, *loc), req.getPath());
 	return fullPath;
 }
 
 std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
-	std::string path;
 	if (!loc.rootLoc.empty()) {
-		if (loc.rootLoc[loc.rootLoc.size() - 1] == '/')
-			path = loc.rootLoc.substr(0, loc.rootLoc.size() - 1);
-		else
-			path = loc.rootLoc;
+		if (loc.isRegex)
+			return loc.rootLoc;
+		std::string x = matchAndAppendPath(loc.rootLoc, loc.locName);
+		return x;
 	}
-	else {
-		if (req.getConf().rootServ[req.getConf().rootServ.size() - 1] == '/')
-			path = req.getConf().rootServ.substr(0, req.getConf().rootServ.size() - 1);
-		else
-			path = req.getConf().rootServ;
-	}
-	return path;
+	else
+		return req.getConf().rootServ;
 }
 
 int Server::openSocket() {
-    // Create a TCP socket
     _fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (_fd < 0) {
         _webserv->ft_error("Socket creation error");
         return 1;
     }
-  
     _webserv->printMsg("Server started", GREEN, "");
     return 0;
 }
 
-int Server::setOptional() { // Optional: set socket options to reuse address
+int Server::setOptional() { 
     int opt = 1;
     
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
@@ -120,7 +110,6 @@ int Server::setOptional() { // Optional: set socket options to reuse address
         close(_fd);
         return 1;
     }
-    
     return 0;
 }
 
@@ -132,20 +121,17 @@ int Server::setServerAddr() {
     std::string ip = conf.first.first;
     int port = conf.first.second;
     
-    // Convert string IP to network format
-    if (ip == "0.0.0.0" || ip.empty()) {
+    if (ip == "0.0.0.0" || ip.empty())
         _addr.sin_addr.s_addr = INADDR_ANY;
-    } else {
+    else
         inet_pton(AF_INET, ip.c_str(), &(_addr.sin_addr));
-    }
     _addr.sin_port = htons(port);
     
     std::cout << GREEN << _webserv->getTimeStamp() << "Server binding to " << RESET << ip << ":" << port << std::endl;
-    
     return 0;
 }
 
-int Server::ft_bind() { // Bind socket to address
+int Server::ft_bind() {
     if (bind(_fd, (struct sockaddr *)&_addr, sizeof(_addr)) < 0) {
         _webserv->ft_error("bind() failed");
         close(_fd);
@@ -154,7 +140,7 @@ int Server::ft_bind() { // Bind socket to address
     return 0;
 }
 
-int Server::ft_listen() { // Listen for connections
+int Server::ft_listen() {
     const int backlog = 128;
     
     if (listen(_fd, backlog) < 0) {
