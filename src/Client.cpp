@@ -114,6 +114,7 @@ int Client::recieveData() {
     
     if (bytesRead > 0) {
         _requestBuffer.append(buffer, bytesRead);
+        std::cout << RED << _requestBuffer << "\n";
 
         std::cout << BLUE << _webserv->getTimeStamp() 
                   << "Received " << bytesRead << " bytes from " << _fd 
