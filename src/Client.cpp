@@ -138,7 +138,7 @@ int Client::recieveData() {
         std::cout << GREEN << _webserv->getTimeStamp() 
                   << "Complete request received, processing..." << RESET << std::endl;
         
-        int processResult = processRequest(req);
+        int processResult = processRequest(_requestBuffer);
         
         if (processResult != -1) {
             _requestBuffer.clear();
