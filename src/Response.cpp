@@ -41,10 +41,21 @@ bool matchUploadLocation(const std::string& path, const serverLevel& serv, locat
 	} else {
 		for (; it != serv.locations.end(); ++it) {
 			locationLevel* loc = const_cast<locationLevel*>(&(it->second));
-			if (path.find(loc->locName) == 0 && loc->locName.size() > longestMatch) {
-				bestMatch = loc;
-				found = true;
-				longestMatch = loc->locName.size();
+			if (loc->isRegex) {
+				size_t end = path.find_last_of(".");
+				if (end != std::string::npos) {
+					std::string ext = path.substr(end);
+					if (ext == it->first) {
+						bestMatch = loc;
+						return true;
+					}
+				}
+			} else {
+				if (path.find(loc->locName) == 0 && loc->locName.size() > longestMatch) {
+					bestMatch = loc;
+					found = true;
+					longestMatch = loc->locName.size();
+				}
 			}
 		}
 	}
@@ -89,7 +100,6 @@ std::string findErrorPage(int statusCode, const std::string& dir, Request& req) 
     bool foundCustomPage = false;
 	std::string uri;
     while (it != errorPages.end() && !foundCustomPage) {
-        // Check if this status code is in the vector of codes
         for (size_t i = 0; i < it->first.size(); i++) {
             if (it->first[i] == statusCode) {
                 foundCustomPage = true;
@@ -103,12 +113,12 @@ std::string findErrorPage(int statusCode, const std::string& dir, Request& req) 
     std::string filePath;
     if (foundCustomPage) {
 		if (uri.find(req.getConf().rootServ) == std::string::npos)
-			filePath = combinePath(req.getConf().rootServ, uri);
+			filePath = matchAndAppendPath(req.getConf().rootServ, uri);
 		else
 			filePath = uri;
 	}
     else
-        filePath = combinePath(dir, tostring(statusCode)) + ".html";
+        filePath = matchAndAppendPath(dir, tostring(statusCode)) + ".html";
     return filePath;
 }
 

@@ -16,7 +16,7 @@ locationLevel::locationLevel() :
 		indexFile(""),
 		methods(),
 		autoindex(false),
-		redirectionHTTP(std::make_pair(0, "")),
+		redirectionHTTP(std::pair<int, std::string>(0, "")),
 		hasRedirect(false),
 		cgiProcessorPath(""),
 		uploadDirPath(""),
@@ -33,17 +33,13 @@ ConfigParser::ConfigParser() {
 	_storedConfigs.push_back(temp);
 	serverLevel serv = serverLevel();
 	_allConfigs.push_back(serv);
-	std::pair<std::string, int> first;
-	first.first = "";
-	first.second = -1;
 	std::pair<std::pair<std::string, int>, bool> second;
-	second.first = first;
+	second.first = std::pair<std::string, int>("", -1);
 	second.second = false;	
 	std::vector<serverLevel> third;
 	third.push_back(serv);
 	_ipPortToServers.insert(std::pair<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel> >(second, third));
 }
-
 
 ConfigParser::ConfigParser(const std::string& filepath) {
 	_filepath = filepath;
@@ -70,14 +66,11 @@ ConfigParser &ConfigParser::operator=(const ConfigParser& copy) {
 
 ConfigParser::~ConfigParser() {
     _ipPortToServers.clear();
-
-    for (std::vector<serverLevel>::iterator servIt = _allConfigs.begin(); 
-         servIt != _allConfigs.end(); ++servIt) {
-        
-        for (std::map<std::string, locationLevel>::iterator locIt = servIt->locations.begin(); 
-             locIt != servIt->locations.end(); ++locIt) {
+	std::vector<serverLevel>::iterator servIt = _allConfigs.begin();
+    for (; servIt != _allConfigs.end(); ++servIt) {
+        std::map<std::string, locationLevel>::iterator locIt = servIt->locations.begin();
+        for (; locIt != servIt->locations.end(); ++locIt)
             locIt->second.methods.clear();
-        }
         
         servIt->locations.clear();
         servIt->port.clear();
@@ -99,7 +92,7 @@ void ConfigParser::storeConfigs() {
 	int configNum;
 
 	std::ifstream file(_filepath.c_str());
-	if (!file.is_open() || !file.good())
+	if (!file.good())
 		throw configException("Error: Invalid or empty config file.");
 	std::string line;
 	configNum = -1;
@@ -142,7 +135,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 	if (conf[i].find("}") == std::string::npos)
 		throw configException("Error: no closing bracket found for location.");
 	checkMethods(loc);
-	loc.fullPath = combinePath(loc.rootLoc, loc.locName);
+	loc.fullPath = matchAndAppendPath(loc.rootLoc, loc.locName);
 	serv.locations.insert(std::pair<std::string, locationLevel>(loc.locName, loc));
 }
 
@@ -215,21 +208,16 @@ void ConfigParser::parseAndSetConfigs() {
         bool validServer = false;
 
         for (size_t j = 0; j < nextConf.port.size(); j++) {
-
 			for (size_t k = 0; k < nextConf.servName.size(); k++) {
 				std::string combination = nextConf.port[j].first.first + ":" + tostring(nextConf.port[j].first.second) + ":" + nextConf.servName[k];
                 if (usedCombinations.find(combination) == usedCombinations.end()) {
 					usedCombinations.insert(combination);
                     validServer = true;
-                } else {
-					throw configException("Error: Duplicate server configuration found for " + combination);
-                }
+                } else throw configException("Error: Duplicate server configuration found for " + combination);
             }
         }
-        
-        if (validServer) {
+        if (validServer)
             _allConfigs.push_back(nextConf);
-        }
     }
     setIpPortToServers();
 }

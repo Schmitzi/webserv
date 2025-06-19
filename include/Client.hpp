@@ -52,7 +52,6 @@ class Client {
         int                     	handleRegularRequest(Request& req);
         int                     	buildBody(Request &req, std::string fullPath);
 		std::string			 		getLocationPath(Request& req, const std::string& method);
-        std::string             	extractFileName(const std::string& path);
         int                     	handlePostRequest(Request& req);
         int                     	handleDeleteRequest(Request& req);
         int                     	handleMultipartPost(Request& req);

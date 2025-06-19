@@ -1,17 +1,12 @@
 #include "../include/ConfigValidator.hpp"
 
-std::string getAbsPath(std::string& path) {
-	if (path.empty())
-		return ".";
-	if (path[0] == '/')
-		return path;
-	
+std::string getAbsPath(const std::string& path) {
+	if (path.empty()) return ".";
+	if (path[0] == '/') return path;
 	char* cwdBuffer = getcwd(NULL, 0);
-	if (cwdBuffer == NULL)
-		return ".";
-	
+	if (cwdBuffer == NULL) return ".";
 	std::string absPath = cwdBuffer;
-	absPath = combinePath(absPath, path);
+	absPath = matchAndAppendPath(absPath, path);
 	free(cwdBuffer);
 	return absPath;
 }
@@ -33,7 +28,6 @@ void createLocationFromIndex(std::string& path) {
 
 bool isValidPath(std::string &path) {
 	struct stat	info;
-	
 	return (stat(path.c_str(), &info) == 0 && !S_ISDIR(info.st_mode) && access(path.c_str(), R_OK) == 0);
 }
 
@@ -42,35 +36,21 @@ bool isValidRedirectPath(const std::string &path) {
 }
 
 bool isValidDir(std::string &path) {
-	createLocationFromIndex(path);
 	struct stat	info;
-
 	return (stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode) && access(path.c_str(), R_OK) == 0);
 }
 
 bool isValidExecutable(const std::string& path) {
     struct stat info;
-    
-    if (stat(path.c_str(), &info) != 0) {
-        return false;
-    }
-    
-    if (!S_ISREG(info.st_mode)) {
-        return false;
-    }
-    
-    if (access(path.c_str(), X_OK) != 0) {
-        return false;
-    }
-    
+    if (stat(path.c_str(), &info) != 0) return false;
+    if (!S_ISREG(info.st_mode)) return false;
+    if (access(path.c_str(), X_OK) != 0) return false;
     return true;
 }
 
 bool isValidName(const std::string& name) {
-	if (name.empty())
-		return true;
-	if (name.size() > 253)
-		return false;
+	if (name.empty()) return true;
+	if (name.size() > 253) return false;
 	if (name[0] == '~') {
 		std::cerr << "Regex server names not supported" << std::endl;
 		return false;
@@ -80,36 +60,27 @@ bool isValidName(const std::string& name) {
 	for (size_t i = 0; i < name.size(); ++i) {
 		char c = name[i];
 		if (c == '.') {
-			if (label.empty() || label[0] == '-' || label[label.size() - 1] == '-')
-				return false;
+			if (label.empty() || label[0] == '-' || label[label.size() - 1] == '-') return false;
 			if (label == "*") {
 				++starCount;
-				if (starCount > 1)
-					return false;
+				if (starCount > 1) return false;
 			}
 			label.clear();
 		}
-		else if (isalnum(c) || c == '-')
-			label += c;
+		else if (isalnum(c) || c == '-') label += c;
 		else if (c == '*') {
 			label += c;
-			if (label != "*")
-				return false;
+			if (label != "*") return false;
 		}
-		else
-			return false;
+		else return false;
 	}
-	if (label.empty() || label[0] == '-' || label[label.size() - 1] == '-')
-		return false;
+	if (label.empty() || label[0] == '-' || label[label.size() - 1] == '-') return false;
 	if (label == "*") {
 		++starCount;
-		if (starCount > 1)
-			return false;
+		if (starCount > 1) return false;
 	}
-	if (starCount == 1) {
-		if (!(name.find("*.") == 0 || name.rfind(".*") == name.size() - 2))
-			return false;
-	}
+	if (starCount == 1)
+		if (!(name.find("*.") == 0 || name.rfind(".*") == name.size() - 2)) return false;
 	return true;
 }
 
@@ -152,16 +123,12 @@ void parseClientMaxBodySize(serverLevel &serv) {
 }
 
 void checkRoot(serverLevel &serv) {
-	if (!serv.rootServ.empty())
-		serv.rootServ = getAbsPath(serv.rootServ);
 	std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 	while (it != serv.locations.end()) {
 		if (it->second.rootLoc.empty() && serv.rootServ.empty())
 			throw configException("Error: No rootLoc found.");
 		else if (it->second.rootLoc.empty())
 			it->second.rootLoc = serv.rootServ;//take default value from server if not specified
-		else
-			it->second.rootLoc = getAbsPath(it->second.rootLoc);
 		++it;
 	}
 }
@@ -172,12 +139,12 @@ void checkIndex(serverLevel &serv) {
 		while (it != serv.locations.end()) {
 			if (it->second.indexFile.empty())
 				throw configException("Error: No default index found.");
-			it->second.indexFile = combinePath(it->second.rootLoc, it->second.indexFile);
+			it->second.indexFile = matchAndAppendPath(it->second.rootLoc, it->second.indexFile);
 			++it;
 		}
 	}
 	else if (!serv.indexFile.empty()) {
-		serv.indexFile = combinePath(serv.rootServ, serv.indexFile);
+		serv.indexFile = matchAndAppendPath(serv.rootServ, serv.indexFile);
 		std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 		while (it != serv.locations.end()) {
 			if (it->second.indexFile.empty())
