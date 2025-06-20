@@ -211,6 +211,14 @@ void Request::parse(const std::string& rawRequest) {
                       << " bytes of chunked data" << RESET << std::endl;
         }
     }
+
+    if (_path.find("%20") != std::string::npos) {
+        size_t pos = 0;
+        while ((pos = _path.find("%20", pos)) != std::string::npos) {
+            _path.replace(pos, 3, " ");
+            pos += 1;
+        }
+    }
 }
 
 int Request::parseHeaders(const std::string& headerSection) {
