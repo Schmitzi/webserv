@@ -1,29 +1,15 @@
 #include "../include/ConfigValidator.hpp"
 
-std::string getAbsPath(const std::string& path) {
-	if (path.empty()) return ".";
-	if (path[0] == '/') return path;
-	char* cwdBuffer = getcwd(NULL, 0);
-	if (cwdBuffer == NULL) return ".";
-	std::string absPath = cwdBuffer;
-	absPath = matchAndAppendPath(absPath, path);
-	free(cwdBuffer);
-	return absPath;
-}
-
-void createLocationFromIndex(std::string& path) {
-	if (path.empty())
-		return;
-	std::string absolutePath = getAbsPath(path);
-	if (mkdir(absolutePath.c_str(), 0755) == 0)
-		return;
-	if (errno == EEXIST) {
-		struct stat info;
-		if (stat(absolutePath.c_str(), &info) == 0 && (info.st_mode & S_IFDIR))
-			return;
-		return;
-	}
-	std::cerr << "Error creating directory: " << absolutePath << " - " << strerror(errno) << std::endl;
+std::string getAbsPath(const std::string& root, const std::string& path) {
+    std::string fullPath = matchAndAppendPath(root, path);
+    char* resolved = realpath(fullPath.c_str(), NULL);
+    if (!resolved)
+        return "";
+    std::string finalPath = resolved;
+    free(resolved);
+    if (finalPath.find(root) != 0)
+        return "";
+    return finalPath;
 }
 
 bool isValidPath(std::string &path) {
@@ -162,7 +148,7 @@ void checkConfig(serverLevel &serv) {
 		parseClientMaxBodySize(serv);
 	}
 	checkRoot(serv);
-	checkIndex(serv);
+	// checkIndex(serv);//TODO: check if needed
 }
 
 void checkMethods(locationLevel& loc) {
@@ -184,6 +170,7 @@ void initLocLevel(std::vector<std::string>& s, locationLevel& loc) {
 		}
 	} else {
 		for (size_t x = 1; x < s.size() && s[x] != "{"; x++) {
+			s[x] = decode(s[x]);
 			loc.locName += s[x];
 			if (x < s.size() - 1 && s[x + 1] != "{")
 				loc.locName += " ";

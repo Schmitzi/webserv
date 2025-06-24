@@ -2,12 +2,8 @@
 
 import subprocess
 import socket
-import os
 import time
 import http.client
-from threading import Thread
-import uuid
-import urllib.parse
 
 WEBSERV_BINARY = "./webserv"
 CONFIG_PATH = "config/test.conf"
@@ -156,7 +152,7 @@ def main():
         test_path_traversal()
         test_query_parameters()
         test_keep_alive()
-        # test_url_encoding()#TODO: look up is needed?
+        test_url_encoding()#TODO: look up is needed?
     finally:
         stop_server(server_proc)
 

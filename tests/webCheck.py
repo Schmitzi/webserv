@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
 import subprocess
-import socket
-import os
 import time
 import http.client
 from threading import Thread
-import mimetypes
 import uuid
 
 WEBSERV_BINARY = "./webserv"

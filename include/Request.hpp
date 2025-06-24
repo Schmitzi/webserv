@@ -43,6 +43,7 @@ class Request {
         void    							parseContentType();
         bool    							isChunkedTransfer() const;
         std::string 						getTimeStamp();
+
     private:
 		std::string							_host; 
         std::string                         _method;

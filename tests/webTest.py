@@ -2,15 +2,10 @@
 
 import subprocess
 import socket
-import os
 import time
 import http.client
 from threading import Thread
-import mimetypes
 import uuid
-import json
-import tempfile
-import sys
 
 WEBSERV_BINARY = "./webserv"
 CONFIG_PATH = "config/test.conf"

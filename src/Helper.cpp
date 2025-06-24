@@ -60,3 +60,42 @@ std::string matchAndAppendPath(const std::string& base, const std::string& add) 
 	return result;
 }
 
+std::string decode(const std::string& encoded) {
+    std::string decoded;
+    char hex_buf[3] = {0};
+
+    for (std::string::size_type i = 0; i < encoded.length(); ++i) {
+        if (encoded[i] == '%' && i + 2 < encoded.length()) {
+            hex_buf[0] = encoded[i + 1];
+            hex_buf[1] = encoded[i + 2];
+
+            char decoded_char = static_cast<char>(strtol(hex_buf, NULL, 16));
+            decoded += decoded_char;
+            i += 2;
+        } else if (encoded[i] == '+')
+            decoded += ' ';
+        else
+            decoded += encoded[i];
+    }
+    return decoded;
+}
+
+std::string encode(const std::string& decoded) {
+    std::ostringstream encoded;
+
+    for (std::string::size_type i = 0; i < decoded.length(); ++i) {
+        unsigned char c = decoded[i];
+        if (c == '/')
+            encoded << '/';
+        else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+				|| c == '-' || c == '_' || c == '.' || c == '~') {
+            encoded << c;
+        }
+        else {
+            encoded << '%' << std::uppercase << std::hex
+                    << std::setw(2) << std::setfill('0') << int(c);
+        }
+    }
+
+    return encoded.str();
+}

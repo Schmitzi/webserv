@@ -123,7 +123,7 @@ std::string findErrorPage(int statusCode, const std::string& dir, Request& req) 
 }
 
 void resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req) {
-    std::string dir = "errorPages";
+	std::string dir = "errorPages";
     std::string filePath = findErrorPage(statusCode, dir, req);
 
     struct stat st;
