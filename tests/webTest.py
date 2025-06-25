@@ -3,14 +3,19 @@
 import subprocess
 import socket
 import time
-import http.client
+import http.client 
 from threading import Thread
 import uuid
+import os
+import tempfile
+from colorama import Fore, Style
 
 WEBSERV_BINARY = "./webserv"
 CONFIG_PATH = "config/test.conf"
 HOST = "127.0.0.1"
 PORT = 8080
+PASS_COUNT = 0
+TOTAL_COUNT = 0
 
 class Colors:
     GREEN = '\033[92m'
@@ -20,18 +25,23 @@ class Colors:
     RESET = '\033[0m'
 
 def print_test(msg, status="INFO"):
+    TOTAL_COUNT += 1
     color = Colors.BLUE if status == "INFO" else Colors.GREEN if status == "PASS" else Colors.RED
+    if color == Colors.GREEN:
+        PASS_COUNT += 1
     print(f"{color}[{status}]{Colors.RESET} {msg}")
 
 def check_compilation():
     print_test("Checking compilation flags...")
     result = subprocess.run(["make", "re"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    TOTAL_COUNT += 1
     if result.returncode != 0:
         print_test("Compilation failed", "FAIL")
         print(result.stderr.decode())
         return False
     else:
         print_test("Compilation passed", "PASS")
+        PASS_COUNT += 1
         return True
 
 def start_server(config=None):
@@ -46,7 +56,6 @@ def start_server(config=None):
     except Exception as e:
         print_test(f"Failed to start server: {e}", "FAIL")
         return None
-    print("\n")
 
 def stop_server(proc):
     if proc is None:
@@ -66,26 +75,23 @@ def test_connection(path="/", method="GET", body=None, headers=None, expect_stat
         res = conn.getresponse()
         status = res.status
         reason = res.reason
-        data = res.read().decode(errors='ignore')
+        data = res.read().decode(errors='ignore')  # consume only once
         
-        # Check status code if expected
         if expect_status and status != expect_status:
             print_test(f"{method} {path} expected status {expect_status}, got {status} {reason}", "FAIL")
-            return None
+            return None, None
         
-        # Check body content if expected
         if check_body_contains and check_body_contains not in data:
             print_test(f"{method} {path} response does not contain expected content", "FAIL")
-            return None
+            return None, None
 
         print_test(f"{method} {path} -> {status} {reason}", "PASS")
-        return res
+        return res, data
     except Exception as e:
         print_test(f"{method} {path} failed: {e}", "FAIL")
-        return None
+        return None, None
     finally:
         conn.close()
-    print("\n")
 
 def test_basic_http_methods():
     print_test("=== Testing Basic HTTP Methods ===")
@@ -108,9 +114,16 @@ def test_basic_http_methods():
 def test_error_handling():
     print_test("=== Testing Error Handling ===")
     
+    FORBIDDEN_DIR = tempfile.mkdtemp()
+    os.chmod(FORBIDDEN_DIR, 0o000)
+    WEB_ROOT = "./local/"
+    linked_dir = os.path.join(WEB_ROOT, "forbidden")
+    if os.path.islink(linked_dir) or os.path.exists(linked_dir):
+        os.remove(linked_dir)
+    os.symlink(FORBIDDEN_DIR, linked_dir)
     # Test various error codes
     test_connection("/nonexistent", "GET", expect_status=404)
-    test_connection("/forbidden", "GET", expect_status=404)
+    test_connection("/forbidden", "GET", expect_status=403)
     
     # Test malformed request
     try:
@@ -133,7 +146,7 @@ def test_large_request_body():
         (1024 * 1024, "1MB"),       # 1MB - should work
         (1024 * 1024 * 2, "2MB"),   # 2MB - might work
         (1024 * 1024 * 5, "5MB"),   # 5MB - might hit limit
-        # (1024 * 1024 * 10, "10MB"), # 10MB - likely to fail
+        (1024 * 1024 * 10, "10MB"), # 10MB - likely to fail
     ]
     
     print_test("Testing various request sizes to find server limit...")
@@ -149,7 +162,7 @@ def test_large_request_body():
         
         print(f"  Testing {size_name} ({size_bytes:,} bytes)...")
         
-        res = test_connection(file_path, "POST", 
+        res, data = test_connection(file_path, "POST", 
                             body=large_body, headers=headers, timeout=60)
         
         if res:
@@ -178,7 +191,7 @@ def test_large_request_body():
         cleanup_success = 0
         for file_path in uploaded_files:
             try:
-                delete_res = test_connection(file_path, "DELETE", timeout=10)
+                delete_res, data = test_connection(file_path, "DELETE", timeout=10)
                 if delete_res and (delete_res.status == 200 or delete_res.status == 204):
                     cleanup_success += 1
                     print_test(f"  ✅ Deleted {file_path}", "INFO")
@@ -214,7 +227,7 @@ def test_large_request_body():
         print_test("Testing server stability after large request rejection...")
         
         # Send a normal request to make sure server is still working
-        normal_res = test_connection("/", "GET", expect_status=200)
+        normal_res, data = test_connection("/", "GET", expect_status=200)
         if normal_res:
             print_test("✅ Server remains stable after rejecting large request", "PASS")
         else:
@@ -226,8 +239,8 @@ def test_request_size_edge_cases():
     # Test exactly at common limits
     common_limits = [
         (1024 * 1024, "1MB"),           # Common small limit
-        # (1024 * 1024 * 8, "8MB"),       # Common medium limit  
-        # (1024 * 1024 * 32, "32MB"),     # Common large limit
+        (1024 * 1024 * 8, "8MB"),       # Common medium limit  
+        (1024 * 1024 * 32, "32MB"),     # Common large limit
     ]
     
     uploaded_files = []  # Track files that need cleanup
@@ -240,7 +253,7 @@ def test_request_size_edge_cases():
         file_path = f"/upload/under_{size_name}.txt"
         
         print(f"Testing just under {size_name}...")
-        res = test_connection(file_path, "POST", 
+        res, data = test_connection(file_path, "POST", 
                             body=under_body, headers=under_headers, timeout=60)
         if res and (res.status == 200 or res.status == 201):
             print_test(f"  Just under {size_name}: ✅ ACCEPTED", "PASS")
@@ -260,7 +273,7 @@ def test_request_size_edge_cases():
         cleanup_success = 0
         for file_path in uploaded_files:
             try:
-                delete_res = test_connection(file_path, "DELETE", timeout=60)
+                delete_res, data = test_connection(file_path, "DELETE", timeout=60)
                 if delete_res and (delete_res.status == 200 or delete_res.status == 204):
                     cleanup_success += 1
                     print_test(f"  🗑️  Deleted {file_path}", "INFO")
@@ -287,7 +300,7 @@ def test_reasonable_upload_limits():
     reasonable_headers = {"Content-Type": "text/plain", "Content-Length": str(len(reasonable_body))}
     file_path = "/upload/reasonable_test.txt"
     
-    res = test_connection(file_path, "POST",
+    res, data = test_connection(file_path, "POST",
                         body=reasonable_body, headers=reasonable_headers, timeout=30)
     
     # Handle the response and cleanup
@@ -296,7 +309,7 @@ def test_reasonable_upload_limits():
             print_test("✅ Server accepts reasonable 1MB uploads", "PASS")
             
             # Clean up the uploaded file
-            delete_res = test_connection(file_path, "DELETE", timeout=10)
+            delete_res, data = test_connection(file_path, "DELETE", timeout=10)
             if delete_res and (delete_res.status in [200, 204, 404]):
                 print_test("🗑️  Cleaned up test file", "INFO")
             else:
@@ -315,7 +328,7 @@ def test_reasonable_upload_limits():
             print_test(f"❓ Unexpected response for 1MB upload: {res.status if res else 'None'}", "FAIL")
             
             # Try to clean up in case file was partially created
-            delete_res = test_connection(file_path, "DELETE", timeout=10)
+            delete_res, data = test_connection(file_path, "DELETE", timeout=10)
             if delete_res and delete_res.status == 404:
                 print_test("ℹ️  No file to clean up (upload failed)", "INFO")
             elif delete_res and (delete_res.status in [200, 204]):
@@ -329,7 +342,7 @@ def test_reasonable_upload_limits():
         
         # Attempt cleanup even if there was an error
         try:
-            delete_res = test_connection(file_path, "DELETE", timeout=10)
+            delete_res, data = test_connection(file_path, "DELETE", timeout=10)
             if delete_res and (delete_res.status in [200, 204]):
                 print_test("🗑️  Cleaned up after error", "INFO")
         except:
@@ -358,7 +371,7 @@ def test_concurrent_connections():
     
     results = []
     def make_request(i):
-        res = test_connection(f"/test_{i}", "GET")
+        res, data = test_connection(f"/test_{i}", "GET")
         results.append(res is not None)
     
     threads = []
@@ -420,64 +433,78 @@ def test_multipart_upload():
         "Content-Length": str(len(body.encode()))
     }
     
-    res = test_connection("/upload", "POST", body=body.encode(), headers=headers)
+    res, data = test_connection("/upload", "POST", body=body.encode(), headers=headers)
     if res and res.status in (200, 201):
         print_test("Multipart upload successful", "PASS")
     else:
         print_test("Multipart upload failed", "FAIL")
     print("\n")
 
+
 def test_cgi_functionality():
     print_test("=== Testing CGI Functionality ===")
-    
-    # Test different CGI scripts
+
     cgi_tests = [
         ("/cgi-bin/hello.py", "POST", {"name": "test"}),
         ("/cgi-bin/hello.php", "GET", {}),
         ("/cgi-bin/env.pl", "GET", {}),
     ]
-    
+
     for path, method, data in cgi_tests:
         if method == "POST":
             body = "&".join(f"{k}={v}" for k, v in data.items())
             headers = {"Content-Type": "application/x-www-form-urlencoded"}
-            test_connection(path, method, body=body, headers=headers)
+            res, data = test_connection(path, method, body=body, headers=headers)
         else:
-            test_connection(path, method)
-    print("\n")
+            res, data = test_connection(path, method)
+
+        if res:
+            if res.status == 500:
+                print_test(f"CGI script {path} returned 500 (Server Error)", "FAIL")
+            elif res.status not in (200, 201):
+                print_test(f"CGI script {path} returned unexpected status {res.status}", "FAIL")
+        else:
+            print_test(f"CGI script {path} test failed completely", "FAIL")
+    print()
 
 def test_directory_listing():
     print_test("=== Testing Directory Listing ===")
-    
-    # Test autoindex on/off
-    res = test_connection("/listing/", "GET")
-    if res:
-        data = res.read().decode(errors='ignore')
-        if "Index of" in data or "Directory listing" in data:
+
+    res, data = test_connection("/listing/", "GET")
+    if res and data:
+        if "index of" in data.lower() or "<title>directory" in data.lower():
             print_test("Directory listing enabled", "PASS")
+        elif res.status == 403:
+            print_test("Directory listing disabled (403 Forbidden)", "PASS")
+        elif res.status == 404:
+            print_test("Directory not found (404)", "INFO")
         else:
-            print_test("Directory listing may be disabled", "INFO")
-    print("\n")
+            print_test("Directory listing status unclear", "FAIL")
+    else:
+        print_test("Directory listing request failed", "FAIL")
+    print()
+
 
 def test_redirection():
     print_test("=== Testing HTTP Redirections ===")
-    
-    # Test various redirect codes
+
     redirect_tests = [
-        "/redirect301",
-        "/redirect302", 
-        "/redirectme"
+        ("/redirect301", 301),
+        ("/redirect302", 302), 
+        ("/redirectme", 302)
     ]
-    
-    for path in redirect_tests:
-        res = test_connection(path, "GET")
-        if res and res.status in (301, 302, 303, 307, 308):
+
+    for path, expected_code in redirect_tests:
+        res, data = test_connection(path, "GET")
+        if res and res.status == expected_code:
             location = res.getheader("Location")
             if location:
                 print_test(f"Redirect {path} -> {location}", "PASS")
             else:
                 print_test(f"Redirect {path} missing Location header", "FAIL")
-    print("\n")
+        else:
+            print_test(f"{path} expected redirect ({expected_code}), got {res.status if res else 'None'}", "FAIL")
+    print()
 
 def test_mime_types():
     print_test("=== Testing MIME Type Detection ===")
@@ -491,7 +518,7 @@ def test_mime_types():
     ]
     
     for path, expected_mime in mime_tests:
-        res = test_connection(path, "GET")
+        res, data = test_connection(path, "GET")
         if res:
             content_type = res.getheader("Content-Type")
             if content_type and expected_mime in content_type:
@@ -512,7 +539,7 @@ def test_path_traversal_security():
     ]
     
     for path in malicious_paths:
-        res = test_connection(path, "GET")
+        res, data = test_connection(path, "GET")
         if res and res.status == 403:
             print_test(f"Path traversal blocked: {path}", "PASS")
         elif res and res.status == 404:
@@ -560,7 +587,7 @@ def test_server_resilience():
 def test_http_headers():
     print_test("=== Testing HTTP Headers ===")
     
-    res = test_connection("/", "GET")
+    res, data = test_connection("/", "GET")
     if res:
         # Check important headers
         server_header = res.getheader("Server")
@@ -616,15 +643,16 @@ def test_stress_test():
 
 def main():
     print("=== Beginning Tests ===")
-    # if not check_compilation():
-    #     return
+    global PASS_COUNT, TOTAL_COUNT
+    if not check_compilation():
+        return
     
-    # server_proc = start_server()
-    # if not server_proc:
-    #     return
+    server_proc = start_server()
+    if not server_proc:
+        return
     
-    # # Give server time to start properly
-    # time.sleep(5)
+    # Give server time to start properly
+    time.sleep(5)
     
     try:
         # Test server is actually running
@@ -656,8 +684,10 @@ def main():
         print_test("=== All tests completed ===")
         
     finally:
-        # stop_server(server_proc)
-        print("")
+        stop_server(server_proc)
+        print("\n=====================================")
+        print(f"SUMMARY: PASS {PASS_COUNT} / {TOTAL_COUNT}")
+        print("=====================================")
 
 if __name__ == "__main__":
     main()

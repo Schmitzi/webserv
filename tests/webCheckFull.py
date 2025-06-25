@@ -4,19 +4,32 @@ import subprocess
 import socket
 import time
 import http.client
+from colorama import Fore, Style
 
 WEBSERV_BINARY = "./webserv"
 CONFIG_PATH = "config/test.conf"
 HOST = "127.0.0.1"
 PORT = 8080
 
+PASS_COUNT = 0
+TOTAL_COUNT = 0
+
+def print_result(success, msg):
+    global PASS_COUNT, TOTAL_COUNT
+    TOTAL_COUNT += 1
+    if success:
+        PASS_COUNT += 1
+        print(f"{Fore.GREEN}✅ {msg}{Style.RESET_ALL}")
+    else:
+        print(f"{Fore.RED}❌ {msg}{Style.RESET_ALL}")
+
 def check_compilation():
     print("[*] Checking compilation flags...")
     result = subprocess.run(["make", "re"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0:
-        print("❌ Compilation failed")
+        print_result(False, "Compilation failed")
     else:
-        print("✅ Compilation passed")
+        print_result(True, "Compilation PASS_COUNT")
 
 def start_server():
     print("[*] Starting server...")
@@ -40,31 +53,35 @@ def test_connection(path="/", method="GET", body=None, headers=None, expect_stat
         data = res.read().decode(errors='ignore')
 
         if expect_status and status != expect_status:
-            print(f"❌ {method} {path} expected status {expect_status}, got {status} {reason}")
+            print_result(False, f"{method} {path} expected status {expect_status}, got {status} {reason}")
             return None
 
         if check_body_contains and check_body_contains not in data:
-            print(f"❌ {method} {path} response does not contain expected content.")
+            print_result(False, f"{method} {path} response does not contain expected content.")
             return None
 
-        print(f"✅ {method} {path} -> {status} {reason}")
+        print_result(True, f"{method} {path} -> {status} {reason}")
         return (status, res.getheaders(), data)
     except Exception as e:
-        print(f"❌ {method} {path} failed: {e}")
+        print_result(False, f"{method} {path} failed: {e}")
     finally:
         conn.close()
 
 def test_head_method():
     print("[*] Testing HEAD method...")
     conn = http.client.HTTPConnection(HOST, PORT)
-    conn.request("HEAD", "/index.html")
-    res = conn.getresponse()
-    data = res.read().decode(errors='ignore')
-    if res.status == 200 and not data:
-        print("✅ HEAD request successful and no body returned.")
-    else:
-        print("❌ HEAD request failed or body returned.")
-    conn.close()
+    try:
+        conn.request("HEAD", "/index.html")
+        res = conn.getresponse()
+        data = res.read().decode(errors='ignore')
+        if res.status == 200 and not data:
+            print_result(True, "HEAD request successful and no body returned.")
+        else:
+            print_result(False, "HEAD request failed or body returned.")
+    except Exception as e:
+        print_result(False, f"HEAD request failed: {e}")
+    finally:
+        conn.close()
 
 def test_options_method():
     print("[*] Testing OPTIONS method...")
@@ -73,69 +90,81 @@ def test_options_method():
         status, headers, _ = res
         allow = dict(headers).get("Allow", "")
         if "GET" in allow:
-            print(f"✅ OPTIONS returned Allow header: {allow}")
+            print_result(True, f"OPTIONS returned Allow header: {allow}")
         else:
-            print("❌ OPTIONS missing expected Allow header.")
+            print_result(False, "OPTIONS missing expected Allow header.")
 
 def test_invalid_method():
     print("[*] Testing invalid HTTP method...")
+    sock = None
     try:
         sock = socket.create_connection((HOST, PORT))
         sock.sendall(b"BREW / HTTP/1.1\r\nHost: localhost\r\n\r\n")
         data = sock.recv(1024).decode()
         if "400" in data:
-            print("✅ Invalid method handled correctly.")
+            print_result(True, "Invalid method handled correctly.")
         else:
-            print("❌ Invalid method response missing or incorrect.")
+            print_result(False, "Invalid method response missing or incorrect.")
+    except Exception as e:
+        print_result(False, f"Invalid method test failed: {e}")
     finally:
-        sock.close()
+        if sock:
+            sock.close()
 
 def test_large_post():
     print("[*] Testing large POST body...")
-    large_body = "A" * 1024 * 1024  # 1MB
+    large_body = "data=" + ("A" * (1024 * 1024 - 5))  # ~1MB form data
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    test_connection("/upload", "POST", body=large_body, headers=headers)
+    res = test_connection("/upload/large_post", "POST", body=large_body, headers=headers, expect_status=200)
+    if res:
+        print_result(True, "Large POST body test was successful.")
+    else:
+        print_result(False, "Large POST body not handled properly.")
 
 def test_path_traversal():
     print("[*] Testing path traversal...")
     path = "/upload/../../etc/passwd"
     res = test_connection(path, "GET", expect_status=403)
     if res:
-        print("✅ Path traversal blocked.")
+        print_result(True, "Path traversal blocked.")
     else:
-        print("❌ Path traversal not handled properly.")
+        print_result(False, "Path traversal not handled properly.")
 
 def test_query_parameters():
     print("[*] Testing query parameters...")
     res = test_connection("/cgi-bin/hello.py?foo=bar&baz=qux", "GET", expect_status=200)
     if res and "foo=bar" in res[2] and "baz=qux" in res[2]:
-        print("✅ Query parameters handled correctly.")
+        print_result(True, "Query parameters handled correctly.")
     else:
-        print("❌ Query parameters not handled properly.")
+        print_result(False, "Query parameters not handled properly.")
 
 def test_keep_alive():
     print("[*] Testing keep-alive support...")
     conn = http.client.HTTPConnection(HOST, PORT)
-    headers = {"Connection": "keep-alive"}
-    conn.request("GET", "/", headers=headers)
-    res1 = conn.getresponse()
-    res1.read()
-    conn.request("GET", "/", headers=headers)
-    res2 = conn.getresponse()
-    res2.read()
-    conn.close()
-    if res1.status == 200 and res2.status == 200:
-        print("✅ Keep-alive supported.")
-    else:
-        print("❌ Keep-alive not working.")
+    try:
+        headers = {"Connection": "keep-alive"}
+        conn.request("GET", "/", headers=headers)
+        res1 = conn.getresponse()
+        res1.read()
+        conn.request("GET", "/", headers=headers)
+        res2 = conn.getresponse()
+        res2.read()
+        if res1.status == 200 and res2.status == 200:
+            print_result(True, "Keep-alive supported.")
+        else:
+            print_result(False, "Keep-alive not working.")
+    except Exception as e:
+        print_result(False, f"Keep-alive test failed: {e}")
+    finally:
+        conn.close()
 
 def test_url_encoding():
     print("[*] Testing URL-encoded paths...")
-    res = test_connection("/listing/%69%6E%64%65%78%2E%68%74%6D%6C", "GET", expect_status=200)
+    res = test_connection("/list/%69%6E%64%65%78%2E%68%74%6D%6C", "GET", expect_status=200)
     if res:
-        print("✅ URL-encoded paths decoded and handled.")
+        print_result(True, "URL-encoded paths decoded and handled.")
     else:
-        print("❌ URL-encoded paths failed.")
+        print_result(False, "URL-encoded paths failed.")
 
 def main():
     check_compilation()
@@ -152,9 +181,13 @@ def main():
         test_path_traversal()
         test_query_parameters()
         test_keep_alive()
-        test_url_encoding()#TODO: look up is needed?
+        test_url_encoding()
     finally:
         stop_server(server_proc)
+
+    print("\n=====================================")
+    print(f"SUMMARY: PASS {PASS_COUNT} / {TOTAL_COUNT}")
+    print("=====================================")
 
 if __name__ == "__main__":
     main()

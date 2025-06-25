@@ -220,7 +220,6 @@ int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& he
     response += "\r\n";
     
     response += formatChunkedResponse(initialBody);
-    std::cout << "RESPONSE: " << response << std::endl;
     if (!_client->send_all(_client->getFd(), response)) {
         std::cerr << "Failed to send chunked response" << std::endl;
         return 1;
@@ -383,14 +382,14 @@ int CGIHandler::prepareEnv(Request &req) {
                 std::cerr << "Location not found for extension: " << ext << std::endl;
                 return 1;
             }
-            std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
+            // std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
             makeArgs(loc->cgiProcessorPath, filePath);
         }
     }
     
     _env.clear();
     
-    const std::string abs_path = getAbsPath(loc->rootLoc, _path);
+    const std::string abs_path = matchAndAppendPath(loc->rootLoc, _path);
     _env.push_back("SCRIPT_FILENAME=" + abs_path);
     _env.push_back("REDIRECT_STATUS=200");
     _env.push_back("SERVER_SOFTWARE=WebServ/1.0");

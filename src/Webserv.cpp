@@ -59,8 +59,7 @@ int Webserv::run() {
         ft_error("epoll_create1() failed");
         return 1;
     }
-
-   for (size_t i = 0; i < _servers.size(); i++) {
+    for (size_t i = 0; i < _servers.size(); i++) {
     if (_servers[i].getFd() > 0) {
         std::cout << BLUE << getTimeStamp() << "Host:Port already opened: " << RESET << 
             _confParser.getDefaultPortPair(_servers[i].getConfigs()[0]).first.first << ":" << 

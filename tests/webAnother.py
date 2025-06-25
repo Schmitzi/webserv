@@ -90,10 +90,10 @@ def test_delete_uploaded():
     assert r.status_code == 404
 
 def test_redirect():
-    r = requests.get(f"{BASE_URL}/redirectme", allow_redirects=False)
+    r = requests.get(f"{BASE_URL}/redirect", allow_redirects=False)
     assert r.status_code in (301, 302)
     assert "Location" in r.headers
-    r_follow = requests.get(f"{BASE_URL}/redirectme", allow_redirects=True)
+    r_follow = requests.get(f"{BASE_URL}/redirect", allow_redirects=True)
     r_follow.raise_for_status()
 
 def test_virtual_host():
@@ -111,47 +111,34 @@ def test_cgi_post():
     assert "abc" in r.text.lower() or "input" in r.text.lower()
 
 def test_chunked_encoding():
-    filename = "chunked_test.txt"
-    temp_path = make_temp_file("this is a test upload")
-    with open(temp_path, "rb") as f:
-        content = f.read()
-
-    conn = http.client.HTTPConnection(HOST, PORT, timeout=10)
-    conn.putrequest("POST", f"/upload/{filename}")
+    conn = http.client.HTTPConnection(HOST, PORT, timeout=15)
+    conn.putrequest("POST", "/upload/test_chunked")
     conn.putheader("Transfer-Encoding", "chunked")
-    conn.putheader("Content-Type", "application/octet-stream")
-    conn.putheader("Host", f"{HOST}:{PORT}")
-    conn.putheader("Connection", "close")
+    conn.putheader("Content-Type", "text/plain")
     conn.endheaders()
-
-    chunk_size = 10
-    offset = 0
-    while offset < len(content):
-        chunk = content[offset : offset + chunk_size]
-        offset += chunk_size
-
-        conn.send(f"{len(chunk):X}\r\n".encode())
-        conn.send(chunk + b"\r\n")
-
+    
+    chunk_data = "this is a test upload"
+    chunk_size = hex(len(chunk_data))[2:]
+    
+    # Send chunk size + data
+    conn.send((chunk_size + "\r\n").encode())
+    conn.send(chunk_data.encode())
+    conn.send(b"\r\n")
+    
+    # Send zero chunk to end
     conn.send(b"0\r\n\r\n")
-
+    
     response = conn.getresponse()
-    status = response.status
-    body = response.read().decode(errors="ignore")
-
-    print(f"Response status: {status}")
-    print("Response body:")
-    print(body)
-
-    if status != 200:
-        raise Exception(f"Expected 200 OK, got {status}")
-
-    r_check = requests.get(f"{BASE_URL}/upload/{filename}")
+    body = response.read().decode(errors='ignore')
+    print(f"Response status: {response.status}")
+    print(f"Response body: {body}")
+    if response.status != 200:
+        raise Exception(f"Expected 200 OK, got {response.status}")
+    r_check = requests.get(f"{BASE_URL}/upload/test_chunked")
     assert r_check.status_code == 200
     assert "this is a test upload" in r_check.text
-
+    conn.request("DELETE", "/upload/test_chunked")
     conn.close()
-    os.remove(temp_path)
 
 def test_put_not_allowed():
     r = requests.put(BASE_URL + "/")
@@ -222,7 +209,7 @@ if __name__ == "__main__":
         ("Virtual Host", test_virtual_host),
         ("CGI Execution (GET)", test_cgi_get),
         ("CGI Execution (POST)", test_cgi_post),
-        # ("Chunked Transfer Encoding", test_chunked_encoding),//TODO: this fucker
+        ("Chunked Transfer Encoding", test_chunked_encoding),#TODO: this fucker
         ("Method Not Allowed (PUT)", test_put_not_allowed),
         ("Keep-Alive Header (Connection reuse)", test_keep_alive),
         ("Unsupported HTTP Version", test_http_0_9),
@@ -242,5 +229,6 @@ if __name__ == "__main__":
     os.rmdir(FORBIDDEN_DIR)
 
     print("\n=====================================")
-    print(f"✅ {Fore.GREEN}{PASS_COUNT}{Style.RESET_ALL} / {TOTAL_COUNT} tests passed")
+    print(f"SUMMARY: PASS {PASS_COUNT} / {TOTAL_COUNT}")
     print("=====================================")
+

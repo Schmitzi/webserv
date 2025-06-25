@@ -2,8 +2,13 @@
 
 import http.client
 import os
+from colorama import Fore, Style
+
+PASS_COUNT = 0
+TOTAL_COUNT = 0
 
 def run_cgi_with_file_arg_test(host="localhost", port=8080):
+    global PASS_COUNT, TOTAL_COUNT
     # Expected data
     expected_file_path = "local/cgi-bin/data.txt"
     expected_content = "Hello from the test file!\n"
@@ -40,8 +45,14 @@ except Exception as e:
     assert expected_content.strip() in body, "Expected file content not found in response."
 
     print("✅ CGI with file-as-arg test passed!")
+    PASS_COUNT += 1
+    
 
 
 if __name__ == "__main__":
     run_cgi_with_file_arg_test()
+    TOTAL_COUNT += 1
+    print("\n=====================================")
+    print(f"SUMMARY: PASS {PASS_COUNT} / {TOTAL_COUNT}")
+    print("=====================================")
 

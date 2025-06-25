@@ -5,17 +5,40 @@ import time
 import http.client
 from threading import Thread
 import uuid
+from colorama import Fore, Style, init
+
+# Initialize colorama for colored output
+init(autoreset=True)
 
 WEBSERV_BINARY = "./webserv"
 CONFIG_PATH = "config/test.conf"
 HOST = "127.0.0.1"
 PORT = 8080
 
+PASS_COUNT = 0
+TOTAL_COUNT = 0
+
+def success(msg): print(f"{Fore.GREEN}✅ {msg}{Style.RESET_ALL}")
+def fail(msg): print(f"{Fore.RED}❌ {msg}{Style.RESET_ALL}")
+def header(msg): print(f"\n===> {msg}")
+
+def run_test(description, func):
+    global PASS_COUNT, TOTAL_COUNT
+    TOTAL_COUNT += 1
+    header(f"{TOTAL_COUNT}. {description}")
+    try:
+        func()
+        success("Success")
+        PASS_COUNT += 1
+    except Exception as e:
+        fail("Failed")
+        print(f"{Fore.RED}{e}{Style.RESET_ALL}")
+
 def check_compilation():
     print("[*] Checking compilation flags...")
     result = subprocess.run(["make", "re"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0:
-        print("❌ Compilation failed")
+        raise Exception("Compilation failed")
     else:
         print("✅ Compilation passed")
 
@@ -38,34 +61,41 @@ def test_connection(path="/", method="GET", body=None, headers=None, expect_stat
         res = conn.getresponse()
         status = res.status
         reason = res.reason
-        data = res.read().decode(errors='ignore')  # read ONCE here
+        data = res.read().decode(errors='ignore')
 
-        # Check status code if expected
         if expect_status and status != expect_status:
-            print(f"❌ {method} {path} expected status {expect_status}, got {status} {reason}")
-            return None
+            raise Exception(f"{method} {path} expected status {expect_status}, got {status} {reason}")
         
-        # Check body content if expected
         if check_body_contains and check_body_contains not in data:
-            print(f"❌ {method} {path} response does not contain expected content.")
-            return None
-
+            raise Exception(f"{method} {path} response does not contain expected content.")
+        
         print(f"✅ {method} {path} -> {status} {reason}")
-        return (status, res.getheaders(), data)  # return a tuple
+        return (status, res.getheaders(), data)
     except Exception as e:
-        print(f"❌ {method} {path} failed: {e}")
+        raise
     finally:
         conn.close()
 
 def test_concurrent_clients(count=10):
     print(f"[*] Testing {count} concurrent clients...")
     threads = []
+    errors = []
+    
+    def client_task():
+        try:
+            test_connection()
+        except Exception as e:
+            errors.append(str(e))
+    
     for _ in range(count):
-        t = Thread(target=test_connection)
+        t = Thread(target=client_task)
         t.start()
         threads.append(t)
     for t in threads:
         t.join()
+    
+    if errors:
+        raise Exception(f"Concurrent clients test had errors: {errors}")
     print("✅ Concurrent connection test finished.")
 
 def test_post_upload():
@@ -100,79 +130,54 @@ def test_post_upload_with_content():
     }
 
     res = test_connection("/upload", "POST", body=body, headers=headers, expect_status=200)
-    if res is not None:
-        status, _, _ = res
-        # After upload, try to GET the uploaded file to verify content
-        get_res = test_connection(f"/upload/{filename}", "GET", expect_status=200)
-        if get_res:
-            _, _, data = get_res  # we already decoded it in test_connection
-            print("Expected:", repr(file_content))
-            print("Actual:", repr(data))
-            if file_content in data:
-                print("✅ Uploaded file content verified successfully.")
-            else:
-                print("❌ Uploaded file content mismatch or empty.")
-        else:
-            print("❌ Failed to retrieve uploaded file after upload.")
+    status, _, _ = res  # unpack result, guaranteed by test_connection if no exception
+    # After upload, try to GET the uploaded file to verify content
+    get_res = test_connection(f"/upload/{filename}", "GET", expect_status=200)
+    _, _, data = get_res
+    if file_content in data:
+        print("✅ Uploaded file content verified successfully.")
     else:
-        print("❌ Upload request failed.")
+        raise Exception("Uploaded file content mismatch or empty.")
 
 def test_delete():
     print("[*] Testing DELETE method...")
     # Try deleting a known file (adjust filename if needed)
     res = test_connection("/upload/test", "DELETE")
-    if res is not None:
-        status, _, _ = res
-        if status in (200, 204):
-            print("✅ DELETE request succeeded.")
-        else:
-            print("❌ DELETE request failed or returned wrong status.")
-    else:
-        print("❌ DELETE request failed or file not found.")
+    status, _, _ = res
+    if status not in (200, 204):
+        raise Exception(f"DELETE request returned unexpected status {status}")
 
 def test_static_file():
     print("[*] Testing serving static file /index.html ...")
     res = test_connection("/index.html", "GET", expect_status=200, check_body_contains="<html")
-    if res is not None:
-        print("✅ Static file served correctly.")
-    else:
-        print("❌ Static file test failed.")
+    if res is None:
+        raise Exception("Static file test failed.")
 
 def test_directory_listing():
     print("[*] Testing directory listing at /listing/ ...")
     res = test_connection("/listing/", "GET", expect_status=200, check_body_contains="Index of")
-    if res is not None:
-        print("✅ Directory listing displayed correctly.")
-    else:
-        print("❌ Directory listing test failed.")
+    if res is None:
+        raise Exception("Directory listing test failed.")
 
 def test_redirection():
     print("[*] Testing redirection /redirectme ...")
     res = test_connection("/redirectme")
-    if res:
-        status, headers, _ = res
-        if status in (301, 302):
-            # headers is a list of tuples, convert to dict to access easily
-            header_dict = dict(headers)
-            location = header_dict.get("Location")
-            if location:
-                print(f"✅ Redirection works. Location: {location}")
-            else:
-                print("❌ Redirection header missing Location.")
-        else:
-            print(f"❌ Redirection failed: unexpected status {status}")
-    else:
-        print("❌ Redirection request failed.")
+    status, headers, _ = res
+    if status not in (301, 302):
+        raise Exception(f"Redirection failed: unexpected status {status}")
+    header_dict = dict(headers)
+    location = header_dict.get("Location")
+    if not location:
+        raise Exception("Redirection header missing Location.")
+    print(f"✅ Redirection works. Location: {location}")
 
 def test_cgi():
     print("[*] Testing CGI script POST ...")
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     body = "foo=bar"
     res = test_connection("/cgi-bin/hello.py", "POST", body=body, headers=headers, expect_status=200)
-    if res:
-        print("✅ CGI script executed successfully.")
-    else:
-        print("❌ CGI script test failed.")
+    if not res:
+        raise Exception("CGI script test failed.")
 
 def main():
     check_compilation()
@@ -181,16 +186,20 @@ def main():
     time.sleep(1)  # wait for server to start
 
     try:
-        test_static_file()
-        test_post_upload()
-        test_post_upload_with_content()
-        test_delete()
-        test_directory_listing()
-        test_redirection()
-        test_cgi()
-        test_concurrent_clients()
+        run_test("Static file test /index.html", test_static_file)
+        run_test("Simple POST upload test", test_post_upload)
+        run_test("Multipart file upload test", test_post_upload_with_content)
+        run_test("DELETE method test", test_delete)
+        run_test("Directory listing test", test_directory_listing)
+        run_test("Redirection test", test_redirection)
+        run_test("CGI POST test", test_cgi)
+        run_test("Concurrent clients test", test_concurrent_clients)
     finally:
         stop_server(server_proc)
+    
+    print("\n=====================================")
+    print(f"SUMMARY: PASS {PASS_COUNT} / {TOTAL_COUNT}")
+    print("=====================================")
 
 if __name__ == "__main__":
     main()
