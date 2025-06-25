@@ -123,7 +123,7 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 		else if (!whiteLine(conf[i])) {
 			s = splitIfSemicolon(conf[i]);
 			if (s[0] == "root") setRootLoc(loc, s);
-			else if (s[0] == "index") setLocIndexFile(loc, s, serv);
+			else if (s[0] == "index") setLocIndexFile(loc, s);
 			else if (s[0] == "limit_except") setMethods(loc, s);
 			else if (s[0] == "autoindex") setAutoindex(loc, s);//TODO: remove autoindex bool!
 			else if (s[0] == "return") setRedirection(loc, s);

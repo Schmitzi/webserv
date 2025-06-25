@@ -40,7 +40,6 @@ class Client {
         void                    	setWebserv(Webserv &webserv);
         void                    	setServer(Server &server);
         void                    	setConfigs(const std::vector<serverLevel> &configs);
-        void                    	setAutoIndex(locationLevel& loc);
         int                     	acceptConnection(int serverFd);
         void                    	displayConnection();
         int                     	recieveData();
@@ -48,7 +47,7 @@ class Client {
         int                     	processRequest(std::string requestBuffer);
         int                     	handleGetRequest(Request& req);
         bool                    	isFileBrowserRequest(const std::string& path);
-        int                     	handleFileBrowserRequest(Request& req, const std::string& requestPath);
+        int                     	handleFileBrowserRequest(Request& req);
         int                     	handleRegularRequest(Request& req);
         int                     	buildBody(Request &req, std::string fullPath);
 		std::string			 		getLocationPath(Request& req, const std::string& method);
@@ -58,7 +57,7 @@ class Client {
         bool                    	ensureUploadDirectory(Request& req);
         bool                    	saveFile(Request& req, const std::string& filename, const std::string& content);
         int                     	viewDirectory(std::string fullPath, Request& req);
-        int                     	createDirList(std::string fullPath, std::string requestPath, Request& req);
+        int                     	createDirList(std::string fullPath, Request& req);
         std::string             	showDir(const std::string& dirPath, const std::string& requestUri);
         int                     	handleRedirect(Request eq);
         void                    	sendRedirect(int statusCode, const std::string& location);
@@ -74,7 +73,6 @@ class Client {
         socklen_t           		_addrLen;
         int                 		_fd;
         std::string         		_requestBuffer;
-        bool                		_autoindex;
         Webserv             		*_webserv;
         Server              		*_server;
         CGIHandler          		*_cgi;

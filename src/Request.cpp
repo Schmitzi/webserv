@@ -41,9 +41,7 @@ Request &Request::operator=(const Request& copy) {
 	return *this;
 }
 
-Request::~Request() {
-
-}
+Request::~Request() {}
 
 std::string &Request::getPath() {
     return _path;
@@ -96,6 +94,16 @@ void    Request::setBody(std::string const body) {
 void    Request::setContentType(std::string const content) {
     _contentType = content;
 }
+
+// void Request::encode() {//TODO: encode function needed?
+// 	if (_isDecoded == true && _path.find(" ") != std::string::npos) {
+// 		size_t pos = 0;
+//         while ((pos = _path.find(" ", pos)) != std::string::npos) {
+//             _path.replace(pos, 1, "%20");
+//             pos += 1;
+//         }
+// 	}
+// }
 
 bool Request::matchHostServerName() {
 	std::map<std::string, std::string>::iterator it = _headers.find("Host");
@@ -164,9 +172,8 @@ void Request::parse(const std::string& rawRequest) {
     std::string requestLine;
     std::getline(iss, requestLine);
     size_t end = requestLine.find_last_not_of(" \t\r\n");
-    if (end != std::string::npos) {
+    if (end != std::string::npos)
         requestLine = requestLine.substr(0, end + 1);
-    }
 
     std::istringstream lineStream(requestLine);
     std::string target;
@@ -174,7 +181,6 @@ void Request::parse(const std::string& rawRequest) {
 
     if (_method.empty() || (_method != "GET" && target.empty()) || _version.empty() || _version != "HTTP/1.1") {
         _method = "BAD";
-        // std::cout << RED << "Invalid request line!\n" << RESET;
         return;
     }
 
@@ -188,18 +194,22 @@ void Request::parse(const std::string& rawRequest) {
     }
     if ((_path == "/" || _path == "") && _method == "GET") {
         std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
-        if (it != _curConf.locations.end()) {
-            _path = it->second.indexFile;
-        } 
+        if (it != _curConf.locations.end())
+            _path = matchAndAppendPath(it->second.rootLoc, it->second.indexFile);
     }
 
     end = _path.find_last_not_of(" \t\r\n");
-    if (end != std::string::npos) {
-        _path = _path.substr(0, end + 1);
-    }
-    
-    if (_method != "GET" && _method != "POST" && _method != "DELETE" && 
-        _method != "HEAD" && _method != "OPTIONS") {
+    if (end != std::string::npos)
+		_path = _path.substr(0, end + 1);
+
+	if (_method == "GET" || _method == "POST" || _method == "DELETE"
+		|| _method == "PUT" || _method == "HEAD" || _method == "OPTIONS"
+		|| _method == "PATCH" || _method == "TRACE" || _method == "CONNECT") {
+		if (_method != "GET" && _method != "POST" && _method != "DELETE") {
+			_method = "NOTALLOWED";
+			return;
+		}
+	} else {
         _method = "BAD";
         return;
     }
@@ -211,14 +221,7 @@ void Request::parse(const std::string& rawRequest) {
                       << " bytes of chunked data" << RESET << std::endl;
         }
     }
-
-    if (_path.find("%20") != std::string::npos) {
-        size_t pos = 0;
-        while ((pos = _path.find("%20", pos)) != std::string::npos) {
-            _path.replace(pos, 3, " ");
-            pos += 1;
-        }
-    }
+	_path = decode(_path);
 }
 
 int Request::parseHeaders(const std::string& headerSection) {
@@ -250,14 +253,12 @@ void Request::checkContentLength(std::string buffer) {
     size_t pos = buffer.find("Content-Length:");
     if (pos != std::string::npos) {
         pos += 15;
-        while (pos < buffer.size() && (buffer[pos] == ' ' || buffer[pos] == '\t')) {
+        while (pos < buffer.size() && (buffer[pos] == ' ' || buffer[pos] == '\t'))
             pos++;
-        }
         
         size_t eol = buffer.find("\r\n", pos);
-        if (eol == std::string::npos) {
+        if (eol == std::string::npos)
             eol = buffer.find("\n", pos);
-        }
         
         if (eol != std::string::npos) {
             std::string valueStr = buffer.substr(pos, eol - pos);
@@ -269,9 +270,8 @@ void Request::checkContentLength(std::string buffer) {
     pos = buffer.find("Transfer-Encoding:");
     if (pos != std::string::npos) {
         size_t eol = buffer.find("\r\n", pos);
-        if (eol == std::string::npos) {
+        if (eol == std::string::npos)
             eol = buffer.find("\n", pos);
-        }
         
         if (eol != std::string::npos) {
             std::string transferEncoding = buffer.substr(pos + 18, eol - pos - 18);
@@ -299,13 +299,11 @@ void Request::parseContentType() {
                         boundary = boundary.substr(1, endQuote - 1);
                     }
                 }
-                
                 _boundary = boundary;
             }
         }
-    } else if (_method == "POST") {
+    } else if (_method == "POST")
         _contentType = "application/octet-stream";
-    }
 }
 
 std::string Request::getMimeType(std::string const &path) {
@@ -314,13 +312,11 @@ std::string Request::getMimeType(std::string const &path) {
     
     if (dotPos != std::string::npos) {
         ext = path.substr(dotPos + 1);
-        
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    } else if (path == "/" || path.empty()) {
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+    } else if (path == "/" || path.empty())
         return "text/html";
-    } else {
+    else
         return "text/plain";
-    }
    
     if (ext == "html" || ext == "htm")
         return "text/html";
@@ -356,9 +352,8 @@ std::string Request::getMimeType(std::string const &path) {
 
 bool Request::isChunkedTransfer() const {
     std::map<std::string, std::string>::const_iterator it = _headers.find("Transfer-Encoding");
-    if (it != _headers.end() && it->second.find("chunked") != std::string::npos) {
+    if (it != _headers.end() && it->second.find("chunked") != std::string::npos)
         return true;
-    }
     return false;
 }
 

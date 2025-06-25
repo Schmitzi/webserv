@@ -17,12 +17,10 @@ Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
         int mapPort = it->first.first.second;
         
         if (mapIp == targetIp && mapPort == targetPort) {
-            for (size_t i = 0; i < it->second.size(); ++i) {
+            for (size_t i = 0; i < it->second.size(); ++i)
                 _configs.push_back(it->second[i]);
-            }
         }
     }
-    
     _webserv = &webserv;
 }
 
@@ -70,12 +68,12 @@ ConfigParser &Server::getConfParser() {
 std::string Server::getUploadDir(Client& client, Request& req) {
 	locationLevel* loc = NULL;
 	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
-		std::cout << "Location not found: " << req.getPath() << std::endl;
+		std::cerr << "Location not found: " << req.getPath() << std::endl;
 		client.sendErrorResponse(403, req);
 		return "";
 	}
 	if (loc->uploadDirPath.empty()) {
-		std::cout << "Upload directory not set: " << req.getPath() << std::endl;
+		std::cerr << "Upload directory not set: " << req.getPath() << std::endl;
 		client.sendErrorResponse(403, req);
 		return "";
 	}
@@ -100,7 +98,6 @@ int Server::openSocket() {
         _webserv->ft_error("Socket creation error");
         return 1;
     }
-  
     _webserv->printMsg("Server started", GREEN, "");
     return 0;
 }
@@ -113,7 +110,6 @@ int Server::setOptional() {
         close(_fd);
         return 1;
     }
-    
     return 0;
 }
 
@@ -125,15 +121,13 @@ int Server::setServerAddr() {
     std::string ip = conf.first.first;
     int port = conf.first.second;
     
-    if (ip == "0.0.0.0" || ip.empty()) {
+    if (ip == "0.0.0.0" || ip.empty())
         _addr.sin_addr.s_addr = INADDR_ANY;
-    } else {
+    else
         inet_pton(AF_INET, ip.c_str(), &(_addr.sin_addr));
-    }
     _addr.sin_port = htons(port);
     
     std::cout << GREEN << _webserv->getTimeStamp() << "Server binding to " << RESET << ip << ":" << port << std::endl;
-    
     return 0;
 }
 
