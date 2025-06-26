@@ -95,16 +95,6 @@ void    Request::setContentType(std::string const content) {
     _contentType = content;
 }
 
-// void Request::encode() {//TODO: encode function needed?
-// 	if (_isDecoded == true && _path.find(" ") != std::string::npos) {
-// 		size_t pos = 0;
-//         while ((pos = _path.find(" ", pos)) != std::string::npos) {
-//             _path.replace(pos, 1, "%20");
-//             pos += 1;
-//         }
-// 	}
-// }
-
 bool Request::matchHostServerName() {
 	std::map<std::string, std::string>::iterator it = _headers.find("Host");
 	std::string servName;
@@ -223,7 +213,6 @@ void Request::parse(const std::string& rawRequest) {
     }
 	_path = decode(_path);
 }
-
 int Request::parseHeaders(const std::string& headerSection) {
     std::istringstream iss(headerSection);
     std::string line;

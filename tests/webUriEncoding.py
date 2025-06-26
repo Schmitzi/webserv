@@ -11,12 +11,9 @@ ENCODED_PATH = "with%20space/test%20space.txt"
 DECODED_PATH = "with space/test space.txt"
 REDIRECT_TEST = "redir%20test"
 AUTOINDEX_PATH = "autoindex%20dir"
-PASS_COUNT = 0
-TOTAL_COUNT = 0
 
 def pass_msg(msg):
     print(f"{Fore.GREEN}✅ {msg}{Style.RESET_ALL}")
-    PASS_COUNT += 1
 
 def fail_msg(msg):
     print(f"{Fore.RED}❌ {msg}{Style.RESET_ALL}")
@@ -67,18 +64,10 @@ def test_autoindex_links_encoded():
         fail_msg(f"Request failed: {e}")
 
 def main():
-    global PASS_COUNT, TOTAL_COUNT
     print("=== Starting Percent-Encoding Tests ===")
     test_percent_decoding()
-    TOTAL_COUNT += 1
     test_redirect_location_header()
-    TOTAL_COUNT += 1
     test_autoindex_links_encoded()
-    TOTAL_COUNT += 1
-    
-    print("\n=====================================")
-    print(f"SUMMARY: PASS {PASS_COUNT} / {TOTAL_COUNT}")
-    print("=====================================")
 
 if __name__ == "__main__":
     main()

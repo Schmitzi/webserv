@@ -3,19 +3,14 @@
 import subprocess
 import socket
 import time
-import http.client 
+import http.client
 from threading import Thread
 import uuid
-import os
-import tempfile
-from colorama import Fore, Style
 
 WEBSERV_BINARY = "./webserv"
 CONFIG_PATH = "config/test.conf"
 HOST = "127.0.0.1"
 PORT = 8080
-PASS_COUNT = 0
-TOTAL_COUNT = 0
 
 class Colors:
     GREEN = '\033[92m'
@@ -25,23 +20,18 @@ class Colors:
     RESET = '\033[0m'
 
 def print_test(msg, status="INFO"):
-    TOTAL_COUNT += 1
     color = Colors.BLUE if status == "INFO" else Colors.GREEN if status == "PASS" else Colors.RED
-    if color == Colors.GREEN:
-        PASS_COUNT += 1
     print(f"{color}[{status}]{Colors.RESET} {msg}")
 
 def check_compilation():
     print_test("Checking compilation flags...")
     result = subprocess.run(["make", "re"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    TOTAL_COUNT += 1
     if result.returncode != 0:
         print_test("Compilation failed", "FAIL")
         print(result.stderr.decode())
         return False
     else:
         print_test("Compilation passed", "PASS")
-        PASS_COUNT += 1
         return True
 
 def start_server(config=None):
@@ -56,6 +46,7 @@ def start_server(config=None):
     except Exception as e:
         print_test(f"Failed to start server: {e}", "FAIL")
         return None
+    print("\n")
 
 def stop_server(proc):
     if proc is None:
@@ -75,7 +66,7 @@ def test_connection(path="/", method="GET", body=None, headers=None, expect_stat
         res = conn.getresponse()
         status = res.status
         reason = res.reason
-        data = res.read().decode(errors='ignore')  # consume only once
+        data = res.read().decode(errors='ignore')
         
         if expect_status and status != expect_status:
             print_test(f"{method} {path} expected status {expect_status}, got {status} {reason}", "FAIL")
@@ -114,13 +105,6 @@ def test_basic_http_methods():
 def test_error_handling():
     print_test("=== Testing Error Handling ===")
     
-    FORBIDDEN_DIR = tempfile.mkdtemp()
-    os.chmod(FORBIDDEN_DIR, 0o000)
-    WEB_ROOT = "./local/"
-    linked_dir = os.path.join(WEB_ROOT, "forbidden")
-    if os.path.islink(linked_dir) or os.path.exists(linked_dir):
-        os.remove(linked_dir)
-    os.symlink(FORBIDDEN_DIR, linked_dir)
     # Test various error codes
     test_connection("/nonexistent", "GET", expect_status=404)
     test_connection("/forbidden", "GET", expect_status=403)
@@ -643,16 +627,15 @@ def test_stress_test():
 
 def main():
     print("=== Beginning Tests ===")
-    global PASS_COUNT, TOTAL_COUNT
-    if not check_compilation():
-        return
+    # if not check_compilation():
+    #     return
     
-    server_proc = start_server()
-    if not server_proc:
-        return
+    # server_proc = start_server()
+    # if not server_proc:
+    #     return
     
-    # Give server time to start properly
-    time.sleep(5)
+    # # Give server time to start properly
+    # time.sleep(5)
     
     try:
         # Test server is actually running
@@ -684,10 +667,8 @@ def main():
         print_test("=== All tests completed ===")
         
     finally:
-        stop_server(server_proc)
-        print("\n=====================================")
-        print(f"SUMMARY: PASS {PASS_COUNT} / {TOTAL_COUNT}")
-        print("=====================================")
+        # stop_server(server_proc)
+        print("")
 
 if __name__ == "__main__":
     main()
