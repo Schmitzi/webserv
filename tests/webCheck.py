@@ -15,21 +15,15 @@ CONFIG_PATH = "config/test.conf"
 HOST = "127.0.0.1"
 PORT = 8080
 
-PASS_COUNT = 0
-TOTAL_COUNT = 0
-
 def success(msg): print(f"{Fore.GREEN}✅ {msg}{Style.RESET_ALL}")
 def fail(msg): print(f"{Fore.RED}❌ {msg}{Style.RESET_ALL}")
 def header(msg): print(f"\n===> {msg}")
 
 def run_test(description, func):
-    global PASS_COUNT, TOTAL_COUNT
-    TOTAL_COUNT += 1
-    header(f"{TOTAL_COUNT}. {description}")
+    header(f"{description}")
     try:
         func()
         success("Success")
-        PASS_COUNT += 1
     except Exception as e:
         fail("Failed")
         print(f"{Fore.RED}{e}{Style.RESET_ALL}")
@@ -196,10 +190,6 @@ def main():
         run_test("Concurrent clients test", test_concurrent_clients)
     finally:
         stop_server(server_proc)
-    
-    print("\n=====================================")
-    print(f"SUMMARY: PASS {PASS_COUNT} / {TOTAL_COUNT}")
-    print("=====================================")
 
 if __name__ == "__main__":
     main()

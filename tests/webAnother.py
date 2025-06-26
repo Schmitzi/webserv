@@ -13,8 +13,6 @@ from colorama import Fore, Style
 HOST = "localhost"
 PORT = 8080
 BASE_URL = f"http://{HOST}:{PORT}"
-PASS_COUNT = 0
-TOTAL_COUNT = 0
 
 # === COLORS ===
 def success(msg): print(f"{Fore.GREEN}✅ {msg}{Style.RESET_ALL}")
@@ -23,13 +21,10 @@ def header(msg): print(f"\n===> {msg}")
 
 # === UTILITIES ===
 def run_test(description, func):
-    global PASS_COUNT, TOTAL_COUNT
-    TOTAL_COUNT += 1
-    header(f"{TOTAL_COUNT}. {description}")
+    header(f"{description}")
     try:
         func()
         success("Success")
-        PASS_COUNT += 1
     except Exception as e:
         fail("Failed")
         print(e)
@@ -119,17 +114,15 @@ def test_chunked_encoding():
     
     chunk_data = "this is a test upload"
     chunk_size = hex(len(chunk_data))[2:]
-    
-    # Send chunk size + data
     conn.send((chunk_size + "\r\n").encode())
-    conn.send(chunk_data.encode())
+    conn.send(chunk_data.encode())            
     conn.send(b"\r\n")
-    
-    # Send zero chunk to end
     conn.send(b"0\r\n\r\n")
     
     response = conn.getresponse()
-    body = response.read().decode(errors='ignore')
+    smth = response.read()
+    print(f"Chunk encoded: {smth}")
+    body = smth.decode(errors='ignore')
     print(f"Response status: {response.status}")
     print(f"Response body: {body}")
     if response.status != 200:
@@ -137,7 +130,7 @@ def test_chunked_encoding():
     r_check = requests.get(f"{BASE_URL}/upload/test_chunked")
     assert r_check.status_code == 200
     assert "this is a test upload" in r_check.text
-    conn.request("DELETE", "/upload/test_chunked")
+    # conn.request("DELETE", "/upload/test_chunked")
     conn.close()
 
 def test_put_not_allowed():
@@ -227,8 +220,4 @@ if __name__ == "__main__":
     os.chmod(FORBIDDEN_DIR, 0o700)
     os.remove(linked_dir)
     os.rmdir(FORBIDDEN_DIR)
-
-    print("\n=====================================")
-    print(f"SUMMARY: PASS {PASS_COUNT} / {TOTAL_COUNT}")
-    print("=====================================")
 

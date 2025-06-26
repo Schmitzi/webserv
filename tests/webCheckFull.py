@@ -11,17 +11,11 @@ CONFIG_PATH = "config/test.conf"
 HOST = "127.0.0.1"
 PORT = 8080
 
-PASS_COUNT = 0
-TOTAL_COUNT = 0
-
 def print_result(success, msg):
-    global PASS_COUNT, TOTAL_COUNT
-    TOTAL_COUNT += 1
     if success:
-        PASS_COUNT += 1
-        print(f"{Fore.GREEN}✅ {msg}{Style.RESET_ALL}")
+        print(f"✅ {msg}")
     else:
-        print(f"{Fore.RED}❌ {msg}{Style.RESET_ALL}")
+        print(f"❌ {msg}")
 
 def check_compilation():
     print("[*] Checking compilation flags...")
@@ -184,10 +178,6 @@ def main():
         test_url_encoding()
     finally:
         stop_server(server_proc)
-
-    print("\n=====================================")
-    print(f"SUMMARY: PASS {PASS_COUNT} / {TOTAL_COUNT}")
-    print("=====================================")
 
 if __name__ == "__main__":
     main()

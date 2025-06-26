@@ -45,19 +45,19 @@ def test_chunked_with_debug():
         print(f"Response body (decoded): '{data.decode('utf-8', errors='ignore')}'")
         
         print("\n✅ Chunked request successful!")
-        print("Deleting generated file\n")
+        # print("Deleting generated file\n")
         # conn.request("DELETE", "/upload/test_chunked")
         return True
         
     except socket.timeout as e:
         print(f"❌ Timeout error: {e}")
-        print("Deleting generated file\n")
-        conn.request("DELETE", "/upload/test_chunked")
+        # print("Deleting generated file\n")
+        # conn.request("DELETE", "/upload/test_chunked")
         return False
     except Exception as e:
         print(f"❌ Error: {e}")
-        print("Deleting generated file\n")
-        conn.request("DELETE", "/upload/test_chunked")
+        # print("Deleting generated file\n")
+        # conn.request("DELETE", "/upload/test_chunked")
         return False
     finally:
         conn.close()
@@ -87,8 +87,8 @@ def test_regular_post_for_comparison():
         print(f"Response body: '{data.decode('utf-8', errors='ignore')}'")
         
         print("\n✅ Regular POST successful!")
-        print("\nDeleting generated file")
-        conn.request("DELETE", "/upload/test_regular");
+        # print("\nDeleting generated file")
+        # conn.request("DELETE", "/upload/test_regular");
         return True
         
     except Exception as e:
@@ -134,9 +134,9 @@ def test_with_manual_socket():
         
         print(f"\nFull response ({len(response)} bytes):")
         print(response.decode('utf-8', errors='ignore'))
-        print("Deleting generated file\n")
-        delete_request = "DELETE /upload/test_manual HTTP/1.1"
-        sock.send(delete_request.encode());
+        # print("Deleting generated file\n")
+        # delete_request = "DELETE /upload/test_manual HTTP/1.1"
+        # sock.send(delete_request.encode());
         
         return len(response) > 0
         
@@ -148,34 +148,21 @@ def test_with_manual_socket():
 
 if __name__ == "__main__":
     print("Starting detailed chunked transfer debugging...\n")
-    global PASS_COUNT, TOTAL_COUNT
-    PASS_COUNT = 0
-    TOTAL_COUNT = 3
 
     # Test 1: Chunked request
     success1 = test_chunked_with_debug()
-    if success1:
-        PASS_COUNT += 1
 
     time.sleep(2)
 
     # Test 2: Regular POST for comparison  
-    success2 = test_regular_post_for_comparison()
-    if success2:
-        PASS_COUNT += 1
+    # success2 = test_regular_post_for_comparison()
 
     time.sleep(2)
 
     # Test 3: Manual socket test
-    success3 = test_with_manual_socket()
-    if success3:
-        PASS_COUNT += 1
+    # success3 = test_with_manual_socket()
 
     print(f"\n=== Results ===")
     print(f"Chunked test: {'✅ PASS' if success1 else '❌ FAIL'}")
     print(f"Regular test: {'✅ PASS' if success2 else '❌ FAIL'}")
     print(f"Manual test:  {'✅ PASS' if success3 else '❌ FAIL'}")
-
-    print("\n=====================================")
-    print(f"SUMMARY: PASS {PASS_COUNT} / {TOTAL_COUNT}")
-    print("=====================================")
