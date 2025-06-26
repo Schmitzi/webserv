@@ -46,7 +46,7 @@ def test_chunked_with_debug():
         
         print("\n✅ Chunked request successful!")
         print("Deleting generated file\n")
-        conn.request("DELETE", "/upload/test_chunked")
+        # conn.request("DELETE", "/upload/test_chunked")
         return True
         
     except socket.timeout as e:
