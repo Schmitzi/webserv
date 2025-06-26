@@ -24,6 +24,7 @@ class Request {
 
         std::string							&getPath();
         std::string const 					&getMethod();
+		std::string const					&getCheck();
         std::string const 					&getVersion();
         std::string const 					&getBody();
         std::string const 					&getContentType();
@@ -47,6 +48,7 @@ class Request {
     private:
 		std::string							_host; 
         std::string                         _method;
+		std::string							_check;
         std::string                         _path;
         std::string                         _contentType;
         std::string                         _version;

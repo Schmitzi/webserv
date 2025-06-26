@@ -16,6 +16,12 @@ std::vector<std::string> split(const std::string& s) {
 	return ret;
 }
 
+void printVector(std::vector<std::string> &s, std::string sep) {
+	for (size_t i = 0; i < s.size(); i++)
+	std::cout << s[i] << sep;
+	std::cout << std::endl;
+}
+
 std::vector<std::string> splitBy(const std::string& str, char div) {
 	std::vector<std::string> ret;
 	std::istringstream ss(str);
@@ -25,12 +31,6 @@ std::vector<std::string> splitBy(const std::string& str, char div) {
 			ret.push_back(item);
 	}
 	return ret;
-}
-
-void printVector(std::vector<std::string> &s, std::string sep) {
-	for (size_t i = 0; i < s.size(); i++)
-		std::cout << s[i] << sep;
-	std::cout << std::endl;
 }
 
 std::string matchAndAppendPath(const std::string& base, const std::string& add) {
@@ -98,4 +98,20 @@ std::string encode(const std::string& decoded) {
     }
 
     return encoded.str();
+}
+
+std::string getTimeStamp() {
+    time_t now = time(NULL);
+    struct tm* tm_info = localtime(&now);
+    
+    std::ostringstream oss;
+    oss << "[" 
+        << (tm_info->tm_year + 1900) << "-"
+        << std::setw(2) << std::setfill('0') << (tm_info->tm_mon + 1) << "-"
+        << std::setw(2) << std::setfill('0') << tm_info->tm_mday << " "
+        << std::setw(2) << std::setfill('0') << tm_info->tm_hour << ":"
+        << std::setw(2) << std::setfill('0') << tm_info->tm_min << ":"
+        << std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
+    
+    return oss.str();
 }

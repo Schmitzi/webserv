@@ -6,6 +6,8 @@ import time
 import http.client
 from threading import Thread
 import uuid
+import tempfile
+import os
 
 WEBSERV_BINARY = "./webserv"
 CONFIG_PATH = "config/test.conf"
@@ -19,9 +21,12 @@ class Colors:
     BLUE = '\033[94m'
     RESET = '\033[0m'
 
-def print_test(msg, status="INFO"):
-    color = Colors.BLUE if status == "INFO" else Colors.GREEN if status == "PASS" else Colors.RED
-    print(f"{color}[{status}]{Colors.RESET} {msg}")
+def print_test(msg, status=""):
+    if status == "":
+        print(f"-----[{msg}]-----")
+    else:
+        color = Colors.BLUE if status == "INFO" else Colors.GREEN if status == "PASS" else Colors.RED
+        print(f"{color}[{status}]{Colors.RESET} {msg}")
 
 def check_compilation():
     print_test("Checking compilation flags...")
@@ -46,7 +51,6 @@ def start_server(config=None):
     except Exception as e:
         print_test(f"Failed to start server: {e}", "FAIL")
         return None
-    print("\n")
 
 def stop_server(proc):
     if proc is None:
@@ -355,7 +359,7 @@ def test_concurrent_connections():
     
     results = []
     def make_request(i):
-        res, data = test_connection(f"/test_{i}", "GET")
+        res, data = test_connection(f"/upload/seahorse.jpg", "GET")
         results.append(res is not None)
     
     threads = []
@@ -381,7 +385,6 @@ def test_keep_alive():
         for i in range(3):
             conn.request("GET", f"/test_{i}")
             res = conn.getresponse()
-            data = res.read()
             if res.status != 200 and res.status != 404:
                 print_test(f"Keep-alive request {i} failed", "FAIL")
                 return
@@ -626,24 +629,20 @@ def test_stress_test():
         print_test("Server may have issues under stress", "FAIL")
 
 def main():
-    print("=== Beginning Tests ===")
-    # if not check_compilation():
-    #     return
-    
-    # server_proc = start_server()
-    # if not server_proc:
-    #     return
-    
-    # # Give server time to start properly
-    # time.sleep(5)
-    
+    print_test("=== Beginning Tests ===")
     try:
         # Test server is actually running
         if not test_connection("/", "GET"):
             print_test("Server not responding - check config and setup", "FAIL")
             return
         
-        
+        FORBIDDEN_DIR = tempfile.mkdtemp()
+        os.chmod(FORBIDDEN_DIR, 0o000)
+        WEB_ROOT = "./local/"
+        linked_dir = os.path.join(WEB_ROOT, "forbidden")
+        if os.path.islink(linked_dir) or os.path.exists(linked_dir):
+            os.remove(linked_dir)
+        os.symlink(FORBIDDEN_DIR, linked_dir)
         # Run all tests in order of severity (least to most stressful)
         test_basic_http_methods()
         test_error_handling()
@@ -667,8 +666,9 @@ def main():
         print_test("=== All tests completed ===")
         
     finally:
-        # stop_server(server_proc)
-        print("")
+        os.chmod(FORBIDDEN_DIR, 0o700)
+        os.remove(linked_dir)
+        os.rmdir(FORBIDDEN_DIR)
 
 if __name__ == "__main__":
     main()

@@ -155,12 +155,12 @@ if __name__ == "__main__":
     time.sleep(2)
 
     # Test 2: Regular POST for comparison  
-    # success2 = test_regular_post_for_comparison()
+    success2 = test_regular_post_for_comparison()
 
     time.sleep(2)
 
     # Test 3: Manual socket test
-    # success3 = test_with_manual_socket()
+    success3 = test_with_manual_socket()
 
     print(f"\n=== Results ===")
     print(f"Chunked test: {'✅ PASS' if success1 else '❌ FAIL'}")

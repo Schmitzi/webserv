@@ -82,19 +82,20 @@ int Client::acceptConnection(int serverFd) {
     setConfigs(_server->getConfigs());
     _cgi->setServer(*_server);
     
-    std::cout << BLUE << _webserv->getTimeStamp() << "Client accepted with fd: " << _fd << RESET << std::endl;
+    std::cout << BLUE << getTimeStamp() << "Client accepted with fd: " << _fd << RESET << std::endl;
     
     return 0;
 }
 
 void Client::displayConnection() {
     unsigned char *ip = (unsigned char *)&_addr.sin_addr.s_addr;
-    std::cout << BLUE << _webserv->getTimeStamp() << "New connection from " << RESET
+    std::cout << BLUE << getTimeStamp() << "New connection from "
         << (int)ip[0] << "." << (int)ip[1] << "." << (int)ip[2] << "."
-            << (int)ip[3] << ":" << ntohs(_addr.sin_port) << "\n";
+            << (int)ip[3] << ":" << ntohs(_addr.sin_port) << RESET << std::endl;
 }
 
 int Client::recieveData() {
+	static bool printNewLine = false;
     char buffer[1000000];
     memset(buffer, 0, sizeof(buffer));
     
@@ -102,11 +103,11 @@ int Client::recieveData() {
     
     if (bytesRead > 0) {
         _requestBuffer.append(buffer, bytesRead);
-        // std::cout << RED << _requestBuffer << "\n";
+        // std::cerr << RED << _requestBuffer << "\n";
 
-        std::cout << BLUE << _webserv->getTimeStamp() 
-                  << "Received " << bytesRead << " bytes from " << _fd 
-                  << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
+        // std::cout << BLUE << getTimeStamp()//TODO: change back, just trying smth
+        //           << "Received " << bytesRead << " bytes from " << _fd 
+        //           << ", Total buffer: " << _requestBuffer.length() << " bytes" << RESET << "\n";
 
         Request req(_requestBuffer, getServer());
         
@@ -115,28 +116,28 @@ int Client::recieveData() {
         
         if (isChunked) {
             if (!isChunkedBodyComplete(_requestBuffer)) {
-                std::cout << BLUE << _webserv->getTimeStamp() 
+                std::cout << BLUE << getTimeStamp() 
                           << "Chunked body incomplete, waiting for more data" << RESET << std::endl;
                 return 0;
             }
         } else {
-            if (checkLength() == 0)
+            if (checkLength(printNewLine) == 0)
                 return 0;
         }
-
-        std::cout << GREEN << _webserv->getTimeStamp() 
+		if (printNewLine == true)
+			std::cout << std::endl;
+        std::cout << GREEN << getTimeStamp() 
                   << "Complete request received, processing..." << RESET << std::endl;
+        printNewLine = false;
+        int processResult = processRequest(req);
         
-        int processResult = processRequest(_requestBuffer);
-        
-        if (processResult != -1) {
+        if (processResult != -1)
             _requestBuffer.clear();
-        }
         return processResult;
     } 
     else if (bytesRead == 0) {
-        std::cout << BLUE << _webserv->getTimeStamp() 
-                  << "Client disconnected cleanly: " << _fd << RESET << "\n";
+        std::cout << BLUE << getTimeStamp() 
+                  << "Client disconnected cleanly: " << _fd  << RESET << std::endl;
         return 1;
     }
     else {
@@ -144,24 +145,25 @@ int Client::recieveData() {
             return 0;
         } 
         else if (errno == ECONNRESET) {
-            std::cout << BLUE << _webserv->getTimeStamp() 
-                      << "Connection reset by peer on fd " << _fd << RESET << "\n";
+            std::cout << BLUE << getTimeStamp() 
+                      << "Connection reset by peer on fd " << _fd << RESET << std::endl;
+
             return 1;
         }
         else if (errno == EPIPE) {
-            std::cout << RED << _webserv->getTimeStamp() 
-                      << "Broken pipe on fd " << _fd << RESET << "\n";
+            std::cerr << RED << getTimeStamp() 
+                      << "Broken pipe on fd " << _fd << RESET << std::endl;
             return 1;
         }
         else {
-            std::cout << RED << _webserv->getTimeStamp() 
-                      << "recv() error on fd " << _fd << ": " << strerror(errno) << RESET << "\n";
+            std::cerr << RED << getTimeStamp() 
+                      << "recv() error on fd " << _fd << ": " << strerror(errno) << RESET << std::endl;
             return 1;
         }
     }
 }
 
-int Client::checkLength() {
+int Client::checkLength(bool &printNewLine) {
     size_t contentLengthPos = _requestBuffer.find("Content-Length:");
     if (contentLengthPos != std::string::npos) {
         size_t valueStart = contentLengthPos + 15;
@@ -191,9 +193,13 @@ int Client::checkLength() {
             
             if (bodyStart != std::string::npos) {
                 size_t actualBodyLength = _requestBuffer.length() - bodyStart;
-                if (actualBodyLength < expectedLength) {
-                    std::cout << RED << _webserv->getTimeStamp() << "Body incomplete: got " << actualBodyLength 
-                        << " bytes, expected " << expectedLength << RESET << std::endl;
+                if (actualBodyLength < expectedLength) {//TODO: change back, just trying smth
+					if (printNewLine == false)
+						std::cout << BLUE << getTimeStamp() << "Receiving bytes..." << RESET << std::endl;
+					std::cout << "[~]";
+                    // std::cerr << RED << getTimeStamp() << "Body incomplete: got " << actualBodyLength 
+                    //     << " bytes, expected " << expectedLength << RESET << std::endl;
+					printNewLine = true;
                     return 0;
                 }
             }
@@ -218,34 +224,31 @@ bool Client::isChunkedBodyComplete(const std::string& buffer) {
     std::string body = buffer.substr(bodyStart);
     
     if (body.find("0\r\n\r\n") != std::string::npos || body.find("0\n\n") != std::string::npos) {
-        std::cout << GREEN << _webserv->getTimeStamp() << "Chunked body terminator found" << RESET << std::endl;
+        // std::cout << GREEN << getTimeStamp() << "Chunked body terminator found" << RESET << std::endl;
         return true;
     }
     
     return false;
 }
 
-int Client::processRequest(std::string requestBuffer) {
-    Request req(requestBuffer, getServer());
+int Client::processRequest(Request& req) {
 	serverLevel &conf = req.getConf();
     if (req.getContentLength() > conf.requestLimit) {
-        std::cerr << RED << _webserv->getTimeStamp() << "Content-Length too large" << RESET << std::endl;
+        std::cerr << RED << getTimeStamp() << "Content-Length too large" << RESET << std::endl;
         sendErrorResponse(413, req);
         _requestBuffer.clear();
         return 1;
     }
 
-    if (req.getMethod() == "BAD") {
-        std::cout << RED << _webserv->getTimeStamp() 
-                << "Bad request format" << RESET << std::endl;
+    if (req.getCheck() == "BAD") {//TODO: change all std::cout to cerr if RED
+        std::cerr << RED << getTimeStamp() << "Bad request format " << RESET << std::endl;
         sendErrorResponse(400, req);
         _requestBuffer.clear();
         return 1;
     }
     
-    if (req.getMethod() == "NOTALLOWED") {
-        std::cout << RED << _webserv->getTimeStamp() 
-                << "Method Not Allowed" << RESET << std::endl;
+    if (req.getCheck() == "NOTALLOWED") {
+        std::cerr << RED << getTimeStamp() << "Method Not Allowed: " << RESET << req.getMethod() << std::endl;
         sendErrorResponse(405, req);
         _requestBuffer.clear();
         return 1;
@@ -264,7 +267,7 @@ int Client::processRequest(std::string requestBuffer) {
             return result;
         return 0;
     }
-    std::cout << BLUE << _webserv->getTimeStamp() << "Parsed Request: " << RESET << 
+    std::cout << BLUE << getTimeStamp() << "Parsed Request: " << RESET << 
         req.getMethod() << " " << req.getPath() << " " << req.getVersion() << "\n";
 
     if (req.getMethod() == "GET")
@@ -283,7 +286,7 @@ int Client::handleGetRequest(Request& req) {
 	std::string requestPath = req.getPath();
 	locationLevel* loc = NULL;
 	if (!matchLocation(req.getPath(), req.getConf(), loc)) {
-		std::cout << RED << _webserv->getTimeStamp() << "Location not found: " 
+		std::cerr << RED << getTimeStamp() << "Location not found: " 
 		<< RESET << req.getPath() << std::endl;
 		sendErrorResponse(404, req);
 		return 1;
@@ -318,7 +321,7 @@ int Client::handleFileBrowserRequest(Request& req) {
         
         struct stat fileStat;
         if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-            std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << actualFullPath  << "\n";
+            std::cerr << RED << getTimeStamp() << "File not found: " << RESET << actualFullPath  << "\n";
             sendErrorResponse(404, req);
             return 1;
         }
@@ -330,11 +333,11 @@ int Client::handleFileBrowserRequest(Request& req) {
                 return 1;
             req.setContentType(req.getMimeType(actualFullPath));
             sendResponse(req, "keep-alive", req.getBody());
-            std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served file from browser: " 
+            std::cout << GREEN << getTimeStamp() << "Successfully served file from browser: " 
                     << RESET << actualFullPath << std::endl;
             return 0;
         } else {
-            std::cout << _webserv->getTimeStamp() << "Not a regular file or directory: " << actualFullPath << std::endl;
+            std::cout << getTimeStamp() << "Not a regular file or directory: " << actualFullPath << std::endl;
             sendErrorResponse(403, req);
             return 1;
         }
@@ -345,7 +348,7 @@ int Client::handleFileBrowserRequest(Request& req) {
 int Client::handleRegularRequest(Request& req) {
     locationLevel* loc = NULL;
     if (!matchLocation(req.getPath(), req.getConf(), loc)) {
-        std::cout << RED << _webserv->getTimeStamp() << "Location not found: " << RESET << req.getPath() << std::endl;
+        std::cerr << RED << getTimeStamp() << "Location not found: " << RESET << req.getPath() << std::endl;
         sendErrorResponse(404, req);
         return 1;
     }
@@ -363,7 +366,7 @@ int Client::handleRegularRequest(Request& req) {
         fullPath = reqPath;
 
     if (fullPath.find("root") != std::string::npos && loc->autoindex == false) {
-        std::cout << RED << "Access to directory browser is forbidden when autoindex is off\n" << RESET;
+        std::cerr << RED << "Access to directory browser is forbidden when autoindex is off\n" << RESET;
         sendErrorResponse(403, req);
         return 1;
     }
@@ -377,11 +380,11 @@ int Client::handleRegularRequest(Request& req) {
         return _cgi->executeCGI(*this, req, fullCgiPath);
     }
 
-    std::cout << BLUE << _webserv->getTimeStamp() << "Handling GET request for path: " << RESET << req.getPath() + "\n";
+    std::cout << BLUE << getTimeStamp() << "Handling GET request for path: " << RESET << req.getPath() + "\n";
 
     struct stat fileStat;
     if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cout << RED << _webserv->getTimeStamp() << "File not found: " << RESET << fullPath << "\n";
+        std::cerr << RED << getTimeStamp() << "File not found: " << RESET << fullPath << "\n";
         sendErrorResponse(404, req);
         return 1;
     }
@@ -389,7 +392,7 @@ int Client::handleRegularRequest(Request& req) {
     if (S_ISDIR(fileStat.st_mode))
         return viewDirectory(fullPath, req);
     else if (!S_ISREG(fileStat.st_mode)) {
-        std::cout << _webserv->getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
+        std::cout << getTimeStamp() << "Not a regular file: " << fullPath << std::endl;
         sendErrorResponse(403, req);
         return 1;
     }
@@ -404,14 +407,14 @@ int Client::handleRegularRequest(Request& req) {
     req.setContentType(contentType);
 
     sendResponse(req, "close", req.getBody());
-    std::cout << GREEN << _webserv->getTimeStamp() << "Successfully sent file: " << RESET << fullPath << std::endl;
+    std::cout << GREEN << getTimeStamp() << "Sent file: " << RESET << fullPath << std::endl;
     return 0;
 }
 
 int Client::buildBody(Request &req, std::string fullPath) {
     int fd = open(fullPath.c_str(), O_RDONLY);
     if (fd < 0) {
-        std::cout << _webserv->getTimeStamp() << "Failed to open file: " << fullPath << std::endl;
+        std::cout << getTimeStamp() << "Failed to open file: " << fullPath << std::endl;
         sendErrorResponse(500, req);
         return 1;
     }
@@ -455,10 +458,10 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 					return 1;
 				req.setContentType("text/html");
 				sendResponse(req, "keep-alive", req.getBody());
-				std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served index file: " << RESET << indexPath << std::endl;
+				std::cout << GREEN << getTimeStamp() << "Successfully served index file: " << RESET << indexPath << std::endl;
 				return 0;
 			} else {
-				std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
+				std::cerr << RED << getTimeStamp() << "Autoindex off and no index.html: " << RESET << fullPath << std::endl;
 				sendErrorResponse(403, req);
 				return 1;
 			}
@@ -477,17 +480,17 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
                     return 1;
                 req.setContentType("text/html");
                 sendResponse(req, "keep-alive", req.getBody());
-                std::cout << GREEN << _webserv->getTimeStamp() << "Successfully served index file: " << RESET << indexPath << std::endl;
+                std::cout << GREEN << getTimeStamp() << "Successfully served index file: " << RESET << indexPath << std::endl;
                 return 0;
             } else {
-                std::cout << _webserv->getTimeStamp() << "Directory listing not allowed and no index.html: " << fullPath << std::endl;
+                std::cerr << RED << getTimeStamp() << "Autoindex off and no index.html: " << RESET << fullPath << std::endl;
                 sendErrorResponse(403, req);
                 return 1;
             }
         }
     }
     else {
-        std::cout << _webserv->getTimeStamp() << "No matching location for: " << req.getPath() << std::endl;
+        std::cout << getTimeStamp() << "No matching location for: " << req.getPath() << std::endl;
         sendErrorResponse(403, req);
         return 1;
     }
@@ -507,7 +510,7 @@ int Client::createDirList(std::string fullPath, Request& req) {
     response += "\r\n";
     response += dirListing;
     send(_fd, response.c_str(), response.length(), 0);
-    std::cout << GREEN << _webserv->getTimeStamp() << "Successfully sent directory listing: " << RESET << fullPath << std::endl;
+    std::cout << GREEN << getTimeStamp() << "Sent directory listing: " << RESET << fullPath << std::endl;
     return 0;
 }
 
@@ -609,7 +612,7 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 int Client::handlePostRequest(Request& req) {
 	locationLevel* loc = NULL;
     if (!matchLocation(req.getPath(), req.getConf(), loc)) {
-		std::cout << RED << _webserv->getTimeStamp() << "Location not found for POST request: " 
+		std::cerr << RED << getTimeStamp() << "Location not found for POST request: " 
 				  << RESET << req.getPath() << std::endl;
 		sendErrorResponse(404, req);
 		return 1;
@@ -633,11 +636,11 @@ int Client::handlePostRequest(Request& req) {
     std::string contentToWrite;
     
     if (isChunkedRequest(req)) {
-        std::cout << BLUE << _webserv->getTimeStamp() << "Processing chunked request" << RESET << std::endl;
+        std::cout << BLUE << getTimeStamp() << "Processing chunked request" << RESET << std::endl;
         contentToWrite = decodeChunkedBody(req.getBody());
         
         if (contentToWrite.empty()) {
-            std::cout << RED << _webserv->getTimeStamp() << "Failed to decode chunked data" << RESET << std::endl;
+            std::cerr << RED << getTimeStamp() << "Failed to decode chunked data" << RESET << std::endl;
             sendErrorResponse(400, req);
             return 1;
         }
@@ -652,35 +655,35 @@ int Client::handlePostRequest(Request& req) {
     }
     int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) {
-        std::cout << _webserv->getTimeStamp() << "Failed to open file for writing: " << fullPath << std::endl;
+        std::cout << getTimeStamp() << "Failed to open file for writing: " << fullPath << std::endl;
         sendErrorResponse(500, req);
         return 1;
     }
     
-    std::cout << BLUE << _webserv->getTimeStamp() << "Writing to file: " << RESET << fullPath << "\n";
+    std::cout << BLUE << getTimeStamp() << "Writing to file: " << RESET << fullPath << "\n";
     
     ssize_t bytesWritten = write(fd, contentToWrite.c_str(), contentToWrite.length());
     close(fd);
     
     if (bytesWritten < 0) {
-        std::cout << "Failed to write to file\n";
+        std::cerr << RED << "Failed to write to file" << RESET << std::endl;
         sendErrorResponse(500, req);
         return 1;
     }
     
-    std::cout << BLUE << _webserv->getTimeStamp() << "Sending success response..." << RESET << std::endl;
+    // std::cout << BLUE << getTimeStamp() << "Sending success response..." << RESET << std::endl;
     
     std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
     
     ssize_t responseResult = sendResponse(req, "keep-alive", responseBody);
     
     if (responseResult < 0) {
-        std::cout << RED << _webserv->getTimeStamp() << "Failed to send response" << RESET << std::endl;
+        std::cerr << RED << getTimeStamp() << "Failed to send response" << RESET << std::endl;
         return 1;
     }
     
-    std::cout << GREEN << _webserv->getTimeStamp() << "Successfully uploaded file: " << fullPath 
-              << " (" << bytesWritten << " bytes written)" << RESET << std::endl;
+    std::cout << GREEN << getTimeStamp() << "Uploaded file: " << RESET << fullPath 
+              << " (" << bytesWritten << " bytes written)" << std::endl;
     
     return 0;
 }
@@ -698,15 +701,15 @@ int Client::handleDeleteRequest(Request& req) {
 
     if (unlink(fullPath.c_str()) != 0) {
 		if (errno == ENOENT) {
-			std::cout << RED << _webserv->getTimeStamp() << "File not found for deletion: " << RESET << fullPath << "\n";
+			std::cerr << RED << getTimeStamp() << "File not found for deletion: " << RESET << fullPath << "\n";
 			sendErrorResponse(404, req);
 			return 1;
 		} else if (errno == EACCES || errno == EPERM) {
-			std::cout << RED << _webserv->getTimeStamp() << "Permission denied for deletion: " << RESET << fullPath << "\n";
+			std::cerr << RED << getTimeStamp() << "Permission denied for deletion: " << RESET << fullPath << "\n";
 			sendErrorResponse(403, req);
 			return 1;
 		} else {
-			std::cout << RED << _webserv->getTimeStamp() << "Error deleting file: " << RESET << fullPath
+			std::cerr << RED << getTimeStamp() << "Error deleting file: " << RESET << fullPath
 					  << " - " << strerror(errno) << "\n";
         	sendErrorResponse(500, req);
         	return 1;
@@ -747,10 +750,10 @@ int Client::handleMultipartPost(Request& req) {
         sendErrorResponse(500, req);
         return 1;
     }
-    std::cout << GREEN << _webserv->getTimeStamp() << "Recieved: " + parser.getFilename() << "\n" << RESET;
-    std::string successMsg = "File uploaded successfully: " + filename;
+    std::cout << GREEN << getTimeStamp() << "Received: " + parser.getFilename() << "\n" << RESET;
+    std::string successMsg = "Successfully uploaded file:" + filename;
     sendResponse(req, "close", successMsg);
-    std::cout << GREEN << _webserv->getTimeStamp() << "File transfer ended\n" << RESET;    
+    std::cout << GREEN << getTimeStamp() << "File transfer ended\n" << RESET;    
     return 0;
 }
 
@@ -822,7 +825,7 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     response += "\r\n";
     response += body;
     
-    std::cout << BLUE << _webserv->getTimeStamp() << "Sent redirect response: " << RESET
+    std::cout << BLUE << getTimeStamp() << "Sent redirect response: " << RESET
               << statusCode << " " << statusText << " to " << location << "\n";
     
     send(_fd, response.c_str(), response.length(), 0);
@@ -859,7 +862,7 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     response += "Access-Control-Allow-Origin: *\r\n";
     response += "\r\n";
 
-    std::cout << BLUE << _webserv->getTimeStamp() << "Attempting to send " << response.length() 
+    std::cout << BLUE << getTimeStamp() << "Attempting to send " << response.length() 
               << " bytes to fd " << _fd << RESET << std::endl;
     
     if (_fd <= 0) {
@@ -869,12 +872,12 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     
     ssize_t headerBytes = send(_fd, response.c_str(), response.length(), 0);
     if (headerBytes < 0) {
-        std::cerr << RED << _webserv->getTimeStamp() << "Failed to send headers to fd " << _fd 
+        std::cerr << RED << getTimeStamp() << "Failed to send headers to fd " << _fd 
                   << ": " << strerror(errno) << RESET << std::endl;
         return -1;
     }
     
-    std::cout << GREEN << _webserv->getTimeStamp() << "Sent headers " << RESET <<"(" << headerBytes << " bytes)\n";
+    std::cout << GREEN << getTimeStamp() << "Sent headers " << RESET <<"(" << headerBytes << " bytes)\n";
     
     if (!content.empty()) {
         if (isChunked) {
@@ -901,19 +904,19 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
             
             send(_fd, "0\r\n\r\n", 5, 0);
             
-            std::cout << GREEN << _webserv->getTimeStamp() << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
+            std::cout << GREEN << getTimeStamp() << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
             return content.length();
         } else {
             ssize_t bodyBytes = send(_fd, content.c_str(), content.length(), 0);
             if (bodyBytes < 0) {
-                std::cerr << RED << _webserv->getTimeStamp() << "Failed to send body" << RESET <<"\n";
+                std::cerr << RED << getTimeStamp() << "Failed to send body" << RESET <<"\n";
                 return -1;
             }
-            std::cout << GREEN << _webserv->getTimeStamp() << "Sent body " << RESET << "(" << bodyBytes << " bytes)\n";
+            std::cout << GREEN << getTimeStamp() << "Sent body " << RESET << "(" << bodyBytes << " bytes)\n";
             return bodyBytes;
         }
     } else {
-        std::cout << GREEN << _webserv->getTimeStamp() << "Response sent (headers only)" << RESET << "\n";
+        std::cout << GREEN << getTimeStamp() << "Response sent (headers only)" << RESET << "\n";
         return 0;
     }
 }
@@ -952,8 +955,8 @@ void Client::sendErrorResponse(int statusCode, Request& req) {
     response += body;
     
     if (!send_all(_fd, response))
-        std::cerr << RED << _webserv->getTimeStamp() << "Failed to send error response" << std::endl;
-    std::cerr << RED << _webserv->getTimeStamp() << "Error sent: " << statusCode << RESET << std::endl;
+        std::cerr << RED << getTimeStamp() << "Failed to send error response" << std::endl;
+    std::cerr << RED << getTimeStamp() << "Error sent: " << statusCode << RESET << std::endl;
 }
 
 bool Client::isChunkedRequest(const Request& req) {
@@ -968,15 +971,18 @@ std::string Client::decodeChunkedBody(const std::string& chunkedData) {
     std::string decodedBody;
     size_t pos = 0;
     
-    std::cout << BLUE << _webserv->getTimeStamp() << "Decoding chunked data, total size: " 
-              << chunkedData.length() << " bytes" << RESET << std::endl;
+    // std::cout << BLUE << getTimeStamp() << "Decoding chunked data, total size: " 
+    //           << chunkedData.length() << " bytes" << RESET << std::endl;
     
     while (pos < chunkedData.length()) {
         size_t crlfPos = chunkedData.find("\r\n", pos);
+        size_t lineEndLength = 2;
+        
         if (crlfPos == std::string::npos) {
             crlfPos = chunkedData.find("\n", pos);
+            lineEndLength = 1;
             if (crlfPos == std::string::npos) {
-                std::cerr << RED << _webserv->getTimeStamp() << "Malformed chunked data: no CRLF after chunk size" << RESET << std::endl;
+                std::cerr << RED << getTimeStamp() << "Malformed chunked data: no CRLF after chunk size" << RESET << std::endl;
                 break;
             }
         }
@@ -995,42 +1001,40 @@ std::string Client::decodeChunkedBody(const std::string& chunkedData) {
         std::istringstream hexStream(chunkSizeStr);
         hexStream >> std::hex >> chunkSize;
         
-        std::cout << BLUE << _webserv->getTimeStamp() << "Chunk size: 0x" << chunkSizeStr 
-                  << " (" << chunkSize << " bytes)" << RESET << std::endl;
+        // std::cout << BLUE << getTimeStamp() << "Chunk size: 0x" << chunkSizeStr 
+        //           << " (" << chunkSize << " bytes)" << RESET << std::endl;
         
         if (chunkSize == 0) {
-            std::cout << GREEN << _webserv->getTimeStamp() << "End of chunked data reached" << RESET << std::endl;
+            // std::cout << GREEN << getTimeStamp() << "End of chunked data reached" << RESET << std::endl;
             break;
         }
         
-        if (crlfPos + (chunkedData[crlfPos] == '\r')) {
-            pos = 2;
-        } else {
-            pos = 1;
-        }
-      
+        pos = crlfPos + lineEndLength;
+        
         if (pos + chunkSize > chunkedData.length()) {
-            std::cerr << BLUE << "Incomplete chunk data: expected " << chunkSize 
-                      << " bytes, but only " << (chunkedData.length() - pos) << " available" << RESET << std::endl;
+            // std::cerr << RED << getTimeStamp() << "Incomplete chunk data: expected " << chunkSize 
+            //           << " bytes, but only " << (chunkedData.length() - pos) << " available" << RESET << std::endl;
             break;
         }
         
         std::string chunkData = chunkedData.substr(pos, chunkSize);
         decodedBody += chunkData;
         
-        std::cout << BLUE << _webserv->getTimeStamp() << "Decoded chunk: \"" 
-                  << chunkData << "\"" << RESET << std::endl;
+        // std::cout << BLUE << getTimeStamp() << "Decoded chunk: \"" 
+        //           << chunkData << "\"" << RESET << std::endl;
         
         pos += chunkSize;
         
-        if (pos < chunkedData.length() && chunkedData[pos] == '\r')
+        if (pos < chunkedData.length() && chunkedData[pos] == '\r') {
             pos++;
-        if (pos < chunkedData.length() && chunkedData[pos] == '\n')
+        }
+        if (pos < chunkedData.length() && chunkedData[pos] == '\n') {
             pos++;
+        }
     }
     
-    std::cout << GREEN << _webserv->getTimeStamp() << "Total decoded body: \"" 
-              << decodedBody << "\" (" << decodedBody.length() << " bytes)" << RESET << std::endl;
+    std::cout << GREEN << getTimeStamp() << "Total decoded body: " << RESET << "\"" 
+              << decodedBody << "\" (" << decodedBody.length() << " bytes)" << std::endl;
     
     return decodedBody;
 }

@@ -5,6 +5,7 @@ Request::Request() {}
 Request::Request(const std::string& rawRequest, Server& server) : 
 	_host(""),
 	_method("GET"),
+	_check(""),
     _path(""),
     _contentType(""),
     _version(""),
@@ -27,6 +28,7 @@ Request &Request::operator=(const Request& copy) {
 	if (this != &copy) {
 		_host = copy._host;
 		_method = copy._method;
+		_check = copy._check;
 		_path = copy._path;
 		_contentType = copy._contentType;
 		_version = copy._version;
@@ -49,6 +51,10 @@ std::string &Request::getPath() {
 
 std::string const &Request::getMethod() {
     return _method;
+}
+
+std::string const &Request::getCheck() {
+	return _check;
 }
 
 std::string const &Request::getVersion() {
@@ -75,7 +81,7 @@ std::map<std::string, std::string> &Request::getHeaders() {
     return _headers;
 }
 
-size_t         &Request::getContentLength() {
+size_t	&Request::getContentLength() {
     return _contentLength;
 }
 
@@ -122,8 +128,8 @@ bool Request::matchHostServerName() {
 
 void Request::parse(const std::string& rawRequest) {
     if (rawRequest.empty()) {
-        std::cout << RED << "Empty request!\n" << RESET;
-        _method = "BAD";
+        std::cerr << RED << "Empty request!\n" << RESET;
+		_check = "BAD";
         return;
     }
 
@@ -147,13 +153,13 @@ void Request::parse(const std::string& rawRequest) {
     }
 	
     if (!parseHeaders(headerSection)) {
-		std::cerr << RED << getTimeStamp() << "Missing Host Header\n" << RESET;
-		_method = "BAD";
+		std::cerr << RED << getTimeStamp() << "Invalid HTTP Request: Missing Host Header" << RESET << std::endl;
+		_check = "BAD";
 		return;
 	}
 	if (!matchHostServerName()) {
-		std::cerr << RED << getTimeStamp() << "No Host-ServerName match + no default config specified!\n" << RESET;
-		_method = "BAD";
+		std::cerr << RED << getTimeStamp() << "No Host-ServerName match + no default config specified!" << RESET << std::endl;
+		_check = "BAD";
 		return;
 	}
     parseContentType();
@@ -170,7 +176,7 @@ void Request::parse(const std::string& rawRequest) {
     lineStream >> _method >> target >> _version;
 
     if (_method.empty() || (_method != "GET" && target.empty()) || _version.empty() || _version != "HTTP/1.1") {
-        _method = "BAD";
+		_check = "BAD";
         return;
     }
 
@@ -196,19 +202,19 @@ void Request::parse(const std::string& rawRequest) {
 		|| _method == "PUT" || _method == "HEAD" || _method == "OPTIONS"
 		|| _method == "PATCH" || _method == "TRACE" || _method == "CONNECT") {
 		if (_method != "GET" && _method != "POST" && _method != "DELETE") {
-			_method = "NOTALLOWED";
+			_check = "NOTALLOWED";
 			return;
 		}
 	} else {
-        _method = "BAD";
+		_check = "BAD";;
         return;
     }
 
     if (isChunkedTransfer()) {
-        std::cout << BLUE << getTimeStamp() << "Chunked transfer encoding detected" << RESET << std::endl;
+        // std::cout << BLUE << getTimeStamp() << "Chunked transfer encoding detected" << RESET << std::endl;
         if (_method == "POST") {
-            std::cout << BLUE << getTimeStamp() << "POST request with chunked body: " << _body.length() 
-                      << " bytes of chunked data" << RESET << std::endl;
+            std::cout << BLUE << getTimeStamp() << "POST request with chunked body: " << RESET << _body.length() 
+                      << " bytes of chunked data" << std::endl;
         }
     }
 	_path = decode(_path);

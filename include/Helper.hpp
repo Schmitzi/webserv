@@ -8,12 +8,13 @@
 #include <iomanip>
 #include "ConfigHelper.hpp"
 
-std::string					tostring(int nbr);//like itoa
-std::vector<std::string>	split(const std::string& s);//like split but only for splitting by spaces
+std::string					tostring(int nbr);
+std::vector<std::string>	split(const std::string& s);
+void						printVector(std::vector<std::string> &s, std::string sep);
 std::vector<std::string>	splitBy(const std::string& str, char div);
-void						printVector(std::vector<std::string> &s, std::string sep);//temporary
 std::string					matchAndAppendPath(const std::string& fullPath, const std::string& reqPath);
 std::string					decode(const std::string& encoded);
 std::string					encode(const std::string& decoded);
+std::string					getTimeStamp();
 
 #endif
