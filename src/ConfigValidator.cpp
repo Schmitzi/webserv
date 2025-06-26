@@ -1,17 +1,5 @@
 #include "../include/ConfigValidator.hpp"
 
-std::string getAbsPath(const std::string& root, const std::string& path) {
-    std::string fullPath = matchAndAppendPath(root, path);
-    char* resolved = realpath(fullPath.c_str(), NULL);
-    if (!resolved)
-        return "";
-    std::string finalPath = resolved;
-    free(resolved);
-    if (finalPath.find(root) != 0)
-        return "";
-    return finalPath;
-}
-
 bool isValidPath(std::string &path) {
 	struct stat	info;
 	return (stat(path.c_str(), &info) == 0 && !S_ISDIR(info.st_mode) && access(path.c_str(), R_OK) == 0);
