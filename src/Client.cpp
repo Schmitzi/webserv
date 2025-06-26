@@ -972,33 +972,28 @@ std::string Client::decodeChunkedBody(const std::string& chunkedData) {
               << chunkedData.length() << " bytes" << RESET << std::endl;
     
     while (pos < chunkedData.length()) {
-        // Find the end of the chunk size line
         size_t crlfPos = chunkedData.find("\r\n", pos);
-        size_t lineEndLength = 2; // Length of "\r\n"
+        size_t lineEndLength = 2;
         
         if (crlfPos == std::string::npos) {
             crlfPos = chunkedData.find("\n", pos);
-            lineEndLength = 1; // Length of "\n"
+            lineEndLength = 1;
             if (crlfPos == std::string::npos) {
                 std::cerr << RED << _webserv->getTimeStamp() << "Malformed chunked data: no CRLF after chunk size" << RESET << std::endl;
                 break;
             }
         }
         
-        // Extract and parse chunk size
         std::string chunkSizeStr = chunkedData.substr(pos, crlfPos - pos);
         
-        // Remove chunk extensions (everything after semicolon)
         size_t semicolon = chunkSizeStr.find(';');
         if (semicolon != std::string::npos) {
             chunkSizeStr = chunkSizeStr.substr(0, semicolon);
         }
         
-        // Trim whitespace
         chunkSizeStr.erase(0, chunkSizeStr.find_first_not_of(" \t"));
         chunkSizeStr.erase(chunkSizeStr.find_last_not_of(" \t") + 1);
         
-        // Parse hex chunk size
         size_t chunkSize = 0;
         std::istringstream hexStream(chunkSizeStr);
         hexStream >> std::hex >> chunkSize;
@@ -1006,33 +1001,27 @@ std::string Client::decodeChunkedBody(const std::string& chunkedData) {
         std::cout << BLUE << _webserv->getTimeStamp() << "Chunk size: 0x" << chunkSizeStr 
                   << " (" << chunkSize << " bytes)" << RESET << std::endl;
         
-        // Check for end of chunks
         if (chunkSize == 0) {
             std::cout << GREEN << _webserv->getTimeStamp() << "End of chunked data reached" << RESET << std::endl;
             break;
         }
         
-        // Move position to start of chunk data (after the CRLF)
         pos = crlfPos + lineEndLength;
         
-        // Check if we have enough data for this chunk
         if (pos + chunkSize > chunkedData.length()) {
             std::cerr << RED << _webserv->getTimeStamp() << "Incomplete chunk data: expected " << chunkSize 
                       << " bytes, but only " << (chunkedData.length() - pos) << " available" << RESET << std::endl;
             break;
         }
         
-        // Extract chunk data
         std::string chunkData = chunkedData.substr(pos, chunkSize);
         decodedBody += chunkData;
         
         std::cout << BLUE << _webserv->getTimeStamp() << "Decoded chunk: \"" 
                   << chunkData << "\"" << RESET << std::endl;
         
-        // Move past the chunk data
         pos += chunkSize;
         
-        // Skip the trailing CRLF after chunk data
         if (pos < chunkedData.length() && chunkedData[pos] == '\r') {
             pos++;
         }

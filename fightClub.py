@@ -7,13 +7,13 @@ import os
 
 def main():
     scripts = [
-        # "tests/webAnother.py",
-        # "tests/webCheck.py",
-        # "tests/webCheckFull.py",
+        "tests/webAnother.py",
+        "tests/webCheck.py",
+        "tests/webCheckFull.py",
         "tests/webChunk.py",
-        # "tests/webTest.py",
-        # "tests/webTestCgiFileArg.py",
-        # "tests/webUriEncoding.py"
+        "tests/webTest.py",
+        "tests/webTestCgiFileArg.py",
+        "tests/webUriEncoding.py"
     ]
     
     try:
