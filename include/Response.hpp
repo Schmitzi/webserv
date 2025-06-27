@@ -49,7 +49,6 @@ static const HttpErrorFormat httpErrors[] = {
 	{505, "HTTP Version Not Supported"}
 };
 
-void 						createLocationFromIndex(std::string& path);
 bool						matchLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch);
 bool						matchUploadLocation(const std::string&, const serverLevel& serv, locationLevel*& bestMatch);
 const std::string			getStatusMessage(int code);

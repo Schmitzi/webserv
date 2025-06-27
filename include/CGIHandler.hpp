@@ -38,7 +38,6 @@ class CGIHandler {
         std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
 		void									makeArgs(std::string const &cgiBin, std::string& filePath);
         void									cleanupResources();
-        std::string								getTimeStamp();
         std::string								formatChunkedResponse(const std::string& body);
         bool									isChunkedTransfer(const std::map<std::string, std::string>& headers);
 
@@ -46,7 +45,6 @@ class CGIHandler {
         int										_input[2];
         int										_output[2];
         std::string								_cgiBinPath;
-        std::vector<std::string>				_supportedExt;
         std::string								_pathInfo;
         std::vector<std::string>				_env;
 		std::vector<std::string>				_args;

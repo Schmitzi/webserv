@@ -9,7 +9,7 @@ def main():
     scripts = [
         "tests/webAnother.py",
         "tests/webCheck.py",
-        "tests/webCheckFull.py",
+        "tests/webCheckFull.py", 
         "tests/webChunk.py",
         "tests/webTest.py",
         "tests/webTestCgiFileArg.py",
@@ -18,15 +18,15 @@ def main():
     
     try:
         for script in scripts:
-            print(f"Running {script}...")
+            print(f"__________ Running {script}... __________")
             result = subprocess.run([sys.executable, script], 
                                   capture_output=True, 
                                   text=True, 
                                   check=True,
                                   cwd=os.path.abspath("."))
-            print(f"✓ {script} completed successfully")
             if result.stdout:
-                print(f"Output: {result.stdout}")
+                print(f"{result.stdout}")
+            print(f"✓ {script} completed successfully\n")
             time.sleep(2)
             
     except subprocess.CalledProcessError as err:
@@ -35,7 +35,7 @@ def main():
     except FileNotFoundError:
         print(f"✗ Script not found: {script}")
     finally:
-        print("All done")
+        print("=============== ALL DONE ===============")
 
 if __name__ == "__main__":
     main()

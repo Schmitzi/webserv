@@ -37,11 +37,10 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
     }
     
     if (_cgiBinPath.empty()) {
-        if (NIX == true) {
+        if (NIX == true)
             _cgiBinPath = "/etc/profiles/per-user/schmitzi/bin/php-cgi";
-        } else {
+        else
             _cgiBinPath = "/usr/bin/cgi-bin";
-        }
     }
 }
 
@@ -49,12 +48,10 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
     cleanupResources();
     _path = scriptPath;
    
-    if (doChecks(client, req) == 1) {
+    if (doChecks(client, req) == 1)
         return 1;
-    }
-    if (prepareEnv(req) == 1) {
+    if (prepareEnv(req) == 1)
         return 1;
-    }
 
     // Convert string vectors to char* arrays for execve
     std::vector<char*> args_ptrs;
@@ -106,7 +103,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
             int exit_status = WEXITSTATUS(status);
             
             if (exit_status == 0) {
-                std::cerr << GREEN << getTimeStamp() << "CGI Script exit status: " << RESET << exit_status << "\n";
+                std::cout << BLUE << getTimeStamp() << "CGI Script exit status: " << RESET << exit_status << "\n";
                 int result = processScriptOutput(client);
                 cleanupResources();
                 return result;
@@ -340,7 +337,7 @@ void CGIHandler::doQueryStuff(const std::string text, std::string& fileName, std
 				fileContent = value;
 			else {
 				fileContent = value;
-				std::cerr << "Unknown query key: " << key << "\n-> using its value as content" << std::endl;
+				// std::cerr << "Unknown query key: " << key << "\n-> using its value as content" << std::endl;
 			}
 		}
 	}
@@ -370,7 +367,7 @@ int CGIHandler::prepareEnv(Request &req) {
             }
             filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
             
-            std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
+            // std::cout << "CGI Processor Path: " << loc->cgiProcessorPath << std::endl;
             makeArgs(loc->cgiProcessorPath, filePath);
         }
     } else {
@@ -393,7 +390,7 @@ int CGIHandler::prepareEnv(Request &req) {
     _env.push_back("SCRIPT_FILENAME=" + abs_path);
     _env.push_back("REDIRECT_STATUS=200");
     _env.push_back("SERVER_SOFTWARE=WebServ/1.0");
-    _env.push_back("SERVER_NAME=WebServ/1.0");
+    _env.push_back("SERVER_NAME=" + req.getConf().servName[0]);//_env.push_back("SERVER_NAME=WebServ/1.0");//TODO: actual servername or this?
     _env.push_back("GATEWAY_INTERFACE=CGI/1.1");
     _env.push_back("SERVER_PROTOCOL=HTTP/1.1");
     _env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(req.getConf())));
@@ -455,20 +452,4 @@ int CGIHandler::doChecks(Client client, Request& req) {
         return 1;
     }
     return 0;
-}
-
-std::string CGIHandler::getTimeStamp() {
-    time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    
-    std::ostringstream oss;
-    oss << "[" 
-        << (tm_info->tm_year + 1900) << "-"
-        << std::setw(2) << std::setfill('0') << (tm_info->tm_mon + 1) << "-"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_mday << " "
-        << std::setw(2) << std::setfill('0') << tm_info->tm_hour << ":"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_min << ":"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
-    
-    return oss.str();
 }

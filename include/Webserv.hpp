@@ -38,7 +38,7 @@ class	Client;
 
 class Webserv {
     public:
-        Webserv(std::string config = "config/default.conf");
+        Webserv(std::string config = "config/test.conf");
         Webserv(Webserv const &other);
         Webserv &operator=(Webserv const &other);
         ~Webserv();
@@ -46,16 +46,14 @@ class Webserv {
         void            			setEnvironment(char **envp);
         void            			flipState();
         Server        				findServerByFd(int fd, bool& found);
-        Client        				findClientByFd(int fd, bool& found);
         void            			handleErrorEvent(int fd);
         int             			addToEpoll(int fd, short events);
         void            			removeFromEpoll(int fd);
         void            			handleClientDisconnect(int fd);
         int             			run();
         void            			handleNewConnection(Server& server);
-        void            			handleClientActivity(int clientFd);
+        void            			handleClientActivity(int clientFd, bool print);
         void            			ft_error(std::string const msg);
-        std::string     			getTimeStamp();
         void            			printMsg(const std::string msg, char const *colour, std::string const opt);
         void            			cleanup();
 
@@ -68,7 +66,6 @@ class Webserv {
         struct epoll_event          _events[MAX_EVENTS];
         ConfigParser				_confParser;
         std::vector<serverLevel>	_configs; 
-        
 };
 
 #endif

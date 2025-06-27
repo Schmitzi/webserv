@@ -135,7 +135,6 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 	if (conf[i].find("}") == std::string::npos)
 		throw configException("Error: no closing bracket found for location.");
 	checkMethods(loc);
-	loc.fullPath = matchAndAppendPath(loc.rootLoc, loc.locName);
 	serv.locations.insert(std::pair<std::string, locationLevel>(loc.locName, loc));
 }
 

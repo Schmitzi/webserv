@@ -47,8 +47,6 @@ class Server {
     private:
         int                 		_fd;
         struct sockaddr_in  		_addr;
-        std::string         		_uploadDir;
-        std::string         		_webRoot;
 		ConfigParser	    		_confParser;
         std::vector<serverLevel> 	_configs;
         Webserv             		*_webserv;

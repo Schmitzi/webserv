@@ -32,8 +32,6 @@ Server &Server::operator=(const Server& copy) {
 	if (this != &copy) {
 		_fd = copy._fd;
 		_addr = copy._addr;
-		_uploadDir = copy._uploadDir;
-		_webRoot = copy._webRoot;
 		_confParser = copy._confParser;
 		_configs = copy._configs;
 		_webserv = copy._webserv;
@@ -127,7 +125,7 @@ int Server::setServerAddr() {
         inet_pton(AF_INET, ip.c_str(), &(_addr.sin_addr));
     _addr.sin_port = htons(port);
     
-    std::cout << GREEN << _webserv->getTimeStamp() << "Server binding to " << RESET << ip << ":" << port << std::endl;
+    std::cout << GREEN << getTimeStamp() << "Server binding to " << ip << ":" << port << RESET << std::endl;
     return 0;
 }
 

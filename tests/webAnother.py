@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import socket
 import http.client
 import requests
 import subprocess
@@ -56,7 +55,7 @@ def test_autoindex():
         raise Exception("Missing autoindex title")
 
 def test_post_form():
-    r = requests.post(f"{BASE_URL}/form-handler", data={'foo': 'bar'})
+    r = requests.post(f"{BASE_URL}/upload/form-handler", data={'foo': 'bar'})
     r.raise_for_status()
     assert "foo" in r.text.lower() or "bar" in r.text.lower() or "success" in r.text.lower()
 
@@ -120,17 +119,13 @@ def test_chunked_encoding():
     conn.send(b"0\r\n\r\n")
     
     response = conn.getresponse()
-    smth = response.read()
-    print(f"Chunk encoded: {smth}")
-    body = smth.decode(errors='ignore')
-    print(f"Response status: {response.status}")
-    print(f"Response body: {body}")
+    # body = response.read().decode(errors='ignore')
     if response.status != 200:
         raise Exception(f"Expected 200 OK, got {response.status}")
     r_check = requests.get(f"{BASE_URL}/upload/test_chunked")
     assert r_check.status_code == 200
     assert "this is a test upload" in r_check.text
-    # conn.request("DELETE", "/upload/test_chunked")
+    conn.request("DELETE", "/upload/test_chunked")
     conn.close()
 
 def test_put_not_allowed():
@@ -176,7 +171,7 @@ def test_large_body_rejected():
 # === MAIN ===
 if __name__ == "__main__":
     print(f"Webserv Testing Started at {BASE_URL}")
-    print("=====================================")
+    print("====================================================")
 
     temp_file = make_temp_file()
     big_file = make_big_file()
@@ -202,7 +197,7 @@ if __name__ == "__main__":
         ("Virtual Host", test_virtual_host),
         ("CGI Execution (GET)", test_cgi_get),
         ("CGI Execution (POST)", test_cgi_post),
-        ("Chunked Transfer Encoding", test_chunked_encoding),#TODO: this fucker
+        ("Chunked Transfer Encoding", test_chunked_encoding),
         ("Method Not Allowed (PUT)", test_put_not_allowed),
         ("Keep-Alive Header (Connection reuse)", test_keep_alive),
         ("Unsupported HTTP Version", test_http_0_9),

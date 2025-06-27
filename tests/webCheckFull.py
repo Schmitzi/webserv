@@ -23,7 +23,7 @@ def check_compilation():
     if result.returncode != 0:
         print_result(False, "Compilation failed")
     else:
-        print_result(True, "Compilation PASS_COUNT")
+        print_result(True, "Compilation passed")
 
 def start_server():
     print("[*] Starting server...")
