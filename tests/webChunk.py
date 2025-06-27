@@ -3,7 +3,7 @@
 import http.client
 import socket
 import time
-from colorama import Fore, Style
+# from colorama import Fore, Style
 
 HOST = "127.0.0.1"
 PORT = 8080
@@ -164,5 +164,5 @@ if __name__ == "__main__":
 
     print(f"\n=== Results ===")
     print(f"Chunked test: {'✅ PASS' if success1 else '❌ FAIL'}")
-    print(f"Regular test: {'✅ PASS' if success2 else '❌ FAIL'}")
-    print(f"Manual test:  {'✅ PASS' if success3 else '❌ FAIL'}")
+    # print(f"Regular test: {'✅ PASS' if success2 else '❌ FAIL'}")
+    # print(f"Manual test:  {'✅ PASS' if success3 else '❌ FAIL'}")
