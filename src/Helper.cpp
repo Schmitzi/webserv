@@ -18,7 +18,7 @@ std::vector<std::string> split(const std::string& s) {
 
 void printVector(std::vector<std::string> &s, std::string sep) {
 	for (size_t i = 0; i < s.size(); i++)
-	std::cout << s[i] << sep;
+		std::cout << s[i] << sep;
 	std::cout << std::endl;
 }
 
@@ -100,7 +100,7 @@ std::string encode(const std::string& decoded) {
     return encoded.str();
 }
 
-std::string getTimeStamp() {
+std::string getTimeStamp(int fd) {
     time_t now = time(NULL);
     struct tm* tm_info = localtime(&now);
     
@@ -112,6 +112,19 @@ std::string getTimeStamp() {
         << std::setw(2) << std::setfill('0') << tm_info->tm_hour << ":"
         << std::setw(2) << std::setfill('0') << tm_info->tm_min << ":"
         << std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
+	if (fd >= 0)
+		oss << "[" << fd << "] ";
     
     return oss.str();
+}
+
+bool checkReturn(int fd, ssize_t r, const std::string& func, const std::string& isZero) {
+	if (r <= 0) {
+		if (r < 0)
+			std::cerr << getTimeStamp(fd) << RED << "Error: " << func << " failed" << RESET << std::endl;
+		else
+			std::cerr << getTimeStamp(fd) << RED << isZero << RESET << std::endl;
+		return false;
+	}
+	return true;
 }

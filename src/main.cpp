@@ -11,7 +11,6 @@ bool deleteErrorPages() {
 		return true;
 	DIR* dir = opendir(path.c_str());
 	if (!dir) {
-		std::cerr << "Failed to delete error pages directory: " << strerror(errno) << std::endl;
 		return false;
 	}
 	struct dirent* entry;
@@ -22,13 +21,11 @@ bool deleteErrorPages() {
 		std::string fullPath = path + "/" + entryName;
 		if (unlink(fullPath.c_str()) != 0) {
 			closedir(dir);
-			std::cerr << "Failed to delete error pages directory: " << strerror(errno) << std::endl;
 			return false;
 		}
 	}
 	closedir(dir);
 	if (rmdir(path.c_str()) != 0) {
-		std::cerr << "Failed to delete error pages directory: " << strerror(errno) << std::endl;
 		return false;
 	}
 	return true;
@@ -40,7 +37,7 @@ void signalHandler(int signal) {
         std::cout << "Received signal, shutting down...\n";
 
 		if (!deleteErrorPages())
-			std::cerr << "Failed to delete error pages directory.\n";
+			std::cerr << getTimeStamp() << RED << "Failed to delete error pages directory" << RESET << std::endl;
     
         std::cout << "Goodbye!" << std::endl;
 		g_webserv->flipState();
@@ -59,17 +56,15 @@ int main(int ac, char **av, char **envp) {
 			Webserv webserv = Webserv(av[1]);
 			g_webserv = &webserv;
 			webserv.setEnvironment(envp);
-			if (webserv.run()) {
-				webserv.ft_error("Setup failed");
-			}
+			if (webserv.run())
+				std::cerr << getTimeStamp() << RED << "Error: setup/run failed" << RESET << std::endl;
 		}
 		else {
 			Webserv webserv = Webserv();
 			g_webserv = &webserv;
 			webserv.setEnvironment(envp);
-			if (webserv.run()) {
-				webserv.ft_error("Setup failed");
-			}
+			if (webserv.run())
+				std::cerr << getTimeStamp() << RED << "Error: setup/run failed" << RESET << std::endl;
 		}
 	} catch (const std::exception& e) {
 		std::cerr << "Exception: " << e.what() << std::endl;

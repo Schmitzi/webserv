@@ -66,12 +66,12 @@ ConfigParser &Server::getConfParser() {
 std::string Server::getUploadDir(Client& client, Request& req) {
 	locationLevel* loc = NULL;
 	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
-		std::cerr << "Location not found: " << req.getPath() << std::endl;
+		std::cerr << getTimeStamp(client.getFd()) << RED << "Location not found: " << RESET << req.getPath() << std::endl;
 		client.sendErrorResponse(403, req);
 		return "";
 	}
 	if (loc->uploadDirPath.empty()) {
-		std::cerr << "Upload directory not set: " << req.getPath() << std::endl;
+		std::cerr << getTimeStamp(client.getFd()) << RED << "Upload directory not set: " << RESET << req.getPath() << std::endl;
 		client.sendErrorResponse(403, req);
 		return "";
 	}
@@ -93,10 +93,10 @@ std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
 int Server::openSocket() {
     _fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (_fd < 0) {
-        _webserv->ft_error("Socket creation error");
+		std::cerr << getTimeStamp() << RED << "Error: socket() failed" << RESET << std::endl;
         return 1;
     }
-    _webserv->printMsg("Server started", GREEN, "");
+	std::cout << getTimeStamp() << GREEN << "Server started" << RESET << std::endl;
     return 0;
 }
 
@@ -104,7 +104,7 @@ int Server::setOptional() {
     int opt = 1;
     
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-        _webserv->ft_error("setsockopt(SO_REUSEADDR) failed");
+		std::cerr << getTimeStamp() << RED << "Error: setsockopt(SO_REUSEADDR) failed" << RESET << std::endl;
         close(_fd);
         return 1;
     }
@@ -125,13 +125,13 @@ int Server::setServerAddr() {
         inet_pton(AF_INET, ip.c_str(), &(_addr.sin_addr));
     _addr.sin_port = htons(port);
     
-    std::cout << GREEN << getTimeStamp() << "Server binding to " << ip << ":" << port << RESET << std::endl;
+    std::cout << getTimeStamp() << GREEN << "Server binding to " << ip << ":" << port << RESET << std::endl;
     return 0;
 }
 
 int Server::ft_bind() {
     if (bind(_fd, (struct sockaddr *)&_addr, sizeof(_addr)) < 0) {
-        _webserv->ft_error("bind() failed");
+		std::cerr << getTimeStamp() << RED << "Error: bind() failed" << RESET << std::endl;
         close(_fd);
         return 1;
     }
@@ -142,7 +142,7 @@ int Server::ft_listen() {
     const int backlog = 128;
     
     if (listen(_fd, backlog) < 0) {
-        _webserv->ft_error("listen() failed");
+		std::cerr << getTimeStamp() << RED << "Error: listen() failed" << RESET << std::endl;
         close(_fd);
         return 1;
     }
