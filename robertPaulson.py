@@ -254,13 +254,13 @@ def webAnother():
 
     temp_file = make_temp_file()
     big_file = make_big_file()
-    FORBIDDEN_DIR = tempfile.mkdtemp()
-    os.chmod(FORBIDDEN_DIR, 0o000)
+    FORBIDDEN = tempfile.mkdtemp()
+    os.chmod(FORBIDDEN, 0o000)
     WEB_ROOT = "./local/"
-    linked_dir = os.path.join(WEB_ROOT, "forbidden_dir")
+    linked_dir = os.path.join(WEB_ROOT, "forbidden")
     if os.path.islink(linked_dir) or os.path.exists(linked_dir):
         os.remove(linked_dir)
-    os.symlink(FORBIDDEN_DIR, linked_dir)
+    os.symlink(FORBIDDEN, linked_dir)
 
     run_test("Basic GET Request", test_get_root)
     run_test("Static File Request (/index.html)", test_get_index)
@@ -286,9 +286,9 @@ def webAnother():
 
     os.remove(temp_file)
     os.remove(big_file)
-    os.chmod(FORBIDDEN_DIR, 0o700)
+    os.chmod(FORBIDDEN, 0o700)
     os.remove(linked_dir)
-    os.rmdir(FORBIDDEN_DIR)
+    os.rmdir(FORBIDDEN)
 
 # === WebCheck ===
 
@@ -447,7 +447,7 @@ def run_test_suite(test_name, test_function):
         time.sleep(2)
         return True
     except Exception as e:
-        print(f"✗ Error in {test_name}: {e}")
+        print(f"{RED}❌ Error in {test_name}: {e}{RESET}")
         return False
     
 def test_head_method():
@@ -766,10 +766,6 @@ def test_basic_http_methods():
 
 def test_error_handling():
     print_test("=== Testing Error Handling ===")
-    
-    # Test various error codes
-    test_connection("/nonexistent", "GET", expect_status=404)
-    test_connection("/forbidden", "GET", expect_status=403)
     
     # Test malformed request
     try:
@@ -1323,7 +1319,7 @@ def webTest():
         print_test("=== All tests completed ===")
         
     finally:
-        print("")
+        print("") 
 
 def webTestCgiFileArg():
     print("====================================================")

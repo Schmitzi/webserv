@@ -68,7 +68,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
 
     pid_t pid = fork();
     
-    if (pid == 0) {  // Child process
+    if (pid == 0) {  // Child process - unchanged
         close(_input[1]);
         close(_output[0]);
         
@@ -81,11 +81,10 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         close(_output[1]);
         
         execve(args_ptrs[0], args_ptrs.data(), env_ptrs.data());
-        
         std::cerr << "execve failed: " << strerror(errno) << "\n";
-        cleanupResources();
         return 1;
     } 
+
     else if (pid > 0) {  // Parent process
         close(_input[0]);
         close(_output[1]);
@@ -96,24 +95,41 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         close(_input[1]);
         _input[1] = -1;
 
+        const int TIMEOUT_SECONDS = 30;
+        time_t start_time = time(NULL);
         int status;
-        waitpid(pid, &status, 0);
         
-        if (WIFEXITED(status)) {
-            int exit_status = WEXITSTATUS(status);
+        while (true) {
+            pid_t result = waitpid(pid, &status, WNOHANG);
             
-            if (exit_status == 0) {
-                std::cout << BLUE << getTimeStamp() << "CGI Script exit status: " << RESET << exit_status << "\n";
-                int result = processScriptOutput(client);
-                cleanupResources();
-                return result;
-            } else {
-                std::cerr << RED << getTimeStamp() << "CGI Script exit status: " << RESET << exit_status << "\n";
+            if (result == pid) {
+                break;
+            } else if (result == -1) {
+                std::cerr << RED << getTimeStamp() << "waitpid error" << RESET << std::endl;
                 client.sendErrorResponse(500, req);
                 cleanupResources();
                 return 1;
             }
+            
+            if (time(NULL) - start_time > TIMEOUT_SECONDS) {
+                std::cout << RED << getTimeStamp() << "CGI timeout, killing process " << pid << RESET << std::endl;
+                kill(pid, SIGKILL);
+                waitpid(pid, &status, 0);
+                client.sendErrorResponse(408, req);
+                cleanupResources();
+                return 1;
+            }
+            
+            usleep(100000);
+        }
+        
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            std::cout << GREEN << getTimeStamp() << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << "\n";
+            int result = processScriptOutput(client);
+            cleanupResources();
+            return result;
         } else {
+            std::cout << RED << getTimeStamp() << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << "\n";
             client.sendErrorResponse(500, req);
             cleanupResources();
             return 1;
@@ -130,28 +146,61 @@ int CGIHandler::processScriptOutput(Client &client) {
     char buffer[4096];
     int totalBytesRead = 0;
     
-    fd_set readfds;
-    FD_ZERO(&readfds);
-    FD_SET(_output[0], &readfds);
-    
-    struct timeval timeout;
-    timeout.tv_sec = 10;
-    timeout.tv_usec = 0;
-    
-    int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, &timeout);
-    
-    if (selectResult > 0 && FD_ISSET(_output[0], &readfds)) {
-        ssize_t bytesRead;
-        while ((bytesRead = read(_output[0], buffer, sizeof(buffer) - 1)) > 0) {
-            buffer[bytesRead] = '\0';
-            output += buffer;
-            totalBytesRead += bytesRead;
-            std::cout << BLUE << getTimeStamp() << "Received bytes: " << RESET << bytesRead << BLUE << ", Total buffer: " << RESET << totalBytesRead << "\n";
+    time_t startTime = time(NULL);
+    const int MAX_CGI_TIMEOUT = 30;
+    const int SELECT_TIMEOUT = 5;
+    std::cout << RED << "HERE\n" << RESET;
+    while (true) {
+        if (time(NULL) - startTime > MAX_CGI_TIMEOUT) {
+            std::cerr << RED << getTimeStamp() << "CGI script timeout exceeded (" 
+                      << MAX_CGI_TIMEOUT << " seconds)" << RESET << std::endl;
+            break;
+        }
+        
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(_output[0], &readfds);
+        
+        struct timeval timeout;
+        timeout.tv_sec = SELECT_TIMEOUT;
+        timeout.tv_usec = 0;
+        
+        int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, &timeout);
+        
+        if (selectResult < 0) {
+            std::cerr << RED << getTimeStamp() << "select() error: " << strerror(errno) << RESET << std::endl;
+            break;
+        }
+        else if (selectResult == 0) {
+            std::cout << BLUE << getTimeStamp() << "Select timeout, checking if more data available..." << RESET << std::endl;
+            continue;
+        }
+        else if (FD_ISSET(_output[0], &readfds)) {
+            ssize_t bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
+            
+            if (bytesRead > 0) {
+                buffer[bytesRead] = '\0';
+                output += buffer;
+                totalBytesRead += bytesRead;
+                std::cout << BLUE << getTimeStamp() << "Received bytes: " << RESET 
+                         << bytesRead << BLUE << ", Total buffer: " << RESET << totalBytesRead << "\n";
+            }
+            else if (bytesRead == 0) {
+                std::cout << GREEN << getTimeStamp() << "CGI script finished (EOF)" << RESET << std::endl;
+                break;
+            }
+            else {
+                if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                    std::cerr << RED << getTimeStamp() << "Read error: " << strerror(errno) << RESET << std::endl;
+                    break;
+                }
+            }
         }
     }
     
     close(_output[0]);
     _output[0] = -1;
+    
     std::cout << BLUE << getTimeStamp() << "Total bytes read: " << RESET << totalBytesRead << std::endl;
 
     if (output.empty()) {
