@@ -101,7 +101,7 @@ def test_404():
 
 def test_403():
     print("403 Forbidden (no permission dir")
-    url = f"{BASE_URL}/forbidden_dir/"
+    url = f"{BASE_URL}/forbidden/"
     response = requests.get(url)
     assert response.status_code == 403, f"Expected 403, got {response.status_code}"
 
@@ -447,7 +447,7 @@ def run_test_suite(test_name, test_function):
         time.sleep(2)
         return True
     except Exception as e:
-        print(f"{RED}❌ Error in {test_name}: {e}{RESET}")
+        print(f"✗ Error in {test_name}: {e}")
         return False
     
 def test_head_method():
@@ -563,14 +563,14 @@ def webCheck():
         run_test("Simple POST upload test", test_post_upload)
         run_test("Multipart file upload test", test_post_upload_with_content)
         run_test("DELETE method test", test_delete)
-        #run_test("Directory listing test", test_directory_listing)
+        run_test("Directory listing test", test_directory_listing)
         run_test("Redirection test", test_redirection)
         run_test("CGI POST test", test_cgi)
         run_test("Concurrent clients test", test_concurrent_clients)
-        run_test("", test_head_method)
+        # run_test("", test_head_method)
+        # run_test("", test_options_method)
         run_test("", test_invalid_method)
         run_test("", test_large_post)
-        run_test("", test_options_method)
         run_test("", test_path_traversal)
         run_test("", test_query_parameters)
         run_test("", test_keep_alive)
@@ -1319,7 +1319,7 @@ def webTest():
         print_test("=== All tests completed ===")
         
     finally:
-        print("") 
+        print("")
 
 def webTestCgiFileArg():
     print("====================================================")

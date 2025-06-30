@@ -2,7 +2,7 @@
 
 Request::Request() {}
 
-Request::Request(const std::string& rawRequest, Server& server) : 
+Request::Request(const std::string& rawRequest, Server& server, int clientFd) : 
 	_host(""),
 	_method("GET"),
 	_check(""),
@@ -15,7 +15,8 @@ Request::Request(const std::string& rawRequest, Server& server) :
     _boundary(""),
 	_contentLength(0),
 	_curConf(),
-	_configs(server.getConfigs())
+	_configs(server.getConfigs()),
+	_clientFd(clientFd)
 {
     parse(rawRequest);
 }
@@ -39,6 +40,7 @@ Request &Request::operator=(const Request& copy) {
 		_contentLength = copy._contentLength;
 		_curConf = copy._curConf;
 		_configs = copy._configs;
+		_clientFd = copy._clientFd;
 	}
 	return *this;
 }
@@ -128,7 +130,7 @@ bool Request::matchHostServerName() {
 
 void Request::parse(const std::string& rawRequest) {
     if (rawRequest.empty()) {
-        std::cerr << RED << "Empty request!\n" << RESET;
+        std::cerr << getTimeStamp(_clientFd) << RED << "Empty request!" << RESET << std::endl;
 		_check = "BAD";
         return;
     }
@@ -153,12 +155,12 @@ void Request::parse(const std::string& rawRequest) {
     }
 	
     if (!parseHeaders(headerSection)) {
-		std::cerr << RED << getTimeStamp() << "Invalid HTTP Request: Missing Host Header" << RESET << std::endl;
+		std::cerr << getTimeStamp(_clientFd) << RED << "Invalid HTTP Request: Missing Host Header" << RESET << std::endl;
 		_check = "BAD";
 		return;
 	}
 	if (!matchHostServerName()) {
-		std::cerr << RED << getTimeStamp() << "No Host-ServerName match + no default config specified!" << RESET << std::endl;
+		std::cerr << getTimeStamp(_clientFd) << RED << "No Host-ServerName match + no default config specified!" << RESET << std::endl;
 		_check = "BAD";
 		return;
 	}
@@ -211,9 +213,8 @@ void Request::parse(const std::string& rawRequest) {
     }
 
     if (isChunkedTransfer()) {
-        // std::cout << BLUE << getTimeStamp() << "Chunked transfer encoding detected" << RESET << std::endl;
         if (_method == "POST") {
-            std::cout << BLUE << getTimeStamp() << "POST request with chunked body: " << RESET << _body.length() 
+            std::cout << getTimeStamp(_clientFd) << BLUE << "POST request with chunked body: " << RESET << _body.length() 
                       << " bytes of chunked data" << std::endl;
         }
     }
@@ -272,7 +273,7 @@ void Request::checkContentLength(std::string buffer) {
             std::string transferEncoding = buffer.substr(pos + 18, eol - pos - 18);
             if (transferEncoding.find("chunked") != std::string::npos) {
                 _contentLength = 0;
-                std::cout << BLUE << getTimeStamp() << "Transfer-Encoding: chunked detected" << RESET << std::endl;
+                std::cout << getTimeStamp(_clientFd) << BLUE << "Transfer-Encoding: chunked detected" << RESET << std::endl;
             }
         }
     }
@@ -350,20 +351,4 @@ bool Request::isChunkedTransfer() const {
     if (it != _headers.end() && it->second.find("chunked") != std::string::npos)
         return true;
     return false;
-}
-
-std::string Request::getTimeStamp() {
-    time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    
-    std::ostringstream oss;
-    oss << "[" 
-        << (tm_info->tm_year + 1900) << "-"
-        << std::setw(2) << std::setfill('0') << (tm_info->tm_mon + 1) << "-"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_mday << " "
-        << std::setw(2) << std::setfill('0') << tm_info->tm_hour << ":"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_min << ":"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
-    
-    return oss.str();
 }

@@ -19,7 +19,7 @@ class Request {
         Request();
 		Request(const Request& copy);
 		Request &operator=(const Request& copy);
-        Request(const std::string& rawRequest, Server& server);
+        Request(const std::string& rawRequest, Server& server, int clientFd);
         ~Request();
 
         std::string							&getPath();
@@ -43,7 +43,6 @@ class Request {
         void    							checkContentLength(std::string buffer);
         void    							parseContentType();
         bool    							isChunkedTransfer() const;
-        std::string 						getTimeStamp();
 
     private:
 		std::string							_host; 
@@ -59,6 +58,7 @@ class Request {
         unsigned long                       _contentLength;
 		serverLevel							_curConf;
 		std::vector<serverLevel>			_configs;
+		int									_clientFd;
 };
 
 #endif

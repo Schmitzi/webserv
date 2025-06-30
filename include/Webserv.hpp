@@ -53,8 +53,6 @@ class Webserv {
         int             			run();
         void            			handleNewConnection(Server& server);
         void            			handleClientActivity(int clientFd, bool print);
-        void            			ft_error(std::string const msg);
-        void            			printMsg(const std::string msg, char const *colour, std::string const opt);
         void            			cleanup();
 
     private:
