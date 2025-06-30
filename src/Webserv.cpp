@@ -178,7 +178,7 @@ void Webserv::removeFromEpoll(int fd) {
 		if (errno != EBADF && errno != ENOENT)
 		std::cerr << getTimeStamp() << RED << "Warning: epoll_ctl DEL failed for fd " << fd << RESET << std::endl;//": " << strerror(errno) << RESET << std::endl;
     }
-	std::cout << getTimeStamp(fd) << "Client disconnected 1" << std::endl;
+	//std::cout << getTimeStamp(fd) << "Client disconnected 1" << std::endl;
 }
 
 void Webserv::handleClientDisconnect(int fd) {

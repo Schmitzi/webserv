@@ -86,20 +86,13 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         cleanupResources();
         return 1;
     } 
-
+       
     else if (pid > 0) {  // Parent process
         close(_input[0]);
         close(_output[1]);
 
         if (!req.getBody().empty()) {
-			ssize_t w = write(_input[1], req.getBody().c_str(), req.getBody().length());
-			if (!checkReturn(_client->getFd(), w, "write()", "Failed to write into pipe")) {
-				close(_input[1]);
-				_input[1] = -1;
-				client.sendErrorResponse(500, req);//TODO: should this be sent?
-				cleanupResources();
-				return 1;
-			}
+            write(_input[1], req.getBody().c_str(), req.getBody().length());
         }
         close(_input[1]);
         _input[1] = -1;
@@ -111,23 +104,20 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         while (true) {
             pid_t result = waitpid(pid, &status, WNOHANG);
             
-            if (exit_status == 0) {
-                std::cout << getTimeStamp(_client->getFd()) << BLUE << "CGI Script exit status: " << RESET << exit_status << std::endl;
-                int result = processScriptOutput(client);
-                cleanupResources();
-                return result;
-            } else {
-                std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << exit_status << std::endl;
+            if (result == pid) {
+                break;
+            } else if (result == -1) {
+                std::cerr << getTimeStamp(_client->getFd()) << RED << "waitpid error" << RESET << std::endl;
                 client.sendErrorResponse(500, req);
                 cleanupResources();
                 return 1;
             }
             
             if (time(NULL) - start_time > TIMEOUT_SECONDS) {
-                std::cout << RED << getTimeStamp() << "CGI timeout, killing process " << pid << RESET << std::endl;
+                std::cout << getTimeStamp(_client->getFd()) << RED << "CGI timeout, killing process " << pid << RESET << std::endl;
                 kill(pid, SIGKILL);
                 waitpid(pid, &status, 0);
-                client.sendErrorResponse(408, req);
+                client.sendErrorResponse(504, req); //TODO: This may not need to be 504 but keeps retrying with 408
                 cleanupResources();
                 return 1;
             }
@@ -136,18 +126,17 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         }
         
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            std::cout << GREEN << getTimeStamp() << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << "\n";
+            std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << "\n";
             int result = processScriptOutput(client);
             cleanupResources();
             return result;
         } else {
-            std::cout << RED << getTimeStamp() << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << "\n";
+            std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << "\n";
             client.sendErrorResponse(500, req);
             cleanupResources();
             return 1;
         }
     }
-    
     client.sendErrorResponse(500, req);
     cleanupResources();
     return 1;

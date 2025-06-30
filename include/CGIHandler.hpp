@@ -51,6 +51,7 @@ class CGIHandler {
         std::string								_path;
         Client									*_client;
         Server									*_server;
+        int                                     exit_status;
 };
 
 #endif
