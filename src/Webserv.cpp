@@ -77,11 +77,21 @@ int Webserv::run() {
 			std::cerr << getTimeStamp() << RED << "Failed to add server to epoll: " << RESET << i + 1 << std::endl;
 			continue;
 		}
-		std::cout << getTimeStamp() << GREEN <<
-			"Server " << i + 1 << " is listening on port " << 
-			_confParser.getPort(_servers[i].getConfigs()[0]) << RESET << std::endl << std::endl;
+		std::cout << getTimeStamp() << GREEN << "Server " << i + 1;
+		bool smth = false;
+		for (size_t x = 0; x < _servers[i].getConfigs().size(); x++) {
+			if (x == 0 && !_servers[i].getConfigs()[x].servName[0].empty()) {
+				std::cout << " [";
+				smth = true;
+			}
+			std::cout << _servers[i].getConfigs()[x].servName[0];
+			if (x + 1 < _servers[i].getConfigs().size() && !_servers[i].getConfigs()[x].servName[0].empty())
+				std::cout << ", ";
+			else if (smth == true)
+				std::cout << "]";
+		}
+		std::cout << " is listening on port " << _confParser.getPort(_servers[i].getConfigs()[0]) << RESET << std::endl << std::endl;
     }
-	bool print = true;
     while (_state == true) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
@@ -95,13 +105,10 @@ int Webserv::run() {
             uint32_t eventMask = _events[i].events;
             
             if (eventMask & EPOLLHUP) {
-				print = true;
-                std::cout << getTimeStamp(fd) << "Client disconnected 3" << std::endl;
                 handleClientDisconnect(fd);
                 continue;
             }
             if (eventMask & EPOLLERR) {
-				print = true;
                 std::cerr << getTimeStamp(fd) << RED << "Socket error" << RESET << std::endl;
                 handleErrorEvent(fd);
                 continue;
@@ -110,16 +117,12 @@ int Webserv::run() {
             Server activeServer = findServerByFd(fd, found);
             if (found) {
                 if (eventMask & EPOLLIN) {
-					print = true;
                     handleNewConnection(activeServer);
 				}
             } else {
                 if (eventMask & EPOLLIN) {
-                    handleClientActivity(fd, print);
-					print = false;
+                    handleClientActivity(fd);
 					if (eventMask & EPOLLHUP) {
-						print = true;
-						std::cout << getTimeStamp(fd) << "Client disconnected 2" << std::endl;
 						handleClientDisconnect(fd);
 						continue;
             		}
@@ -174,7 +177,7 @@ void Webserv::removeFromEpoll(int fd) {
 		if (errno != EBADF && errno != ENOENT)
 		std::cerr << getTimeStamp() << RED << "Warning: epoll_ctl DEL failed for fd " << fd << RESET << std::endl;//": " << strerror(errno) << RESET << std::endl;
     }
-	std::cout << getTimeStamp(fd) << "Client disconnected 1" << std::endl;
+	std::cout << getTimeStamp(fd) << "Client disconnected" << std::endl;
 }
 
 void Webserv::handleClientDisconnect(int fd) {
@@ -193,7 +196,7 @@ void Webserv::handleClientDisconnect(int fd) {
 }
 
 void Webserv::handleNewConnection(Server &server) {
-	std::cout << "================================================================================" << std::endl;
+	// std::cout << "================================================================================" << std::endl;
 	if (_clients.size() >= 1000) { // Adjust limit as needed
         std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
         
@@ -218,10 +221,7 @@ void Webserv::handleNewConnection(Server &server) {
     }
 }
 
-void Webserv::handleClientActivity(int clientFd, bool print) {
-	if (print)
-		std::cout << getTimeStamp(clientFd) << BLUE << "Handling activity for Client" << RESET << std::endl;
-    
+void Webserv::handleClientActivity(int clientFd) {    
     // Find the client properly
     Client* clientPtr = NULL;
     for (size_t i = 0; i < _clients.size(); i++) {

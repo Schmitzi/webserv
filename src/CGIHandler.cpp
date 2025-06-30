@@ -103,30 +103,42 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         close(_input[1]);
         _input[1] = -1;
 
-        int status;
-        waitpid(pid, &status, 0);
+        const int TIMEOUT_SECONDS = 30;
+        time_t start_time = time(NULL);
+		int status;
         
-        if (WIFEXITED(status)) {
-            int exit_status = WEXITSTATUS(status);
-            
-            if (exit_status == 0) {
-                std::cout << getTimeStamp(_client->getFd()) << BLUE << "CGI Script exit status: " << RESET << exit_status << std::endl;
-                int result = processScriptOutput(client);
-                cleanupResources();
-                return result;
-            } else {
-                std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << exit_status << std::endl;
-                client.sendErrorResponse(500, req);
+		while (true) {
+			pid_t result = waitpid(pid, &status, WNOHANG);
+			if (result == pid)
+				break;
+			else if (result == -1) {
+				std::cerr << getTimeStamp(_client->getFd()) << RED << "waitpid error" << RESET << std::endl;
+				client.sendErrorResponse(500, req);
+				cleanupResources();
+				return 1;
+			}
+			if (time(NULL) - start_time > TIMEOUT_SECONDS) {
+                std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI timeout, killing process " << pid << RESET << std::endl;
+                kill(pid, SIGKILL);
+                waitpid(pid, &status, 0);
+                client.sendErrorResponse(504, req); //TODO: This may not need to be 504 but keeps retrying with 408
                 cleanupResources();
                 return 1;
             }
+			usleep(100000);
+    	}
+		if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+            int result = processScriptOutput(client);
+            cleanupResources();
+            return result;
         } else {
+            std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
             client.sendErrorResponse(500, req);
             cleanupResources();
             return 1;
         }
-    }
-    
+	}
     client.sendErrorResponse(500, req);
     cleanupResources();
     return 1;

@@ -52,7 +52,7 @@ class Webserv {
         void            			handleClientDisconnect(int fd);
         int             			run();
         void            			handleNewConnection(Server& server);
-        void            			handleClientActivity(int clientFd, bool print);
+        void            			handleClientActivity(int clientFd);
         void            			cleanup();
 
     private:
