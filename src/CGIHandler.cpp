@@ -155,7 +155,7 @@ int CGIHandler::processScriptOutput(Client &client) {
     timeout.tv_sec = 10;
     timeout.tv_usec = 0;
     
-    int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, &timeout);
+    int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, &timeout);  // TODO: check if writefds are neccesary
     
     if (selectResult > 0 && FD_ISSET(_output[0], &readfds)) {
         ssize_t bytesRead;
