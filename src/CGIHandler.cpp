@@ -68,7 +68,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
 
     pid_t pid = fork();
     
-    if (pid == 0) {  // Child process
+    if (pid == 0) {  // Child process - unchanged
         close(_input[1]);
         close(_output[0]);
         
@@ -86,6 +86,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         cleanupResources();
         return 1;
     } 
+       
     else if (pid > 0) {  // Parent process
         close(_input[0]);
         close(_output[1]);
@@ -157,7 +158,7 @@ int CGIHandler::processScriptOutput(Client &client) {
     timeout.tv_sec = 10;
     timeout.tv_usec = 0;
     
-    int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, &timeout);
+    int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, &timeout);  // TODO: check if writefds are neccesary
     
     if (selectResult > 0 && FD_ISSET(_output[0], &readfds)) {
         ssize_t bytesRead;

@@ -34,8 +34,6 @@ AUTOINDEX_PATH = "autoindex%20dir"
 DELETE = True
 PASS = 0
 TOTAL = 0
-TEST_CONN_PASS = 0
-TEST_CONN_TOTAL = 0
 
 # === Colour Message ===
 def success(msg): print(f"{GREEN}✅ {msg}{RESET}")

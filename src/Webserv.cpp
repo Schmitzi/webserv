@@ -53,6 +53,10 @@ void Webserv::setEnvironment(char **envp) {
     _env = envp;
 }
 
+// char	**Webserv::getEnv() {
+// 	return _env;
+// }
+
 int Webserv::run() {
     _epollFd = epoll_create1(EPOLL_CLOEXEC);
     if (_epollFd == -1) {
@@ -92,6 +96,7 @@ int Webserv::run() {
 		}
 		std::cout << " is listening on port " << _confParser.getPort(_servers[i].getConfigs()[0]) << RESET << std::endl << std::endl;
     }
+	bool print = true;
     while (_state == true) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
@@ -117,6 +122,7 @@ int Webserv::run() {
             Server activeServer = findServerByFd(fd, found);
             if (found) {
                 if (eventMask & EPOLLIN) {
+					print = true;
                     handleNewConnection(activeServer);
 				}
             } else {
