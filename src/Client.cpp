@@ -105,7 +105,7 @@ int Client::recieveData() {
 			std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
 			return 1;
 		}
-		std::cerr << getTimeStamp(_fd) << RED << "Error while receiving data" << RESET << std::endl;
+		//std::cerr << getTimeStamp(_fd) << RED << "Error while receiving data" << RESET << std::endl; // TODO: Commented out becuase it means the request is 0, not negative
 	}
 	_requestBuffer.append(buffer, bytesRead);
 
@@ -208,6 +208,11 @@ int Client::processRequest(Request& req) {
         return 1;
     }
 
+    if (req.getCheck() == "EMPTY" || req.getPath() == "" ) { // TODO: Added this to combat the "Location not found" error and the sending of the 400 error
+        _requestBuffer.clear();
+        return 1;
+    }   
+
     if (req.getCheck() == "BAD") {
         std::cerr << getTimeStamp(_fd) << RED  << "Bad request format " << RESET << std::endl;
         sendErrorResponse(400, req);
@@ -235,6 +240,7 @@ int Client::processRequest(Request& req) {
             return result;
         return 0;
     }
+
     std::cout << getTimeStamp(_fd) << BLUE << "Parsed Request: " << RESET << 
         req.getMethod() << " " << req.getPath() << " " << req.getVersion() << std::endl;
 
