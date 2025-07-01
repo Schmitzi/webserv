@@ -50,6 +50,7 @@ class Webserv {
         int             			addToEpoll(int fd, short events);
         void            			removeFromEpoll(int fd);
         void            			handleClientDisconnect(int fd);
+        void            			initialize();
         int             			run();
         void            			handleNewConnection(Server& server);
         void            			handleClientActivity(int clientFd);

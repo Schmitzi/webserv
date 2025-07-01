@@ -53,16 +53,7 @@ void Webserv::setEnvironment(char **envp) {
     _env = envp;
 }
 
-// char	**Webserv::getEnv() {
-// 	return _env;
-// }
-
-int Webserv::run() {
-    _epollFd = epoll_create1(EPOLL_CLOEXEC);
-    if (_epollFd == -1) {
-		std::cerr << getTimeStamp() << RED << "Error: epoll_create1() failed" << RESET << std::endl;
-        return 1;
-    }
+void Webserv::initialize() {
     for (size_t i = 0; i < _servers.size(); i++) {
     	if (_servers[i].getFd() > 0) {
 			std::cout << getTimeStamp() << BLUE << "Host:Port already opened: " << RESET << 
@@ -96,7 +87,15 @@ int Webserv::run() {
 		}
 		std::cout << " is listening on port " << _confParser.getPort(_servers[i].getConfigs()[0]) << RESET << std::endl << std::endl;
     }
-	bool print = true;
+}
+
+int Webserv::run() {
+    _epollFd = epoll_create1(EPOLL_CLOEXEC);
+    if (_epollFd == -1) {
+		std::cerr << getTimeStamp() << RED << "Error: epoll_create1() failed" << RESET << std::endl;
+        return 1;
+    }
+    initialize();
     while (_state == true) {
         int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
         if (nfds == -1) {
@@ -121,10 +120,8 @@ int Webserv::run() {
 			bool found = false;
             Server activeServer = findServerByFd(fd, found);
             if (found) {
-                if (eventMask & EPOLLIN) {
-					print = true;
+                if (eventMask & EPOLLIN)
                     handleNewConnection(activeServer);
-				}
             } else {
                 if (eventMask & EPOLLIN) {
                     handleClientActivity(fd);
@@ -133,6 +130,8 @@ int Webserv::run() {
 						continue;
             		}
 				}
+                if (eventMask & EPOLLOUT)
+                    std::cerr << RED << "WE NEED TO IMPLEMENT THIS" << RESET << std::endl;//TODO: Implement EPOLLOUT handling?
             }
         }
     }
@@ -181,7 +180,7 @@ void Webserv::removeFromEpoll(int fd) {
 		return;
     if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, NULL) == -1) {
 		if (errno != EBADF && errno != ENOENT)
-		std::cerr << getTimeStamp() << RED << "Warning: epoll_ctl DEL failed for fd " << fd << RESET << std::endl;//": " << strerror(errno) << RESET << std::endl;
+		std::cerr << getTimeStamp(fd) << RED << "Warning: epoll_ctl DEL failed" << RESET << std::endl;
     }
 	std::cout << getTimeStamp(fd) << "Client disconnected" << std::endl;
 }
@@ -228,7 +227,6 @@ void Webserv::handleNewConnection(Server &server) {
 }
 
 void Webserv::handleClientActivity(int clientFd) {    
-    // Find the client properly
     Client* clientPtr = NULL;
     for (size_t i = 0; i < _clients.size(); i++) {
         if (_clients[i].getFd() == clientFd) {
