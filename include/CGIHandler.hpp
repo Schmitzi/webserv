@@ -40,6 +40,10 @@ class CGIHandler {
         void									cleanupResources();
         std::string								formatChunkedResponse(const std::string& body);
         bool									isChunkedTransfer(const std::map<std::string, std::string>& headers);
+        std::string                             getInterpreterFromConfig(Request& req, const std::string& scriptPath);
+        std::string                             getDirectoryFromPath(const std::string& fullPath);
+        int                                     waitForCGICompletion(pid_t pid, int timeoutSeconds);
+        std::string                             extractPathInfo(const std::string& requestPath, const std::string& scriptPath);
 
 	private:
         int										_input[2];
