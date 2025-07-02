@@ -252,10 +252,11 @@ int CGIHandler::processScriptOutput(Client &client) {
         defaultResponse += "Content-Type: text/plain\r\n";
         defaultResponse += "Content-Length: 22\r\n\r\n";
         defaultResponse += "No output from script\n";
-        
-        ssize_t sent = send(client.getFd(), defaultResponse.c_str(), defaultResponse.length(), 0);
-        if (!checkReturn(_client->getFd(), sent, "send()", "Failed to send default response"))
-            return 1;
+
+        _client->addToSend(defaultResponse);
+        // ssize_t sent = send(client.getFd(), defaultResponse.c_str(), defaultResponse.length(), 0);
+        // if (!checkReturn(_client->getFd(), sent, "send()", "Failed to send default response"))
+            // return 1;
         return 0;
     }
 
@@ -512,6 +513,7 @@ int CGIHandler::prepareEnv(Request &req) {
 
 // Extract PATH_INFO from the request path
 std::string CGIHandler::extractPathInfo(const std::string& requestPath, const std::string& scriptPath) {
+    (void)scriptPath;
     // Find the script name in the request path
     size_t scriptNamePos = requestPath.find_last_of('/');
     if (scriptNamePos == std::string::npos) {

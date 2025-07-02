@@ -136,7 +136,18 @@ int Webserv::run() {
 						continue;
 				}
                 if (eventMask & EPOLLOUT) {
-					handleEpollOut(fd);
+                    std::cout << RED << "out\n" << RESET;
+					// handleEpollOut(fd);
+                    for (size_t i = 0; i < _clients.size() ; i++) {
+                        if (fd == _clients[i].getFd()) { 
+                            std::pair<int, std::vector<std::string> > toSend = _clients[i].getSends();
+                            for (size_t j = 0; j < toSend.second.size(); j++) {
+                                ssize_t x = send(toSend.first, toSend.second[j].c_str(), toSend.second[j].length(), 0);
+                                if (!checkReturn(toSend.first, x, "send()", "Unable to send directory listing"))
+                                    return 1;
+                            }
+                        }
+                    }
                     std::cerr << RED << "WE NEED TO IMPLEMENT THIS" << RESET << std::endl;
 				}
             }
@@ -233,7 +244,8 @@ void Webserv::handleNewConnection(Server &server, uint32_t &eventMask) {
     }
 }
 
-void Webserv::handleClientActivity(int clientFd, uint32_t &eventMask) {    
+void Webserv::handleClientActivity(int clientFd, uint32_t &eventMask) {
+    (void)eventMask;   
     Client* clientPtr = NULL;
     for (size_t i = 0; i < _clients.size(); i++) {
         if (_clients[i].getFd() == clientFd) {

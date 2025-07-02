@@ -46,8 +46,9 @@ Client& Client::operator=(const Client& other) {
         _configs = other._configs;
         _cgi = new CGIHandler();
         _cgi->setClient(*this);
-        if (_server)
+        if (_server) {
         	_cgi->setServer(*_server);
+        }
 		_send.first = other._send.first;
 		_send.second = other._send.second;
 		_eventMask = other._eventMask;
@@ -81,6 +82,14 @@ void    Client::setConfigs(const std::vector<serverLevel> &configs) {
 
 std::vector<serverLevel> Client::getConfigs() {
 	return _configs;
+}
+
+void    Client::addToSend(std::string response) {
+    _send.second.push_back(response);
+}
+
+std::pair<int, std::vector<std::string> > Client::getSends() {
+    return _send;
 }
 
 int Client::acceptConnection(int serverFd) {
@@ -353,7 +362,7 @@ int Client::handleRegularRequest(Request& req) {
 
     if (handleRedirect(req) == 0)
 		return 1;
-	_cgi->setCGIBin(&req.getConf());
+	//_cgi->setCGIBin(&req.getConf());
 	_cgi->setClient(*this);
     if (_cgi->isCGIScript(reqPath)) {
 		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
@@ -906,7 +915,8 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     }
 }
 
-bool Client::sendAll(int sockfd, const std::string& data) {
+bool Client::sendAll(int sockfd, const std::string& data) { // TODO: is this still neccesary
+    (void)sockfd;
 	size_t total_sent = 0;
 	size_t to_send = data.size();
 	const char* buffer = data.c_str();

@@ -41,6 +41,8 @@ class Client {
         void                    	setWebserv(Webserv &webserv);
         void                    	setServer(Server &server);
         void                    	setConfigs(const std::vector<serverLevel> &configs);
+        void                        addToSend(std::string response);
+        std::pair<int, std::vector<std::string> > getSends();
         int                     	acceptConnection(int serverFd);
         void                    	displayConnection();
         int                     	recieveData();
