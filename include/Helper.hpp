@@ -9,6 +9,8 @@
 #include <iomanip>
 #include "ConfigHelper.hpp"
 
+struct	serverLevel;
+
 std::string					tostring(int nbr);
 std::vector<std::string>	split(const std::string& s);
 void						printVector(std::vector<std::string> &s, std::string sep);
@@ -18,5 +20,7 @@ std::string					decode(const std::string& encoded);
 std::string					encode(const std::string& decoded);
 std::string					getTimeStamp(int fd = -1);
 bool 						checkReturn(int fd, ssize_t r, const std::string& func, const std::string& isZero);
+void						printConfigs(std::vector<serverLevel> configs);
+void						printConfig(serverLevel& conf);
 
 #endif

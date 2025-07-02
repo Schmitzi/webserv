@@ -13,13 +13,14 @@
 struct	serverLevel;
 struct	locationLevel;
 class	Server;
+class	Client;
 
 class Request {
     public:
         Request();
 		Request(const Request& copy);
 		Request &operator=(const Request& copy);
-        Request(const std::string& rawRequest, Server& server, int clientFd);
+        Request(const std::string& rawRequest, Client& client, int clientFd);
         ~Request();
 
         std::string							&getPath();
@@ -38,6 +39,7 @@ class Request {
         void    							setBody(std::string const body);
         void    							setContentType(std::string const content);
 		bool    							matchHostServerName();
+		bool								hasServerName();
         void    							parse(const std::string& rawRequest);
         int    								parseHeaders(const std::string& headerSection);
         void    							checkContentLength(std::string buffer);
@@ -57,6 +59,7 @@ class Request {
         std::string                         _boundary;
         unsigned long                       _contentLength;
 		serverLevel							_curConf;
+		Client								*_client;
 		std::vector<serverLevel>			_configs;
 		int									_clientFd;
 };
