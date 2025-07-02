@@ -266,9 +266,7 @@ int CGIHandler::processScriptOutput(Client &client) {
     std::map<std::string, std::string> headerMap = parseHeaders(headerSection);
     
     if (isChunkedTransfer(headerMap))
-    if (isChunkedTransfer(headerMap))
         return handleChunkedOutput(headerMap, bodyContent);
-    else
     else
         return handleStandardOutput(headerMap, bodyContent);
 }
