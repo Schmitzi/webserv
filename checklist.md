@@ -2,6 +2,10 @@ Based on the Webserv project PDF, here's a comprehensive checklist of requiremen
 
 ## Core Requirements
 
+### ad evalHelp
+[ ] Ask if they use only one select() (or equivalent) -> we are using epoll and select?
+    Could that be the issue we had with the cgi infinite looping? because we normally use epoll and then suddenly there is a new "different" system handling this without having the same resources?
+
 ### General Rules
 <!-- - [ ] Code must be C++98 compliant (-std=c++98 flag) &#x2611; -->
 <!-- - [ ] Must compile with flags: -Wall -Wextra -Werror &#x2611; -->

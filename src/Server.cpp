@@ -86,8 +86,7 @@ std::string	Server::getWebRoot(Request& req, locationLevel& loc) {
 		std::string x = matchAndAppendPath(loc.rootLoc, loc.locName);
 		return x;
 	}
-	else
-		return req.getConf().rootServ;
+	return req.getConf().rootServ;
 }
 
 int Server::openSocket() {

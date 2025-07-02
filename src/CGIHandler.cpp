@@ -37,7 +37,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
     }
     
     if (_cgiBinPath.empty()) {
-        if (NIX == true)
+        if (NIX == true) {
             _cgiBinPath = "/etc/profiles/per-user/schmitzi/bin/php-cgi";
         else
             _cgiBinPath = "/usr/bin/cgi-bin";
@@ -92,23 +92,37 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         close(_output[1]);
 
         if (!req.getBody().empty()) {
-            write(_input[1], req.getBody().c_str(), req.getBody().length());
+			ssize_t w = write(_input[1], req.getBody().c_str(), req.getBody().length());
+			if (!checkReturn(_client->getFd(), w, "write()", "Failed to write into pipe")) {
+				close(_input[1]);
+				_input[1] = -1;
+				client.sendErrorResponse(500, req);//TODO: should this be sent?
+				cleanupResources();
+				return 1;
+			}
         }
         close(_input[1]);
         _input[1] = -1;
 
         const int TIMEOUT_SECONDS = 30;
         time_t start_time = time(NULL);
-        int status;
+		int status;
         
-        while (true) {
-            pid_t result = waitpid(pid, &status, WNOHANG);
-            
-            if (result == pid) {
-                break;
-            } else if (result == -1) {
-                std::cerr << getTimeStamp(_client->getFd()) << RED << "waitpid error" << RESET << std::endl;
-                client.sendErrorResponse(500, req);
+		while (true) {
+			pid_t result = waitpid(pid, &status, WNOHANG);
+			if (result == pid)
+				break;
+			else if (result == -1) {
+				std::cerr << getTimeStamp(_client->getFd()) << RED << "waitpid error" << RESET << std::endl;
+				client.sendErrorResponse(500, req);
+				cleanupResources();
+				return 1;
+			}
+			if (time(NULL) - start_time > TIMEOUT_SECONDS) {
+                std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI timeout, killing process " << pid << RESET << std::endl;
+                kill(pid, SIGKILL);
+                waitpid(pid, &status, 0);
+                client.sendErrorResponse(504, req); //TODO: This may not need to be 504 but keeps retrying with 408
                 cleanupResources();
                 return 1;
             }

@@ -3,6 +3,7 @@
 Request::Request() {}
 
 Request::Request(const std::string& rawRequest, Server& server, int clientFd) : 
+Request::Request(const std::string& rawRequest, Server& server, int clientFd) : 
 	_host(""),
 	_method("GET"),
 	_check(""),
@@ -15,6 +16,8 @@ Request::Request(const std::string& rawRequest, Server& server, int clientFd) :
     _boundary(""),
 	_contentLength(0),
 	_curConf(),
+	_configs(server.getConfigs()),
+	_clientFd(clientFd)
 	_configs(server.getConfigs()),
 	_clientFd(clientFd)
 {

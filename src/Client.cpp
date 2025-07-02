@@ -100,12 +100,9 @@ int Client::recieveData() {
     memset(buffer, 0, sizeof(buffer));
     
     ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
-	if (bytesRead <= 0) {
-		if (bytesRead < 0) {
-			std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
-			return 1;
-		}
-		//std::cerr << getTimeStamp(_fd) << RED << "Error while receiving data" << RESET << std::endl; // TODO: Commented out becuase it means the request is 0, not negative
+	if (bytesRead < 0) {
+		std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
+		return 1;
 	}
 	_requestBuffer.append(buffer, bytesRead);
 
@@ -240,7 +237,6 @@ int Client::processRequest(Request& req) {
             return result;
         return 0;
     }
-
     std::cout << getTimeStamp(_fd) << BLUE << "Parsed Request: " << RESET << 
         req.getMethod() << " " << req.getPath() << " " << req.getVersion() << std::endl;
 
