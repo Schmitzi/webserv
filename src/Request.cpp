@@ -2,8 +2,7 @@
 
 Request::Request() {}
 
-Request::Request(const std::string& rawRequest, Server& server, int clientFd) : 
-Request::Request(const std::string& rawRequest, Server& server, int clientFd) : 
+Request::Request(const std::string& rawRequest, Client& client, int clientFd) : 
 	_host(""),
 	_method("GET"),
 	_check(""),
@@ -16,9 +15,8 @@ Request::Request(const std::string& rawRequest, Server& server, int clientFd) :
     _boundary(""),
 	_contentLength(0),
 	_curConf(),
-	_configs(server.getConfigs()),
-	_clientFd(clientFd)
-	_configs(server.getConfigs()),
+	_client(&client),
+	_configs(_client->getConfigs()),
 	_clientFd(clientFd)
 {
     parse(rawRequest);
@@ -42,6 +40,7 @@ Request &Request::operator=(const Request& copy) {
 		_boundary = copy._boundary;
 		_contentLength = copy._contentLength;
 		_curConf = copy._curConf;
+		_client = copy._client;
 		_configs = copy._configs;
 		_clientFd = copy._clientFd;
 	}
@@ -106,25 +105,53 @@ void    Request::setContentType(std::string const content) {
     _contentType = content;
 }
 
+bool Request::hasServerName() {
+	std::map<std::string, std::string>::iterator it = _headers.find("Host");
+	std::string servName;
+	if (it != _headers.end())
+        servName = it->second;
+	if (servName.find("localhost") != std::string::npos) {
+		std::string portPart = servName.substr(servName.find(":") + 1);
+		if (onlyDigits(portPart)) {
+			std::string sum = "localhost:" + portPart;
+			if (sum == servName)
+				return false;
+		}
+	}
+	return true;
+}
+
 bool Request::matchHostServerName() {
 	std::map<std::string, std::string>::iterator it = _headers.find("Host");
 	std::string servName;
-	if (it != _headers.end()) {
+	if (it != _headers.end())
         servName = it->second;
-    }
-	for (size_t i = 0; i < _configs.size(); i++) {
-		for (size_t j = 0; j < _configs[i].servName.size(); j++) {
-			if (servName == _configs[i].servName[j]) {
-				_curConf = _configs[i];
-				return true;
+	if (hasServerName()) {
+		for (size_t i = 0; i < _configs.size(); i++) {
+			for (size_t j = 0; j < _configs[i].servName.size(); j++) {
+				if (servName == _configs[i].servName[j]) {
+					_curConf = _configs[i];
+					return true;
+				}
+			}
+		}
+		for (size_t i = 0; i < _configs.size(); i++) {
+			for (size_t j = 0; j < _configs[i].port.size(); j++) {
+				if (_configs[i].port[j].second == true) {
+					_curConf = _configs[i];
+					return true;
+				}
 			}
 		}
 	}
-	for (size_t i = 0; i < _configs.size(); i++) {
-		for (size_t j = 0; j < _configs[i].port.size(); j++) {
-			if (_configs[i].port[j].second == true) {
-				_curConf = _configs[i];
-				return true;
+	else {
+		int portPart = std::atoi(servName.substr(servName.find(":") + 1).c_str());
+		for (size_t i = 0; i < _configs.size(); i++) {
+			for (size_t j = 0; j < _configs[i].port.size(); j++) {
+				if (_configs[i].port[j].first.second == portPart) {
+					_curConf = _configs[i];
+					return true;
+				}
 			}
 		}
 	}

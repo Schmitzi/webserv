@@ -37,6 +37,7 @@ class Client {
 
         int							&getFd();
         Server                  	&getServer();
+		std::vector<serverLevel>	getConfigs();
         void                    	setWebserv(Webserv &webserv);
         void                    	setServer(Server &server);
         void                    	setConfigs(const std::vector<serverLevel> &configs);
@@ -77,6 +78,7 @@ class Client {
         Server              		*_server;
         CGIHandler          		*_cgi;
 		std::vector<serverLevel>	_configs;
+		std::vector<std::string>	_send;
 };
 
 #endif

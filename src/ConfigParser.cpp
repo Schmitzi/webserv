@@ -48,6 +48,7 @@ ConfigParser::ConfigParser(const std::string& filepath) {
 		throw configException("Error: Invalid config file specified.");
 	storeConfigs();
 	parseAndSetConfigs();
+	// printIpPortToServers();
 }
 
 ConfigParser::ConfigParser(const ConfigParser& copy) {

@@ -71,6 +71,10 @@ void    Client::setConfigs(const std::vector<serverLevel> &configs) {
     _configs = configs;
 }
 
+std::vector<serverLevel> Client::getConfigs() {
+	return _configs;
+}
+
 int Client::acceptConnection(int serverFd) {
     _addrLen = sizeof(_addr);
     _fd  = accept(serverFd, (struct sockaddr *)&_addr, &_addrLen);
@@ -79,7 +83,7 @@ int Client::acceptConnection(int serverFd) {
         return 1;
     }
     
-    setConfigs(_server->getConfigs());
+    // setConfigs(_server->getConfigs());
     _cgi->setServer(*_server);
     
     std::cout << getTimeStamp(_fd) << "Client accepted" << std::endl;
@@ -106,8 +110,8 @@ int Client::recieveData() {
 	}
 	_requestBuffer.append(buffer, bytesRead);
 
-	Request req(_requestBuffer, getServer(), _fd);
-	
+	Request req(_requestBuffer, *this, _fd);
+
 	bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
 						_requestBuffer.find("chunked") != std::string::npos);
 	

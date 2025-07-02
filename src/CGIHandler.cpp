@@ -37,7 +37,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
     }
     
     if (_cgiBinPath.empty()) {
-        if (NIX == true) {
+        if (NIX == true)
             _cgiBinPath = "/etc/profiles/per-user/schmitzi/bin/php-cgi";
         else
             _cgiBinPath = "/usr/bin/cgi-bin";

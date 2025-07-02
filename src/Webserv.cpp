@@ -53,10 +53,6 @@ void Webserv::setEnvironment(char **envp) {
     _env = envp;
 }
 
-// char	**Webserv::getEnv() {
-// 	return _env;
-// }
-
 void Webserv::initialize() {
     for (size_t i = 0; i < _servers.size(); i++) {
     	if (_servers[i].getFd() > 0) {
@@ -93,6 +89,19 @@ void Webserv::initialize() {
     }
 }
 
+bool Webserv::checkEventMaskErrors(uint32_t &eventMask, int &fd) {
+	if (eventMask & EPOLLHUP) {
+		handleClientDisconnect(fd);
+		return false;
+	}
+	if (eventMask & EPOLLERR) {
+		std::cerr << getTimeStamp(fd) << RED << "Socket error" << RESET << std::endl;
+		handleErrorEvent(fd);
+		return false;
+	}
+	return true;
+}
+
 int Webserv::run() {
     _epollFd = epoll_create1(EPOLL_CLOEXEC);
     if (_epollFd == -1) {
@@ -112,15 +121,8 @@ int Webserv::run() {
 			int fd = _events[i].data.fd;
             uint32_t eventMask = _events[i].events;
             
-            if (eventMask & EPOLLHUP) {
-                handleClientDisconnect(fd);
-                continue;
-            }
-            if (eventMask & EPOLLERR) {
-                std::cerr << getTimeStamp(fd) << RED << "Socket error" << RESET << std::endl;
-                handleErrorEvent(fd);
-                continue;
-            }
+			if (!checkEventMaskErrors(eventMask, fd))
+				continue;
 			bool found = false;
             Server activeServer = findServerByFd(fd, found);
             if (found) {
@@ -129,13 +131,13 @@ int Webserv::run() {
             } else {
                 if (eventMask & EPOLLIN) {
                     handleClientActivity(fd);
-					if (eventMask & EPOLLHUP) {
-						handleClientDisconnect(fd);
+					if (!checkEventMaskErrors(eventMask, fd))
 						continue;
-            		}
 				}
-                if (eventMask & EPOLLOUT)
-                    std::cerr << RED << "WE NEED TO IMPLEMENT THIS" << RESET << std::endl;//TODO: Implement EPOLLOUT handling?
+                // if (eventMask & EPOLLOUT) {
+				// 	handleEpollOut(fd);
+                //     std::cerr << RED << "WE NEED TO IMPLEMENT THIS" << RESET << std::endl;//TODO: Implement EPOLLOUT handling?
+				// }
             }
         }
     }
