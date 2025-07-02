@@ -2,7 +2,7 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
 
-Client::Client(Server& serv) {
+Client::Client(Server& serv, uint32_t &eventMask) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
     setWebserv(serv.getWebServ());
@@ -12,6 +12,8 @@ Client::Client(Server& serv) {
 	_cgi = new CGIHandler();
 	_cgi->setClient(*this);
 	_cgi->setServer(serv);
+	_send.first = _fd;
+	_eventMask = &eventMask;
 }
 
 
@@ -25,7 +27,10 @@ Client::Client(const Client& client) {
     _configs = client._configs;
     _cgi = new CGIHandler();
     _cgi->setClient(*this);
-    _cgi->setServer(*_server); 
+    _cgi->setServer(*_server);
+	_send.first = client._send.first;
+	_send.second = client._send.second;
+	_eventMask = client._eventMask;
 }
 
 Client& Client::operator=(const Client& other) {
@@ -42,8 +47,11 @@ Client& Client::operator=(const Client& other) {
         _cgi = new CGIHandler();
         _cgi->setClient(*this);
         if (_server)
-            _cgi->setServer(*_server);
-    }
+        	_cgi->setServer(*_server);
+		_send.first = other._send.first;
+		_send.second = other._send.second;
+		_eventMask = other._eventMask;
+	}
     return *this;
 }
 
@@ -82,8 +90,6 @@ int Client::acceptConnection(int serverFd) {
 		std::cerr << getTimeStamp() << RED << "Error: accept() failed" << RESET << std::endl;
         return 1;
     }
-    
-    // setConfigs(_server->getConfigs());
     _cgi->setServer(*_server);
     
     std::cout << getTimeStamp(_fd) << "Client accepted" << std::endl;
@@ -479,9 +485,10 @@ int Client::createDirList(std::string fullPath, Request& req) {
     response += "Connection: keep-alive\r\n";
     response += "\r\n";
     response += dirListing;
-    ssize_t x = send(_fd, response.c_str(), response.length(), 0);
-	if (!checkReturn(_fd, x, "send()", "Unable to send directory listing"))
-		return 1;
+	_send.second.push_back(response);
+    // ssize_t x = send(_fd, response.c_str(), response.length(), 0);
+	// if (!checkReturn(_fd, x, "send()", "Unable to send directory listing"))
+	// 	return 1;
     std::cout << getTimeStamp(_fd) << GREEN  << "Sent directory listing: " << RESET << fullPath << std::endl;
     return 0;
 }
@@ -792,9 +799,10 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     response += "\r\n";
     response += body;
     
-    ssize_t x = send(_fd, response.c_str(), response.length(), 0);
-	if (!checkReturn(_fd, x, "send()", "Unable to send redirect response"))
-		return;
+	_send.second.push_back(response);
+    // ssize_t x = send(_fd, response.c_str(), response.length(), 0);
+	// if (!checkReturn(_fd, x, "send()", "Unable to send redirect response"))
+	// 	return;
     std::cout << getTimeStamp(_fd) << BLUE << "Sent redirect response: " << RESET
               << statusCode << " " << statusText << " to " << location << std::endl;
 }
@@ -834,10 +842,11 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
         return -1;
     }
     
-    ssize_t headerBytes = send(_fd, response.c_str(), response.length(), 0);
-	if (!checkReturn(_fd, headerBytes, "send()", "Unable to send headers"))
-		return -1;
-    std::cout << getTimeStamp(_fd) << GREEN  << "Sent headers " << RESET <<"(" << headerBytes << " bytes)" << std::endl;
+	_send.second.push_back(response);
+    // ssize_t headerBytes = send(_fd, response.c_str(), response.length(), 0);
+	// if (!checkReturn(_fd, headerBytes, "send()", "Unable to send headers"))
+	// 	return -1;
+    // std::cout << getTimeStamp(_fd) << GREEN  << "Sent headers " << RESET <<"(" << headerBytes << " bytes)" << std::endl;
     
     if (!content.empty()) {
         if (isChunked) {
@@ -855,31 +864,36 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
                 std::stringstream hexStream;
                 hexStream << std::hex << currentChunkSize;
                 std::string chunkHeader = hexStream.str() + "\r\n";
-                ssize_t a = send(_fd, chunkHeader.c_str(), chunkHeader.length(), 0);
-				if (!checkReturn(_fd, a, "send()", "Unable to send chunkHeader"))
-					return -1;
-                ssize_t b = send(_fd, content.c_str() + offset, currentChunkSize, 0);
-				if (!checkReturn(_fd, b, "send()", "Unable to send content"))
-					return -1;
-                ssize_t c = send(_fd, "\r\n", 2, 0);
-				if (!checkReturn(_fd, c, "send()", "Unable to send \'\r\n\'"))
-					return -1;
+				_send.second.push_back(chunkHeader);
+                // ssize_t a = send(_fd, chunkHeader.c_str(), chunkHeader.length(), 0);
+				// if (!checkReturn(_fd, a, "send()", "Unable to send chunkHeader"))
+				// 	return -1;
+				_send.second.push_back(content.c_str() + offset);
+                // ssize_t b = send(_fd, content.c_str() + offset, currentChunkSize, 0);
+				// if (!checkReturn(_fd, b, "send()", "Unable to send content"))
+				// 	return -1;
+				_send.second.push_back("\r\n");
+                // ssize_t c = send(_fd, "\r\n", 2, 0);
+				// if (!checkReturn(_fd, c, "send()", "Unable to send \'\r\n\'"))
+				// 	return -1;
                 offset += currentChunkSize;
                 remaining -= currentChunkSize;
             }
             
-            ssize_t d = send(_fd, "0\r\n\r\n", 5, 0);
-			if (!checkReturn(_fd, d, "send()", "Unable to send \'0\r\n\r\n\'"))
-				return -1;
+			_send.second.push_back("0\r\n\r\n");
+            // ssize_t d = send(_fd, "0\r\n\r\n", 5, 0);
+			// if (!checkReturn(_fd, d, "send()", "Unable to send \'0\r\n\r\n\'"))
+			// 	return -1;
             
             std::cout << getTimeStamp(_fd) << GREEN  << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
             return content.length();
         } else {
-            ssize_t bodyBytes = send(_fd, content.c_str(), content.length(), 0);
-            if (!checkReturn(_fd, bodyBytes, "send()", "Unable to send body"))
-				return -1;
-            std::cout << getTimeStamp(_fd) << GREEN  << "Sent body " << RESET << "(" << bodyBytes << " bytes)\n";
-            return bodyBytes;
+			_send.second.push_back(content);
+            // ssize_t bodyBytes = send(_fd, content.c_str(), content.length(), 0);
+            // if (!checkReturn(_fd, bodyBytes, "send()", "Unable to send body"))
+			// 	return -1;
+            // std::cout << getTimeStamp(_fd) << GREEN  << "Sent body " << RESET << "(" << bodyBytes << " bytes)\n";
+            return content.length();
         }
     } else {
         std::cout << getTimeStamp(_fd) << GREEN  << "Response sent (headers only)" << RESET << std::endl;
@@ -893,10 +907,11 @@ bool Client::sendAll(int sockfd, const std::string& data) {
 	const char* buffer = data.c_str();
 
 	while (total_sent < to_send) {
-		ssize_t sent = send(sockfd, buffer + total_sent, to_send - total_sent, 0);
-		if (!checkReturn(_fd, sent, "send()", "Unable to send complete data"))
-			return false;
-		total_sent += sent;
+		_send.second.push_back(buffer + total_sent);
+		// ssize_t sent = send(sockfd, buffer + total_sent, to_send - total_sent, 0);
+		// if (!checkReturn(_fd, sent, "send()", "Unable to send complete data"))
+		// 	return false;
+		total_sent += (to_send - total_sent);
 	}
 	return true;
 }

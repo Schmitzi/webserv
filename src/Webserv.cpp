@@ -120,6 +120,7 @@ int Webserv::run() {
         for (int i = 0; i < nfds; i++) {
 			int fd = _events[i].data.fd;
             uint32_t eventMask = _events[i].events;
+			_events[i].events = EPOLLIN | EPOLLOUT;
             
 			if (!checkEventMaskErrors(eventMask, fd))
 				continue;
@@ -127,17 +128,17 @@ int Webserv::run() {
             Server activeServer = findServerByFd(fd, found);
             if (found) {
                 if (eventMask & EPOLLIN)
-                    handleNewConnection(activeServer);
+                    handleNewConnection(activeServer, eventMask);
             } else {
                 if (eventMask & EPOLLIN) {
-                    handleClientActivity(fd);
+                    handleClientActivity(fd, eventMask);
 					if (!checkEventMaskErrors(eventMask, fd))
 						continue;
 				}
-                // if (eventMask & EPOLLOUT) {
-				// 	handleEpollOut(fd);
-                //     std::cerr << RED << "WE NEED TO IMPLEMENT THIS" << RESET << std::endl;//TODO: Implement EPOLLOUT handling?
-				// }
+                if (eventMask & EPOLLOUT) {
+					handleEpollOut(fd);
+                    std::cerr << RED << "WE NEED TO IMPLEMENT THIS" << RESET << std::endl;
+				}
             }
         }
     }
@@ -206,7 +207,7 @@ void Webserv::handleClientDisconnect(int fd) {
     std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
-void Webserv::handleNewConnection(Server &server) {
+void Webserv::handleNewConnection(Server &server, uint32_t &eventMask) {
 	// std::cout << "================================================================================" << std::endl;
 	if (_clients.size() >= 1000) { // Adjust limit as needed
         std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
@@ -218,7 +219,7 @@ void Webserv::handleNewConnection(Server &server) {
             close(newFd);
         return;
     }
-    Client newClient(server);
+    Client newClient(server, eventMask);
     
     if (newClient.acceptConnection(server.getFd()) == 0) {
         newClient.displayConnection();
@@ -232,7 +233,7 @@ void Webserv::handleNewConnection(Server &server) {
     }
 }
 
-void Webserv::handleClientActivity(int clientFd) {    
+void Webserv::handleClientActivity(int clientFd, uint32_t &eventMask) {    
     Client* clientPtr = NULL;
     for (size_t i = 0; i < _clients.size(); i++) {
         if (_clients[i].getFd() == clientFd) {
