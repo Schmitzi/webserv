@@ -29,7 +29,9 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
     _path = scriptPath;
    
     if (doChecks(client, req) == 1)
+    if (doChecks(client, req) == 1)
         return 1;
+    if (prepareEnv(req) == 1)
     if (prepareEnv(req) == 1)
         return 1;
 
@@ -93,6 +95,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
         std::cerr << "execve failed: " << strerror(errno) << std::endl;
         exit(1);
     } 
+       
     else if (pid > 0) {  // Parent process
         close(_input[0]);  // Close read end
         close(_output[1]); // Close write end
@@ -136,8 +139,7 @@ int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scri
             cleanupResources();
             return 1;
         }
-    }
-    
+	}
     client.sendErrorResponse(500, req);
     cleanupResources();
     return 1;
@@ -219,11 +221,13 @@ int CGIHandler::processScriptOutput(Client &client) {
     timeout.tv_sec = 10;
     timeout.tv_usec = 0;
     
-    int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, &timeout);
+    int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, &timeout);  // TODO: check if writefds are neccesary
     
     if (selectResult > 0 && FD_ISSET(_output[0], &readfds)) {
         ssize_t bytesRead;
-        while ((bytesRead = read(_output[0], buffer, sizeof(buffer) - 1)) > 0) {
+        while ((bytesRead = read(_output[0], buffer, sizeof(buffer) - 1)) >= 0) {
+			if (bytesRead == 0)
+				break;
             buffer[bytesRead] = '\0';
             output += buffer;
             totalBytesRead += bytesRead;
@@ -262,13 +266,16 @@ int CGIHandler::processScriptOutput(Client &client) {
     std::map<std::string, std::string> headerMap = parseHeaders(headerSection);
     
     if (isChunkedTransfer(headerMap))
+    if (isChunkedTransfer(headerMap))
         return handleChunkedOutput(headerMap, bodyContent);
+    else
     else
         return handleStandardOutput(headerMap, bodyContent);
 }
 
 bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& headers) {
     std::map<std::string, std::string>::const_iterator it = headers.find("Transfer-Encoding");
+    if (it != headers.end() && it->second.find("chunked") != std::string::npos)
     if (it != headers.end() && it->second.find("chunked") != std::string::npos)
         return true;
     return false;
@@ -545,6 +552,7 @@ void CGIHandler::cleanupResources() {
 int CGIHandler::doChecks(Client client, Request& req) {
     if (access(_path.c_str(), F_OK) != 0) {
         std::cerr << getTimeStamp(_client->getFd()) << RED << "Script does not exist: " << RESET << _path << std::endl;
+        std::cerr << getTimeStamp(_client->getFd()) << RED << "Script does not exist: " << RESET << _path << std::endl;
         client.sendErrorResponse(404, req);
         return 1;
     }
@@ -556,6 +564,7 @@ int CGIHandler::doChecks(Client client, Request& req) {
     }
 
     if (pipe(_input) < 0 || pipe(_output) < 0) {
+        std::cerr << getTimeStamp(_client->getFd()) << RED << "Pipe creation failed" << RESET << std::endl;
         std::cerr << getTimeStamp(_client->getFd()) << RED << "Pipe creation failed" << RESET << std::endl;
         client.sendErrorResponse(500, req);
         return 1;

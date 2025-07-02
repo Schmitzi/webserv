@@ -30,7 +30,7 @@ struct	locationLevel;
 
 class Client {
     public:
-        Client(Server& serv);
+        Client(Server& serv, uint32_t &eventMask);
         Client(const Client& client);
 		Client &operator=(const Client& other);
         ~Client();
@@ -70,15 +70,16 @@ class Client {
         bool                    	isChunkedBodyComplete(const std::string& buffer);
 
     private:
-        struct sockaddr_in  		_addr;
-        socklen_t           		_addrLen;
-        int                 		_fd;
-        std::string         		_requestBuffer;
-        Webserv             		*_webserv;
-        Server              		*_server;
-        CGIHandler          		*_cgi;
-		std::vector<serverLevel>	_configs;
-		std::vector<std::string>	_send;
+        struct sockaddr_in  						_addr;
+        socklen_t           						_addrLen;
+        int                 						_fd;
+        std::string         						_requestBuffer;
+        Webserv             						*_webserv;
+        Server              						*_server;
+        CGIHandler          						*_cgi;
+		std::vector<serverLevel>					_configs;
+		std::pair<int, std::vector<std::string> >	_send;
+		uint32_t									*_eventMask;
 };
 
 #endif

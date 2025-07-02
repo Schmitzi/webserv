@@ -53,8 +53,8 @@ class Webserv {
         void            			initialize();
 		bool						checkEventMaskErrors(uint32_t &eventMask, int &fd);
         int             			run();
-        void            			handleNewConnection(Server& server);
-        void            			handleClientActivity(int clientFd);
+        void            			handleNewConnection(Server& server, uint32_t &eventMask);
+        void            			handleClientActivity(int clientFd, uint32_t &eventMask);
         void            			cleanup();
 
     private:

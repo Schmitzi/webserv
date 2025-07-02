@@ -160,9 +160,8 @@ bool Request::matchHostServerName() {
 
 void Request::parse(const std::string& rawRequest) {
     if (rawRequest.empty()) {
-        std::cerr << getTimeStamp(_clientFd) << BLUE << "Empty request!" << RESET << std::endl; // TODO changed from RED to BLUE so signify INFO, instead of ERROR
-		//_check = "BAD";
-        _check == "EMPTY";
+        std::cerr << getTimeStamp(_clientFd) << RED << "Empty request!" << RESET << std::endl;
+		_check = "BAD";
         return;
     }
 
