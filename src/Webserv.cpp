@@ -102,6 +102,10 @@ bool Webserv::checkEventMaskErrors(uint32_t &eventMask, int &fd) {
 	return true;
 }
 
+int Webserv::getEpollFd() {
+	return _epollFd;
+}
+
 int Webserv::run() {
     _epollFd = epoll_create1(EPOLL_CLOEXEC);
     if (_epollFd == -1) {
@@ -120,26 +124,21 @@ int Webserv::run() {
         for (int i = 0; i < nfds; i++) {
 			int fd = _events[i].data.fd;
             uint32_t eventMask = _events[i].events;
-			_events[i].events = EPOLLIN | EPOLLOUT;
-            
-			if (!checkEventMaskErrors(eventMask, fd))
+            if (!checkEventMaskErrors(eventMask, fd))
 				continue;
 			bool found = false;
             Server activeServer = findServerByFd(fd, found);
             if (found) {
                 if (eventMask & EPOLLIN)
-                    handleNewConnection(activeServer, eventMask);
+                    handleNewConnection(activeServer);
             } else {
-                if (eventMask & EPOLLIN) {
-                    handleClientActivity(fd, eventMask);
-					if (!checkEventMaskErrors(eventMask, fd))
-						continue;
-				}
-                if (eventMask & EPOLLOUT) {
+                if (eventMask & EPOLLIN)
+                    handleClientActivity(fd);
+                if (eventMask & EPOLLOUT)
 					handleEpollOut(fd);
-                    std::cerr << RED << "WE NEED TO IMPLEMENT THIS" << RESET << std::endl;
-				}
             }
+			if (!checkEventMaskErrors(eventMask, fd))
+				continue;
         }
     }
     return 0;
@@ -169,6 +168,15 @@ void Webserv::handleErrorEvent(int fd) {
         }
     }
     std::cerr << getTimeStamp(fd) << RED << "Error on unknown fd" << RESET << std::endl;
+}
+
+void Webserv::setEpollEvents(int fd, uint32_t events) {
+	struct epoll_event ev;
+	ev.events = events;
+	ev.data.fd = fd;
+	if (epoll_ctl(_epollFd, EPOLL_CTL_MOD, fd, &ev) == -1) {
+		std::cerr << "Error: epoll_ctl MOD failed for fd " << fd << std::endl;
+	}
 }
 
 int Webserv::addToEpoll(int fd, short events) {  
@@ -207,7 +215,7 @@ void Webserv::handleClientDisconnect(int fd) {
     std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
-void Webserv::handleNewConnection(Server &server, uint32_t &eventMask) {
+void Webserv::handleNewConnection(Server &server) {
 	// std::cout << "================================================================================" << std::endl;
 	if (_clients.size() >= 1000) { // Adjust limit as needed
         std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
@@ -219,7 +227,7 @@ void Webserv::handleNewConnection(Server &server, uint32_t &eventMask) {
             close(newFd);
         return;
     }
-    Client newClient(server, eventMask);
+    Client newClient(server);
     
     if (newClient.acceptConnection(server.getFd()) == 0) {
         newClient.displayConnection();
@@ -233,7 +241,7 @@ void Webserv::handleNewConnection(Server &server, uint32_t &eventMask) {
     }
 }
 
-void Webserv::handleClientActivity(int clientFd, uint32_t &eventMask) {    
+void Webserv::handleClientActivity(int clientFd) {    
     Client* clientPtr = NULL;
     for (size_t i = 0; i < _clients.size(); i++) {
         if (_clients[i].getFd() == clientFd) {
@@ -260,6 +268,44 @@ void Webserv::handleClientActivity(int clientFd, uint32_t &eventMask) {
             }
         }
     }
+}
+
+void Webserv::handleEpollOut(int fd) {
+	for (size_t i = 0; i < _clients.size(); ++i) {
+		if (_clients[i].getFd() == fd) {
+			Client& client = _clients[i];
+			std::vector<std::string>& toSend = client.getSend();
+			size_t& index = client.getBufferIndex();
+			size_t& offset = client.getOffset();
+
+			while (index < toSend.size()) {
+				const std::string& msg = toSend[index];
+				size_t remaining = msg.size() - offset;
+				ssize_t s = send(fd, msg.c_str() + offset, remaining, 0);
+
+				if (s < 0) {
+					if (errno == EAGAIN || errno == EWOULDBLOCK)
+						return;
+					std::cerr << getTimeStamp(fd) << RED << "Error: send() failed" << RESET << std::endl;
+					return;
+				}
+
+				offset += s;
+				if (offset == msg.size()) {
+					index++;
+					offset = 0;
+				}
+			}
+
+			if (index == toSend.size()) {
+				toSend.clear();
+				index = 0;
+				offset = 0;
+				setEpollEvents(fd, EPOLLIN);
+			}
+			return;
+		}
+	}
 }
 
 void    Webserv::cleanup() {

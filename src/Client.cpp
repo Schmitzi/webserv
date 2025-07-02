@@ -2,7 +2,7 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
 
-Client::Client(Server& serv, uint32_t &eventMask) {
+Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
     setWebserv(serv.getWebServ());
@@ -12,8 +12,8 @@ Client::Client(Server& serv, uint32_t &eventMask) {
 	_cgi = new CGIHandler();
 	_cgi->setClient(*this);
 	_cgi->setServer(serv);
-	_send.first = _fd;
-	_eventMask = &eventMask;
+	_sendBufferIndex = 0;
+	_sendOffset = 0;
 }
 
 
@@ -28,9 +28,9 @@ Client::Client(const Client& client) {
     _cgi = new CGIHandler();
     _cgi->setClient(*this);
     _cgi->setServer(*_server);
-	_send.first = client._send.first;
-	_send.second = client._send.second;
-	_eventMask = client._eventMask;
+	_send = client._send;
+	_sendBufferIndex = client._sendBufferIndex;
+	_sendOffset = client._sendOffset;
 }
 
 Client& Client::operator=(const Client& other) {
@@ -46,11 +46,11 @@ Client& Client::operator=(const Client& other) {
         _configs = other._configs;
         _cgi = new CGIHandler();
         _cgi->setClient(*this);
-        if (_server)
-        	_cgi->setServer(*_server);
-		_send.first = other._send.first;
-		_send.second = other._send.second;
-		_eventMask = other._eventMask;
+		if (_server)
+			_cgi->setServer(*_server);
+		_send = other._send;
+		_sendBufferIndex = other._sendBufferIndex;
+		_sendOffset = other._sendOffset;
 	}
     return *this;
 }
@@ -81,6 +81,18 @@ void    Client::setConfigs(const std::vector<serverLevel> &configs) {
 
 std::vector<serverLevel> Client::getConfigs() {
 	return _configs;
+}
+
+std::vector<std::string>& Client::getSend() {
+	return _send;
+}
+
+size_t& Client::getBufferIndex() {
+	return _sendBufferIndex;
+}
+
+size_t& Client::getOffset() {
+	return _sendOffset;
 }
 
 int Client::acceptConnection(int serverFd) {
@@ -116,8 +128,6 @@ int Client::recieveData() {
 	}
 	_requestBuffer.append(buffer, bytesRead);
 
-	Request req(_requestBuffer, *this, _fd);
-
 	bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
 						_requestBuffer.find("chunked") != std::string::npos);
 	
@@ -135,6 +145,7 @@ int Client::recieveData() {
 		std::cout << std::endl;
 	std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
 	printNewLine = false;
+	Request req(_requestBuffer, *this, _fd);
 	int processResult = processRequest(req);
 	
 	if (processResult != -1)
@@ -396,26 +407,28 @@ int Client::buildBody(Request &req, std::string fullPath) {
     
     struct stat fileStat;
     if (fstat(fd, &fileStat) < 0) {
+		sendErrorResponse(500, req);
         close(fd);
-        sendErrorResponse(500, req);
         return 1;
     }
     
     std::vector<char> buffer(fileStat.st_size);
 
     ssize_t bytesRead = read(fd, buffer.data(), fileStat.st_size);
-    close(fd);
 	if (bytesRead == 0) {
+		close(fd);
 		std::cout << getTimeStamp(_fd) << BLUE << "Nothing to be read in file: " << RESET << fullPath << std::endl;
 		return 0;
 	}
     else if (bytesRead < 0) {
         std::cerr << getTimeStamp(_fd) << RED << "Error: read() failed on file: " << RESET << fullPath << std::endl;
         sendErrorResponse(500, req);
+		close(fd);
         return 1;
     }
 	std::string fileContent(buffer.data(), bytesRead);
 	req.setBody(fileContent);
+	close(fd);
     return 0;
 }
 
@@ -485,10 +498,8 @@ int Client::createDirList(std::string fullPath, Request& req) {
     response += "Connection: keep-alive\r\n";
     response += "\r\n";
     response += dirListing;
-	_send.second.push_back(response);
-    // ssize_t x = send(_fd, response.c_str(), response.length(), 0);
-	// if (!checkReturn(_fd, x, "send()", "Unable to send directory listing"))
-	// 	return 1;
+	_send.push_back(response);
+	_webserv->setEpollEvents(_fd, EPOLLOUT);
     std::cout << getTimeStamp(_fd) << GREEN  << "Sent directory listing: " << RESET << fullPath << std::endl;
     return 0;
 }
@@ -642,10 +653,10 @@ int Client::handlePostRequest(Request& req) {
     std::cout << getTimeStamp(_fd) << BLUE << "Writing to file: " << RESET << fullPath << std::endl;
     
     ssize_t bytesWritten = write(fd, contentToWrite.c_str(), contentToWrite.length());
-    close(fd);
     
 	if (!checkReturn(_fd, bytesWritten, "write()", "Failed to write to file")) {
         sendErrorResponse(500, req);
+		close(fd);
         return 1;
     }
     std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
@@ -659,7 +670,7 @@ int Client::handlePostRequest(Request& req) {
     
     std::cout << getTimeStamp(_fd) << GREEN  << "Uploaded file: " << RESET << fullPath 
               << " (" << bytesWritten << " bytes written)" << std::endl;
-    
+    close(fd);
     return 0;
 }
 
@@ -718,7 +729,7 @@ int Client::handleMultipartPost(Request& req) {
 
     std::string fileContent = parser.getFileContent();
     if (fileContent.empty() && !parser.isComplete()) {
-        return -1;
+        return 1;
     }
     
     if (!saveFile(req, filename, fileContent)) {
@@ -760,12 +771,12 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
     }
     
     ssize_t bytesWritten = write(fd, content.c_str(), content.length());
-    close(fd);
-    
     if (!checkReturn(_fd, bytesWritten, "write()", "Failed to write to file")) {
         sendErrorResponse(500, req);
+		close(fd);
         return false;
     }
+	close(fd);
     return true;
 }
 
@@ -799,10 +810,8 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     response += "\r\n";
     response += body;
     
-	_send.second.push_back(response);
-    // ssize_t x = send(_fd, response.c_str(), response.length(), 0);
-	// if (!checkReturn(_fd, x, "send()", "Unable to send redirect response"))
-	// 	return;
+	_send.push_back(response);
+	_webserv->setEpollEvents(_fd, EPOLLOUT);
     std::cout << getTimeStamp(_fd) << BLUE << "Sent redirect response: " << RESET
               << statusCode << " " << statusText << " to " << location << std::endl;
 }
@@ -837,16 +846,13 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     response += "Access-Control-Allow-Origin: *\r\n";
     response += "\r\n";
     
+	_send.push_back(response);
     if (_fd < 0) {
         std::cerr << getTimeStamp(_fd) << RED  << "FD became invalid before send" << RESET << std::endl;
         return -1;
     }
     
-	_send.second.push_back(response);
-    // ssize_t headerBytes = send(_fd, response.c_str(), response.length(), 0);
-	// if (!checkReturn(_fd, headerBytes, "send()", "Unable to send headers"))
-	// 	return -1;
-    // std::cout << getTimeStamp(_fd) << GREEN  << "Sent headers " << RESET <<"(" << headerBytes << " bytes)" << std::endl;
+	// _send.push_back(response);
     
     if (!content.empty()) {
         if (isChunked) {
@@ -864,38 +870,24 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
                 std::stringstream hexStream;
                 hexStream << std::hex << currentChunkSize;
                 std::string chunkHeader = hexStream.str() + "\r\n";
-				_send.second.push_back(chunkHeader);
-                // ssize_t a = send(_fd, chunkHeader.c_str(), chunkHeader.length(), 0);
-				// if (!checkReturn(_fd, a, "send()", "Unable to send chunkHeader"))
-				// 	return -1;
-				_send.second.push_back(content.c_str() + offset);
-                // ssize_t b = send(_fd, content.c_str() + offset, currentChunkSize, 0);
-				// if (!checkReturn(_fd, b, "send()", "Unable to send content"))
-				// 	return -1;
-				_send.second.push_back("\r\n");
-                // ssize_t c = send(_fd, "\r\n", 2, 0);
-				// if (!checkReturn(_fd, c, "send()", "Unable to send \'\r\n\'"))
-				// 	return -1;
+				_send.push_back(chunkHeader);
+				_send.push_back(content.c_str() + offset);
+				_send.push_back("\r\n");
                 offset += currentChunkSize;
                 remaining -= currentChunkSize;
             }
             
-			_send.second.push_back("0\r\n\r\n");
-            // ssize_t d = send(_fd, "0\r\n\r\n", 5, 0);
-			// if (!checkReturn(_fd, d, "send()", "Unable to send \'0\r\n\r\n\'"))
-			// 	return -1;
-            
+			_send.push_back("0\r\n\r\n");
+			_webserv->setEpollEvents(_fd, EPOLLOUT);
             std::cout << getTimeStamp(_fd) << GREEN  << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
             return content.length();
         } else {
-			_send.second.push_back(content);
-            // ssize_t bodyBytes = send(_fd, content.c_str(), content.length(), 0);
-            // if (!checkReturn(_fd, bodyBytes, "send()", "Unable to send body"))
-			// 	return -1;
-            // std::cout << getTimeStamp(_fd) << GREEN  << "Sent body " << RESET << "(" << bodyBytes << " bytes)\n";
+			_send.push_back(content);
+			_webserv->setEpollEvents(_fd, EPOLLOUT);
             return content.length();
         }
     } else {
+		_webserv->setEpollEvents(_fd, EPOLLOUT);
         std::cout << getTimeStamp(_fd) << GREEN  << "Response sent (headers only)" << RESET << std::endl;
         return 0;
     }
@@ -907,11 +899,10 @@ bool Client::sendAll(int sockfd, const std::string& data) {
 	const char* buffer = data.c_str();
 
 	while (total_sent < to_send) {
-		_send.second.push_back(buffer + total_sent);
-		// ssize_t sent = send(sockfd, buffer + total_sent, to_send - total_sent, 0);
-		// if (!checkReturn(_fd, sent, "send()", "Unable to send complete data"))
-		// 	return false;
-		total_sent += (to_send - total_sent);
+		ssize_t sent = send(sockfd, buffer + total_sent, to_send - total_sent, 0);
+		if (!checkReturn(_fd, sent, "send()", "Unable to send complete data"))
+			return false;
+		total_sent += sent;
 	}
 	return true;
 }
@@ -935,8 +926,8 @@ void Client::sendErrorResponse(int statusCode, Request& req) {
     response += "\r\n";
     response += body;
     
-    if (!sendAll(_fd, response))
-        std::cerr << getTimeStamp(_fd) << RED  << "Failed to send error response" << std::endl;
+    _send.push_back(response);
+	_webserv->setEpollEvents(_fd, EPOLLOUT);
     std::cerr << getTimeStamp(_fd) << RED  << "Error sent: " << statusCode << RESET << std::endl;
 }
 

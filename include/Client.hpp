@@ -30,7 +30,7 @@ struct	locationLevel;
 
 class Client {
     public:
-        Client(Server& serv, uint32_t &eventMask);
+        Client(Server& serv);
         Client(const Client& client);
 		Client &operator=(const Client& other);
         ~Client();
@@ -68,6 +68,9 @@ class Client {
         std::string             	decodeChunkedBody(const std::string& chunkedData);
         bool                    	isChunkedRequest(const Request& req);
         bool                    	isChunkedBodyComplete(const std::string& buffer);
+		std::vector<std::string>	&getSend();
+		size_t						&getBufferIndex();
+		size_t						&getOffset();
 
     private:
         struct sockaddr_in  						_addr;
@@ -78,8 +81,9 @@ class Client {
         Server              						*_server;
         CGIHandler          						*_cgi;
 		std::vector<serverLevel>					_configs;
-		std::pair<int, std::vector<std::string> >	_send;
-		uint32_t									*_eventMask;
+		std::vector<std::string>					_send;
+		size_t										_sendBufferIndex;
+		size_t										_sendOffset;
 };
 
 #endif
