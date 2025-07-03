@@ -223,6 +223,7 @@ int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& h
         temp.setContentType("text/html");
     
     temp.setBody(initialBody);
+	_client->setConnect("keep-alive");
     _client->sendResponse(temp, "keep-alive", temp.getBody());
     return 0;
 }
@@ -242,7 +243,7 @@ int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& he
     
     response += "Connection: keep-alive\r\n";
     response += "\r\n";
-    
+    _client->setConnect("keep-alive");
     response += formatChunkedResponse(initialBody);
     if (!_client->sendAll(_client->getFd(), response)) {
         std::cerr << getTimeStamp(_client->getFd()) << RED << "Failed to send chunked response" << RESET << std::endl;

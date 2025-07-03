@@ -18,6 +18,10 @@
 #define GREEN   "\33[32m"
 #define RED     "\33[31m"
 #define WHITE   "\33[97m"
+#define YELLOW  "\33[33m"
+#define CYAN    "\33[36m"
+#define MAGENTA "\33[35m"
+#define GREY    "\33[90m"
 #define RESET   "\33[0m" // No Colour
 
 // Forward declarations
@@ -68,22 +72,23 @@ class Client {
         std::string             	decodeChunkedBody(const std::string& chunkedData);
         bool                    	isChunkedRequest(const Request& req);
         bool                    	isChunkedBodyComplete(const std::string& buffer);
-		std::vector<std::string>	&getSend();
-		size_t						&getBufferIndex();
 		size_t						&getOffset();
+		std::string					getConnect();
+		void						setConnect(std::string connect);
+		int							getExitCode();
 
     private:
-        struct sockaddr_in  						_addr;
-        socklen_t           						_addrLen;
-        int                 						_fd;
-        std::string         						_requestBuffer;
-        Webserv             						*_webserv;
-        Server              						*_server;
-        CGIHandler          						*_cgi;
-		std::vector<serverLevel>					_configs;
-		std::vector<std::string>					_send;
-		size_t										_sendBufferIndex;
-		size_t										_sendOffset;
+        struct sockaddr_in  		_addr;
+        socklen_t           		_addrLen;
+        int                 		_fd;
+        std::string         		_requestBuffer;
+        Webserv             		*_webserv;
+        Server              		*_server;
+        CGIHandler          		*_cgi;
+		std::vector<serverLevel>	_configs;
+		size_t						_sendOffset;
+		std::string					_connect;
+		int							_exitCode;
 };
 
 #endif

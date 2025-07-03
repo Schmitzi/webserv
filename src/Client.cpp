@@ -12,8 +12,9 @@ Client::Client(Server& serv) {
 	_cgi = new CGIHandler();
 	_cgi->setClient(*this);
 	_cgi->setServer(serv);
-	_sendBufferIndex = 0;
+	_connect = "";
 	_sendOffset = 0;
+	_exitCode = 0;
 }
 
 
@@ -28,9 +29,9 @@ Client::Client(const Client& client) {
     _cgi = new CGIHandler();
     _cgi->setClient(*this);
     _cgi->setServer(*_server);
-	_send = client._send;
-	_sendBufferIndex = client._sendBufferIndex;
+	_connect = client._connect;
 	_sendOffset = client._sendOffset;
+	_exitCode = client._exitCode;
 }
 
 Client& Client::operator=(const Client& other) {
@@ -46,11 +47,10 @@ Client& Client::operator=(const Client& other) {
         _configs = other._configs;
         _cgi = new CGIHandler();
         _cgi->setClient(*this);
-		if (_server)
-			_cgi->setServer(*_server);
-		_send = other._send;
-		_sendBufferIndex = other._sendBufferIndex;
+		_cgi->setServer(*_server);
+		_connect = other._connect;
 		_sendOffset = other._sendOffset;
+		_exitCode = other._exitCode;
 	}
     return *this;
 }
@@ -59,7 +59,7 @@ Client::~Client() {
 	delete _cgi;
 }
 
-int     &Client::getFd() {
+int	&Client::getFd() {
     return _fd;
 }
 
@@ -83,16 +83,20 @@ std::vector<serverLevel> Client::getConfigs() {
 	return _configs;
 }
 
-std::vector<std::string>& Client::getSend() {
-	return _send;
-}
-
-size_t& Client::getBufferIndex() {
-	return _sendBufferIndex;
-}
-
 size_t& Client::getOffset() {
 	return _sendOffset;
+}
+
+void Client::setConnect(std::string connect) {
+	_connect = connect;
+}
+
+std::string Client::getConnect() {
+	return _connect;
+}
+
+int Client::getExitCode() {
+	return _exitCode;
 }
 
 int Client::acceptConnection(int serverFd) {
@@ -148,8 +152,9 @@ int Client::recieveData() {
 	Request req(_requestBuffer, *this, _fd);
 	int processResult = processRequest(req);
 	
-	if (processResult != -1)
+	if (processResult != 1)
 		_requestBuffer.clear();
+	_exitCode = processResult;
 	return processResult;
 }
 
@@ -272,8 +277,7 @@ int Client::handleGetRequest(Request& req) {
 	std::string requestPath = req.getPath();
 	locationLevel* loc = NULL;
 	if (!matchLocation(req.getPath(), req.getConf(), loc)) {
-		std::cerr << getTimeStamp(_fd) << RED  << "Location not found: " 
-		<< RESET << req.getPath() << std::endl;
+		std::cerr << getTimeStamp(_fd) << RED  << "Location not found: " << RESET << req.getPath() << std::endl;
 		sendErrorResponse(404, req);
 		return 1;
 	}
@@ -446,6 +450,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 				if (buildBody(req, indexPath) == 1)
 					return 1;
 				req.setContentType("text/html");
+				_connect = "keep-alive";
 				sendResponse(req, "keep-alive", req.getBody());
 				std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served index file: " << RESET << indexPath << std::endl;
 				return 0;
@@ -468,6 +473,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
                 if (buildBody(req, indexPath) == 1)
                     return 1;
                 req.setContentType("text/html");
+				_connect = "keep-alive";
                 sendResponse(req, "keep-alive", req.getBody());
                 std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served index file: " << RESET << indexPath << std::endl;
                 return 0;
@@ -498,7 +504,8 @@ int Client::createDirList(std::string fullPath, Request& req) {
     response += "Connection: keep-alive\r\n";
     response += "\r\n";
     response += dirListing;
-	_send.push_back(response);
+	_connect = "keep-alive";
+	_webserv->addSendBuf(_fd, response);
 	_webserv->setEpollEvents(_fd, EPOLLOUT);
     std::cout << getTimeStamp(_fd) << GREEN  << "Sent directory listing: " << RESET << fullPath << std::endl;
     return 0;
@@ -660,7 +667,7 @@ int Client::handlePostRequest(Request& req) {
         return 1;
     }
     std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
-    
+    _connect = "keep-alive";
     ssize_t responseResult = sendResponse(req, "keep-alive", responseBody);
     
     if (responseResult < 0) {
@@ -701,7 +708,6 @@ int Client::handleDeleteRequest(Request& req) {
         	return 1;
 		}
     }
-
     sendResponse(req, "keep-alive", "");
     return 0;
 }
@@ -799,7 +805,6 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     body += "<body><h1>" + statusText + "</h1>";
     body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
     
-    // Create complete response with all headers
     std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
     response += "Location: " + location + "\r\n";
     response += "Content-Type: text/html\r\n";
@@ -809,14 +814,15 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     response += "Connection: close\r\n";
     response += "\r\n";
     response += body;
-    
-	_send.push_back(response);
+    _connect = "close";
+	_webserv->addSendBuf(_fd, response);
 	_webserv->setEpollEvents(_fd, EPOLLOUT);
     std::cout << getTimeStamp(_fd) << BLUE << "Sent redirect response: " << RESET
               << statusCode << " " << statusText << " to " << location << std::endl;
 }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
+	_connect = connect;
     if (_fd <= 0) {
         std::cerr << getTimeStamp(_fd) << RED << "Invalid fd in sendResponse" << RESET << std::endl;
         return -1;
@@ -846,13 +852,12 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
     response += "Access-Control-Allow-Origin: *\r\n";
     response += "\r\n";
     
-	_send.push_back(response);
     if (_fd < 0) {
         std::cerr << getTimeStamp(_fd) << RED  << "FD became invalid before send" << RESET << std::endl;
         return -1;
     }
     
-	// _send.push_back(response);
+	_webserv->addSendBuf(_fd, response);
     
     if (!content.empty()) {
         if (isChunked) {
@@ -870,19 +875,22 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
                 std::stringstream hexStream;
                 hexStream << std::hex << currentChunkSize;
                 std::string chunkHeader = hexStream.str() + "\r\n";
-				_send.push_back(chunkHeader);
-				_send.push_back(content.c_str() + offset);
-				_send.push_back("\r\n");
+				_webserv->addSendBuf(_fd, chunkHeader);
+				std::string s = content.c_str() + offset;
+				_webserv->addSendBuf(_fd, s);
+				std::string s1 = "\r\n";
+				_webserv->addSendBuf(_fd, s1);
                 offset += currentChunkSize;
                 remaining -= currentChunkSize;
             }
             
-			_send.push_back("0\r\n\r\n");
+			std::string s2 = "0\r\n\r\n";
+			_webserv->addSendBuf(_fd, s2);
 			_webserv->setEpollEvents(_fd, EPOLLOUT);
             std::cout << getTimeStamp(_fd) << GREEN  << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
             return content.length();
         } else {
-			_send.push_back(content);
+			_webserv->addSendBuf(_fd, content);
 			_webserv->setEpollEvents(_fd, EPOLLOUT);
             return content.length();
         }
@@ -919,14 +927,16 @@ void Client::sendErrorResponse(int statusCode, Request& req) {
     response += "Server: WebServ/1.0\r\n";
     response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
     response += "Pragma: no-cache\r\n";
-    if (statusCode == 413)
+    if (statusCode == 413) {
+		_connect = "keep-alive";
         response += "Connection: keep-alive\r\n";
-    else
+	} else {
+		_connect = "close";
         response += "Connection: close\r\n";
+	}
     response += "\r\n";
     response += body;
-    
-    _send.push_back(response);
+    _webserv->addSendBuf(_fd, response);
 	_webserv->setEpollEvents(_fd, EPOLLOUT);
     std::cerr << getTimeStamp(_fd) << RED  << "Error sent: " << statusCode << RESET << std::endl;
 }

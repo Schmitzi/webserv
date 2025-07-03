@@ -31,6 +31,10 @@ class	Client;
 #define GREEN   "\33[32m"
 #define RED     "\33[31m"
 #define WHITE   "\33[97m"
+#define YELLOW  "\33[33m"
+#define CYAN    "\33[36m"
+#define MAGENTA "\33[35m"
+#define GREY    "\33[90m"
 #define RESET   "\33[0m" // No Colour
 
 // Others
@@ -46,6 +50,7 @@ class Webserv {
         void            			setEnvironment(char **envp);
         void            			flipState();
         Server        				findServerByFd(int fd, bool& found);
+		Client&						findClientByFd(int fd, bool& found);
         void            			handleErrorEvent(int fd);
         int             			addToEpoll(int fd, short events);
         void            			removeFromEpoll(int fd);
@@ -59,6 +64,9 @@ class Webserv {
         void            			cleanup();
 		int							getEpollFd();
 		void						setEpollEvents(int fd, uint32_t events);
+		void						addSendBuf(int fd, const std::string& s);
+		void						clearSendBuf(int fd);
+		const std::string&			getSendBuf(int fd);
 
     private:
         bool                        _state;
@@ -69,6 +77,7 @@ class Webserv {
         struct epoll_event          _events[MAX_EVENTS];
         ConfigParser				_confParser;
         std::vector<serverLevel>	_configs; 
+		std::map<int, std::string>	_sendBuf;
 };
 
 #endif
