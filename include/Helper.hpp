@@ -20,6 +20,7 @@ std::string					decode(const std::string& encoded);
 std::string					encode(const std::string& decoded);
 std::string					getTimeStamp(int fd = -1);
 bool 						checkReturn(int fd, ssize_t r, const std::string& func, const std::string& isZero);
+void						doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent);
 void						printConfigs(std::vector<serverLevel> configs);
 void						printConfig(serverLevel& conf);
 

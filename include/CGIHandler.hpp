@@ -20,19 +20,23 @@ struct	serverLevel;
 class CGIHandler {
     public:
 		CGIHandler();
+		CGIHandler(const Client& client);
+		CGIHandler(const CGIHandler& copy);
+		CGIHandler&operator=(const CGIHandler& copy);
         ~CGIHandler();
 
-        void									setClient(Client &client);
         void									setServer(Server &server);
         void									setCGIBin(serverLevel *config);
+		void									setPath(const std::string& path);
         std::string								getInfoPath();
-        bool									isCGIScript(const std::string& path);
-        int										doChecks(Client client, Request& req);
-        int										processScriptOutput(Client &client);
+        int										doChecks(Request& req);
+        int										processScriptOutput();
         int										handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
         int										handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
-        int										executeCGI(Client &client, Request& req, std::string const &scriptPath);
-        void									doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent);
+		void									prepareForExecve(std::vector<char*>& argsPtrs, std::vector<char*>& envPtrs);
+		int										doChild();
+		int										doParent(Request& req);
+        int										executeCGI(Request& req);
 		int										prepareEnv(Request &req);
         std::map<std::string, std::string>		parseHeaders(const std::string& headerSection);
         std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
@@ -51,6 +55,7 @@ class CGIHandler {
         std::string								_path;
         Client									*_client;
         Server									*_server;
+		std::string								_outputBuffer;
 };
 
 #endif

@@ -65,6 +65,25 @@ void Webserv::clearSendBuf(int fd) {
 	_sendBuf.erase(fd);
 }
 
+bool Webserv::isCgiPipeFd(int fd) const {
+    return _cgis.find(fd) != _cgis.end();
+}
+
+void Webserv::registerCgiPipe(int fd, CGIHandler* handler) {
+    _cgis[fd] = handler;
+}
+
+CGIHandler* Webserv::getCgiHandler(int fd) const {
+    std::map<int, CGIHandler*>::const_iterator it = _cgis.find(fd);
+    if (it != _cgis.end())
+        return it->second;
+    return NULL;
+}
+
+void Webserv::unregisterCgiPipe(int fd) {
+    _cgis.erase(fd);
+}
+
 void Webserv::initialize() {
     for (size_t i = 0; i < _servers.size(); i++) {
     	if (_servers[i].getFd() > 0) {
@@ -146,6 +165,14 @@ int Webserv::run() {
             } else {
                 if (eventMask & EPOLLIN)
                     handleClientActivity(fd);
+				if (isCgiPipeFd(fd)) {
+					CGIHandler* handler = getCgiHandler(fd);
+					if (handler) {
+						if (handler->processScriptOutput())
+							std::cerr << getTimeStamp(fd) << RED << "Error: CGI processing failed" << RESET << std::endl;
+					}
+					continue;
+				}
 			}
 			if (eventMask & EPOLLOUT)
 				handleEpollOut(fd);
@@ -193,6 +220,8 @@ void Webserv::handleErrorEvent(int fd) {
 }
 
 void Webserv::setEpollEvents(int fd, uint32_t events) {
+	if (fd < 0)
+		return;
 	struct epoll_event ev;
 	ev.events = events;
 	ev.data.fd = fd;
@@ -271,7 +300,6 @@ void Webserv::handleClientActivity(int clientFd) {
         close(clientFd);
         return;
     }
-    
     client.recieveData();
 }
 
@@ -295,13 +323,9 @@ void Webserv::handleEpollOut(int fd) {
 
 	ssize_t s = send(fd, data, remaining, 0);
 	if (s < 0) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK)
-			return;
 		std::cerr << getTimeStamp(fd) << RED << "Error: send() failed" << RESET << std::endl;
 		clearSendBuf(fd);
-		offset = 0;
-		close(fd);
-		return;
+		c.setExitCode(1);
 	}
 
 	offset += static_cast<size_t>(s);
@@ -312,7 +336,7 @@ void Webserv::handleEpollOut(int fd) {
 		if (c.getConnect() == "keep-alive")
 			setEpollEvents(fd, EPOLLIN);
 		else
-			close(fd);
+			c.setExitCode(1);
 	}
 	if (c.getExitCode() != 0) {
 		removeFromEpoll(fd);

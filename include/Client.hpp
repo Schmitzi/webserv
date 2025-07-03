@@ -28,7 +28,6 @@
 class	Webserv;
 class	Server;
 class	Request;
-class	CGIHandler;
 struct	serverLevel;
 struct	locationLevel;
 
@@ -53,6 +52,7 @@ class Client {
         int                     	handleGetRequest(Request& req);
         bool                    	isFileBrowserRequest(const std::string& path);
         int                     	handleFileBrowserRequest(Request& req);
+		bool						isCGIScript(const std::string& path);
         int                     	handleRegularRequest(Request& req);
         int                     	buildBody(Request &req, std::string fullPath);
 		std::string			 		getLocationPath(Request& req, const std::string& method);
@@ -68,7 +68,6 @@ class Client {
         void                    	sendRedirect(int statusCode, const std::string& location);
         ssize_t                 	sendResponse(Request req, std::string connect, std::string body);
         void                    	sendErrorResponse(int statusCode, Request& req);
-        bool						sendAll(int sockfd, const std::string& data);
         std::string             	decodeChunkedBody(const std::string& chunkedData);
         bool                    	isChunkedRequest(const Request& req);
         bool                    	isChunkedBodyComplete(const std::string& buffer);
@@ -76,6 +75,7 @@ class Client {
 		std::string					getConnect();
 		void						setConnect(std::string connect);
 		int							getExitCode();
+		void						setExitCode(int i);
 
     private:
         struct sockaddr_in  		_addr;
@@ -84,7 +84,6 @@ class Client {
         std::string         		_requestBuffer;
         Webserv             		*_webserv;
         Server              		*_server;
-        CGIHandler          		*_cgi;
 		std::vector<serverLevel>	_configs;
 		size_t						_sendOffset;
 		std::string					_connect;

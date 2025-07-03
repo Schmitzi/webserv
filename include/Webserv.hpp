@@ -20,6 +20,7 @@
 #include "Server.hpp"
 #include "Client.hpp"
 #include "ConfigParser.hpp"
+#include "CGIHandler.hpp"
 #include "Helper.hpp"
 
 // Forward declarations
@@ -39,6 +40,8 @@ class	Client;
 
 // Others
 #define MAX_EVENTS 64
+
+class	CGIHandler;
 
 class Webserv {
     public:
@@ -67,11 +70,16 @@ class Webserv {
 		void						addSendBuf(int fd, const std::string& s);
 		void						clearSendBuf(int fd);
 		const std::string&			getSendBuf(int fd);
+		bool						isCgiPipeFd(int fd) const;
+		void						registerCgiPipe(int fd, CGIHandler* handler);
+		void						unregisterCgiPipe(int fd);
+		CGIHandler*					getCgiHandler(int fd) const;
 
     private:
         bool                        _state;
         std::vector<Server> 		_servers;
         std::vector<Client>   	    _clients;
+		std::map<int, CGIHandler*>	_cgis;
         char                    	**_env;
         int                         _epollFd;
         struct epoll_event          _events[MAX_EVENTS];

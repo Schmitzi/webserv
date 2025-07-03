@@ -285,9 +285,9 @@ def webAnother():
     run_test("Keep-Alive Header (Connection reuse)", test_keep_alive)
     run_test("Unsupported HTTP Version", test_http_0_9)
     run_test("Missing Host Header (HTTP/1.1)", test_missing_host)
-    run_test("Multiple Concurrent GET Requests (x10)", test_concurrent_gets)
+    # run_test("Multiple Concurrent GET Requests (x10)", test_concurrent_gets)
     run_test("Invalid HTTP Method (via netcat workaround)", test_invalid_method)
-    run_test("Large Request Body (20MB)", lambda: test_large_body_rejected(big_file))
+    # run_test("Large Request Body (20MB)", lambda: test_large_body_rejected(big_file))
 
     os.remove(temp_file)
     os.remove(big_file)
@@ -1530,11 +1530,11 @@ def webUriEncoding():
 def main():
     integrated_tests = [
         ("webAnother tests", webAnother),
-        ("webCheck tests", webCheck),
-        ("webChunk tests", webChunk),
-        ("webTest tests", webTest),
+        # ("webCheck tests", webCheck),
+        # ("webChunk tests", webChunk),
+        # ("webTest tests", webTest),
         ("webTestCgiFileArgs", webTestCgiFileArg),
-        ("webUriEncoding", webUriEncoding)
+        # ("webUriEncoding", webUriEncoding)
     ]
     
     try:

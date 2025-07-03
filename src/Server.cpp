@@ -15,15 +15,10 @@ Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
         std::string mapIp = it->first.first.first;
         int mapPort = it->first.first.second;
         if (mapIp == targetIp && mapPort == targetPort) {
-            for (size_t i = 0; i < it->second.size(); ++i) {
-				// std::cout << "MAPIP: " << mapIp << " -> target: " << targetIp << std::endl;
-				// std::cout << "MAPPORT: " << mapPort << " -> target: " << targetPort << std::endl;
-				// std::cout << "---> " << it->second[i].servName[0] << std::endl;
+            for (size_t i = 0; i < it->second.size(); ++i)
                 _configs.push_back(it->second[i]);
-			}
         }
     }
-
     _webserv = &webserv;
 }
 
