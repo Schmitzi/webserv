@@ -11,6 +11,7 @@ Client::Client(Server& serv, uint32_t &eventMask) {
 	_connect = "";
 	_sendOffset = 0;
 	_exitCode = 0;
+    (void)eventMask;
 }
 
 Client::Client(const Client& client) {
@@ -360,6 +361,7 @@ int Client::handleRegularRequest(Request& req) {
     if (handleRedirect(req) == 0)
 		return 1;
     if (isCGIScript(reqPath)) {
+        std::cout << "CGI Client\n";
 		CGIHandler cgi = CGIHandler(*this);
 		cgi.setCGIBin(&req.getConf());
 		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);

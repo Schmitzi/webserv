@@ -256,6 +256,7 @@ bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& hea
 
 int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
     // Build complete HTTP response
+    Request temp; // TODO: maybe???
     std::string response = "HTTP/1.1 200 OK\r\n";
     
     std::map<std::string, std::string>::const_iterator typeIt = headerMap.find("Content-Type");
@@ -410,7 +411,7 @@ int CGIHandler::prepareEnv(Request &req) {
     _env.push_back("SCRIPT_FILENAME=" + abs_path);
     _env.push_back("REDIRECT_STATUS=200");
     _env.push_back("SERVER_SOFTWARE=WebServ/1.0");
-    _env.push_back("SERVER_NAME=" + req.getConf().servName[0]);//_env.push_back("SERVER_NAME=WebServ/1.0");//TODO: actual servername or this?
+    _env.push_back("SERVER_NAME=" + req.getConf().servName[0]); //TODO: actual servername or this? This!
     _env.push_back("GATEWAY_INTERFACE=CGI/1.1");
     _env.push_back("SERVER_PROTOCOL=HTTP/1.1");
     _env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(req.getConf())));
@@ -500,3 +501,10 @@ int CGIHandler::doChecks(Request& req) {
     }
     return 0;
 }
+
+
+std::string CGIHandler::extractPathInfo(const std::string& requestPath, const std::string& scriptPath) {
+    std::cout << "Req path: " << requestPath << "\n";
+    std::cout << "Path: " << scriptPath << " \n";
+    return "";
+} 

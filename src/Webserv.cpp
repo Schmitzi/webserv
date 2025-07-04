@@ -66,6 +66,7 @@ void Webserv::clearSendBuf(int fd) {
 }
 
 bool Webserv::isCgiPipeFd(int fd) const {
+    std::cout << "CGI size: " << _cgis.size() << "\n";
     return _cgis.find(fd) != _cgis.end();
 }
 
@@ -161,18 +162,21 @@ int Webserv::run() {
             Server activeServer = findServerByFd(fd, found);
             if (found) {
                 if (eventMask & EPOLLIN)
-                    handleNewConnection(activeServer);
+                    handleNewConnection(activeServer, eventMask);
             } else {
                 if (eventMask & EPOLLIN)
                     handleClientActivity(fd);
 				if (isCgiPipeFd(fd)) {
+					std::cout << RED << "CGI\n" << RESET;
 					CGIHandler* handler = getCgiHandler(fd);
 					if (handler) {
+						std::cout << "Handling\n";
 						if (handler->processScriptOutput())
 							std::cerr << getTimeStamp(fd) << RED << "Error: CGI processing failed" << RESET << std::endl;
 					}
 					continue;
 				}
+				std::cout << "Not CGI\n";
 			}
 			if (eventMask & EPOLLOUT)
 				handleEpollOut(fd);
@@ -265,7 +269,7 @@ void Webserv::handleClientDisconnect(int fd) {
     std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
-void Webserv::handleNewConnection(Server &server) {
+void Webserv::handleNewConnection(Server &server, u_int32_t eventMask) {
 	if (_clients.size() >= 1000) {
         std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
         
@@ -276,7 +280,7 @@ void Webserv::handleNewConnection(Server &server) {
             close(newFd);
         return;
     }
-    Client newClient(server, eventMask);
+    Client newClient(server, eventMask); //eventMask
     
     if (newClient.acceptConnection(server.getFd()) == 0) {
         newClient.displayConnection();
