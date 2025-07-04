@@ -22,6 +22,7 @@
 #include "ConfigParser.hpp"
 #include "CGIHandler.hpp"
 #include "Helper.hpp"
+#include "EpollHelper.hpp"
 
 // Forward declarations
 class	Server;
@@ -50,30 +51,27 @@ class Webserv {
         Webserv &operator=(Webserv const &other);
         ~Webserv();
 
+        // Getters and Setters
         void            			setEnvironment(char **envp);
         void            			flipState();
-        Server        				findServerByFd(int fd, bool& found);
-		Client&						findClientByFd(int fd, bool& found);
-        void            			handleErrorEvent(int fd);
-        int             			addToEpoll(int fd, short events);
-        void            			removeFromEpoll(int fd);
-        void            			handleClientDisconnect(int fd);
+        Server*        				getServerByFd(int fd);
+		Client*						getClientByFd(int fd);
+		int							getEpollFd();
+		std::string			        &getSendBuf(int fd);
+        std::map<int, std::string>  &getSendBuf();
+        std::map<int, CGIHandler *> &getCgis();
+
         void            			initialize();
-		bool						checkEventMaskErrors(uint32_t &eventMask, int &fd);
         int             			run();
+
+		void						handleEpollOut(int fd);
         void            			handleNewConnection(Server& server);
         void            			handleClientActivity(int clientFd);
-		void						handleEpollOut(int fd);
+        void            			handleClientDisconnect(int fd);
+
+		// bool						checkEventMaskErrors(uint32_t &eventMask, int &fd);
+        void            			handleErrorEvent(int fd);
         void            			cleanup();
-		int							getEpollFd();
-		int							setEpollEvents(int fd, uint32_t events);
-		void						addSendBuf(int fd, const std::string& s);
-		void						clearSendBuf(int fd);
-		const std::string&			getSendBuf(int fd);
-		bool						isCgiPipeFd(int fd) const;
-		void						registerCgiPipe(int pipe, CGIHandler* handler);
-		void						unregisterCgiPipe(int pipe);
-		CGIHandler*					getCgiHandler(int fd) const;
 
     private:
         bool                        _state;

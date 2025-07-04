@@ -85,9 +85,7 @@ int Client::acceptConnection(int serverFd) {
     if (_fd < 0) {
 		std::cerr << getTimeStamp() << RED << "Error: accept() failed" << RESET << std::endl;
         return 1;
-    }
-    // _cgi.setServer(*_server);
-    
+    }    
     std::cout << getTimeStamp(_fd) << "Client accepted" << std::endl;
     
     return 0;
@@ -502,8 +500,8 @@ int Client::createDirList(std::string fullPath, Request& req) {
     response += "\r\n";
     response += dirListing;
 	_connect = "keep-alive";
-	_webserv->addSendBuf(_fd, response);
-	if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+	addSendBuf(*_webserv, _fd, response);
+	if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
 		std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 4" << RESET << std::endl;
 		return 1;
 	}
@@ -621,7 +619,6 @@ int Client::handlePostRequest(Request& req) {
 		CGIHandler cgi = CGIHandler(*this);
 		std::string cgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), req.getPath());
 		cgi.setPath(cgiPath);
-		std::cout << MAGENTA << "HERE 2: " << cgiPath << RESET << std::endl;
         return cgi.executeCGI(req);
     }
     
@@ -822,8 +819,8 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     response += "\r\n";
     response += body;
     _connect = "close";
-	_webserv->addSendBuf(_fd, response);
-	if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+	addSendBuf(*_webserv, _fd, response);
+	if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
 		std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 5" << RESET << std::endl;
 		return;
 	}
@@ -867,7 +864,7 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
         return -1;
     }
     
-	_webserv->addSendBuf(_fd, response);
+	addSendBuf(*_webserv, _fd, response);
     
     if (!content.empty()) {
         if (isChunked) {
@@ -887,29 +884,29 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
 				std::string all = hexStream.str() + "\r\n";
 				all += content.c_str() + offset;
 				all += "\r\n";
-				_webserv->addSendBuf(_fd, all);
+				addSendBuf(*_webserv, _fd, all);
                 offset += currentChunkSize;
                 remaining -= currentChunkSize;
             }
             
 			std::string s2 = "0\r\n\r\n";
-			_webserv->addSendBuf(_fd, s2);
-			if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+			addSendBuf(*_webserv, _fd, s2);
+			if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
 				std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 6" << RESET << std::endl;
 				return 1;
 			}
 			std::cout << getTimeStamp(_fd) << GREEN  << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
 			return content.length();
         } else {
-			_webserv->addSendBuf(_fd, content);
-			if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+			addSendBuf(*_webserv, _fd, content);
+			if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
 				std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 7" << RESET << std::endl;
 				return 1;
 			}
 			return content.length();
         }
     } else {
-		if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+		if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
 			std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 8" << RESET << std::endl;
 			return 1;
 		}
@@ -939,8 +936,8 @@ void Client::sendErrorResponse(int statusCode, Request& req) {
 	}
     response += "\r\n";
     response += body;
-    _webserv->addSendBuf(_fd, response);
-	if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+    addSendBuf(*_webserv, _fd, response);
+	if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
 		std::cerr << getTimeStamp() << RED << "Error: setEpollEvents() failed 9" << RESET << std::endl;
 		return;
 	}

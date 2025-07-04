@@ -143,8 +143,6 @@ void doQueryStuff(const std::string text, std::string& fileName, std::string& fi
 
 			if (key == "file" || key == "name" || key == "test")
 				fileName = value;
-			// else if (key == "content" || key == "body" || key == "data" || key == "text" || key == "value")
-			// 	fileContent = value;
 			else
 				fileContent = value;
 		}

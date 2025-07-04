@@ -51,6 +51,7 @@ int main(int ac, char **av, char **envp) {
     try {
 		signal(SIGINT, signalHandler);
 		signal(SIGTERM, signalHandler);
+		signal(SIGPIPE, SIG_IGN);
 	
 		if (av[1]) {
 			Webserv webserv = Webserv(av[1]);

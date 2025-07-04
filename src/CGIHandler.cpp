@@ -107,8 +107,6 @@ int CGIHandler::doChild() {
 	prepareForExecve(argsPtrs, envPtrs);
 	close(_input[1]);
 	_input[1] = -1;
-	// close(_output[0]);
-	// _output[0] = -1;
 	
 	if (dup2(_input[0], STDIN_FILENO) < 0 || dup2(_output[1], STDOUT_FILENO) < 0) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: dup2() failed" << RESET << std::endl;
@@ -121,10 +119,9 @@ int CGIHandler::doChild() {
 	_output[1] = -1;
 	
 	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
-	
-	std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: execve() failed" << RESET << std::endl;
-	cleanupResources();
-	return 1;
+	std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: execve() failed: " << RESET << strerror(errno) << std::endl;
+    exit(1);//cleanupResources();
+    return 1;
 }
 
 int CGIHandler::doParent(Request& req, pid_t& pid) {
@@ -145,15 +142,14 @@ int CGIHandler::doParent(Request& req, pid_t& pid) {
 	const int TIMEOUT_SECONDS = 30;
 	time_t start_time = time(NULL);
 	int status;
-	
-	
+
 	std::cout << CYAN << "before waiting..." << RESET << std::endl;
 	while (true) {
-		pid_t result = waitpid(pid, &status, WNOHANG);
-		if (result == pid)
+        pid_t result = waitpid(pid, &status, WNOHANG);//SIGCHLD);
+        if (result == pid)
 			break;
 		else if (result == -1) {
-			std::cerr << getTimeStamp(_client->getFd()) << RED << "waitpid error" << RESET << std::endl;
+			std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: waitpid()" << RESET << std::endl;
 			_client->sendErrorResponse(500, req);
 			cleanupResources();
 			return 1;
@@ -169,30 +165,31 @@ int CGIHandler::doParent(Request& req, pid_t& pid) {
 		usleep(100000);
 	}
 
-	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-		if (_done == true) {
-			std::cout << CYAN << "cgi done flag is true" << RESET << std::endl;
-			if (_server->getWebServ().setEpollEvents(_output[0], EPOLLOUT)) {
-				std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: setEpollEvents() failed 1" << RESET << std::endl;
-				_client->sendErrorResponse(500, req);
-				cleanupResources();
-				return 1;
-			}
-		}
-		// std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
-		// int result = processScriptOutput();
-		// cleanupResources();
-		// return result;
-		std::cout << MAGENTA << "EXITED WIFE!" << RESET << std::endl;
-		return 0;
-	} else {
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
-		_client->sendErrorResponse(500, req);
-		cleanupResources();
-		return 1;
-	}
+	if (WIFEXITED(status)) {
+        if (WEXITSTATUS(status) == 0) {
+            if (setEpollEvents(_server->getWebServ(), _output[0], EPOLLOUT)) {
+                std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: setEpollEvents() failed 1" << RESET << std::endl;
+                _client->sendErrorResponse(500, req);
+                cleanupResources();
+                return 1;
+            }
+            std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+            // cleanupResources();
+            return 0;
+        } else {
+            std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+            _client->sendErrorResponse(500, req);
+            cleanupResources();
+            return 1;
+        }
+    } else if (WIFSIGNALED(status)) {
+        std::cerr << getTimeStamp(_client->getFd()) << RED << "Script killed by signal: " << RESET << WTERMSIG(status) << std::endl;
+        _client->sendErrorResponse(500, req);
+        cleanupResources();
+        return 1;
+    }
+    return 0;
 }
-
 
 int CGIHandler::executeCGI(Request &req) {
     if (doChecks(req) || prepareEnv(req)) {
@@ -213,44 +210,59 @@ int CGIHandler::executeCGI(Request &req) {
     return doParent(req, pid);
 }
 
-int CGIHandler::processScriptOutput() {
+int CGIHandler::handleCgiPipeEvent(int fd, uint32_t events) {
     char buffer[4096];
-    ssize_t bytesRead = read(_input[0], buffer, sizeof(buffer));
+    ssize_t bytesRead;
 
-    if (bytesRead > 0) {
-        _outputBuffer.append(buffer, bytesRead);
-        std::cout << getTimeStamp(_client->getFd()) << BLUE
-                  << "Received bytes: " << RESET << bytesRead << std::endl;
-        return 0;
-    }
-    else if (bytesRead == 0) {
-		cleanupResources();
-        if (_outputBuffer.empty()) {
-            std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
-            defaultResponse += "Content-Type: text/plain\r\n";
-            defaultResponse += "Content-Length: 22\r\n\r\n";
-            defaultResponse += "No output from script\n";
-            _server->getWebServ().addSendBuf(_client->getFd(), defaultResponse);
-			if (_server->getWebServ().setEpollEvents(_client->getFd(), EPOLLOUT)) {
-				std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: setEpollEvents() failed 2" << RESET << std::endl;
-				return 1;
-			}
-			return 0;
-        }
-        std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
-        std::map<std::string, std::string> headerMap = parseHeaders(headerAndBody.first);
-
-        if (isChunkedTransfer(headerMap))
-            return handleChunkedOutput(headerMap, headerAndBody.second);
-        else
-            return handleStandardOutput(headerMap, headerAndBody.second);
-    }
-    else {
-        std::cerr << getTimeStamp(_client->getFd()) << RED
-                  << "Error: read() failed" << RESET << std::endl;
-		cleanupResources();
+    if (events & EPOLLERR) {
+        std::cout << CYAN << "___ CGI EPOLLERR ___" << RESET << std::endl;
+        std::cerr << getTimeStamp(fd) << RED << "Error: CGI pipe (EPOLLERR)" << RESET << std::endl;
+        _done = true;
+        cleanupResources();
         return 1;
     }
+
+    if (events & EPOLLIN || events & EPOLLHUP) {
+        std::cout << CYAN << "___ CGI EPOLLIN || EPOLLHUP ___" << RESET << std::endl;
+        bytesRead = read(fd, buffer, sizeof(buffer));
+        if (bytesRead > 0) {
+            _outputBuffer.append(buffer, bytesRead);
+            // return 0;
+        }
+        if (bytesRead == 0) {
+            _done = true;
+            return processScriptOutput();
+        } else if (bytesRead < 0) {
+            std::cerr << getTimeStamp(fd) << RED << "Error: CGI read() failed: " << RESET << std::endl;
+            _done = true;
+            cleanupResources();
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
+int CGIHandler::processScriptOutput() {
+    if (_outputBuffer.empty()) {
+        std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
+        defaultResponse += "Content-Type: text/plain\r\n";
+        defaultResponse += "Content-Length: 22\r\n\r\n";
+        defaultResponse += "No output from script\n";
+        addSendBuf(_server->getWebServ(), _client->getFd(), defaultResponse);
+        if (setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT)) {
+            std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: setEpollEvents() failed 2" << RESET << std::endl;
+            return 1;
+        }
+        return 0;
+    }
+    std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
+    std::map<std::string, std::string> headerMap = parseHeaders(headerAndBody.first);
+
+    if (isChunkedTransfer(headerMap))
+        return handleChunkedOutput(headerMap, headerAndBody.second);
+    else
+        return handleStandardOutput(headerMap, headerAndBody.second);
 }
 
 
@@ -272,11 +284,6 @@ int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& h
     
     temp.setBody(initialBody);
 	_client->setConnect("keep-alive");
-	if (_server->getWebServ().setEpollEvents(_client->getFd(), EPOLLOUT)) {//TODO: try
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: setEpollEvents() failed 2" << RESET << std::endl;
-		cleanupResources();
-		return 1;
-	}
     _client->sendResponse(temp, "keep-alive", temp.getBody());
     return 0;
 }
@@ -295,8 +302,8 @@ int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& he
     response += "\r\n";
     _client->setConnect("keep-alive");
     response += formatChunkedResponse(initialBody);
-	_server->getWebServ().addSendBuf(_client->getFd(), response);
-	if (_server->getWebServ().setEpollEvents(_client->getFd(), EPOLLOUT)) {
+	addSendBuf(_server->getWebServ(), _client->getFd(), response);
+	if (setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT)) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: setEpollEvents() failed 3" << RESET << std::endl;
 		cleanupResources();
 		return 1;
@@ -464,9 +471,9 @@ void CGIHandler::cleanupResources() {
 		close(_output[1]);
 		_output[1] = -1;
 	}
-	if (_output[0] >= 0) {
-		_server->getWebServ().unregisterCgiPipe(_output[0]);
-		_server->getWebServ().removeFromEpoll(_output[0]);
+	if (_output[0] >= 0 && _done == true) {
+		unregisterCgiPipe(_server->getWebServ(), _output[0]);
+		removeFromEpoll(_server->getWebServ(), _output[0]);
 		close(_output[0]);
 		_output[0] = -1;
 	}
@@ -495,12 +502,12 @@ int CGIHandler::doChecks(Request& req) {
         cleanupResources();
 		return 1;
     }
-	if (_server->getWebServ().addToEpoll(_output[0], EPOLLIN)) {
+	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN | EPOLLHUP | EPOLLERR)) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: addToEpoll() failed" << RESET << std::endl;
 		_client->sendErrorResponse(500, req);
 		cleanupResources();
 		return 1;
 	}
-	_server->getWebServ().registerCgiPipe(_output[0], this);
+	registerCgiPipe(_server->getWebServ(), _output[0], this);
     return 0;
 }

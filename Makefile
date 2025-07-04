@@ -20,6 +20,7 @@ FILES	=	main \
 			CGIHandler \
 			Multipart \
 			Helper \
+			EpollHelper \
 			Response
 
 SRC_DIR = 	src/

@@ -30,6 +30,7 @@ class CGIHandler {
 		void									setPath(const std::string& path);
         std::string								getInfoPath();
         int										doChecks(Request& req);
+        int										handleCgiPipeEvent(int fd, uint32_t events);
         int										processScriptOutput();
         int										handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
         int										handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
