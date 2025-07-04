@@ -102,41 +102,57 @@ void Client::displayConnection() {
 }
 
 int Client::recieveData() {
-	static bool printNewLine = false;
+    static bool printNewLine = false;
     char buffer[1000000];
     memset(buffer, 0, sizeof(buffer));
     
     ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
-	if (bytesRead < 0) {
-		std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
-		return 1;
-	}
-	_requestBuffer.append(buffer, bytesRead);
+    if (bytesRead < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return 0;
+        }
+        std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
+        return 1;
+    }
+    
+    if (bytesRead == 0) {
+        std::cout << getTimeStamp(_fd) << BLUE << "Client closed connection" << RESET << std::endl;
+        return 1;
+    }
+    
+    _requestBuffer.append(buffer, bytesRead);
 
-	bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
-						_requestBuffer.find("chunked") != std::string::npos);
-	
-	if (isChunked) {
-		if (!isChunkedBodyComplete(_requestBuffer)) {
-			std::cout << getTimeStamp(_fd) << BLUE 
-						<< "Chunked body incomplete, waiting for more data" << RESET << std::endl;
-			return 0;
-		}
-	} else {
-		if (checkLength(printNewLine) == 0)
-			return 0;
-	}
-	if (printNewLine == true)
-		std::cout << std::endl;
-	std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
-	printNewLine = false;
-	Request req(_requestBuffer, *this, _fd);
-	int processResult = processRequest(req);
-	
-	if (processResult != 1)
-		_requestBuffer.clear();
-	_exitCode = processResult;
-	return processResult;
+    bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
+                        _requestBuffer.find("chunked") != std::string::npos);
+    
+    if (isChunked) {
+        if (!isChunkedBodyComplete(_requestBuffer)) {
+            std::cout << getTimeStamp(_fd) << BLUE 
+                        << "Chunked body incomplete, waiting for more data" << RESET << std::endl;
+            return 0;
+        }
+    } else {
+        if (checkLength(printNewLine) == 0)
+            return 0;
+    }
+    if (printNewLine == true)
+        std::cout << std::endl;
+    std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
+    printNewLine = false;
+    
+    if (_requestBuffer.empty() || _requestBuffer.find("HTTP/") == std::string::npos) {
+        std::cout << getTimeStamp(_fd) << YELLOW << "Empty or invalid request received, closing connection" << RESET << std::endl;
+        _requestBuffer.clear();
+        return 1;
+    }
+    
+    Request req(_requestBuffer, *this, _fd);
+    int processResult = processRequest(req);
+    
+    if (processResult != 1)
+        _requestBuffer.clear();
+    _exitCode = processResult;
+    return processResult;
 }
 
 int Client::checkLength(bool &printNewLine) {
@@ -359,15 +375,21 @@ int Client::handleRegularRequest(Request& req) {
     }
 
     if (handleRedirect(req) == 0)
-		return 1;
-    if (isCGIScript(reqPath)) {
-        std::cout << "CGI Client\n";
-		CGIHandler cgi = CGIHandler(*this);
-		cgi.setCGIBin(&req.getConf());
-		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
-        cgi.setPath(fullCgiPath);
-		std::cout << MAGENTA << "HERE 1: " << fullCgiPath << RESET << std::endl;
-		return cgi.executeCGI(req);
+        return 1;
+        
+    if (isCGIScript(reqPath)) {      
+        CGIHandler* cgi = new CGIHandler(*this);
+        cgi->setCGIBin(&req.getConf());
+        std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
+        cgi->setPath(fullCgiPath);
+
+        int result = cgi->executeCGI(req);
+        
+        if (result != 0) {
+            delete cgi;
+        }
+        
+        return result;
     }
 
     std::cout << getTimeStamp(_fd) << BLUE << "Handling GET request for path: " << RESET << req.getPath() << std::endl;
@@ -618,11 +640,18 @@ int Client::handlePostRequest(Request& req) {
     if (fullPath.empty())
         return 1;
     if (isCGIScript(req.getPath())) {
-		CGIHandler cgi = CGIHandler(*this);
-		std::string cgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), req.getPath());
-		cgi.setPath(cgiPath);
-		std::cout << MAGENTA << "HERE 2: " << cgiPath << RESET << std::endl;
-        return cgi.executeCGI(req);
+        CGIHandler* cgi = new CGIHandler(*this);
+        std::string cgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), req.getPath());
+        cgi->setPath(cgiPath);
+
+        int result = cgi->executeCGI(req);
+        
+        // If executeCGI fails immediately, clean up
+        if (result != 0) {
+            delete cgi;
+        }
+        
+        return result;
     }
     
     if (req.getContentType().find("multipart/form-data") != std::string::npos)
@@ -689,11 +718,18 @@ int Client::handleDeleteRequest(Request& req) {
 	if (fullPath.empty())
 		return 1;
     if (isCGIScript(req.getPath())) {
-		CGIHandler cgi = CGIHandler(*this);
-		cgi.setPath(fullPath);
-		std::cout << MAGENTA << "HERE 3: " << fullPath << RESET << std::endl;
-        return cgi.executeCGI(req);
-	}
+        CGIHandler* cgi = new CGIHandler(*this);
+        cgi->setPath(fullPath);
+        std::cout << MAGENTA << "HERE 3: " << fullPath << RESET << std::endl;
+        
+        int result = cgi->executeCGI(req);
+        
+        if (result != 0) {
+            delete cgi;
+        }
+        
+        return result;
+    }
 
     size_t end = fullPath.find_last_not_of(" \t\r\n");
     if (end != std::string::npos)

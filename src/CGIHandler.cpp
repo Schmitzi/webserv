@@ -47,7 +47,13 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 }
 
 CGIHandler::~CGIHandler() {
-    cleanupResources();
+    if (_client) {
+        std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI destructor called" << RESET << std::endl;
+    }
+}
+
+Client*  CGIHandler::getClient() const {
+    return _client;
 }
 
 void CGIHandler::setServer(Server &server) {
@@ -168,25 +174,29 @@ int CGIHandler::doChild() {
 
 int CGIHandler::doParent(Request& req) {
 	close(_input[0]);
-	close(_output[1]);
+    close(_output[1]);
 
-	if (!req.getBody().empty()) {
-		ssize_t w = write(_input[1], req.getBody().c_str(), req.getBody().length());
-		if (!checkReturn(_client->getFd(), w, "write()", "Failed to write into pipe")) {
-			close(_input[1]);
-			_input[1] = -1;
-			_client->sendErrorResponse(500, req);
-			cleanupResources();
-			return 1;
-		}
-	}
-	close(_input[1]);
-	_input[1] = -1;
+    if (!req.getBody().empty()) {
+        ssize_t w = write(_input[1], req.getBody().c_str(), req.getBody().length());
+        if (!checkReturn(_client->getFd(), w, "write()", "Failed to write into pipe")) {
+            close(_input[1]);
+            _input[1] = -1;
+            _client->sendErrorResponse(500, req);
+            cleanupResources();
+            return 1;
+        }
+    }
+    close(_input[1]);
+    _input[1] = -1;
 
-	_server->getWebServ().setEpollEvents(_output[0], EPOLLIN);
+    if (_server->getWebServ().addToEpoll(_output[0], EPOLLIN) != 0) {
+        std::cerr << getTimeStamp(_client->getFd()) << RED << "Failed to add CGI pipe to epoll" << RESET << std::endl;
+        _client->sendErrorResponse(500, req);
+        cleanupResources();
+        return 1;
+    }
 	return 0;
 }
-
 
 int CGIHandler::executeCGI(Request &req) {
     if (doChecks(req) || prepareEnv(req))
@@ -206,19 +216,24 @@ int CGIHandler::executeCGI(Request &req) {
 
 int CGIHandler::processScriptOutput() {
     char buffer[4096];
-    ssize_t bytesRead = read(_output[0], buffer, sizeof(buffer));
+    ssize_t bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
 
     if (bytesRead > 0) {
+        buffer[bytesRead] = '\0'; // Null terminate for safety
         _outputBuffer.append(buffer, bytesRead);
         std::cout << getTimeStamp(_client->getFd()) << BLUE
-                  << "Received bytes: " << RESET << bytesRead << std::endl;
-        return 0;
+                  << "Received CGI bytes: " << RESET << bytesRead 
+                  << " (total: " << _outputBuffer.length() << ")" << std::endl;
+        return 0; // Continue reading
     }
     else if (bytesRead == 0) {
-        close(_output[0]);
-        _output[0] = -1;
-
+        // EOF reached - CGI script finished
+        std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI script finished output (EOF)" << RESET << std::endl;
+        std::cout << getTimeStamp(_client->getFd()) << GREEN << "Total CGI output: " << _outputBuffer.length() << " bytes" << RESET << std::endl;
+        
+        // Process the output first, then signal completion
         if (_outputBuffer.empty()) {
+            std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI script produced no output" << RESET << std::endl;
             std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
             defaultResponse += "Content-Type: text/plain\r\n";
             defaultResponse += "Content-Length: 22\r\n\r\n";
@@ -226,26 +241,36 @@ int CGIHandler::processScriptOutput() {
 
             _server->getWebServ().addSendBuf(_client->getFd(), defaultResponse);
             _server->getWebServ().setEpollEvents(_client->getFd(), EPOLLOUT);
-            return 0;
+        } else {
+            std::cout << getTimeStamp(_client->getFd()) << BLUE << "Processing CGI output..." << RESET << std::endl;
+            std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
+            std::map<std::string, std::string> headerMap = parseHeaders(headerAndBody.first);
+
+            std::cout << getTimeStamp(_client->getFd()) << BLUE << "CGI headers parsed, body size: " << headerAndBody.second.length() << RESET << std::endl;
+
+            if (isChunkedTransfer(headerMap))
+                handleChunkedOutput(headerMap, headerAndBody.second);
+            else
+                handleStandardOutput(headerMap, headerAndBody.second);
         }
-
-        std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
-        std::map<std::string, std::string> headerMap = parseHeaders(headerAndBody.first);
-
-        if (isChunkedTransfer(headerMap))
-            return handleChunkedOutput(headerMap, headerAndBody.second);
-        else
-            return handleStandardOutput(headerMap, headerAndBody.second);
+        
+        // Return 1 to signal completion - cleanup will be handled by the caller
+        return 1;
     }
     else {
+        // Error reading (including EAGAIN/EWOULDBLOCK)
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            std::cout << getTimeStamp(_client->getFd()) << BLUE << "CGI pipe would block, continuing..." << RESET << std::endl;
+            return 0; // Continue reading later
+        }
+        
         std::cerr << getTimeStamp(_client->getFd()) << RED
-                  << "Error: read() failed" << RESET << std::endl;
-        close(_output[0]);
-        _output[0] = -1;
+                  << "Error reading CGI output: " << strerror(errno) << RESET << std::endl;
+        
+        // Return 1 to signal error - cleanup will be handled by the caller
         return 1;
     }
 }
-
 
 bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& headers) {
     std::map<std::string, std::string>::const_iterator it = headers.find("Transfer-Encoding");
@@ -256,18 +281,40 @@ bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& hea
 
 int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
     // Build complete HTTP response
-    Request temp; // TODO: maybe???
     std::string response = "HTTP/1.1 200 OK\r\n";
     
+    // Add Content-Type header
     std::map<std::string, std::string>::const_iterator typeIt = headerMap.find("Content-Type");
     if (typeIt != headerMap.end())
-        temp.setContentType(typeIt->second);
+        response += "Content-Type: " + typeIt->second + "\r\n";
     else
-        temp.setContentType("text/html");
+        response += "Content-Type: text/html\r\n";
     
-    temp.setBody(initialBody);
-	_client->setConnect("keep-alive");
-    _client->sendResponse(temp, "keep-alive", temp.getBody());
+    // Add other headers from CGI output
+    for (std::map<std::string, std::string>::const_iterator it = headerMap.begin(); it != headerMap.end(); ++it) {
+        if (it->first != "Content-Type") {  // Already added above
+            response += it->first + ": " + it->second + "\r\n";
+        }
+    }
+    
+    // Add Content-Length
+    response += "Content-Length: " + tostring(initialBody.length()) + "\r\n";
+    
+    // Add server headers
+    response += "Server: WebServ/1.0\r\n";
+    response += "Connection: close\r\n";  // Use close instead of keep-alive for CGI
+    response += "\r\n";
+    
+    // Add the body
+    response += initialBody;
+    
+    // Send the complete response
+    _client->setConnect("close");
+    _server->getWebServ().addSendBuf(_client->getFd(), response);
+    _server->getWebServ().setEpollEvents(_client->getFd(), EPOLLOUT);
+    
+    std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI response sent (" << response.length() << " bytes)" << RESET << std::endl;
+    
     return 0;
 }
 
@@ -457,48 +504,66 @@ void    CGIHandler::makeArgs(std::string const &cgiBin, std::string& filePath) {
 }
 
 void CGIHandler::cleanupResources() {
+    if (!_client) {
+        std::cout << "CGI cleanup called with null client" << std::endl;
+        return;
+    }
+    
+    std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI cleanup started" << RESET << std::endl;
+
     for (int i = 0; i < 2; i++) {
         if (_input[i] >= 0) {
             close(_input[i]);
             _input[i] = -1;
         }
-	}
-	if (_output[1] >= 0) {
-		close(_output[1]);
-		_output[1] = -1;
-	}
-	if (_output[0] != -1) {
-		_server->getWebServ().unregisterCgiPipe(_output[0]);
-		close(_output[0]);
-		_output[0] = -1;
-	}
+    }
+    
+    if (_output[1] >= 0) {
+        close(_output[1]);
+        _output[1] = -1;
+    }
+    
+    if (_output[0] >= 0) {
+        std::cout << getTimeStamp(_client->getFd()) << YELLOW << "Cleaning up CGI pipe FD: " << _output[0] << RESET << std::endl;
+        
+        _server->getWebServ().removeFromEpoll(_output[0]);
+        
+        if (_server->getWebServ().isCgiPipeFd(_output[0])) {
+            _server->getWebServ().unregisterCgiPipe(_output[0]);
+        }
+        
+        close(_output[0]);
+        _output[0] = -1;
+    }
+    
     _path.clear();
     _args.clear();
     _env.clear();
+    _outputBuffer.clear();
+    
+    std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI cleanup completed" << RESET << std::endl;
 }
 
 int CGIHandler::doChecks(Request& req) {
-	_server->getWebServ().registerCgiPipe(_output[0], this);
     if (access(_path.c_str(), F_OK) != 0) {
         std::cerr << getTimeStamp(_client->getFd()) << RED << "Script does not exist: " << RESET << _path << std::endl;
         _client->sendErrorResponse(404, req);
-        cleanupResources();
-		return 1;
+        return 1;
     }
-
+    
     if (access(_path.c_str(), X_OK) != 0) {
         std::cerr << getTimeStamp(_client->getFd()) << RED << "Script is not executable: " << RESET << _path << std::endl;
         _client->sendErrorResponse(403, req);
-        cleanupResources();
-		return 1;
+        return 1;
     }
-
+    
     if (pipe(_input) < 0 || pipe(_output) < 0) {
         std::cerr << getTimeStamp(_client->getFd()) << RED << "Pipe creation failed" << RESET << std::endl;
         _client->sendErrorResponse(500, req);
-        cleanupResources();
-		return 1;
+        return 1;
     }
+    
+    _server->getWebServ().registerCgiPipe(_output[0], this);
     return 0;
 }
 
