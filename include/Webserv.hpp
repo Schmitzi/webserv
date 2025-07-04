@@ -66,13 +66,13 @@ class Webserv {
 		void						handleEpollOut(int fd);
         void            			cleanup();
 		int							getEpollFd();
-		void						setEpollEvents(int fd, uint32_t events);
+		int							setEpollEvents(int fd, uint32_t events);
 		void						addSendBuf(int fd, const std::string& s);
 		void						clearSendBuf(int fd);
 		const std::string&			getSendBuf(int fd);
 		bool						isCgiPipeFd(int fd) const;
-		void						registerCgiPipe(int fd, CGIHandler* handler);
-		void						unregisterCgiPipe(int fd);
+		void						registerCgiPipe(int pipe, CGIHandler* handler);
+		void						unregisterCgiPipe(int pipe);
 		CGIHandler*					getCgiHandler(int fd) const;
 
     private:

@@ -132,7 +132,7 @@ int Client::recieveData() {
 	Request req(_requestBuffer, *this, _fd);
 	int processResult = processRequest(req);
 	
-	if (processResult != 1)
+	if (processResult != -1)
 		_requestBuffer.clear();
 	_exitCode = processResult;
 	return processResult;
@@ -364,7 +364,6 @@ int Client::handleRegularRequest(Request& req) {
 		cgi.setCGIBin(&req.getConf());
 		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
         cgi.setPath(fullCgiPath);
-		std::cout << MAGENTA << "HERE 1: " << fullCgiPath << RESET << std::endl;
 		return cgi.executeCGI(req);
     }
 
@@ -504,9 +503,12 @@ int Client::createDirList(std::string fullPath, Request& req) {
     response += dirListing;
 	_connect = "keep-alive";
 	_webserv->addSendBuf(_fd, response);
-	_webserv->setEpollEvents(_fd, EPOLLOUT);
-    std::cout << getTimeStamp(_fd) << GREEN  << "Sent directory listing: " << RESET << fullPath << std::endl;
-    return 0;
+	if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+		std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 4" << RESET << std::endl;
+		return 1;
+	}
+	std::cout << getTimeStamp(_fd) << GREEN  << "Sent directory listing: " << RESET << fullPath << std::endl;
+	return 0;
 }
 
 std::string Client::showDir(const std::string& dirPath, const std::string& requestUri) {
@@ -821,9 +823,12 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
     response += body;
     _connect = "close";
 	_webserv->addSendBuf(_fd, response);
-	_webserv->setEpollEvents(_fd, EPOLLOUT);
-    std::cout << getTimeStamp(_fd) << BLUE << "Sent redirect response: " << RESET
-              << statusCode << " " << statusText << " to " << location << std::endl;
+	if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+		std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 5" << RESET << std::endl;
+		return;
+	}
+	std::cout << getTimeStamp(_fd) << BLUE << "Sent redirect response: " << RESET
+			<< statusCode << " " << statusText << " to " << location << std::endl;
 }
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
@@ -889,18 +894,27 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
             
 			std::string s2 = "0\r\n\r\n";
 			_webserv->addSendBuf(_fd, s2);
-			_webserv->setEpollEvents(_fd, EPOLLOUT);
-            std::cout << getTimeStamp(_fd) << GREEN  << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
-            return content.length();
+			if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+				std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 6" << RESET << std::endl;
+				return 1;
+			}
+			std::cout << getTimeStamp(_fd) << GREEN  << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
+			return content.length();
         } else {
 			_webserv->addSendBuf(_fd, content);
-			_webserv->setEpollEvents(_fd, EPOLLOUT);
-            return content.length();
+			if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+				std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 7" << RESET << std::endl;
+				return 1;
+			}
+			return content.length();
         }
     } else {
-		_webserv->setEpollEvents(_fd, EPOLLOUT);
-        std::cout << getTimeStamp(_fd) << GREEN  << "Response sent (headers only)" << RESET << std::endl;
-        return 0;
+		if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+			std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 8" << RESET << std::endl;
+			return 1;
+		}
+		std::cout << getTimeStamp(_fd) << GREEN  << "Response sent (headers only)" << RESET << std::endl;
+		return 0;
     }
 }
 
@@ -926,8 +940,12 @@ void Client::sendErrorResponse(int statusCode, Request& req) {
     response += "\r\n";
     response += body;
     _webserv->addSendBuf(_fd, response);
-	_webserv->setEpollEvents(_fd, EPOLLOUT);
-    std::cerr << getTimeStamp(_fd) << RED  << "Error sent: " << statusCode << RESET << std::endl;
+	if (_webserv->setEpollEvents(_fd, EPOLLOUT)) {
+		std::cerr << getTimeStamp() << RED << "Error: setEpollEvents() failed 9" << RESET << std::endl;
+		return;
+	}
+	std::cerr << getTimeStamp(_fd) << RED  << "Error sent: " << statusCode << RESET << std::endl;
+	return;
 }
 
 bool Client::isChunkedRequest(const Request& req) {
