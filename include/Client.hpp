@@ -18,13 +18,16 @@
 #define GREEN   "\33[32m"
 #define RED     "\33[31m"
 #define WHITE   "\33[97m"
+#define YELLOW  "\33[33m"
+#define CYAN    "\33[36m"
+#define MAGENTA "\33[35m"
+#define GREY    "\33[90m"
 #define RESET   "\33[0m" // No Colour
 
 // Forward declarations
 class	Webserv;
 class	Server;
 class	Request;
-class	CGIHandler;
 struct	serverLevel;
 struct	locationLevel;
 
@@ -51,6 +54,7 @@ class Client {
         int                     	handleGetRequest(Request& req);
         bool                    	isFileBrowserRequest(const std::string& path);
         int                     	handleFileBrowserRequest(Request& req);
+		bool						isCGIScript(const std::string& path);
         int                     	handleRegularRequest(Request& req);
         int                     	buildBody(Request &req, std::string fullPath);
 		std::string			 		getLocationPath(Request& req, const std::string& method);
@@ -66,22 +70,26 @@ class Client {
         void                    	sendRedirect(int statusCode, const std::string& location);
         ssize_t                 	sendResponse(Request req, std::string connect, std::string body);
         void                    	sendErrorResponse(int statusCode, Request& req);
-        bool						sendAll(int sockfd, const std::string& data);
         std::string             	decodeChunkedBody(const std::string& chunkedData);
         bool                    	isChunkedRequest(const Request& req);
         bool                    	isChunkedBodyComplete(const std::string& buffer);
+		size_t						&getOffset();
+		std::string					getConnect();
+		void						setConnect(std::string connect);
+		int							getExitCode();
+		void						setExitCode(int i);
 
     private:
-        struct sockaddr_in  						_addr;
-        socklen_t           						_addrLen;
-        int                 						_fd;
-        std::string         						_requestBuffer;
-        Webserv             						*_webserv;
-        Server              						*_server;
-        CGIHandler          						*_cgi;
-		std::vector<serverLevel>					_configs;
-		std::pair<int, std::vector<std::string> >	_send;
-		uint32_t									*_eventMask;
+        struct sockaddr_in  		_addr;
+        socklen_t           		_addrLen;
+        int                 		_fd;
+        std::string         		_requestBuffer;
+        Webserv             		*_webserv;
+        Server              		*_server;
+		std::vector<serverLevel>	_configs;
+		size_t						_sendOffset;
+		std::string					_connect;
+		int							_exitCode;
 };
 
 #endif

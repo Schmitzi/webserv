@@ -2,18 +2,52 @@
 #include "../include/Client.hpp"
 
 CGIHandler::CGIHandler() {
-    _input[0] = -1;
+    _client = NULL;
+	_server = NULL;
+	_input[0] = -1;
     _input[1] = -1;
     _output[0] = -1;
     _output[1] = -1;
+	_cgiBinPath = "";
+	_pathInfo = "";
+	_path = "";
+}
+
+CGIHandler::CGIHandler(const Client& client) {
+    _client = &const_cast<Client&>(client);
+	_server = &_client->getServer();
+	_input[0] = -1;
+    _input[1] = -1;
+    _output[0] = -1;
+    _output[1] = -1;
+	_cgiBinPath = "";
+	_pathInfo = "";
+	_path = "";
+}
+
+CGIHandler::CGIHandler(const CGIHandler& copy) {
+	*this = copy;
+}
+
+CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
+	if (this != &copy) {
+		_client = copy._client;
+		_server = copy._server;
+		_input[0] = copy._input[0];
+		_input[1] = copy._input[1];
+		_output[0] = copy._output[0];
+		_output[1] = copy._output[1];
+		_cgiBinPath = copy._cgiBinPath;
+		_pathInfo = copy._pathInfo;
+		_env = copy._env;
+		_args = copy._args;
+		_path = copy._path;
+	}
+	return *this;
 }
 
 CGIHandler::~CGIHandler() {
     cleanupResources();
-}
-
-void CGIHandler::setClient(Client &client) {
-    _client = &client;
 }
 
 void CGIHandler::setServer(Server &server) {
@@ -24,257 +58,197 @@ std::string CGIHandler::getInfoPath() {
     return _pathInfo;
 }
 
-int CGIHandler::executeCGI(Client &client, Request &req, std::string const &scriptPath) {
-    cleanupResources();
-    _path = scriptPath;
-   
-    if (doChecks(client, req) == 1)
-    if (doChecks(client, req) == 1)
-        return 1;
-    if (prepareEnv(req) == 1)
-    if (prepareEnv(req) == 1)
-        return 1;
+void CGIHandler::setPath(const std::string& path) {
+	_path = path;
+}
 
-    // Convert environment to char* array
-    std::vector<char*> env_ptrs;
-    for (size_t i = 0; i < _env.size(); i++) {
-        env_ptrs.push_back(const_cast<char*>(_env[i].c_str()));
-    }
-    env_ptrs.push_back(NULL);
-
-    // Get interpreter and build arguments based on config
-    std::string interpreter = getInterpreterFromConfig(req, _path);
-    std::vector<char*> args_ptrs;
+void    CGIHandler::setCGIBin(serverLevel *config) {
+    _cgiBinPath = "";
     
-    if (!interpreter.empty()) {
-        // For interpreted scripts (PHP, Python, Perl, etc.)
-        args_ptrs.push_back(const_cast<char*>(interpreter.c_str()));
-        args_ptrs.push_back(const_cast<char*>(_path.c_str()));
-    } else {
-        // For executable scripts (compiled CGI programs, shell scripts)
-        args_ptrs.push_back(const_cast<char*>(_path.c_str()));
+    std::map<std::string, locationLevel>::iterator it = config->locations.begin();
+    for (; it != config->locations.end(); ++it) {
+        if (it->first.find("cgi-bin") != std::string::npos) {
+            _cgiBinPath = it->second.cgiProcessorPath;
+            break;
+        }
     }
-    args_ptrs.push_back(NULL);
+    
+    if (_cgiBinPath.empty()) {
+        if (NIX == true)
+            _cgiBinPath = "/etc/profiles/per-user/schmitzi/bin/php-cgi";
+        else
+            _cgiBinPath = "/usr/bin/cgi-bin";
+    }
+}
 
-    std::cout << getTimeStamp(_client->getFd()) << BLUE << "Executing CGI: " << RESET;
-    if (!interpreter.empty()) {
-        std::cout << interpreter << " " << _path << std::endl;
-    } else {
-        std::cout << _path << std::endl;
-    }
+void CGIHandler::prepareForExecve(std::vector<char*>& argsPtrs, std::vector<char*>& envPtrs) {
+	for (size_t i = 0; i < _args.size(); i++)
+        argsPtrs.push_back(const_cast<char*>(_args[i].c_str()));
+    argsPtrs.push_back(NULL);
+	for (size_t i = 0; i < _env.size(); i++)
+        envPtrs.push_back(const_cast<char*>(_env[i].c_str()));
+    envPtrs.push_back(NULL);
+}
+
+int CGIHandler::doChild() {
+	std::vector<char*> argsPtrs;
+    std::vector<char*> envPtrs;
+	prepareForExecve(argsPtrs, envPtrs);
+	close(_input[1]);
+	close(_output[0]);
+	
+	if (dup2(_input[0], STDIN_FILENO) < 0 || dup2(_output[1], STDOUT_FILENO) < 0) {
+		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: dup2() failed" << RESET << std::endl;
+		cleanupResources();
+		return 1;
+	}
+	close(_input[0]);
+	close(_output[1]);
+	
+	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
+	
+	std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: execve() failed" << RESET << std::endl;
+	cleanupResources();
+	return 1;
+}
+
+// int CGIHandler::doParent(Request& req, pid_t& pid) {
+// 	close(_input[0]);
+// 	close(_output[1]);
+
+// 	if (!req.getBody().empty()) {
+// 		ssize_t w = write(_input[1], req.getBody().c_str(), req.getBody().length());
+// 		if (!checkReturn(_client->getFd(), w, "write()", "Failed to write into pipe")) {
+// 			close(_input[1]);
+// 			_input[1] = -1;
+// 			_client->sendErrorResponse(500, req);//TODO: should this be sent?
+// 			cleanupResources();
+// 			return 1;
+// 		}
+// 	}
+// 	close(_input[1]);
+// 	_input[1] = -1;
+
+// 	const int TIMEOUT_SECONDS = 30;
+// 	time_t startTime = time(NULL);//TODO: 'Return the current time and put it in *TIMER if TIMER is not NULL.' ??
+// 	int status;
+	
+// 	while (true) {
+// 		pid_t result = waitpid(pid, &status, WNOHANG);
+// 		if (result == pid)
+// 			break;
+// 		else if (result == -1) {
+// 			std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: waitpid() failed" << RESET << std::endl;
+// 			_client->sendErrorResponse(500, req);
+// 			cleanupResources();
+// 			return 1;
+// 		}
+// 		if (time(NULL) - startTime > TIMEOUT_SECONDS) {
+// 			std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI timeout, killing process " << pid << RESET << std::endl;
+// 			kill(pid, SIGKILL);
+// 			waitpid(pid, &status, 0);
+// 			_client->sendErrorResponse(504, req); //TODO: This may not need to be 504 but keeps retrying with 408
+// 			cleanupResources();
+// 			return 1;
+// 		}
+// 		usleep(100000);
+// 	}
+// 	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+// 		std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+// 		int result = processScriptOutput();
+// 		cleanupResources();
+// 		return result;
+// 	} else {
+// 		std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+// 		_client->sendErrorResponse(500, req);
+// 		cleanupResources();
+// 		return 1;
+// 	}
+// }
+
+int CGIHandler::doParent(Request& req) {
+	close(_input[0]);
+	close(_output[1]);
+
+	if (!req.getBody().empty()) {
+		ssize_t w = write(_input[1], req.getBody().c_str(), req.getBody().length());
+		if (!checkReturn(_client->getFd(), w, "write()", "Failed to write into pipe")) {
+			close(_input[1]);
+			_input[1] = -1;
+			_client->sendErrorResponse(500, req);
+			cleanupResources();
+			return 1;
+		}
+	}
+	close(_input[1]);
+	_input[1] = -1;
+
+	_server->getWebServ().setEpollEvents(_output[0], EPOLLIN);
+	return 0;
+}
+
+
+int CGIHandler::executeCGI(Request &req) {
+    if (doChecks(req) || prepareEnv(req))
+        return 1;
 
     pid_t pid = fork();
-    
-    if (pid == 0) {  // Child process
-        close(_input[1]);  // Close write end
-        close(_output[0]); // Close read end
-        
-        // Redirect stdin and stdout
-        if (dup2(_input[0], STDIN_FILENO) < 0 || 
-            dup2(_output[1], STDOUT_FILENO) < 0) {
-            std::cerr << "dup2 failed" << std::endl;
-            exit(1);
-        }
-        
-        close(_input[0]);
-        close(_output[1]);
-        
-        // Change to script directory for relative paths
-        std::string scriptDir = getDirectoryFromPath(_path);
-        if (!scriptDir.empty()) {
-            chdir(scriptDir.c_str());
-        }
-        
-        // Execute the script
-        if (!interpreter.empty()) {
-            execve(interpreter.c_str(), args_ptrs.data(), env_ptrs.data());
-        } else {
-            execve(_path.c_str(), args_ptrs.data(), env_ptrs.data());
-        }
-        
-        std::cerr << "execve failed: " << strerror(errno) << std::endl;
-        exit(1);
-    } 
-       
-    else if (pid > 0) {  // Parent process
-        close(_input[0]);  // Close read end
-        close(_output[1]); // Close write end
-
-        // Write request body to script's stdin (for POST requests)
-        if (!req.getBody().empty()) {
-            ssize_t written = write(_input[1], req.getBody().c_str(), req.getBody().length());
-            if (!checkReturn(_client->getFd(), written, "write()", "Failed to write to CGI stdin")) {
-                close(_input[1]);
-                _input[1] = -1;
-                client.sendErrorResponse(500, req);
-                cleanupResources();
-                return 1;
-            }
-            std::cout << getTimeStamp(_client->getFd()) << BLUE << "Wrote " << written 
-                      << " bytes to CGI stdin" << RESET << std::endl;
-        }
-        close(_input[1]);
-        _input[1] = -1;
-
-        // Wait for script to complete with timeout
-        int status;
-        if (waitForCGICompletion(pid, 30) != 0) {
-            std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI timeout" << RESET << std::endl;
-            client.sendErrorResponse(504, req);
-            cleanupResources();
-            return 1;
-        }
-        
-        waitpid(pid, &status, 0);
-        
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI completed successfully" << RESET << std::endl;
-            int result = processScriptOutput(client);
-            cleanupResources();
-            return result;
-        } else {
-            std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI failed with exit code: " 
-                      << WEXITSTATUS(status) << RESET << std::endl;
-            client.sendErrorResponse(500, req);
-            cleanupResources();
-            return 1;
-        }
+    if (pid < 0) {
+		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: fork() failed" << RESET << std::endl;
+		_client->sendErrorResponse(500, req);
+    	cleanupResources();
+    	return 1;
 	}
-    client.sendErrorResponse(500, req);
-    cleanupResources();
-    return 1;
+    else if (pid == 0)
+        return doChild();
+    return doParent(req);
 }
 
-// Get interpreter from config based on file extension
-std::string CGIHandler::getInterpreterFromConfig(Request& req, const std::string& scriptPath) {
-    size_t dotPos = scriptPath.find_last_of('.');
-    if (dotPos == std::string::npos) {
-        return ""; // No extension, assume executable
-    }
-    
-    std::string extension = scriptPath.substr(dotPos); // Include the dot
-    std::string pattern = "~ \\" + extension + "$"; // e.g., "~ \.php$"
-    
-    // Find matching location in config
-    std::map<std::string, locationLevel>::iterator it = req.getConf().locations.begin();
-    for (; it != req.getConf().locations.end(); ++it) {
-        if (it->first == pattern) {
-            return it->second.cgiProcessorPath;
-        }
-    }
-    
-    // Fallback: try without regex pattern (just the extension)
-    for (it = req.getConf().locations.begin(); it != req.getConf().locations.end(); ++it) {
-        if (it->first.find(extension) != std::string::npos) {
-            return it->second.cgiProcessorPath;
-        }
-    }
-    
-    return ""; // No interpreter found, assume executable
-}
-
-// Helper to extract directory from full path
-std::string CGIHandler::getDirectoryFromPath(const std::string& fullPath) {
-    size_t lastSlash = fullPath.find_last_of('/');
-    if (lastSlash != std::string::npos) {
-        return fullPath.substr(0, lastSlash);
-    }
-    return "";
-}
-
-// Wait for CGI completion with timeout
-int CGIHandler::waitForCGICompletion(pid_t pid, int timeoutSeconds) {
-    time_t startTime = time(NULL);
-    
-    while (true) {
-        int status;
-        pid_t result = waitpid(pid, &status, WNOHANG);
-        
-        if (result == pid) {
-            return 0; // Process completed
-        } else if (result == -1) {
-            return 1; // Error
-        }
-        
-        if (time(NULL) - startTime > timeoutSeconds) {
-            std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI timeout, killing process " 
-                      << pid << RESET << std::endl;
-            kill(pid, SIGKILL);
-            waitpid(pid, &status, 0);
-            return 1; // Timeout
-        }
-        
-        usleep(100000); // Sleep 100ms
-    }
-}
-
-int CGIHandler::processScriptOutput(Client &client) {
-    std::string output;
+int CGIHandler::processScriptOutput() {
     char buffer[4096];
-    int totalBytesRead = 0;
-    
-    fd_set readfds;
-    FD_ZERO(&readfds);
-    FD_SET(_output[0], &readfds);
-    
-    struct timeval timeout;
-    timeout.tv_sec = 10;
-    timeout.tv_usec = 0;
-    
-    int selectResult = select(_output[0] + 1, &readfds, NULL, NULL, &timeout);  // TODO: check if writefds are neccesary
-    
-    if (selectResult > 0 && FD_ISSET(_output[0], &readfds)) {
-        ssize_t bytesRead;
-        while ((bytesRead = read(_output[0], buffer, sizeof(buffer) - 1)) >= 0) {
-			if (bytesRead == 0)
-				break;
-            buffer[bytesRead] = '\0';
-            output += buffer;
-            totalBytesRead += bytesRead;
-            std::cout << getTimeStamp(_client->getFd()) << BLUE << "Received " << bytesRead 
-                      << " bytes from CGI" << RESET << std::endl;
-        }
-        if (bytesRead < 0) {
-            std::cerr << getTimeStamp(client.getFd()) << RED << "Error reading CGI output" << RESET << std::endl;
-            close(_output[0]);
-            _output[0] = -1;
-            return 1;
-        }
-    }
-    
-    close(_output[0]);
-    _output[0] = -1;
-    std::cout << getTimeStamp(_client->getFd()) << BLUE << "Total CGI output: " << totalBytesRead 
-              << " bytes" << RESET << std::endl;
+    ssize_t bytesRead = read(_output[0], buffer, sizeof(buffer));
 
-    if (output.empty()) {
-        std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
-        defaultResponse += "Content-Type: text/plain\r\n";
-        defaultResponse += "Content-Length: 22\r\n\r\n";
-        defaultResponse += "No output from script\n";
-
-        _client->addToSend(defaultResponse);
-        // ssize_t sent = send(client.getFd(), defaultResponse.c_str(), defaultResponse.length(), 0);
-        // if (!checkReturn(_client->getFd(), sent, "send()", "Failed to send default response"))
-            // return 1;
+    if (bytesRead > 0) {
+        _outputBuffer.append(buffer, bytesRead);
+        std::cout << getTimeStamp(_client->getFd()) << BLUE
+                  << "Received bytes: " << RESET << bytesRead << std::endl;
         return 0;
     }
+    else if (bytesRead == 0) {
+        close(_output[0]);
+        _output[0] = -1;
 
-    std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(output);
-    std::string headerSection = headerAndBody.first;
-    std::string bodyContent = headerAndBody.second;
-    
-    std::map<std::string, std::string> headerMap = parseHeaders(headerSection);
-    
-    if (isChunkedTransfer(headerMap))
-        return handleChunkedOutput(headerMap, bodyContent);
-    else
-        return handleStandardOutput(headerMap, bodyContent);
+        if (_outputBuffer.empty()) {
+            std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
+            defaultResponse += "Content-Type: text/plain\r\n";
+            defaultResponse += "Content-Length: 22\r\n\r\n";
+            defaultResponse += "No output from script\n";
+
+            _server->getWebServ().addSendBuf(_client->getFd(), defaultResponse);
+            _server->getWebServ().setEpollEvents(_client->getFd(), EPOLLOUT);
+            return 0;
+        }
+
+        std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
+        std::map<std::string, std::string> headerMap = parseHeaders(headerAndBody.first);
+
+        if (isChunkedTransfer(headerMap))
+            return handleChunkedOutput(headerMap, headerAndBody.second);
+        else
+            return handleStandardOutput(headerMap, headerAndBody.second);
+    }
+    else {
+        std::cerr << getTimeStamp(_client->getFd()) << RED
+                  << "Error: read() failed" << RESET << std::endl;
+        close(_output[0]);
+        _output[0] = -1;
+        return 1;
+    }
 }
+
 
 bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& headers) {
     std::map<std::string, std::string>::const_iterator it = headers.find("Transfer-Encoding");
-    if (it != headers.end() && it->second.find("chunked") != std::string::npos)
     if (it != headers.end() && it->second.find("chunked") != std::string::npos)
         return true;
     return false;
@@ -284,58 +258,35 @@ int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& h
     // Build complete HTTP response
     std::string response = "HTTP/1.1 200 OK\r\n";
     
-    // Add CGI headers
-    for (std::map<std::string, std::string>::const_iterator it = headerMap.begin(); 
-         it != headerMap.end(); ++it) {
-        response += it->first + ": " + it->second + "\r\n";
-    }
+    std::map<std::string, std::string>::const_iterator typeIt = headerMap.find("Content-Type");
+    if (typeIt != headerMap.end())
+        temp.setContentType(typeIt->second);
+    else
+        temp.setContentType("text/html");
     
-    // Add server headers if not already present
-    if (headerMap.find("Content-Type") == headerMap.end()) {
-        response += "Content-Type: text/html\r\n";
-    }
-    if (headerMap.find("Content-Length") == headerMap.end()) {
-        response += "Content-Length: " + tostring(initialBody.length()) + "\r\n";
-    }
-    
-    response += "Server: WebServ/1.0\r\n";
-    response += "Connection: keep-alive\r\n";
-    response += "\r\n";
-    response += initialBody;
-    
-    if (!_client->sendAll(_client->getFd(), response)) {
-        std::cerr << getTimeStamp(_client->getFd()) << RED << "Failed to send CGI response" << RESET << std::endl;
-        return 1;
-    }
-    
-    std::cout << getTimeStamp(_client->getFd()) << GREEN << "Sent CGI response (" 
-              << response.length() << " bytes)" << RESET << std::endl;
+    temp.setBody(initialBody);
+	_client->setConnect("keep-alive");
+    _client->sendResponse(temp, "keep-alive", temp.getBody());
     return 0;
 }
 
 int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
     std::string response = "HTTP/1.1 200 OK\r\n";
     
-    for (std::map<std::string, std::string>::const_iterator it = headerMap.begin(); 
-         it != headerMap.end(); ++it) {
-        if (it->first != "Content-Length") {
+    for (std::map<std::string, std::string>::const_iterator it = headerMap.begin(); it != headerMap.end(); ++it) {
+        if (it->first != "Content-Length")
             response += it->first + ": " + it->second + "\r\n";
-        }
     }
     
-    if (headerMap.find("Transfer-Encoding") == headerMap.end()) {
+    if (headerMap.find("Transfer-Encoding") == headerMap.end())
         response += "Transfer-Encoding: chunked\r\n";
-    }
     
     response += "Connection: keep-alive\r\n";
     response += "\r\n";
+    _client->setConnect("keep-alive");
     response += formatChunkedResponse(initialBody);
-    
-    if (!_client->sendAll(_client->getFd(), response)) {
-        std::cerr << getTimeStamp(_client->getFd()) << RED << "Failed to send chunked CGI response" << RESET << std::endl;
-        return 1;
-    }
-    
+	_server->getWebServ().addSendBuf(_client->getFd(), response);
+	_server->getWebServ().setEpollEvents(_client->getFd(), EPOLLOUT);
     return 0;
 }
 
@@ -411,72 +362,57 @@ std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& h
             headers[key] = value;
         }
     }
-    
     return headers;
 }
 
-bool CGIHandler::isCGIScript(const std::string& path) {
-    size_t dotPos = path.find_last_of('.');
-    if (dotPos == std::string::npos) {
-        return false; // No extension
-    }
-    
-    std::string extension = path.substr(dotPos); // Include the dot
-    
-    // Check if any location in the current config handles this extension
-    if (_server && !_server->getConfigs().empty()) {
-        const serverLevel& config = _server->getConfigs()[0];
-        std::map<std::string, locationLevel>::const_iterator it = config.locations.begin();
-        
-        for (; it != config.locations.end(); ++it) {
-            // Check for regex pattern like "~ \.php$"
-            if (it->first.find(extension) != std::string::npos && 
-                !it->second.cgiProcessorPath.empty()) {
-                return true;
-            }
-        }
-    }
-    
-    return false;
-}
-
-void CGIHandler::doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent) {
-    if (!text.empty()) {
-        std::istringstream ss(text);
-        std::string pair;
-
-        while (std::getline(ss, pair, '&')) {
-            size_t pos = pair.find('=');
-            if (pos == std::string::npos)
-                continue;
-            std::string key = pair.substr(0, pos);
-            std::string value = pair.substr(pos + 1);
-
-            if (key == "file" || key == "name" || key == "test")
-                fileName = value;
-            else if (key == "content" || key == "body" || key == "data" || key == "text" || key == "value")
-                fileContent = value;
-            else {
-                fileContent = value;
-            }
-        }
-    }
-}
-
 int CGIHandler::prepareEnv(Request &req) {
+    std::string ext;
+    std::string filePath;
+    std::string fileName;
+    std::string fileContent;
+	locationLevel* loc = NULL;
+    
+	if (!req.getQuery().empty()) {
+		doQueryStuff(req.getQuery(), fileName, fileContent);
+        size_t dotPos = _path.find_last_of('.');
+        if (dotPos != std::string::npos) {
+            ext = "." + _path.substr(dotPos + 1); 
+            
+            if (!matchLocation(ext, req.getConf(), loc)) {
+                std::cerr << getTimeStamp(_client->getFd()) << RED << "Location not found for extension: " << RESET << ext << std::endl;
+                return 1;
+            }
+            
+            if (loc->uploadDirPath.empty()) {
+                std::cerr << getTimeStamp(_client->getFd()) << RED << "Upload directory not set for extension: " << RESET << ext << std::endl;
+                return 1;
+            }
+            filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
+            
+            makeArgs(loc->cgiProcessorPath, filePath);
+        }
+    } else {
+        size_t dotPos = _path.find_last_of('.');
+        if (dotPos != std::string::npos) {
+            ext = "." + _path.substr(dotPos + 1);
+            
+            if (!matchLocation(ext, req.getConf(), loc)) {
+                std::cerr << getTimeStamp(_client->getFd()) << RED << "Location not found for extension: " << RESET << ext << std::endl;
+                return 1;
+            }
+            makeArgs(loc->cgiProcessorPath, filePath);
+        }
+    }
+    
     _env.clear();
     
-    // Required CGI environment variables
-    _env.push_back("GATEWAY_INTERFACE=CGI/1.1");
+    const std::string abs_path = matchAndAppendPath(loc->rootLoc, _path);
+    _env.push_back("SCRIPT_FILENAME=" + abs_path);
+    _env.push_back("REDIRECT_STATUS=200");
     _env.push_back("SERVER_SOFTWARE=WebServ/1.0");
-    
-    // Server information
-    if (!req.getConf().servName.empty() && !req.getConf().servName[0].empty()) {
-        _env.push_back("SERVER_NAME=" + req.getConf().servName[0]);
-    } else {
-        _env.push_back("SERVER_NAME=localhost");
-    }
-    
+    _env.push_back("SERVER_NAME=" + req.getConf().servName[0]);//_env.push_back("SERVER_NAME=WebServ/1.0");//TODO: actual servername or this?
+    _env.push_back("GATEWAY_INTERFACE=CGI/1.1");
+    _env.push_back("SERVER_PROTOCOL=HTTP/1.1");
     _env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(req.getConf())));
     _env.push_back("SERVER_PROTOCOL=HTTP/1.1");
     
@@ -511,26 +447,12 @@ int CGIHandler::prepareEnv(Request &req) {
     return 0;
 }
 
-// Extract PATH_INFO from the request path
-std::string CGIHandler::extractPathInfo(const std::string& requestPath, const std::string& scriptPath) {
-    (void)scriptPath;
-    // Find the script name in the request path
-    size_t scriptNamePos = requestPath.find_last_of('/');
-    if (scriptNamePos == std::string::npos) {
-        return "";
-    }
-    
-    std::string scriptName = requestPath.substr(scriptNamePos + 1);
-    size_t extPos = scriptName.find_last_of('.');
-    if (extPos != std::string::npos) {
-        // Check if there's additional path info after the full script name
-        size_t fullScriptEnd = scriptNamePos + 1 + scriptName.length();
-        if (fullScriptEnd < requestPath.length()) {
-            return requestPath.substr(fullScriptEnd);
-        }
-    }
-    
-    return "";
+void    CGIHandler::makeArgs(std::string const &cgiBin, std::string& filePath) {
+    _args.clear();  
+    _args.push_back(cgiBin);
+    _args.push_back(_path);
+    if (!filePath.empty())
+        _args.push_back(filePath);
 }
 
 void CGIHandler::cleanupResources() {
@@ -539,35 +461,42 @@ void CGIHandler::cleanupResources() {
             close(_input[i]);
             _input[i] = -1;
         }
-        if (_output[i] >= 0) {
-            close(_output[i]);
-            _output[i] = -1;
-        }
-    }
+	}
+	if (_output[1] >= 0) {
+		close(_output[1]);
+		_output[1] = -1;
+	}
+	if (_output[0] != -1) {
+		_server->getWebServ().unregisterCgiPipe(_output[0]);
+		close(_output[0]);
+		_output[0] = -1;
+	}
     _path.clear();
     _args.clear();
     _env.clear();
 }
 
-int CGIHandler::doChecks(Client client, Request& req) {
+int CGIHandler::doChecks(Request& req) {
+	_server->getWebServ().registerCgiPipe(_output[0], this);
     if (access(_path.c_str(), F_OK) != 0) {
         std::cerr << getTimeStamp(_client->getFd()) << RED << "Script does not exist: " << RESET << _path << std::endl;
-        std::cerr << getTimeStamp(_client->getFd()) << RED << "Script does not exist: " << RESET << _path << std::endl;
-        client.sendErrorResponse(404, req);
-        return 1;
+        _client->sendErrorResponse(404, req);
+        cleanupResources();
+		return 1;
     }
 
-    if (access(_path.c_str(), R_OK) != 0) {
-        std::cerr << getTimeStamp(_client->getFd()) << RED << "Script is not readable: " << RESET << _path << std::endl;
-        client.sendErrorResponse(403, req);
-        return 1;
+    if (access(_path.c_str(), X_OK) != 0) {
+        std::cerr << getTimeStamp(_client->getFd()) << RED << "Script is not executable: " << RESET << _path << std::endl;
+        _client->sendErrorResponse(403, req);
+        cleanupResources();
+		return 1;
     }
 
     if (pipe(_input) < 0 || pipe(_output) < 0) {
         std::cerr << getTimeStamp(_client->getFd()) << RED << "Pipe creation failed" << RESET << std::endl;
-        std::cerr << getTimeStamp(_client->getFd()) << RED << "Pipe creation failed" << RESET << std::endl;
-        client.sendErrorResponse(500, req);
-        return 1;
+        _client->sendErrorResponse(500, req);
+        cleanupResources();
+		return 1;
     }
     return 0;
 }

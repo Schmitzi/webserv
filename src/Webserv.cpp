@@ -53,6 +53,37 @@ void Webserv::setEnvironment(char **envp) {
     _env = envp;
 }
 
+void Webserv::addSendBuf(int fd, const std::string& s) {
+	_sendBuf[fd] += s;
+}
+
+const std::string& Webserv::getSendBuf(int fd) {
+	return _sendBuf[fd];
+}
+
+void Webserv::clearSendBuf(int fd) {
+	_sendBuf.erase(fd);
+}
+
+bool Webserv::isCgiPipeFd(int fd) const {
+    return _cgis.find(fd) != _cgis.end();
+}
+
+void Webserv::registerCgiPipe(int fd, CGIHandler* handler) {
+    _cgis[fd] = handler;
+}
+
+CGIHandler* Webserv::getCgiHandler(int fd) const {
+    std::map<int, CGIHandler*>::const_iterator it = _cgis.find(fd);
+    if (it != _cgis.end())
+        return it->second;
+    return NULL;
+}
+
+void Webserv::unregisterCgiPipe(int fd) {
+    _cgis.erase(fd);
+}
+
 void Webserv::initialize() {
     for (size_t i = 0; i < _servers.size(); i++) {
     	if (_servers[i].getFd() > 0) {
@@ -102,6 +133,10 @@ bool Webserv::checkEventMaskErrors(uint32_t &eventMask, int &fd) {
 	return true;
 }
 
+int Webserv::getEpollFd() {
+	return _epollFd;
+}
+
 int Webserv::run() {
     _epollFd = epoll_create1(EPOLL_CLOEXEC);
     if (_epollFd == -1) {
@@ -120,37 +155,27 @@ int Webserv::run() {
         for (int i = 0; i < nfds; i++) {
 			int fd = _events[i].data.fd;
             uint32_t eventMask = _events[i].events;
-			_events[i].events = EPOLLIN | EPOLLOUT;
-            
-			if (!checkEventMaskErrors(eventMask, fd))
+            if (!checkEventMaskErrors(eventMask, fd))
 				continue;
 			bool found = false;
             Server activeServer = findServerByFd(fd, found);
             if (found) {
                 if (eventMask & EPOLLIN)
-                    handleNewConnection(activeServer, eventMask);
+                    handleNewConnection(activeServer);
             } else {
-                if (eventMask & EPOLLIN) {
-                    handleClientActivity(fd, eventMask);
-					if (!checkEventMaskErrors(eventMask, fd))
-						continue;
+                if (eventMask & EPOLLIN)
+                    handleClientActivity(fd);
+				if (isCgiPipeFd(fd)) {
+					CGIHandler* handler = getCgiHandler(fd);
+					if (handler) {
+						if (handler->processScriptOutput())
+							std::cerr << getTimeStamp(fd) << RED << "Error: CGI processing failed" << RESET << std::endl;
+					}
+					continue;
 				}
-                if (eventMask & EPOLLOUT) {
-                    std::cout << RED << "out\n" << RESET;
-					// handleEpollOut(fd);
-                    for (size_t i = 0; i < _clients.size() ; i++) {
-                        if (fd == _clients[i].getFd()) { 
-                            std::pair<int, std::vector<std::string> > toSend = _clients[i].getSends();
-                            for (size_t j = 0; j < toSend.second.size(); j++) {
-                                ssize_t x = send(toSend.first, toSend.second[j].c_str(), toSend.second[j].length(), 0);
-                                if (!checkReturn(toSend.first, x, "send()", "Unable to send directory listing"))
-                                    return 1;
-                            }
-                        }
-                    }
-                    std::cerr << RED << "WE NEED TO IMPLEMENT THIS" << RESET << std::endl;
-				}
-            }
+			}
+			if (eventMask & EPOLLOUT)
+				handleEpollOut(fd);
         }
     }
     return 0;
@@ -168,6 +193,18 @@ Server Webserv::findServerByFd(int fd, bool& found) {
 	throw configException("Can't find server by FD");
 }
 
+Client& Webserv::findClientByFd(int fd, bool& found) {
+	for (size_t i = 0; i < _clients.size(); i++) {
+		if (_clients[i].getFd() == fd) {
+			found = true;
+			return _clients[i];
+		}
+	}
+	if (!_clients.empty())
+		return _clients[0];
+	throw configException("Can't find client by FD");
+}
+
 void Webserv::handleErrorEvent(int fd) {
     removeFromEpoll(fd);
     for (size_t i = 0; i < _clients.size(); i++) {
@@ -182,12 +219,22 @@ void Webserv::handleErrorEvent(int fd) {
     std::cerr << getTimeStamp(fd) << RED << "Error on unknown fd" << RESET << std::endl;
 }
 
+void Webserv::setEpollEvents(int fd, uint32_t events) {
+	if (fd < 0)
+		return;
+	struct epoll_event ev;
+	ev.events = events;
+	ev.data.fd = fd;
+	if (epoll_ctl(_epollFd, EPOLL_CTL_MOD, fd, &ev) == -1)
+		std::cerr << getTimeStamp(fd) << RED << "Error: epoll_ctl MOD failed" << RESET << std::endl;
+}
+
 int Webserv::addToEpoll(int fd, short events) {  
     struct epoll_event event;
     event.events = events;
     event.data.fd = fd;
     if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1) {
-		std::cerr << getTimeStamp() << RED << "Error: epoll_ctl ADD for fd " << tostring(fd) << " failed" << RESET << std::endl;
+		std::cerr << getTimeStamp(fd) << RED << "Error: epoll_ctl ADD failed" << RESET << std::endl;
         return 1;
     }
     return 0;
@@ -218,9 +265,8 @@ void Webserv::handleClientDisconnect(int fd) {
     std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
-void Webserv::handleNewConnection(Server &server, uint32_t &eventMask) {
-	// std::cout << "================================================================================" << std::endl;
-	if (_clients.size() >= 1000) { // Adjust limit as needed
+void Webserv::handleNewConnection(Server &server) {
+	if (_clients.size() >= 1000) {
         std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
         
         struct sockaddr_in addr;
@@ -244,35 +290,66 @@ void Webserv::handleNewConnection(Server &server, uint32_t &eventMask) {
     }
 }
 
-void Webserv::handleClientActivity(int clientFd, uint32_t &eventMask) {
-    (void)eventMask;   
-    Client* clientPtr = NULL;
-    for (size_t i = 0; i < _clients.size(); i++) {
-        if (_clients[i].getFd() == clientFd) {
-            clientPtr = &_clients[i];
-            break;
-        }
-    }
+void Webserv::handleClientActivity(int clientFd) {
+	bool found = false;
+    Client& client = findClientByFd(clientFd, found);
     
-    if (!clientPtr) {
+    if (!found) {
         std::cerr << getTimeStamp(clientFd) << RED << "Client not found" << RESET << std::endl;
         removeFromEpoll(clientFd);
         close(clientFd);
         return;
     }
-    
-    if (clientPtr->recieveData() != 0) {
-        removeFromEpoll(clientFd);
-        close(clientFd);
+    client.recieveData();
+}
 
-        for (size_t i = 0; i < _clients.size(); i++) {
-            if (_clients[i].getFd() == clientFd) {
+void Webserv::handleEpollOut(int fd) {
+	bool found = false;
+	Client& c = findClientByFd(fd, found);
+	if (!found) {
+		std::cerr << getTimeStamp(fd) << RED << "Error: no client was found" << RESET << std::endl;
+		return;
+	}
+
+	const std::string& toSend = getSendBuf(fd);
+	if (toSend.empty()) {
+		std::cerr << getTimeStamp(fd) << RED << "Error: no _sendBuf was stored" << RESET << std::endl;
+		return;
+	}
+
+	size_t& offset = c.getOffset();
+	const char* data = toSend.data() + offset;
+	size_t remaining = toSend.size() - offset;
+
+	ssize_t s = send(fd, data, remaining, 0);
+	if (s < 0) {
+		std::cerr << getTimeStamp(fd) << RED << "Error: send() failed" << RESET << std::endl;
+		clearSendBuf(fd);
+		c.setExitCode(1);
+	}
+
+	offset += static_cast<size_t>(s);
+
+	if (offset >= toSend.size()) {
+		offset = 0;
+		clearSendBuf(fd);
+		if (c.getConnect() == "keep-alive")
+			setEpollEvents(fd, EPOLLIN);
+		else
+			c.setExitCode(1);
+	}
+	if (c.getExitCode() != 0) {
+		removeFromEpoll(fd);
+        close(fd);
+		for (size_t i = 0; i < _clients.size(); i++) {
+            if (_clients[i].getFd() == fd) {
                 _clients.erase(_clients.begin() + i);
                 break;
             }
         }
-    }
+	}
 }
+
 
 void    Webserv::cleanup() {
     for (size_t i = 0; i < _clients.size(); ++i) {

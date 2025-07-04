@@ -129,6 +129,28 @@ bool checkReturn(int fd, ssize_t r, const std::string& func, const std::string& 
 	return true;
 }
 
+void doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent) {
+	if (!text.empty()) {
+		std::istringstream ss(text);
+		std::string pair;
+
+		while (std::getline(ss, pair, '&')) {
+			size_t pos = pair.find('=');
+			if (pos == std::string::npos)
+				continue;
+			std::string key = pair.substr(0, pos);
+			std::string value = pair.substr(pos + 1);
+
+			if (key == "file" || key == "name" || key == "test")
+				fileName = value;
+			// else if (key == "content" || key == "body" || key == "data" || key == "text" || key == "value")
+			// 	fileContent = value;
+			else
+				fileContent = value;
+		}
+	}
+}
+
 void printConfigs(std::vector<serverLevel> configs) {
 	for (size_t i = 0; i < configs.size(); i++) {
 		std::cout << "___config[" << i << "]___\n";
