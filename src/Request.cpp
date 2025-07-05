@@ -250,7 +250,8 @@ void Request::parse(const std::string& rawRequest) {
     }
 	_path = decode(_path);
 }
-int Request::parseHeaders(const std::string& headerSection) {
+
+bool Request::parseHeaders(const std::string& headerSection) {
     std::istringstream iss(headerSection);
     std::string line;
 	bool host = false;
@@ -272,7 +273,7 @@ int Request::parseHeaders(const std::string& headerSection) {
             _headers[key] = value;
         }
     }
-	return host;
+    return host;
 }
 
 void Request::checkContentLength(std::string buffer) {

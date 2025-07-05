@@ -118,17 +118,6 @@ std::string getTimeStamp(int fd) {
     return oss.str();
 }
 
-bool checkReturn(int fd, ssize_t r, const std::string& func, const std::string& isZero) {
-	if (r <= 0) {
-		if (r < 0)
-			std::cerr << getTimeStamp(fd) << RED << "Error: " << func << " failed" << RESET << std::endl;
-		else
-			std::cerr << getTimeStamp(fd) << RED << isZero << RESET << std::endl;
-		return false;
-	}
-	return true;
-}
-
 void doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent) {
 	if (!text.empty()) {
 		std::istringstream ss(text);

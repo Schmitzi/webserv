@@ -11,7 +11,9 @@ CGIHandler::CGIHandler() {
 	_cgiBinPath = "";
 	_pathInfo = "";
 	_path = "";
-	_done = false;
+	_inputDone = false;
+    _outputDone = false;
+    _errorDone = false;
 }
 
 CGIHandler::CGIHandler(const Client& client) {
@@ -24,7 +26,9 @@ CGIHandler::CGIHandler(const Client& client) {
 	_cgiBinPath = "";
 	_pathInfo = "";
 	_path = "";
-	_done = false;
+	_inputDone = false;
+    _outputDone = false;
+    _errorDone = false;
 }
 
 CGIHandler::CGIHandler(const CGIHandler& copy) {
@@ -35,8 +39,8 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 	if (this != &copy) {
 		_client = copy._client;
 		_server = copy._server;
-		_input[0] = copy._input[0];
-		_input[1] = copy._input[1];
+        _input[0] = copy._input[0];
+        _input[1] = copy._input[1];
 		_output[0] = copy._output[0];
 		_output[1] = copy._output[1];
 		_cgiBinPath = copy._cgiBinPath;
@@ -44,21 +48,24 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 		_env = copy._env;
 		_args = copy._args;
 		_path = copy._path;
-		_done = copy._done;
+		_inputDone = copy._inputDone;
+        _outputDone = copy._outputDone;
+        _errorDone = copy._errorDone;
+        _outputBuffer = copy._outputBuffer;
 	}
 	return *this;
 }
 
 CGIHandler::~CGIHandler() {
-    // cleanupResources();//TODO: check
+    cleanupResources();//TODO: check
 }
 
-void CGIHandler::setDone(bool x) {
-	_done = x;
+bool CGIHandler::inputIsDone() {
+	return _inputDone;
 }
 
-bool CGIHandler::isDone() {
-	return _done;
+bool CGIHandler::outputIsDone() {
+	return _outputDone;
 }
 
 void    CGIHandler::setServer(Server &server) {
@@ -105,88 +112,41 @@ int CGIHandler::doChild() {
 	std::vector<char*> argsPtrs;
     std::vector<char*> envPtrs;
 	prepareForExecve(argsPtrs, envPtrs);
-	close(_input[1]);
-	_input[1] = -1;
 	
 	if (dup2(_input[0], STDIN_FILENO) < 0 || dup2(_output[1], STDOUT_FILENO) < 0) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: dup2() failed" << RESET << std::endl;
 		cleanupResources();
 		return 1;
 	}
-	close(_input[0]);
-	_input[0] = -1;
-	close(_output[1]);
-	_output[1] = -1;
-	
-	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
+	safeClose(_input[1]);
+    safeClose(_output[0]);
+
+    execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
 	std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: execve() failed: " << RESET << strerror(errno) << std::endl;
-    exit(1);//cleanupResources();
+    cleanupResources();
+    exit(1);
     return 1;
 }
 
-int CGIHandler::doParent(Request& req, pid_t& pid) {
-	close(_output[1]);
-	_output[1] = -1;
+int CGIHandler::doParent(Request& req) {
+    safeClose(_input[0]);
+    safeClose(_output[1]);
 
-	if (!req.getBody().empty()) {
-		ssize_t w = write(_input[1], req.getBody().c_str(), req.getBody().length());
-		if (!checkReturn(_client->getFd(), w, "write()", "Failed to write into pipe")) {
-			_client->sendErrorResponse(500, req);
-			cleanupResources();
-			return 1;
-		}
-	}
-	close(_input[1]);
-	_input[1] = -1;
-	
-	const int TIMEOUT_SECONDS = 30;
-	time_t start_time = time(NULL);
-	int status;
-
-	std::cout << CYAN << "before waiting..." << RESET << std::endl;
-	while (true) {
-        pid_t result = waitpid(pid, &status, WNOHANG);//SIGCHLD);
-        if (result == pid)
-			break;
-		else if (result == -1) {
-			std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: waitpid()" << RESET << std::endl;
-			_client->sendErrorResponse(500, req);
-			cleanupResources();
-			return 1;
-		}
-		if (time(NULL) - start_time > TIMEOUT_SECONDS) {
-			std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI timeout, killing process " << pid << RESET << std::endl;
-			kill(pid, SIGKILL);
-			waitpid(pid, &status, 0);
-			_client->sendErrorResponse(504, req); //TODO: This may not need to be 504 but keeps retrying with 408
-			cleanupResources();
-			return 1;
-		}
-		usleep(100000);
-	}
-
-	if (WIFEXITED(status)) {
-        if (WEXITSTATUS(status) == 0) {
-            if (setEpollEvents(_server->getWebServ(), _output[0], EPOLLOUT)) {
-                std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: setEpollEvents() failed 1" << RESET << std::endl;
-                _client->sendErrorResponse(500, req);
-                cleanupResources();
-                return 1;
-            }
-            std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
-            // cleanupResources();
-            return 0;
-        } else {
-            std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+    if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN)) {
+        std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: addToEpoll() failed" << RESET << std::endl;
+        _client->sendErrorResponse(500, req);
+        cleanupResources();
+        return 1;
+    }
+    registerCgiPipe(_server->getWebServ(), _output[0], this);
+    if (!_inputDone) {
+        if (addToEpoll(_server->getWebServ(), _input[1], EPOLLOUT)) {
+            std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: addToEpoll() failed" << RESET << std::endl;
             _client->sendErrorResponse(500, req);
             cleanupResources();
             return 1;
         }
-    } else if (WIFSIGNALED(status)) {
-        std::cerr << getTimeStamp(_client->getFd()) << RED << "Script killed by signal: " << RESET << WTERMSIG(status) << std::endl;
-        _client->sendErrorResponse(500, req);
-        cleanupResources();
-        return 1;
+        registerCgiPipe(_server->getWebServ(), _input[1], this);
     }
     return 0;
 }
@@ -197,51 +157,119 @@ int CGIHandler::executeCGI(Request &req) {
 		cleanupResources();
         return 1;
 	}
-
-    pid_t pid = fork();
-    if (pid < 0) {
+    _request = &req;
+    _pid = fork();
+    if (_pid < 0) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: fork() failed" << RESET << std::endl;
 		_client->sendErrorResponse(500, req);
     	cleanupResources();
     	return 1;
 	}
-    else if (pid == 0)
-        return doChild();
-    return doParent(req, pid);
-}
-
-int CGIHandler::handleCgiPipeEvent(int fd, uint32_t events) {
-    char buffer[4096];
-    ssize_t bytesRead;
-
-    if (events & EPOLLERR) {
-        std::cout << CYAN << "___ CGI EPOLLERR ___" << RESET << std::endl;
-        std::cerr << getTimeStamp(fd) << RED << "Error: CGI pipe (EPOLLERR)" << RESET << std::endl;
-        _done = true;
-        cleanupResources();
+    else if (_pid == 0 && doChild() != 0)
         return 1;
-    }
-
-    if (events & EPOLLIN || events & EPOLLHUP) {
-        std::cout << CYAN << "___ CGI EPOLLIN || EPOLLHUP ___" << RESET << std::endl;
-        bytesRead = read(fd, buffer, sizeof(buffer));
-        if (bytesRead > 0) {
-            _outputBuffer.append(buffer, bytesRead);
-            // return 0;
-        }
-        if (bytesRead == 0) {
-            _done = true;
-            return processScriptOutput();
-        } else if (bytesRead < 0) {
-            std::cerr << getTimeStamp(fd) << RED << "Error: CGI read() failed: " << RESET << std::endl;
-            _done = true;
-            cleanupResources();
-            return 1;
-        }
-    }
-    return 0;
+    return doParent(req);
 }
 
+int CGIHandler::handleCgiPipeEvent(uint32_t events) {
+    if (!_inputDone || !_outputDone) {
+        if (events & EPOLLOUT) {
+            std::cout << MAGENTA << "___ cgi epollout ___" << RESET << std::endl;
+            ssize_t bytesWritten;
+            std::cout << "HERE" << std::endl;
+            if (!_request->getBody().empty() && !wrote(_input[1], _request->getBody().c_str(), _request->getBody().size() - 1, bytesWritten, "Done with CGI input", false)) {
+                std::cout << "HERE 1" << std::endl;
+                _errorDone = true;
+                _client->sendErrorResponse(500, *_request);
+                cleanupResources();
+                return 1;
+            }
+            std::cout << "HERE 2" << std::endl;
+            if (bytesWritten == 0) {
+                std::cout << "HERE 3" << std::endl;
+                _inputDone = true;
+                cleanupResources();
+                std::cout << MAGENTA << "CGI input done, closing pipe" << RESET << std::endl;
+                return 0;
+            }
+            std::cout << "HERE 4" << std::endl;
+            return 0;
+        }
+        else if (events & EPOLLIN || events & EPOLLHUP) {
+            std::cout << MAGENTA << "___ cgi epollin || epollhup ___" << RESET << std::endl;
+            char buffer[4096];
+            ssize_t bytesRead;
+
+            if (!readIt(_output[0], buffer, sizeof(buffer) - 1, bytesRead, _outputBuffer, "Done with reading CGI output", false)) {
+                _errorDone = true;
+				_client->sendErrorResponse(500, *_request);
+				cleanupResources();
+				return 1;
+            }
+            if (bytesRead == 0) {
+                _outputDone = true;
+                cleanupResources();
+                std::cout << MAGENTA << "CGI output done, closing pipe" << RESET << std::endl;
+                processScriptOutput();
+            }
+        }
+    }
+    // waitpid(_pid, NULL, 0);
+	if (_inputDone && _outputDone && !_errorDone) {
+		const int TIMEOUT_SECONDS = 30;
+		time_t start_time = time(NULL);
+		int status;
+
+		std::cout << CYAN << "before waiting..." << RESET << std::endl;
+		while (true) {
+			pid_t result = waitpid(_pid, &status, WNOHANG);//SIGCHLD);//
+			if (result == _pid)
+				break;
+			else if (result == -1) {
+				std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: waitpid()" << RESET << std::endl;
+				_client->sendErrorResponse(500, *_request);
+				cleanupResources();
+				return 1;
+			}
+			if (time(NULL) - start_time > TIMEOUT_SECONDS) {
+				std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI timeout, killing process " << _pid << RESET << std::endl;
+				kill(_pid, SIGKILL);
+				waitpid(_pid, &status, 0);
+				_client->sendErrorResponse(504, *_request); //TODO: This may not need to be 504 but keeps retrying with 408
+				cleanupResources();
+				return 1;
+			}
+			usleep(100000);
+		}
+
+		if (WIFEXITED(status)) {
+			if (WEXITSTATUS(status) == 0) {
+				if (setEpollEvents(_server->getWebServ(), _output[0], EPOLLOUT)) {
+					std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: setEpollEvents() failed 1" << RESET << std::endl;
+					_client->sendErrorResponse(500, *_request);
+					cleanupResources();
+					return 1;
+				}
+				std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+				cleanupResources();
+				return 0;
+			} else {
+				std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+				_client->sendErrorResponse(500, *_request);
+				cleanupResources();
+				return 1;
+			}
+		} else if (WIFSIGNALED(status)) {
+			std::cerr << getTimeStamp(_client->getFd()) << RED << "Script killed by signal: " << RESET << WTERMSIG(status) << std::endl;
+			_client->sendErrorResponse(500, *_request);
+			cleanupResources();
+			return 1;
+		}
+		std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script did not exit normally" << RESET << std::endl;
+		cleanupResources();
+		return 1;
+	}
+	return 1;
+}
 
 int CGIHandler::processScriptOutput() {
     if (_outputBuffer.empty()) {
@@ -461,24 +489,18 @@ void    CGIHandler::makeArgs(std::string const &cgiBin, std::string& filePath) {
 }
 
 void CGIHandler::cleanupResources() {
-    for (int i = 0; i < 2; i++) {
-        if (_input[i] >= 0) {
-            close(_input[i]);
-            _input[i] = -1;
-        }
+	safeClose(_input[0]);
+	if (_input[1] >= 0 && (_inputDone || _errorDone)) {
+		unregisterCgiPipe(_server->getWebServ(), _input[1]);
+		removeFromEpoll(_server->getWebServ(), _input[1]);
+		safeClose(_input[1]);
 	}
-	if (_output[1] >= 0) {
-		close(_output[1]);
-		_output[1] = -1;
-	}
-	if (_output[0] >= 0 && _done == true) {
+	safeClose(_output[1]);
+	if (_output[0] >= 0 && (_outputDone || _errorDone)) {
 		unregisterCgiPipe(_server->getWebServ(), _output[0]);
 		removeFromEpoll(_server->getWebServ(), _output[0]);
-		close(_output[0]);
-		_output[0] = -1;
+		safeClose(_output[0]);
 	}
-    _path.clear();
-	_done = true;
 }
 
 int CGIHandler::doChecks(Request& req) {
@@ -502,12 +524,12 @@ int CGIHandler::doChecks(Request& req) {
         cleanupResources();
 		return 1;
     }
-	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN | EPOLLHUP | EPOLLERR)) {
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: addToEpoll() failed" << RESET << std::endl;
-		_client->sendErrorResponse(500, req);
-		cleanupResources();
-		return 1;
-	}
-	registerCgiPipe(_server->getWebServ(), _output[0], this);
+	// if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN)) {//TODO: maybe out?
+	// 	std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: addToEpoll() failed" << RESET << std::endl;
+	// 	_client->sendErrorResponse(500, req);
+	// 	cleanupResources();
+	// 	return 1;
+	// }
+	// registerCgiPipe(_server->getWebServ(), _output[0], this);
     return 0;
 }

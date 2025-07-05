@@ -102,7 +102,7 @@ int Server::setOptional() {
     
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
 		std::cerr << getTimeStamp() << RED << "Error: setsockopt(SO_REUSEADDR) failed" << RESET << std::endl;
-        close(_fd);
+        safeClose(_fd);
         return 1;
     }
     return 0;
@@ -129,7 +129,7 @@ int Server::setServerAddr() {
 int Server::ft_bind() {
     if (bind(_fd, (struct sockaddr *)&_addr, sizeof(_addr)) < 0) {
 		std::cerr << getTimeStamp() << RED << "Error: bind() failed" << RESET << std::endl;
-        close(_fd);
+        safeClose(_fd);
         return 1;
     }
     return 0;
@@ -140,7 +140,7 @@ int Server::ft_listen() {
     
     if (listen(_fd, backlog) < 0) {
 		std::cerr << getTimeStamp() << RED << "Error: listen() failed" << RESET << std::endl;
-        close(_fd);
+        safeClose(_fd);
         return 1;
     }
     return 0;

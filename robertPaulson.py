@@ -267,8 +267,8 @@ def webAnother():
         os.remove(linked_dir)
     os.symlink(FORBIDDEN, linked_dir)
 
-    # run_test("Basic GET Request", test_get_root)
-    # run_test("Static File Request (/index.html)", test_get_index)
+    run_test("Basic GET Request", test_get_root)
+    run_test("Static File Request (/index.html)", test_get_index)
     # run_test("404 Not Found", test_404)
     # run_test("403 Forbidden (no permission dir)", test_403)
     # run_test("Autoindex Directory", test_autoindex)
@@ -278,9 +278,9 @@ def webAnother():
     # run_test("DELETE Uploaded File", lambda: test_delete_uploaded(temp_file))
     # run_test("HTTP Redirect (301/302)", test_redirect)
     # run_test("Virtual Host", test_virtual_host)
-    run_test("CGI Execution (GET)", test_cgi_get)
-    run_test("CGI Execution (POST)", test_cgi_post)
-    run_test("Chunked Transfer Encoding", test_chunked_encoding)
+    # run_test("CGI Execution (GET)", test_cgi_get)
+    # run_test("CGI Execution (POST)", test_cgi_post)
+    # run_test("Chunked Transfer Encoding", test_chunked_encoding)
     # run_test("Method Not Allowed (PUT)", test_put_not_allowed)
     # run_test("Keep-Alive Header (Connection reuse)", test_keep_alive)
     # run_test("Unsupported HTTP Version", test_http_0_9)
@@ -1533,7 +1533,7 @@ def main():
         # ("webCheck tests", webCheck),
         # ("webChunk tests", webChunk),
         # ("webTest tests", webTest),
-        # ("webTestCgiFileArgs", webTestCgiFileArg),
+        ("webTestCgiFileArgs", webTestCgiFileArg),
         # ("webUriEncoding", webUriEncoding)
     ]
     

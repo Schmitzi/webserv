@@ -21,7 +21,8 @@ FILES	=	main \
 			Multipart \
 			Helper \
 			EpollHelper \
-			Response
+			Response \
+			NoErrNo
 
 SRC_DIR = 	src/
 SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))

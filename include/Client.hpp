@@ -13,6 +13,7 @@
 #include "CGIHandler.hpp"
 #include "Multipart.hpp"
 #include "ConfigParser.hpp"
+#include "NoErrNo.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"
@@ -46,7 +47,7 @@ class Client {
         void                    	setConfigs(const std::vector<serverLevel> &configs);
         int                     	acceptConnection(int serverFd);
         void                    	displayConnection();
-        int                     	recieveData();
+        int                     	receiveData();
         int                     	checkLength(bool &printNewLine);
         int                     	processRequest(Request& req);
         int                     	handleGetRequest(Request& req);

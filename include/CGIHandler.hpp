@@ -9,6 +9,7 @@
 #include "Request.hpp"
 #include "Helper.hpp"
 #include "ConfigValidator.hpp"
+#include "NoErrNo.hpp"
 
 class	Client;
 class	Server;
@@ -18,48 +19,52 @@ struct	serverLevel;
 #define NIX false
 
 class CGIHandler {
-    public:
+	public:
 		CGIHandler();
 		CGIHandler(const Client& client);
 		CGIHandler(const CGIHandler& copy);
 		CGIHandler&operator=(const CGIHandler& copy);
-        ~CGIHandler();
+		~CGIHandler();
 
-        void									setServer(Server &server);
-        void									setCGIBin(serverLevel *config);
+		void									setServer(Server &server);
+		void									setCGIBin(serverLevel *config);
 		void									setPath(const std::string& path);
-        std::string								getInfoPath();
-        int										doChecks(Request& req);
-        int										handleCgiPipeEvent(int fd, uint32_t events);
-        int										processScriptOutput();
-        int										handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
-        int										handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
+		std::string								getInfoPath();
+		int										doChecks(Request& req);
+		int										handleCgiPipeEvent(uint32_t events);
+		int										processScriptOutput();
+		int										handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
+		int										handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
 		void									prepareForExecve(std::vector<char*>& argsPtrs, std::vector<char*>& envPtrs);
 		int										doChild();
-		int										doParent(Request& req, pid_t& pid);
-        int										executeCGI(Request& req);
+		int										doParent(Request& req);
+		int										executeCGI(Request& req);
 		int										prepareEnv(Request &req);
-        std::map<std::string, std::string>		parseHeaders(const std::string& headerSection);
-        std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
+		std::map<std::string, std::string>		parseHeaders(const std::string& headerSection);
+		std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
 		void									makeArgs(std::string const &cgiBin, std::string& filePath);
-        void									cleanupResources();
-        std::string								formatChunkedResponse(const std::string& body);
-        bool									isChunkedTransfer(const std::map<std::string, std::string>& headers);
-		void									setDone(bool x);
-		bool									isDone();
+		void									cleanupResources();
+		std::string								formatChunkedResponse(const std::string& body);
+		bool									isChunkedTransfer(const std::map<std::string, std::string>& headers);
+		bool									inputIsDone();
+		bool									outputIsDone();
 
 	private:
-        int										_input[2];
-        int										_output[2];
-        std::string								_cgiBinPath;
-        std::string								_pathInfo;
-        std::vector<std::string>				_env;
+		int										_input[2];
+		int										_output[2];
+		pid_t									_pid;
+		std::string								_cgiBinPath;
+		std::string								_pathInfo;
+		std::vector<std::string>				_env;
 		std::vector<std::string>				_args;
-        std::string								_path;
-        Client									*_client;
-        Server									*_server;
+		std::string								_path;
+		Client									*_client;
+		Server									*_server;
+		Request									*_request;
 		std::string								_outputBuffer;
-		bool									_done;
+		bool									_inputDone;
+		bool                                    _outputDone;
+		bool									_errorDone;
 };
 
 #endif

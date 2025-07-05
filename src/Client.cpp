@@ -98,19 +98,15 @@ void Client::displayConnection() {
             << (int)ip[3] << ":" << ntohs(_addr.sin_port) << RESET << std::endl;
 }
 
-int Client::recieveData() {
+int Client::receiveData() {
 	static bool printNewLine = false;
     char buffer[1000000];
     memset(buffer, 0, sizeof(buffer));
-    
-    ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
-	if (bytesRead < 0) {
-		std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
-		return 1;
-	}
-	_requestBuffer.append(buffer, bytesRead);
 
-	bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
+    if (!received(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT, _requestBuffer, "Nothing to be received", false))
+        return 1;
+
+    bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
 						_requestBuffer.find("chunked") != std::string::npos);
 	
 	if (isChunked) {
@@ -127,6 +123,7 @@ int Client::recieveData() {
 		std::cout << std::endl;
 	std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
 	printNewLine = false;
+    std::cout << GREY << _requestBuffer << RESET << std::endl;
 	Request req(_requestBuffer, *this, _fd);
 	int processResult = processRequest(req);
 	
@@ -358,6 +355,7 @@ int Client::handleRegularRequest(Request& req) {
     if (handleRedirect(req) == 0)
 		return 1;
     if (isCGIScript(reqPath)) {
+        std::cout << CYAN << "CGI script detected: " << RESET << reqPath << std::endl;
 		CGIHandler cgi = CGIHandler(*this);
 		cgi.setCGIBin(&req.getConf());
 		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
@@ -407,27 +405,20 @@ int Client::buildBody(Request &req, std::string fullPath) {
     struct stat fileStat;
     if (fstat(fd, &fileStat) < 0) {
 		sendErrorResponse(500, req);
-        close(fd);
+        safeClose(fd);
         return 1;
     }
     
-    std::vector<char> buffer(fileStat.st_size);
-
-    ssize_t bytesRead = read(fd, buffer.data(), fileStat.st_size);
-	if (bytesRead == 0) {
-		close(fd);
-		std::cout << getTimeStamp(_fd) << BLUE << "Nothing to be read in file: " << RESET << fullPath << std::endl;
-		return 0;
-	}
-    else if (bytesRead < 0) {
-        std::cerr << getTimeStamp(_fd) << RED << "Error: read() failed on file: " << RESET << fullPath << std::endl;
+    char buffer[fileStat.st_size];
+    std::string fileContent = "";
+    ssize_t bytesRead = 0;
+    if (!readIt(fd, buffer, sizeof(buffer) - 1, bytesRead, fileContent, "Nothing to read from file", false)) {
         sendErrorResponse(500, req);
-		close(fd);
+        safeClose(fd);
         return 1;
     }
-	std::string fileContent(buffer.data(), bytesRead);
 	req.setBody(fileContent);
-	close(fd);
+	safeClose(fd);
     return 0;
 }
 
@@ -658,12 +649,11 @@ int Client::handlePostRequest(Request& req) {
     }
     
     std::cout << getTimeStamp(_fd) << BLUE << "Writing to file: " << RESET << fullPath << std::endl;
-    
-    ssize_t bytesWritten = write(fd, contentToWrite.c_str(), contentToWrite.length());
-    
-	if (!checkReturn(_fd, bytesWritten, "write()", "Failed to write to file")) {
+
+    ssize_t bytesWritten = 0;
+    if (!wrote(fd, contentToWrite.c_str(), contentToWrite.size() - 1, bytesWritten, "Nothing was written to file", false)) {
         sendErrorResponse(500, req);
-		close(fd);
+        safeClose(fd);
         return 1;
     }
     std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
@@ -677,7 +667,7 @@ int Client::handlePostRequest(Request& req) {
     
     std::cout << getTimeStamp(_fd) << GREEN  << "Uploaded file: " << RESET << fullPath 
               << " (" << bytesWritten << " bytes written)" << std::endl;
-    close(fd);
+    safeClose(fd);
     return 0;
 }
 
@@ -779,14 +769,14 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
         std::cerr << getTimeStamp(_fd) << RED << "Error: Failed to open file for writing: " << RESET << fullPath << std::endl;
         return false;
     }
-    
-    ssize_t bytesWritten = write(fd, content.c_str(), content.length());
-    if (!checkReturn(_fd, bytesWritten, "write()", "Failed to write to file")) {
+
+    ssize_t bytesWritten = 0;
+    if (!wrote(fd, content.c_str(), content.size() - 1, bytesWritten, "Nothing was written to file", false)) {
         sendErrorResponse(500, req);
-		close(fd);
+		safeClose(fd);
         return false;
     }
-	close(fd);
+	safeClose(fd);
     return true;
 }
 

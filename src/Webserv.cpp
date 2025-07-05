@@ -143,13 +143,11 @@ int Webserv::run() {
         for (int i = 0; i < nfds; i++) {
 			int fd = _events[i].data.fd;
             uint32_t eventMask = _events[i].events;
-			// _events[i].events = EPOLLIN | EPOLLOUT | EPOLLHUP | EPOLLERR;
 			
 			if (eventMask & EPOLLERR) {
 				std::cout << MAGENTA << "---> EPOLLERR <---" << RESET << std::endl;
 				std::cerr << getTimeStamp(fd) << RED << "Error: Socket (EPOLLERR)" << RESET << std::endl;
 				handleErrorEvent(fd);
-				continue;
 			}
 
 			if (eventMask & EPOLLIN || eventMask & EPOLLHUP) {
@@ -160,23 +158,29 @@ int Webserv::run() {
 					handleNewConnection(*activeServer);
 				}
 				else {
-					if (eventMask & EPOLLIN) {
+					if (isCgiPipeFd(*this, fd)) {
+						std::cout << YELLOW << "~~~ cgi pipe in ~~~" << RESET << std::endl;
+						CGIHandler* handler = getCgiHandler(*this, fd);
+						if (handler && handler->handleCgiPipeEvent(eventMask) != 0)
+							std::cerr << getTimeStamp(fd) << RED << "Error: CGI processing failed" << RESET << std::endl;
+					}
+					else {//if (eventMask & EPOLLIN) {
 						std::cout << YELLOW << "~~~ CLIENT ACTIVITY ~~~" << RESET << std::endl;
 						handleClientActivity(fd);
-					}
-					if (isCgiPipeFd(*this, fd)) {
-						std::cout << YELLOW << "~~~ CGI PIPE ~~~" << RESET << std::endl;
-						CGIHandler* handler = getCgiHandler(*this, fd);
-						if (handler && handler->handleCgiPipeEvent(fd, eventMask) != 0)
-							std::cerr << getTimeStamp(fd) << RED << "Error: CGI processing failed" << RESET << std::endl;
-						// continue;
-					}
+					}					
 				}
 			}
 
 			if (eventMask & EPOLLOUT) {
-				std::cout << MAGENTA << "---> EPOLLOUT <---" << RESET << std::endl;
-				handleEpollOut(fd);
+				if (isCgiPipeFd(*this, fd)) {
+					std::cout << YELLOW << "~~~ cgi pipe out ~~~" << RESET << std::endl;
+					CGIHandler* handler = getCgiHandler(*this, fd);
+					if (handler && handler->handleCgiPipeEvent(eventMask) != 0)
+					std::cerr << getTimeStamp(fd) << RED << "Error: CGI processing failed" << RESET << std::endl;
+				} else {
+					std::cout << MAGENTA << "---> EPOLLOUT <---" << RESET << std::endl;
+					handleEpollOut(fd);
+				}
 			}
 		}
     }
@@ -200,15 +204,8 @@ void Webserv::handleEpollOut(int fd) {
 	const char* data = toSend.data() + offset;
 	size_t remaining = toSend.size() - offset;
 
-	ssize_t s = send(fd, data, remaining, 0);
-	if (s == 0) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: send() returned 0 (no data sent)" << RESET << std::endl;
-		clearSendBuf(*this, fd);
-		c->setExitCode(1);
-		return;
-	}
-	if (s < 0) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: send() failed" << RESET << std::endl;
+	ssize_t s = 0;
+	if (!sent(fd, data, remaining, 0, s, "Nothing else to send", true)){
 		clearSendBuf(*this, fd);
 		c->setExitCode(1);
 	}
@@ -239,7 +236,7 @@ void Webserv::handleNewConnection(Server &server) {
         socklen_t addrLen = sizeof(addr);
         int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);
         if (newFd >= 0)
-            close(newFd);
+            safeClose(newFd);
         return;
     }
     Client newClient(server);
@@ -250,7 +247,7 @@ void Webserv::handleNewConnection(Server &server) {
             _clients.push_back(newClient);
         else {
 			std::cerr << getTimeStamp(newClient.getFd()) << RED << "Failed to add client to epoll" << RESET << std::endl;
-            close(newClient.getFd());
+            safeClose(newClient.getFd());
         }
     }
 }
@@ -260,10 +257,14 @@ void Webserv::handleClientActivity(int clientFd) {
     if (!client) {
         std::cerr << getTimeStamp(clientFd) << RED << "Client not found" << RESET << std::endl;
         removeFromEpoll(*this, clientFd);
-        close(clientFd);
+        safeClose(clientFd);
         return;
     }
-    client->recieveData();
+    if (client->receiveData() != 0) {
+		std::cerr << getTimeStamp(clientFd) << RED << "Failed to receive data from client" << RESET << std::endl;
+		handleClientDisconnect(clientFd);
+		return;
+	}
 }
 
 void Webserv::handleClientDisconnect(int fd) {
@@ -273,7 +274,7 @@ void Webserv::handleClientDisconnect(int fd) {
         if (_clients[i].getFd() == fd) {
             std::cout << getTimeStamp(fd) << GREEN << "Cleaned up client connection" << RESET << std::endl;
             
-            close(_clients[i].getFd());
+            safeClose(_clients[i].getFd());
             _clients.erase(_clients.begin() + i);
             return;
         }
@@ -287,26 +288,13 @@ void Webserv::handleClientDisconnect(int fd) {
     std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
-// bool Webserv::checkEventMaskErrors(uint32_t &eventMask, int &fd) {
-// 	if (eventMask & EPOLLHUP) {//TODO: use EPOLLHUP
-// 		handleClientDisconnect(fd);
-// 		return false;
-// 	}
-// 	if (eventMask & EPOLLERR) {
-// 		std::cerr << getTimeStamp(fd) << RED << "Socket error" << RESET << std::endl;
-// 		handleErrorEvent(fd);
-// 		return false;
-// 	}
-// 	return true;
-// }
-
 void Webserv::handleErrorEvent(int fd) {
     removeFromEpoll(*this, fd);
     for (size_t i = 0; i < _clients.size(); i++) {
         if (_clients[i].getFd() == fd) {
             std::cerr << getTimeStamp(fd) << RED << "Removing client due to error " << RESET << std::endl;
             
-            close(_clients[i].getFd());
+            safeClose(_clients[i].getFd());
             _clients.erase(_clients.begin() + i);
             return;
         }
@@ -318,21 +306,21 @@ void    Webserv::cleanup() {
     for (size_t i = 0; i < _clients.size(); ++i) {
         if (_clients[i].getFd() >= 0) {
             removeFromEpoll(*this, _clients[i].getFd());
-            close(_clients[i].getFd());
+            safeClose(_clients[i].getFd());
         }
     }
 
     for (size_t i = 0; i < _servers.size(); i++) {
         if (_servers[i].getFd() >= 0) {
             removeFromEpoll(*this, _servers[i].getFd());
-            close(_servers[i].getFd());
+            safeClose(_servers[i].getFd());
         }
 
     }
     _servers.clear();
 
     if (_epollFd >= 0) {
-        close(_epollFd);
+        safeClose(_epollFd);
         _epollFd = -1;
     }
 }

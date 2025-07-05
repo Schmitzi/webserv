@@ -23,6 +23,7 @@
 #include "CGIHandler.hpp"
 #include "Helper.hpp"
 #include "EpollHelper.hpp"
+#include "NoErrNo.hpp"
 
 // Forward declarations
 class	Server;
