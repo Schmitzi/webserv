@@ -35,7 +35,7 @@ class CGIHandler {
         int										handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
 		void									prepareForExecve(std::vector<char*>& argsPtrs, std::vector<char*>& envPtrs);
 		int										doChild();
-		int										doParent(Request& req);
+		int										doParent(Request& req, int pid);
         int										executeCGI(Request& req);
 		int										prepareEnv(Request &req);
         std::map<std::string, std::string>		parseHeaders(const std::string& headerSection);
