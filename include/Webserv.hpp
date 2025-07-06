@@ -70,9 +70,9 @@ class Webserv {
         void            			handleClientActivity(int clientFd);
         void            			handleClientDisconnect(int fd);
 
-		// bool						checkEventMaskErrors(uint32_t &eventMask, int &fd);
         void            			handleErrorEvent(int fd);
         void            			cleanup();
+		void						printCgis();
 
     private:
         bool                        _state;

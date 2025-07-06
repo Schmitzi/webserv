@@ -356,7 +356,7 @@ int Client::handleRegularRequest(Request& req) {
 		return 1;
     if (isCGIScript(reqPath)) {
         std::cout << CYAN << "CGI script detected: " << RESET << reqPath << std::endl;
-		CGIHandler cgi = CGIHandler(*this);
+		CGIHandler cgi = CGIHandler(_webserv, this, _server, &req);
 		cgi.setCGIBin(&req.getConf());
 		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
         cgi.setPath(fullCgiPath);
@@ -607,7 +607,7 @@ int Client::handlePostRequest(Request& req) {
     if (fullPath.empty())
         return 1;
     if (isCGIScript(req.getPath())) {
-		CGIHandler cgi = CGIHandler(*this);
+		CGIHandler cgi = CGIHandler(_webserv, this, _server, &req);
 		std::string cgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), req.getPath());
 		cgi.setPath(cgiPath);
         return cgi.executeCGI(req);
@@ -651,7 +651,7 @@ int Client::handlePostRequest(Request& req) {
     std::cout << getTimeStamp(_fd) << BLUE << "Writing to file: " << RESET << fullPath << std::endl;
 
     ssize_t bytesWritten = 0;
-    if (!wrote(fd, contentToWrite.c_str(), contentToWrite.size() - 1, bytesWritten, "Nothing was written to file", false)) {
+    if (!wrote(fd, contentToWrite.c_str(), contentToWrite.size(), bytesWritten, "Nothing was written to file", false)) {
         sendErrorResponse(500, req);
         safeClose(fd);
         return 1;
@@ -676,7 +676,7 @@ int Client::handleDeleteRequest(Request& req) {
 	if (fullPath.empty())
 		return 1;
     if (isCGIScript(req.getPath())) {
-		CGIHandler cgi = CGIHandler(*this);
+		CGIHandler cgi = CGIHandler(_webserv, this, _server, &req);
 		cgi.setPath(fullPath);
 		std::cout << MAGENTA << "HERE 3: " << fullPath << RESET << std::endl;
         return cgi.executeCGI(req);
@@ -771,7 +771,7 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
     }
 
     ssize_t bytesWritten = 0;
-    if (!wrote(fd, content.c_str(), content.size() - 1, bytesWritten, "Nothing was written to file", false)) {
+    if (!wrote(fd, content.c_str(), content.size(), bytesWritten, "Nothing was written to file", false)) {
         sendErrorResponse(500, req);
 		safeClose(fd);
         return false;

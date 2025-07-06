@@ -1,22 +1,38 @@
 #include "../include/EpollHelper.hpp"
 
 bool isCgiPipeFd(Webserv& web, int fd) {
-    return web.getCgis().find(fd) != web.getCgis().end();
+    std::map<int, CGIHandler*>::iterator it = web.getCgis().begin();
+	for (; it != web.getCgis().end(); ++it) {
+		if (it->first == fd)
+			return true;
+	}
+	return false;
 }
 
 void registerCgiPipe(Webserv& web, int pipe, CGIHandler* handler) {
-    web.getCgis()[pipe] = handler;
+	std::cout << "\ninside registerCgiPipe, fd: " << pipe << std::endl;
+	web.getCgis().insert(std::pair<int, CGIHandler*>(pipe, handler));
+	web.printCgis();
 }
 
 CGIHandler* getCgiHandler(Webserv& web, int fd) {
-    std::map<int, CGIHandler*>::const_iterator it = web.getCgis().find(fd);
-    if (it != web.getCgis().end())
-        return it->second;
+    std::map<int, CGIHandler*>::const_iterator it = web.getCgis().begin();
+	for (; it != web.getCgis().end(); ++it) {
+		if (it->first == fd)
+			return it->second;
+	}
     return NULL;
 }
 
 void unregisterCgiPipe(Webserv& web, int pipe) {
-    web.getCgis().erase(pipe);
+	std::cout << "\ninside unregisterCgiPipe, fd: " << pipe << std::endl;
+	std::map<int, CGIHandler*>::iterator it = web.getCgis().begin();
+	for (; it != web.getCgis().end(); ++it) {
+		if (it->first == pipe) {
+			web.getCgis().erase(it);
+			return;
+		}
+	}
 }
 
 void addSendBuf(Webserv& web, int fd, const std::string& s) {
@@ -24,7 +40,13 @@ void addSendBuf(Webserv& web, int fd, const std::string& s) {
 }
 
 void clearSendBuf(Webserv& web, int fd) {
-	web.getSendBuf().erase(fd);
+	std::map<int, std::string>::iterator it = web.getSendBuf().begin();
+	for (; it != web.getSendBuf().end(); ++it) {
+		if (it->first == fd) {
+			web.getSendBuf().erase(it);
+			return;
+		}
+	}
 }
 
 int setEpollEvents(Webserv& web, int fd, uint32_t events) {

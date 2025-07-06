@@ -14,6 +14,7 @@
 class	Client;
 class	Server;
 class	Request;
+class	Webserv;
 struct	serverLevel;
 
 #define NIX false
@@ -21,7 +22,8 @@ struct	serverLevel;
 class CGIHandler {
 	public:
 		CGIHandler();
-		CGIHandler(const Client& client);
+		// CGIHandler(const Client& client);
+		CGIHandler(Webserv* webserv, Client* client, Server* server, Request* request);
 		CGIHandler(const CGIHandler& copy);
 		CGIHandler&operator=(const CGIHandler& copy);
 		~CGIHandler();
@@ -31,13 +33,13 @@ class CGIHandler {
 		void									setPath(const std::string& path);
 		std::string								getInfoPath();
 		int										doChecks(Request& req);
-		int										handleCgiPipeEvent(uint32_t events);
+		int										handleCgiPipeEvent(uint32_t events, int fd);
 		int										processScriptOutput();
 		int										handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
 		int										handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
 		void									prepareForExecve(std::vector<char*>& argsPtrs, std::vector<char*>& envPtrs);
 		int										doChild();
-		int										doParent(Request& req);
+		int										doParent();
 		int										executeCGI(Request& req);
 		int										prepareEnv(Request &req);
 		std::map<std::string, std::string>		parseHeaders(const std::string& headerSection);
@@ -48,6 +50,7 @@ class CGIHandler {
 		bool									isChunkedTransfer(const std::map<std::string, std::string>& headers);
 		bool									inputIsDone();
 		bool									outputIsDone();
+		void									printPipes();
 
 	private:
 		int										_input[2];
@@ -61,6 +64,7 @@ class CGIHandler {
 		Client									*_client;
 		Server									*_server;
 		Request									*_request;
+		Webserv									*_webserv;
 		std::string								_outputBuffer;
 		bool									_inputDone;
 		bool                                    _outputDone;

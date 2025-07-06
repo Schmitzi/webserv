@@ -154,31 +154,31 @@ int Webserv::run() {
 				std::cout << MAGENTA << "---> EPOLLIN <---" << RESET << std::endl;
 				Server* activeServer = getServerByFd(fd);
 				if (activeServer) {
-					std::cout << YELLOW << "~~~ NEW CONNECTION ~~~" << RESET << std::endl;
+					std::cout << YELLOW << "~~~ new connection ~~~" << RESET << std::endl;
 					handleNewConnection(*activeServer);
 				}
 				else {
 					if (isCgiPipeFd(*this, fd)) {
 						std::cout << YELLOW << "~~~ cgi pipe in ~~~" << RESET << std::endl;
 						CGIHandler* handler = getCgiHandler(*this, fd);
-						if (handler && handler->handleCgiPipeEvent(eventMask) != 0)
+						if (!handler || handler->handleCgiPipeEvent(eventMask, fd) != 0) {
 							std::cerr << getTimeStamp(fd) << RED << "Error: CGI processing failed" << RESET << std::endl;
-					}
-					else {//if (eventMask & EPOLLIN) {
-						std::cout << YELLOW << "~~~ CLIENT ACTIVITY ~~~" << RESET << std::endl;
+						}
+					} else if (eventMask & EPOLLIN) {
+						std::cout << YELLOW << "~~~ client activity ~~~" << RESET << std::endl;
 						handleClientActivity(fd);
 					}					
 				}
 			}
 
 			if (eventMask & EPOLLOUT) {
+				std::cout << MAGENTA << "---> EPOLLOUT <---" << RESET << std::endl;
 				if (isCgiPipeFd(*this, fd)) {
 					std::cout << YELLOW << "~~~ cgi pipe out ~~~" << RESET << std::endl;
 					CGIHandler* handler = getCgiHandler(*this, fd);
-					if (handler && handler->handleCgiPipeEvent(eventMask) != 0)
-					std::cerr << getTimeStamp(fd) << RED << "Error: CGI processing failed" << RESET << std::endl;
+					if (!handler || handler->handleCgiPipeEvent(eventMask, fd) != 0)
+						std::cerr << getTimeStamp(fd) << RED << "Error: CGI processing failed" << RESET << std::endl;
 				} else {
-					std::cout << MAGENTA << "---> EPOLLOUT <---" << RESET << std::endl;
 					handleEpollOut(fd);
 				}
 			}
@@ -323,4 +323,14 @@ void    Webserv::cleanup() {
         safeClose(_epollFd);
         _epollFd = -1;
     }
+}
+
+void Webserv::printCgis() {
+	std::map<int, CGIHandler*>::iterator it = _cgis.begin();
+	std::cout << MAGENTA << "___CGIHANDLER MAP___" << RESET << std::endl;
+	for (; it != _cgis.end(); ++it) {
+		std::cout << "saved fd: " << it->first << std::endl;
+		it->second->printPipes();
+		std::cout << CYAN << "~~~~~~~~~~~~~~~~~~~~~~~~~~~" << RESET << std::endl;
+	}
 }

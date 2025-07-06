@@ -17,12 +17,8 @@ bool checkReturn(int fd, ssize_t r, const std::string& func, const std::string& 
 
 bool received(int fd, char *buf, size_t len, int flags, std::string& storage, const std::string& isZero, bool errIfZero) {
 	std::cout << "RECEIVED" << std::endl;
-	if (fd < 0) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: Invalid file descriptor" << RESET << std::endl;
-		return false;
-	}
-	if (len == 0 || buf == NULL) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: Buffer is empty or NULL" << RESET << std::endl;
+	if (fd < 0 || len == 0 || !buf) {
+		std::cerr << getTimeStamp(fd) << RED << "Error: received() failed" << RESET << std::endl;
 		return false;
 	}
 	ssize_t bytes = recv(fd, buf, len, flags);
@@ -34,12 +30,8 @@ bool received(int fd, char *buf, size_t len, int flags, std::string& storage, co
 
 bool sent(int fd, const char *data, size_t len, int flags, ssize_t& bytes, const std::string& isZero, bool errIfZero) {
 	std::cout << "SENT" << std::endl;
-	if (fd < 0) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: Invalid file descriptor" << RESET << std::endl;
-		return false;
-	}
-	if (len == 0 || data == NULL) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: Data is empty or NULL" << RESET << std::endl;
+	if (fd < 0 || len == 0 || !data) {
+		std::cerr << getTimeStamp(fd) << RED << "Error: sent() failed" << RESET << std::endl;
 		return false;
 	}
 	bytes = send(fd, data, len, flags);
@@ -50,12 +42,8 @@ bool sent(int fd, const char *data, size_t len, int flags, ssize_t& bytes, const
 
 bool wrote(int fd, const char *data, size_t len, ssize_t& bytes, const std::string& isZero, bool errIfZero) {
 	std::cout << "WROTE" << std::endl;
-	if (fd < 0) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: Invalid file descriptor" << RESET << std::endl;
-		return false;
-	}
-	if (len == 0 || data == NULL) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: Data is empty or NULL" << RESET << std::endl;
+	if (fd < 0 || len == 0 || !data) {
+		std::cerr << getTimeStamp(fd) << RED << "Error: wrote() failed" << RESET << std::endl;
 		return false;
 	}
 	bytes = write(fd, data, len);
@@ -66,12 +54,8 @@ bool wrote(int fd, const char *data, size_t len, ssize_t& bytes, const std::stri
 
 bool readIt(int fd, char *buf, size_t len, ssize_t& bytes, std::string& storage, const std::string& isZero, bool errIfZero) {
 	std::cout << "READIT" << std::endl;
-	if (fd < 0) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: Invalid file descriptor" << RESET << std::endl;
-		return false;
-	}
-	if (len == 0 || buf == NULL) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: Buffer is empty or NULL" << RESET << std::endl;
+	if (fd < 0 || len == 0 || !buf) {
+		std::cerr << getTimeStamp(fd) << RED << "Error: readIt() failed" << RESET << std::endl;
 		return false;
 	}
 	bytes = read(fd, buf, len);
