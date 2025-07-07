@@ -61,61 +61,61 @@ std::string matchAndAppendPath(const std::string& base, const std::string& add) 
 }
 
 std::string decode(const std::string& encoded) {
-    std::string decoded;
-    char hex_buf[3] = {0};
+	std::string decoded;
+	char hex_buf[3] = {0};
 
-    for (std::string::size_type i = 0; i < encoded.length(); ++i) {
-        if (encoded[i] == '%' && i + 2 < encoded.length()) {
-            hex_buf[0] = encoded[i + 1];
-            hex_buf[1] = encoded[i + 2];
+	for (std::string::size_type i = 0; i < encoded.length(); ++i) {
+		if (encoded[i] == '%' && i + 2 < encoded.length()) {
+			hex_buf[0] = encoded[i + 1];
+			hex_buf[1] = encoded[i + 2];
 
-            char decoded_char = static_cast<char>(strtol(hex_buf, NULL, 16));
-            decoded += decoded_char;
-            i += 2;
-        } else if (encoded[i] == '+')
-            decoded += ' ';
-        else
-            decoded += encoded[i];
-    }
-    return decoded;
+			char decoded_char = static_cast<char>(strtol(hex_buf, NULL, 16));
+			decoded += decoded_char;
+			i += 2;
+		} else if (encoded[i] == '+')
+			decoded += ' ';
+		else
+			decoded += encoded[i];
+	}
+	return decoded;
 }
 
 std::string encode(const std::string& decoded) {
-    std::ostringstream encoded;
+	std::ostringstream encoded;
 
-    for (std::string::size_type i = 0; i < decoded.length(); ++i) {
-        unsigned char c = decoded[i];
-        if (c == '/')
-            encoded << '/';
-        else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+	for (std::string::size_type i = 0; i < decoded.length(); ++i) {
+		unsigned char c = decoded[i];
+		if (c == '/')
+			encoded << '/';
+		else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
 				|| c == '-' || c == '_' || c == '.' || c == '~') {
-            encoded << c;
-        }
-        else {
-            encoded << '%' << std::uppercase << std::hex
-                    << std::setw(2) << std::setfill('0') << int(c);
-        }
-    }
+			encoded << c;
+		}
+		else {
+			encoded << '%' << std::uppercase << std::hex
+					<< std::setw(2) << std::setfill('0') << int(c);
+		}
+	}
 
-    return encoded.str();
+	return encoded.str();
 }
 
 std::string getTimeStamp(int fd) {
-    time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    
-    std::ostringstream oss;
-    oss << "[" 
-        << (tm_info->tm_year + 1900) << "-"
-        << std::setw(2) << std::setfill('0') << (tm_info->tm_mon + 1) << "-"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_mday << " "
-        << std::setw(2) << std::setfill('0') << tm_info->tm_hour << ":"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_min << ":"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
+	time_t now = time(NULL);
+	struct tm* tm_info = localtime(&now);
+	
+	std::ostringstream oss;
+	oss << "[" 
+		<< (tm_info->tm_year + 1900) << "-"
+		<< std::setw(2) << std::setfill('0') << (tm_info->tm_mon + 1) << "-"
+		<< std::setw(2) << std::setfill('0') << tm_info->tm_mday << " "
+		<< std::setw(2) << std::setfill('0') << tm_info->tm_hour << ":"
+		<< std::setw(2) << std::setfill('0') << tm_info->tm_min << ":"
+		<< std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
 	if (fd >= 0)
 		oss << "[" << fd << "] ";
-    
-    return oss.str();
+	
+	return oss.str();
 }
 
 void doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent) {

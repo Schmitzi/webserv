@@ -15,11 +15,11 @@ bool isValidDir(std::string &path) {
 }
 
 bool isValidExecutable(const std::string& path) {
-    struct stat info;
-    if (stat(path.c_str(), &info) != 0) return false;
-    if (!S_ISREG(info.st_mode)) return false;
-    if (access(path.c_str(), X_OK) != 0) return false;
-    return true;
+	struct stat info;
+	if (stat(path.c_str(), &info) != 0) return false;
+	if (!S_ISREG(info.st_mode)) return false;
+	if (access(path.c_str(), X_OK) != 0) return false;
+	return true;
 }
 
 bool isValidName(const std::string& name) {

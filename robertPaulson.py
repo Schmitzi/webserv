@@ -1529,12 +1529,12 @@ def webUriEncoding():
 
 def main():
     integrated_tests = [
-        # ("webAnother tests", webAnother),
-        # ("webCheck tests", webCheck),
-        # ("webChunk tests", webChunk),
-        # ("webTest tests", webTest),
+        ("webAnother tests", webAnother),
+        ("webCheck tests", webCheck),
+        ("webChunk tests", webChunk),
+        ("webTest tests", webTest),
         ("webTestCgiFileArgs", webTestCgiFileArg),
-        # ("webUriEncoding", webUriEncoding)
+        ("webUriEncoding", webUriEncoding)
     ]
     
     try:

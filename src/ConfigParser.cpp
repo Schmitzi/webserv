@@ -66,24 +66,24 @@ ConfigParser &ConfigParser::operator=(const ConfigParser& copy) {
 }
 
 ConfigParser::~ConfigParser() {
-    _ipPortToServers.clear();
+	_ipPortToServers.clear();
 	std::vector<serverLevel>::iterator servIt = _allConfigs.begin();
-    for (; servIt != _allConfigs.end(); ++servIt) {
-        std::map<std::string, locationLevel>::iterator locIt = servIt->locations.begin();
-        for (; locIt != servIt->locations.end(); ++locIt)
-            locIt->second.methods.clear();
-        
-        servIt->locations.clear();
-        servIt->port.clear();
-        servIt->servName.clear();
-        servIt->errPages.clear();
+	for (; servIt != _allConfigs.end(); ++servIt) {
+		std::map<std::string, locationLevel>::iterator locIt = servIt->locations.begin();
+		for (; locIt != servIt->locations.end(); ++locIt)
+			locIt->second.methods.clear();
+		
+		servIt->locations.clear();
+		servIt->port.clear();
+		servIt->servName.clear();
+		servIt->errPages.clear();
 	}
 	_allConfigs.clear();
 	
 	std::vector<std::vector<std::string> >::iterator it = _storedConfigs.begin();
-    for (; it != _storedConfigs.end(); ++it)
-        it->clear();
-    _storedConfigs.clear();
+	for (; it != _storedConfigs.end(); ++it)
+		it->clear();
+	_storedConfigs.clear();
 }
 
 /* ***************************************************************************************** */
@@ -201,25 +201,25 @@ void ConfigParser::setIpPortToServers() {
 }
 
 void ConfigParser::parseAndSetConfigs() {
-    std::set<std::string> usedCombinations;
-    for (size_t i = 0; i < _storedConfigs.size(); i++) {
-        serverLevel nextConf = serverLevel();
-        setConfigLevels(nextConf, _storedConfigs[i]);
-        bool validServer = false;
+	std::set<std::string> usedCombinations;
+	for (size_t i = 0; i < _storedConfigs.size(); i++) {
+		serverLevel nextConf = serverLevel();
+		setConfigLevels(nextConf, _storedConfigs[i]);
+		bool validServer = false;
 
-        for (size_t j = 0; j < nextConf.port.size(); j++) {
+		for (size_t j = 0; j < nextConf.port.size(); j++) {
 			for (size_t k = 0; k < nextConf.servName.size(); k++) {
 				std::string combination = nextConf.port[j].first.first + ":" + tostring(nextConf.port[j].first.second) + ":" + nextConf.servName[k];
-                if (usedCombinations.find(combination) == usedCombinations.end()) {
+				if (usedCombinations.find(combination) == usedCombinations.end()) {
 					usedCombinations.insert(combination);
-                    validServer = true;
-                } else throw configException("Error: Duplicate server configuration found for " + combination);
-            }
-        }
-        if (validServer)
-            _allConfigs.push_back(nextConf);
-    }
-    setIpPortToServers();
+					validServer = true;
+				} else throw configException("Error: Duplicate server configuration found for " + combination);
+			}
+		}
+		if (validServer)
+			_allConfigs.push_back(nextConf);
+	}
+	setIpPortToServers();
 }
 
 /* *************************************************************************************** */

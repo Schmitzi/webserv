@@ -32,23 +32,23 @@ bool deleteErrorPages() {
 }
 
 void signalHandler(int signal) {
-    if (signal == SIGINT || signal == SIGTERM) {
-        std::cout << "\r" << std::string(80, ' ') << "\r" << std::flush;
-        std::cout << "Received signal, shutting down...\n";
+	if (signal == SIGINT || signal == SIGTERM) {
+		std::cout << "\r" << std::string(80, ' ') << "\r" << std::flush;
+		std::cout << "Received signal, shutting down...\n";
 
 		if (!deleteErrorPages())
 			std::cerr << getTimeStamp() << RED << "Failed to delete error pages directory" << RESET << std::endl;
-    
-        std::cout << "Goodbye!" << std::endl;
+	
+		std::cout << "Goodbye!" << std::endl;
 		g_webserv->flipState();
-    }
+	}
 }
 
 
 int main(int ac, char **av, char **envp) {
-    (void) ac;
+	(void) ac;
 
-    try {
+	try {
 		signal(SIGINT, signalHandler);
 		signal(SIGTERM, signalHandler);
 		signal(SIGPIPE, SIG_IGN);
@@ -70,5 +70,5 @@ int main(int ac, char **av, char **envp) {
 	} catch (const std::exception& e) {
 		std::cerr << "Exception: " << e.what() << std::endl;
 	}
-    return 0;
+	return 0;
 }

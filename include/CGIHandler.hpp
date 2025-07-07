@@ -22,7 +22,6 @@ struct	serverLevel;
 class CGIHandler {
 	public:
 		CGIHandler();
-		// CGIHandler(const Client& client);
 		CGIHandler(Webserv* webserv, Client* client, Server* server, Request* request);
 		CGIHandler(const CGIHandler& copy);
 		CGIHandler&operator=(const CGIHandler& copy);
@@ -67,8 +66,9 @@ class CGIHandler {
 		Webserv									*_webserv;
 		std::string								_outputBuffer;
 		bool									_inputDone;
-		bool                                    _outputDone;
+		bool									_outputDone;
 		bool									_errorDone;
+		size_t									_inputOffset;
 };
 
 #endif

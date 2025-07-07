@@ -3,38 +3,38 @@
 Webserv::Webserv(std::string config) : _epollFd(-1) {
 	_state = false;
 	_confParser = ConfigParser(config);
-    _configs = _confParser.getAllConfigs();
-    for (size_t i = 0; i < _configs.size(); i++) {
+	_configs = _confParser.getAllConfigs();
+	for (size_t i = 0; i < _configs.size(); i++) {
 		bool toAdd = true;
 		for (size_t j = 0; j < _servers.size(); j++) {
-            std::vector<serverLevel>& servConfigs = _servers[j].getConfigs();
-            for (size_t k = 0; k < servConfigs.size(); k++) {
-                std::pair<std::pair<std::string, int>, bool> one = _confParser.getDefaultPortPair(_confParser.getConfigByIndex(i));
-                std::pair<std::pair<std::string, int>, bool> two = _confParser.getDefaultPortPair(servConfigs[k]);
+			std::vector<serverLevel>& servConfigs = _servers[j].getConfigs();
+			for (size_t k = 0; k < servConfigs.size(); k++) {
+				std::pair<std::pair<std::string, int>, bool> one = _confParser.getDefaultPortPair(_confParser.getConfigByIndex(i));
+				std::pair<std::pair<std::string, int>, bool> two = _confParser.getDefaultPortPair(servConfigs[k]);
 				if (one.first.first == two.first.first && one.first.second == two.first.second) {
 					toAdd = false;
 					break;
 				}
-            }
-        }
+			}
+		}
 		if (toAdd)
 			_servers.push_back(Server(_confParser, i, *this));
 	}
-    _state = true;
+	_state = true;
 }
 
 Webserv::Webserv(Webserv const &other) : _epollFd(-1) {
-    *this = other;
+	*this = other;
 }
 
 Webserv &Webserv::operator=(Webserv const &other) {
-    if (this != &other) {
-        cleanup();
+	if (this != &other) {
+		cleanup();
 		_state = other._state;
 		_servers = other._servers;
 		_clients = other._clients;
 		_env = other._env;
-        _epollFd = other._epollFd;
+		_epollFd = other._epollFd;
 		_confParser = other._confParser;
 		_configs = other._configs;
 	}
@@ -42,7 +42,7 @@ Webserv &Webserv::operator=(Webserv const &other) {
 }
 
 Webserv::~Webserv() {
-    cleanup();
+	cleanup();
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GETTERS & SETTERS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -56,10 +56,10 @@ void Webserv::flipState() {
 }
 
 Server* Webserv::getServerByFd(int fd) {
-    for (size_t i = 0; i < _servers.size(); i++) {
-        if (_servers[i].getFd() == fd)
+	for (size_t i = 0; i < _servers.size(); i++) {
+		if (_servers[i].getFd() == fd)
 			return &_servers[i];
-    }
+	}
 	return NULL;
 }
 
@@ -90,8 +90,8 @@ std::map<int, CGIHandler*> &Webserv::getCgis() {
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 void Webserv::initialize() {
-    for (size_t i = 0; i < _servers.size(); i++) {
-    	if (_servers[i].getFd() > 0) {
+	for (size_t i = 0; i < _servers.size(); i++) {
+		if (_servers[i].getFd() > 0) {
 			std::cout << getTimeStamp() << BLUE << "Host:Port already opened: " << RESET << 
 				_confParser.getDefaultPortPair(_servers[i].getConfigs()[0]).first.first << ":" << 
 				_confParser.getDefaultPortPair(_servers[i].getConfigs()[0]).first.second << std::endl;
@@ -122,27 +122,27 @@ void Webserv::initialize() {
 				std::cout << "]";
 		}
 		std::cout << " is listening on port " << _confParser.getPort(_servers[i].getConfigs()[0]) << RESET << std::endl << std::endl;
-    }
+	}
 }
 
 int Webserv::run() {
-    _epollFd = epoll_create1(EPOLL_CLOEXEC);
-    if (_epollFd == -1) {
+	_epollFd = epoll_create1(EPOLL_CLOEXEC);
+	if (_epollFd == -1) {
 		std::cerr << getTimeStamp() << RED << "Error: epoll_create1() failed" << RESET << std::endl;
-        return 1;
-    }
-    initialize();
-    while (_state == true) {
-        int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
-        if (nfds == -1) {
-            if (errno == EINTR)
-                continue;
-            std::cerr << getTimeStamp() << RED << "Error: epoll_wait() failed" << RESET << std::endl;
-            continue;
-        }
-        for (int i = 0; i < nfds; i++) {
+		return 1;
+	}
+	initialize();
+	while (_state == true) {
+		int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
+		if (nfds == -1) {
+			if (errno == EINTR)
+				continue;
+			std::cerr << getTimeStamp() << RED << "Error: epoll_wait() failed" << RESET << std::endl;
+			continue;
+		}
+		for (int i = 0; i < nfds; i++) {
 			int fd = _events[i].data.fd;
-            uint32_t eventMask = _events[i].events;
+			uint32_t eventMask = _events[i].events;
 			
 			if (eventMask & EPOLLERR) {
 				std::cout << MAGENTA << "---> EPOLLERR <---" << RESET << std::endl;
@@ -183,8 +183,8 @@ int Webserv::run() {
 				}
 			}
 		}
-    }
-    return 0;
+	}
+	return 0;
 }
 
 void Webserv::handleEpollOut(int fd) {
@@ -230,37 +230,37 @@ void Webserv::handleEpollOut(int fd) {
 
 void Webserv::handleNewConnection(Server &server) {
 	if (_clients.size() >= 1000) {
-        std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
-        
-        struct sockaddr_in addr;
-        socklen_t addrLen = sizeof(addr);
-        int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);
-        if (newFd >= 0)
-            safeClose(newFd);
-        return;
-    }
-    Client newClient(server);
-    if (newClient.acceptConnection(server.getFd()) == 0) {
-        newClient.displayConnection();
+		std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
+		
+		struct sockaddr_in addr;
+		socklen_t addrLen = sizeof(addr);
+		int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);
+		if (newFd >= 0)
+			safeClose(newFd);
+		return;
+	}
+	Client newClient(server);
+	if (newClient.acceptConnection(server.getFd()) == 0) {
+		newClient.displayConnection();
 
-        if (addToEpoll(*this, newClient.getFd(), EPOLLIN) == 0)
-            _clients.push_back(newClient);
-        else {
+		if (addToEpoll(*this, newClient.getFd(), EPOLLIN) == 0)
+			_clients.push_back(newClient);
+		else {
 			std::cerr << getTimeStamp(newClient.getFd()) << RED << "Failed to add client to epoll" << RESET << std::endl;
-            safeClose(newClient.getFd());
-        }
-    }
+			safeClose(newClient.getFd());
+		}
+	}
 }
 
 void Webserv::handleClientActivity(int clientFd) {
-    Client* client = getClientByFd(clientFd);
-    if (!client) {
-        std::cerr << getTimeStamp(clientFd) << RED << "Client not found" << RESET << std::endl;
-        removeFromEpoll(*this, clientFd);
-        safeClose(clientFd);
-        return;
-    }
-    if (client->receiveData() != 0) {
+	Client* client = getClientByFd(clientFd);
+	if (!client) {
+		std::cerr << getTimeStamp(clientFd) << RED << "Client not found" << RESET << std::endl;
+		removeFromEpoll(*this, clientFd);
+		safeClose(clientFd);
+		return;
+	}
+	if (client->receiveData() != 0) {
 		std::cerr << getTimeStamp(clientFd) << RED << "Failed to receive data from client" << RESET << std::endl;
 		handleClientDisconnect(clientFd);
 		return;
@@ -268,61 +268,74 @@ void Webserv::handleClientActivity(int clientFd) {
 }
 
 void Webserv::handleClientDisconnect(int fd) {
-    removeFromEpoll(*this, fd);
+	removeFromEpoll(*this, fd);
 
-    for (size_t i = 0; i < _clients.size(); i++) {
-        if (_clients[i].getFd() == fd) {
-            std::cout << getTimeStamp(fd) << GREEN << "Cleaned up client connection" << RESET << std::endl;
-            
-            safeClose(_clients[i].getFd());
-            _clients.erase(_clients.begin() + i);
-            return;
-        }
-    }
+	for (size_t i = 0; i < _clients.size(); i++) {
+		if (_clients[i].getFd() == fd) {
+			std::cout << getTimeStamp(fd) << GREEN << "Cleaned up client connection" << RESET << std::endl;
+			
+			safeClose(_clients[i].getFd());
+			_clients.erase(_clients.begin() + i);
+			return;
+		}
+	}
 	if (_cgis.find(fd) != _cgis.end()) {
 		std::cout << getTimeStamp(fd) << GREEN << "Cleaned up cgi-handler connection" << RESET << std::endl;
 		_cgis.erase(fd);
 		return;
 
 	}
-    std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
+	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
 void Webserv::handleErrorEvent(int fd) {
-    removeFromEpoll(*this, fd);
-    for (size_t i = 0; i < _clients.size(); i++) {
-        if (_clients[i].getFd() == fd) {
-            std::cerr << getTimeStamp(fd) << RED << "Removing client due to error " << RESET << std::endl;
-            
-            safeClose(_clients[i].getFd());
-            _clients.erase(_clients.begin() + i);
-            return;
-        }
-    }
-    std::cerr << getTimeStamp(fd) << RED << "Error on unknown fd" << RESET << std::endl;
+	removeFromEpoll(*this, fd);
+	for (size_t i = 0; i < _clients.size(); i++) {
+		if (_clients[i].getFd() == fd) {
+			std::cerr << getTimeStamp(fd) << RED << "Removing client due to error " << RESET << std::endl;
+			
+			safeClose(_clients[i].getFd());
+			_clients.erase(_clients.begin() + i);
+			return;
+		}
+	}
+	std::cerr << getTimeStamp(fd) << RED << "Error on unknown fd" << RESET << std::endl;
 }
 
 void    Webserv::cleanup() {
-    for (size_t i = 0; i < _clients.size(); ++i) {
-        if (_clients[i].getFd() >= 0) {
-            removeFromEpoll(*this, _clients[i].getFd());
-            safeClose(_clients[i].getFd());
-        }
-    }
+	for (size_t i = 0; i < _clients.size(); ++i) {
+		if (_clients[i].getFd() >= 0) {
+			removeFromEpoll(*this, _clients[i].getFd());
+			safeClose(_clients[i].getFd());
+		}
+	}
 
-    for (size_t i = 0; i < _servers.size(); i++) {
-        if (_servers[i].getFd() >= 0) {
-            removeFromEpoll(*this, _servers[i].getFd());
-            safeClose(_servers[i].getFd());
-        }
+	for (size_t i = 0; i < _servers.size(); i++) {
+		if (_servers[i].getFd() >= 0) {
+			removeFromEpoll(*this, _servers[i].getFd());
+			safeClose(_servers[i].getFd());
+		}
 
-    }
-    _servers.clear();
+	}
+	_servers.clear();
 
-    if (_epollFd >= 0) {
-        safeClose(_epollFd);
-        _epollFd = -1;
-    }
+	if (_epollFd >= 0) {
+		safeClose(_epollFd);
+		_epollFd = -1;
+	}
+	if (!_cgis.empty()) {
+		std::map<int, CGIHandler*>::iterator it = _cgis.begin();//TODO: need to delete correctly
+		for (; it != _cgis.end(); ++it) {
+			if (it->second) {
+				it->second->cleanupResources();
+				delete it->second;
+			}
+			_cgis.erase(it);
+		}
+	}
+	_clients.clear();
+	_sendBuf.clear();
+	std::cout << getTimeStamp() << GREEN << "Webserv cleanup completed" << RESET << std::endl;
 }
 
 void Webserv::printCgis() {

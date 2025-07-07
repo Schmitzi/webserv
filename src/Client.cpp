@@ -5,54 +5,56 @@
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
-    _webserv = &serv.getWebServ();
-    _server = &serv;
+	_webserv = &serv.getWebServ();
+	_server = &serv;
 	_configs = serv.getConfigs();
 	_connect = "";
 	_sendOffset = 0;
 	_exitCode = 0;
+	_cgiDone = true;
 }
 
 Client::Client(const Client& client) {
-    *this = client;
+	*this = client;
 }
 
 Client& Client::operator=(const Client& other) {
-    if (this != &other) {
-        _addr = other._addr;
-        _fd = other._fd;
-        _addrLen = other._addrLen;
-        _requestBuffer = other._requestBuffer;
-        _webserv = other._webserv;
-        _server = other._server;
-        _configs = other._configs;
+	if (this != &other) {
+		_addr = other._addr;
+		_fd = other._fd;
+		_addrLen = other._addrLen;
+		_requestBuffer = other._requestBuffer;
+		_webserv = other._webserv;
+		_server = other._server;
+		_configs = other._configs;
 		_connect = other._connect;
 		_sendOffset = other._sendOffset;
 		_exitCode = other._exitCode;
+		_cgiDone = other._cgiDone;
 	}
-    return *this;
+	return *this;
 }
 
 Client::~Client() {}
 
 int	&Client::getFd() {
-    return _fd;
+	return _fd;
 }
 
 void Client::setWebserv(Webserv &webserv) {
-    _webserv = &webserv;
+	_webserv = &webserv;
 }
 
 void Client::setServer(Server &server) {
-    _server = &server;
+	_server = &server;
 }
 
 Server &Client::getServer() {
-    return *_server;
+	return *_server;
 }
 
 void    Client::setConfigs(const std::vector<serverLevel> &configs) {
-    _configs = configs;
+	_configs = configs;
 }
 
 std::vector<serverLevel> Client::getConfigs() {
@@ -79,34 +81,42 @@ void Client::setExitCode(int i) {
 	_exitCode = i;
 }
 
+bool Client::cgiIsDone() {
+	return _cgiDone;
+}
+
+void Client::setCgiDone(bool x) {
+	_cgiDone = x;
+}
+
 int Client::acceptConnection(int serverFd) {
-    _addrLen = sizeof(_addr);
-    _fd  = accept(serverFd, (struct sockaddr *)&_addr, &_addrLen);
-    if (_fd < 0) {
+	_addrLen = sizeof(_addr);
+	_fd  = accept(serverFd, (struct sockaddr *)&_addr, &_addrLen);
+	if (_fd < 0) {
 		std::cerr << getTimeStamp() << RED << "Error: accept() failed" << RESET << std::endl;
-        return 1;
-    }    
-    std::cout << getTimeStamp(_fd) << "Client accepted" << std::endl;
-    
-    return 0;
+		return 1;
+	}    
+	std::cout << getTimeStamp(_fd) << "Client accepted" << std::endl;
+	
+	return 0;
 }
 
 void Client::displayConnection() {
-    unsigned char *ip = (unsigned char *)&_addr.sin_addr.s_addr;
-    std::cout << getTimeStamp(_fd) << BLUE << "New connection from "
-        << (int)ip[0] << "." << (int)ip[1] << "." << (int)ip[2] << "."
-            << (int)ip[3] << ":" << ntohs(_addr.sin_port) << RESET << std::endl;
+	unsigned char *ip = (unsigned char *)&_addr.sin_addr.s_addr;
+	std::cout << getTimeStamp(_fd) << BLUE << "New connection from "
+		<< (int)ip[0] << "." << (int)ip[1] << "." << (int)ip[2] << "."
+			<< (int)ip[3] << ":" << ntohs(_addr.sin_port) << RESET << std::endl;
 }
 
 int Client::receiveData() {
 	static bool printNewLine = false;
-    char buffer[1000000];
-    memset(buffer, 0, sizeof(buffer));
+	char buffer[1000000];
+	memset(buffer, 0, sizeof(buffer));
 
-    if (!received(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT, _requestBuffer, "Nothing to be received", false))
-        return 1;
+	if (!received(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT, _requestBuffer, "Nothing to be received", false))
+		return 0;
 
-    bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
+	bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
 						_requestBuffer.find("chunked") != std::string::npos);
 	
 	if (isChunked) {
@@ -123,7 +133,7 @@ int Client::receiveData() {
 		std::cout << std::endl;
 	std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
 	printNewLine = false;
-    std::cout << GREY << _requestBuffer << RESET << std::endl;
+	std::cout << GREY << _requestBuffer << RESET << std::endl;
 	Request req(_requestBuffer, *this, _fd);
 	int processResult = processRequest(req);
 	
@@ -134,118 +144,118 @@ int Client::receiveData() {
 }
 
 int Client::checkLength(bool &printNewLine) {
-    size_t contentLengthPos = _requestBuffer.find("Content-Length:");
-    if (contentLengthPos != std::string::npos) {
-        size_t valueStart = contentLengthPos + 15;
-        while (valueStart < _requestBuffer.length() && 
-                (_requestBuffer[valueStart] == ' ' || _requestBuffer[valueStart] == '\t')) {
-            valueStart++;
-        }
-        
-        size_t valueEnd = _requestBuffer.find("\r\n", valueStart);
-        if (valueEnd == std::string::npos) {
-            valueEnd = _requestBuffer.find("\n", valueStart);
-        }
-        
-        if (valueEnd != std::string::npos) {
-            std::string lengthStr = _requestBuffer.substr(valueStart, valueEnd - valueStart);
-            size_t expectedLength = strtoul(lengthStr.c_str(), NULL, 10);
-            
-            size_t bodyStart = _requestBuffer.find("\r\n\r\n");
-            if (bodyStart != std::string::npos) {
-                bodyStart += 4;
-            } else {
-                bodyStart = _requestBuffer.find("\n\n");
-                if (bodyStart != std::string::npos) {
-                    bodyStart += 2;
-                }
-            }
-            
-            if (bodyStart != std::string::npos) {
-                size_t actualBodyLength = _requestBuffer.length() - bodyStart;
-                if (actualBodyLength < expectedLength) {
+	size_t contentLengthPos = _requestBuffer.find("Content-Length:");
+	if (contentLengthPos != std::string::npos) {
+		size_t valueStart = contentLengthPos + 15;
+		while (valueStart < _requestBuffer.length() && 
+				(_requestBuffer[valueStart] == ' ' || _requestBuffer[valueStart] == '\t')) {
+			valueStart++;
+		}
+		
+		size_t valueEnd = _requestBuffer.find("\r\n", valueStart);
+		if (valueEnd == std::string::npos) {
+			valueEnd = _requestBuffer.find("\n", valueStart);
+		}
+		
+		if (valueEnd != std::string::npos) {
+			std::string lengthStr = _requestBuffer.substr(valueStart, valueEnd - valueStart);
+			size_t expectedLength = strtoul(lengthStr.c_str(), NULL, 10);
+			
+			size_t bodyStart = _requestBuffer.find("\r\n\r\n");
+			if (bodyStart != std::string::npos) {
+				bodyStart += 4;
+			} else {
+				bodyStart = _requestBuffer.find("\n\n");
+				if (bodyStart != std::string::npos) {
+					bodyStart += 2;
+				}
+			}
+			
+			if (bodyStart != std::string::npos) {
+				size_t actualBodyLength = _requestBuffer.length() - bodyStart;
+				if (actualBodyLength < expectedLength) {
 					if (printNewLine == false)
 						std::cout << getTimeStamp(_fd) << BLUE << "Receiving bytes..." << RESET << std::endl;
 					std::cout << "[~]";
 					printNewLine = true;
-                    return 0;
-                }
-            }
-        }
-    }
-    return 1;
+					return 0;
+				}
+			}
+		}
+	}
+	return 1;
 }
 
 bool Client::isChunkedBodyComplete(const std::string& buffer) {
-    size_t bodyStart = buffer.find("\r\n\r\n");
-    if (bodyStart == std::string::npos) {
-        bodyStart = buffer.find("\n\n");
-        if (bodyStart == std::string::npos)
-            return false;
-        bodyStart += 2;
-    } else
-        bodyStart += 4;
-    
-    if (bodyStart >= buffer.length())
-        return false;
-    
-    std::string body = buffer.substr(bodyStart);
-    
-    if (body.find("0\r\n\r\n") != std::string::npos || body.find("0\n\n") != std::string::npos)
-        return true;
-    
-    return false;
+	size_t bodyStart = buffer.find("\r\n\r\n");
+	if (bodyStart == std::string::npos) {
+		bodyStart = buffer.find("\n\n");
+		if (bodyStart == std::string::npos)
+			return false;
+		bodyStart += 2;
+	} else
+		bodyStart += 4;
+	
+	if (bodyStart >= buffer.length())
+		return false;
+	
+	std::string body = buffer.substr(bodyStart);
+	
+	if (body.find("0\r\n\r\n") != std::string::npos || body.find("0\n\n") != std::string::npos)
+		return true;
+	
+	return false;
 }
 
 int Client::processRequest(Request& req) {
 	serverLevel &conf = req.getConf();
-    if (req.getContentLength() > conf.requestLimit) {
-        std::cerr << getTimeStamp(_fd) << RED  << "Content-Length too large" << RESET << std::endl;
-        sendErrorResponse(413, req);
-        _requestBuffer.clear();
-        return 1;
-    }
+	if (req.getContentLength() > conf.requestLimit) {
+		std::cerr << getTimeStamp(_fd) << RED  << "Content-Length too large" << RESET << std::endl;
+		sendErrorResponse(413, req);
+		_requestBuffer.clear();
+		return 1;
+	}
 
-    if (req.getCheck() == "BAD") {
-        std::cerr << getTimeStamp(_fd) << RED  << "Bad request format " << RESET << std::endl;
-        sendErrorResponse(400, req);
-        _requestBuffer.clear();
-        return 1;
-    }
-    
-    if (req.getCheck() == "NOTALLOWED") {
-        std::cerr << getTimeStamp(_fd) << RED  << "Method Not Allowed: " << RESET << req.getMethod() << std::endl;
-        sendErrorResponse(405, req);
-        _requestBuffer.clear();
-        return 1;
-    }
+	if (req.getCheck() == "BAD") {
+		std::cerr << getTimeStamp(_fd) << RED  << "Bad request format " << RESET << std::endl;
+		sendErrorResponse(400, req);
+		_requestBuffer.clear();
+		return 1;
+	}
+	
+	if (req.getCheck() == "NOTALLOWED") {
+		std::cerr << getTimeStamp(_fd) << RED  << "Method Not Allowed: " << RESET << req.getMethod() << std::endl;
+		sendErrorResponse(405, req);
+		_requestBuffer.clear();
+		return 1;
+	}
 
-    locationLevel* loc = NULL;
-    if (matchLocation(req.getPath(), conf, loc)) {
-        if (loc->hasRedirect == true) {
-            sendRedirect(loc->redirectionHTTP.first, loc->redirectionHTTP.second);
-            return 0;
-        }
-    }
-    if (req.getContentType().find("multipart/form-data") != std::string::npos) {
-        int result = handleMultipartPost(req);
-        if (result != -1)
-            return result;
-        return 0;
-    }
-    std::cout << getTimeStamp(_fd) << BLUE << "Parsed Request: " << RESET << 
-        req.getMethod() << " " << req.getPath() << " " << req.getVersion() << std::endl;
+	locationLevel* loc = NULL;
+	if (matchLocation(req.getPath(), conf, loc)) {
+		if (loc->hasRedirect == true) {
+			sendRedirect(loc->redirectionHTTP.first, loc->redirectionHTTP.second);
+			return 0;
+		}
+	}
+	if (req.getContentType().find("multipart/form-data") != std::string::npos) {
+		int result = handleMultipartPost(req);
+		if (result != -1)
+			return result;
+		return 0;
+	}
+	std::cout << getTimeStamp(_fd) << BLUE << "Parsed Request: " << RESET << 
+		req.getMethod() << " " << req.getPath() << " " << req.getVersion() << std::endl;
 
-    if (req.getMethod() == "GET")
-        return handleGetRequest(req);
-    else if (req.getMethod() == "POST")
-        return handlePostRequest(req);
-    else if (req.getMethod() == "DELETE")
-        return handleDeleteRequest(req);
-    else {
-        sendErrorResponse(405, req);
-        return 1;
-    }
+	if (req.getMethod() == "GET")
+		return handleGetRequest(req);
+	else if (req.getMethod() == "POST")
+		return handlePostRequest(req);
+	else if (req.getMethod() == "DELETE")
+		return handleDeleteRequest(req);
+	else {
+		sendErrorResponse(405, req);
+		return 1;
+	}
 }
 
 int Client::handleGetRequest(Request& req) {
@@ -256,174 +266,175 @@ int Client::handleGetRequest(Request& req) {
 		sendErrorResponse(404, req);
 		return 1;
 	}
-    if (requestPath.find("../") != std::string::npos) {
-        sendErrorResponse(403, req);
-        return 1;
-    }
-    if (loc->autoindex == true && isFileBrowserRequest(requestPath))
-        return handleFileBrowserRequest(req);
-    else
-        return handleRegularRequest(req);
+	if (requestPath.find("../") != std::string::npos) {
+		sendErrorResponse(403, req);
+		return 1;
+	}
+	if (loc->autoindex == true && isFileBrowserRequest(requestPath))
+		return handleFileBrowserRequest(req);
+	else
+		return handleRegularRequest(req);
 }
 
 bool Client::isFileBrowserRequest(const std::string& path) {
-    return (path.length() >= 6 && path.substr(0, 6) == "/root/") || (path == "/root");
+	return (path.length() >= 6 && path.substr(0, 6) == "/root/") || (path == "/root");
 }
 
 int Client::handleFileBrowserRequest(Request& req) {
-    std::string requestPath = req.getPath();
+	std::string requestPath = req.getPath();
 	std::string actualPath;
-    if (requestPath == "/root" || requestPath == "/root/")
-        actualPath = "/";
-    else if (requestPath.find("/root/") == 0) {
-        actualPath = requestPath.substr(5);
-        if (actualPath.empty()) actualPath = "/";
-    } else {
+	if (requestPath == "/root" || requestPath == "/root/")
+		actualPath = "/";
+	else if (requestPath.find("/root/") == 0) {
+		actualPath = requestPath.substr(5);
+		if (actualPath.empty()) actualPath = "/";
+	} else {
 		locationLevel* loc = NULL;
 		matchLocation(requestPath, req.getConf(), loc);
-        actualPath = requestPath.substr(5);
-        std::string actualFullPath = matchAndAppendPath(_server->getWebRoot(req, *loc), actualPath);
-        
-        struct stat fileStat;
-        if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-            std::cerr << getTimeStamp(_fd) << RED  << "File not found: " << RESET << actualFullPath  << std::endl;
-            sendErrorResponse(404, req);
-            return 1;
-        }
-        if (S_ISDIR(fileStat.st_mode)) {
+		actualPath = requestPath.substr(5);
+		std::string actualFullPath = matchAndAppendPath(_server->getWebRoot(req, *loc), actualPath);
+		
+		struct stat fileStat;
+		if (stat(actualFullPath.c_str(), &fileStat) != 0) {
+			std::cerr << getTimeStamp(_fd) << RED  << "File not found: " << RESET << actualFullPath  << std::endl;
+			sendErrorResponse(404, req);
+			return 1;
+		}
+		if (S_ISDIR(fileStat.st_mode)) {
 			req.setPath(actualPath);
-            return createDirList(actualFullPath, req);
-        } else if (S_ISREG(fileStat.st_mode)) {
-            if (buildBody(req, actualFullPath) == 1)
-                return 1;
-            req.setContentType(req.getMimeType(actualFullPath));
-            sendResponse(req, "keep-alive", req.getBody());
-            std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served file from browser: " 
-                    << RESET << actualFullPath << std::endl;
-            return 0;
-        } else {
-            std::cerr << getTimeStamp(_fd) << RED << "Not a regular file or directory: " << RESET << actualFullPath << std::endl;
-            sendErrorResponse(403, req);
-            return 1;
-        }
-    }
+			return createDirList(actualFullPath, req);
+		} else if (S_ISREG(fileStat.st_mode)) {
+			if (buildBody(req, actualFullPath) == 1)
+				return 1;
+			req.setContentType(req.getMimeType(actualFullPath));
+			sendResponse(req, "keep-alive", req.getBody());
+			std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served file from browser: " 
+					<< RESET << actualFullPath << std::endl;
+			return 0;
+		} else {
+			std::cerr << getTimeStamp(_fd) << RED << "Not a regular file or directory: " << RESET << actualFullPath << std::endl;
+			sendErrorResponse(403, req);
+			return 1;
+		}
+	}
 	return 0;
 }
 
 bool Client::isCGIScript(const std::string& path) {
-    size_t dotPos = path.find_last_of('.');
-    
-    if (dotPos != std::string::npos) {
-        std::string ext = path.substr(dotPos + 1);
-        
-        static const char* whiteList[] = {"py", "php", "cgi", "pl", NULL};
-        
-        for (int i = 0; whiteList[i] != NULL; ++i) {
-            if (ext.find(whiteList[i]) != std::string::npos)
-                return true;
-        }
-    }
-    return false;
+	size_t dotPos = path.find_last_of('.');
+	
+	if (dotPos != std::string::npos) {
+		std::string ext = path.substr(dotPos + 1);
+		
+		static const char* whiteList[] = {"py", "php", "cgi", "pl", NULL};
+		
+		for (int i = 0; whiteList[i] != NULL; ++i) {
+			if (ext.find(whiteList[i]) != std::string::npos)
+				return true;
+		}
+	}
+	return false;
 }
 
 int Client::handleRegularRequest(Request& req) {
-    locationLevel* loc = NULL;
-    if (!matchLocation(req.getPath(), req.getConf(), loc)) {
-        std::cerr << getTimeStamp(_fd) << RED  << "Location not found: " << RESET << req.getPath() << std::endl;
-        sendErrorResponse(404, req);
-        return 1;
-    }
-    std::string reqPath = req.getPath();
-    if (reqPath == "/" || reqPath.empty())
-        reqPath = loc->indexFile;
-
-    size_t end = reqPath.find_last_not_of(" \t\r\n");
-    if (end != std::string::npos)
-        reqPath = reqPath.substr(0, end + 1);
-    std::string fullPath;
-    if (reqPath.find("/home") == std::string::npos)
-        fullPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
-    else
-        fullPath = reqPath;
-
-    if (fullPath.find("root") != std::string::npos && loc->autoindex == false) {
-        std::cerr << getTimeStamp(_fd) << RED << "Access to directory browser is forbidden when autoindex is off" << RESET << std::endl;
-        sendErrorResponse(403, req);
-        return 1;
-    }
-
-    if (handleRedirect(req) == 0)
+	locationLevel* loc = NULL;
+	if (!matchLocation(req.getPath(), req.getConf(), loc)) {
+		std::cerr << getTimeStamp(_fd) << RED  << "Location not found: " << RESET << req.getPath() << std::endl;
+		sendErrorResponse(404, req);
 		return 1;
-    if (isCGIScript(reqPath)) {
-        std::cout << CYAN << "CGI script detected: " << RESET << reqPath << std::endl;
-		CGIHandler cgi = CGIHandler(_webserv, this, _server, &req);
-		cgi.setCGIBin(&req.getConf());
+	}
+	std::string reqPath = req.getPath();
+	if (reqPath == "/" || reqPath.empty())
+		reqPath = loc->indexFile;
+
+	size_t end = reqPath.find_last_not_of(" \t\r\n");
+	if (end != std::string::npos)
+		reqPath = reqPath.substr(0, end + 1);
+	std::string fullPath;
+	if (reqPath.find("/home") == std::string::npos)
+		fullPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
+	else
+		fullPath = reqPath;
+
+	if (fullPath.find("root") != std::string::npos && loc->autoindex == false) {
+		std::cerr << getTimeStamp(_fd) << RED << "Access to directory browser is forbidden when autoindex is off" << RESET << std::endl;
+		sendErrorResponse(403, req);
+		return 1;
+	}
+
+	if (handleRedirect(req) == 0)
+		return 1;
+	if (isCGIScript(reqPath)) {
+		_cgiDone = false;
+		std::cout << CYAN << "CGI script detected: " << RESET << reqPath << std::endl;
+		CGIHandler *cgi = new CGIHandler(_webserv, this, _server, &req);//TODO: delete!
+		cgi->setCGIBin(&req.getConf());
 		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
-        cgi.setPath(fullCgiPath);
-		return cgi.executeCGI(req);
-    }
+		cgi->setPath(fullCgiPath);
+		return cgi->executeCGI(req);
+	}
 
-    std::cout << getTimeStamp(_fd) << BLUE << "Handling GET request for path: " << RESET << req.getPath() << std::endl;
+	std::cout << getTimeStamp(_fd) << BLUE << "Handling GET request for path: " << RESET << req.getPath() << std::endl;
 
-    struct stat fileStat;
-    if (stat(fullPath.c_str(), &fileStat) != 0) {
-        std::cerr << getTimeStamp(_fd) << RED  << "File not found: " << RESET << fullPath << std::endl;
-        sendErrorResponse(404, req);
-        return 1;
-    }
-    
-    if (S_ISDIR(fileStat.st_mode))
-        return viewDirectory(fullPath, req);
-    else if (!S_ISREG(fileStat.st_mode)) {
-        std::cerr << getTimeStamp(_fd) << RED << "Not a regular file: " << RESET << fullPath << std::endl;
-        sendErrorResponse(403, req);
-        return 1;
-    }
-    
-    if (buildBody(req, fullPath) == 1)
-        return 1;
+	struct stat fileStat;
+	if (stat(fullPath.c_str(), &fileStat) != 0) {
+		std::cerr << getTimeStamp(_fd) << RED  << "File not found: " << RESET << fullPath << std::endl;
+		sendErrorResponse(404, req);
+		return 1;
+	}
+	
+	if (S_ISDIR(fileStat.st_mode))
+		return viewDirectory(fullPath, req);
+	else if (!S_ISREG(fileStat.st_mode)) {
+		std::cerr << getTimeStamp(_fd) << RED << "Not a regular file: " << RESET << fullPath << std::endl;
+		sendErrorResponse(403, req);
+		return 1;
+	}
+	
+	if (buildBody(req, fullPath) == 1)
+		return 1;
 
-    std::string contentType = req.getMimeType(fullPath);
-    if (fullPath.find(".html") != std::string::npos || reqPath == "/" || reqPath == loc->indexFile)
-        contentType = "text/html";
+	std::string contentType = req.getMimeType(fullPath);
+	if (fullPath.find(".html") != std::string::npos || reqPath == "/" || reqPath == loc->indexFile)
+		contentType = "text/html";
 
-    req.setContentType(contentType);
+	req.setContentType(contentType);
 
-    sendResponse(req, "close", req.getBody());
-    std::cout << getTimeStamp(_fd) << GREEN  << "Sent file: " << RESET << fullPath << std::endl;
-    return 0;
+	sendResponse(req, "close", req.getBody());
+	std::cout << getTimeStamp(_fd) << GREEN  << "Sent file: " << RESET << fullPath << std::endl;
+	return 0;
 }
 
 int Client::buildBody(Request &req, std::string fullPath) {
-    int fd = open(fullPath.c_str(), O_RDONLY);
-    if (fd < 0) {
-        std::cerr << getTimeStamp(_fd) << RED << "Failed to open file: " << RESET << fullPath << std::endl;
-        sendErrorResponse(500, req);
-        return 1;
-    }
-    
-    struct stat fileStat;
-    if (fstat(fd, &fileStat) < 0) {
+	int fd = open(fullPath.c_str(), O_RDONLY);
+	if (fd < 0) {
+		std::cerr << getTimeStamp(_fd) << RED << "Failed to open file: " << RESET << fullPath << std::endl;
 		sendErrorResponse(500, req);
-        safeClose(fd);
-        return 1;
-    }
-    
-    char buffer[fileStat.st_size];
-    std::string fileContent = "";
-    ssize_t bytesRead = 0;
-    if (!readIt(fd, buffer, sizeof(buffer) - 1, bytesRead, fileContent, "Nothing to read from file", false)) {
-        sendErrorResponse(500, req);
-        safeClose(fd);
-        return 1;
-    }
+		return 1;
+	}
+	
+	struct stat fileStat;
+	if (fstat(fd, &fileStat) < 0) {
+		sendErrorResponse(500, req);
+		safeClose(fd);
+		return 1;
+	}
+	
+	char buffer[fileStat.st_size];
+	std::string fileContent = "";
+	ssize_t bytesRead = 0;
+	if (!readIt(fd, buffer, sizeof(buffer) - 1, bytesRead, fileContent, "Nothing to read from file", false)) {
+		sendErrorResponse(500, req);
+		safeClose(fd);
+		return 1;
+	}
 	req.setBody(fileContent);
 	safeClose(fd);
-    return 0;
+	return 0;
 }
 
 int Client::viewDirectory(std::string fullPath, Request& req) {
-    locationLevel* loc = NULL;
+	locationLevel* loc = NULL;
 	if (matchLocation(req.getPath(), req.getConf(), loc)) {
 		if (loc->autoindex == true) {
 			return createDirList(fullPath, req);
@@ -445,51 +456,51 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 				sendErrorResponse(403, req);
 				return 1;
 			}
-        }
-    } 
-    else if (req.getConf().locations.find("/") != req.getConf().locations.end()) {
-        if (req.getConf().locations.find("/")->second.autoindex) {
-            return createDirList(fullPath, req);
-        } else {
-            std::string indexPath = matchAndAppendPath(fullPath, loc->indexFile);
-            struct stat indexStat;
-            if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
-                Request req;
-                req.setPath(indexPath);
-                if (buildBody(req, indexPath) == 1)
-                    return 1;
-                req.setContentType("text/html");
+		}
+	} 
+	else if (req.getConf().locations.find("/") != req.getConf().locations.end()) {
+		if (req.getConf().locations.find("/")->second.autoindex) {
+			return createDirList(fullPath, req);
+		} else {
+			std::string indexPath = matchAndAppendPath(fullPath, loc->indexFile);
+			struct stat indexStat;
+			if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
+				Request req;
+				req.setPath(indexPath);
+				if (buildBody(req, indexPath) == 1)
+					return 1;
+				req.setContentType("text/html");
 				_connect = "keep-alive";
-                sendResponse(req, "keep-alive", req.getBody());
-                std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served index file: " << RESET << indexPath << std::endl;
-                return 0;
-            } else {
-                std::cerr << getTimeStamp(_fd) << RED  << "Autoindex off and no index.html: " << RESET << fullPath << std::endl;
-                sendErrorResponse(403, req);
-                return 1;
-            }
-        }
-    }
-    else {
-        std::cerr << getTimeStamp(_fd) << RED << "No matching location for: " << RESET << req.getPath() << std::endl;
-        sendErrorResponse(403, req);
-        return 1;
-    }
-    return 0;
+				sendResponse(req, "keep-alive", req.getBody());
+				std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served index file: " << RESET << indexPath << std::endl;
+				return 0;
+			} else {
+				std::cerr << getTimeStamp(_fd) << RED  << "Autoindex off and no index.html: " << RESET << fullPath << std::endl;
+				sendErrorResponse(403, req);
+				return 1;
+			}
+		}
+	}
+	else {
+		std::cerr << getTimeStamp(_fd) << RED << "No matching location for: " << RESET << req.getPath() << std::endl;
+		sendErrorResponse(403, req);
+		return 1;
+	}
+	return 0;
 }
 
 int Client::createDirList(std::string fullPath, Request& req) {
-    std::string dirListing = showDir(fullPath, req.getPath());
-    if (dirListing.empty()) {
-        sendErrorResponse(403, req);
-        return 1;
-    }
-    std::string response = "HTTP/1.1 200 OK\r\n";
-    response += "Content-Type: text/html\r\n";
-    response += "Content-Length: " + tostring(dirListing.length()) + "\r\n";
-    response += "Connection: keep-alive\r\n";
-    response += "\r\n";
-    response += dirListing;
+	std::string dirListing = showDir(fullPath, req.getPath());
+	if (dirListing.empty()) {
+		sendErrorResponse(403, req);
+		return 1;
+	}
+	std::string response = "HTTP/1.1 200 OK\r\n";
+	response += "Content-Type: text/html\r\n";
+	response += "Content-Length: " + tostring(dirListing.length()) + "\r\n";
+	response += "Connection: keep-alive\r\n";
+	response += "\r\n";
+	response += dirListing;
 	_connect = "keep-alive";
 	addSendBuf(*_webserv, _fd, response);
 	if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
@@ -501,67 +512,67 @@ int Client::createDirList(std::string fullPath, Request& req) {
 }
 
 std::string Client::showDir(const std::string& dirPath, const std::string& requestUri) {
-    DIR* dir = opendir(dirPath.c_str());
-    if (!dir)
-        return "";
-    
-    std::string html = "<!DOCTYPE html>\n"
-        "<html>\n"
-        "<head>\n"
-        "    <title>Index of " + requestUri + "</title>\n"
-        "    <style>\n"
-        "        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }\n"
-        "        h1 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }\n"
-        "        ul { list-style-type: none; padding: 0; }\n"
-        "        li { padding: 8px; border-bottom: 1px solid #f2f2f2; }\n"
-        "        li:hover { background-color: #f8f8f8; }\n"
-        "        a { text-decoration: none; color: #0366d6; }\n"
-        "        a:hover { text-decoration: underline; }\n"
-        "        .header { background-color: #f4f4f4; padding: 10px; margin-bottom: 20px; border-radius: 4px; }\n"
-        "        .server-info { font-size: 12px; color: #777; margin-top: 20px; }\n"
-        "    </style>\n"
-        "</head>\n"
-        "<body>\n"
-        "    <div class=\"header\">\n"
-        "        <h1>Index of " + requestUri + "</h1>\n"
-        "    </div>\n"
-        "    <ul>\n";
-    
-    if (requestUri != "/") {
-        std::string parentUri = encode(requestUri);
-        parentUri = "/" + matchAndAppendPath(parentUri, "/../") + "/";
-        html += "        <li><a href=\"" + parentUri + "\">Parent Directory</a></li>\n";
-    }
-    
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-        std::string name = entry->d_name;
-        
-        if (name == "." || name == "..")
-            continue;
-        
-        std::string entryPath = dirPath + "/" + name;
-        struct stat entryStat;
-        if (stat(entryPath.c_str(), &entryStat) == 0) {
-            if (S_ISDIR(entryStat.st_mode))
-                name += "/";
-        }
-        
-        html += "        <li><a href=\"" + encode(requestUri);
-        if (requestUri[requestUri.length() - 1] != '/')
-            html += "/";
-        html += encode(name) + "\">" + name + "</a></li>\n";
-    }
-    
-    html += "    </ul>\n"
-        "    <div class=\"server-info\">\n"
-        "        <p>WebServ 1.0</p>\n"
-        "    </div>\n"
-        "</body>\n"
-        "</html>";
-        
-    closedir(dir);
-    return html;
+	DIR* dir = opendir(dirPath.c_str());
+	if (!dir)
+		return "";
+	
+	std::string html = "<!DOCTYPE html>\n"
+		"<html>\n"
+		"<head>\n"
+		"    <title>Index of " + requestUri + "</title>\n"
+		"    <style>\n"
+		"        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }\n"
+		"        h1 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }\n"
+		"        ul { list-style-type: none; padding: 0; }\n"
+		"        li { padding: 8px; border-bottom: 1px solid #f2f2f2; }\n"
+		"        li:hover { background-color: #f8f8f8; }\n"
+		"        a { text-decoration: none; color: #0366d6; }\n"
+		"        a:hover { text-decoration: underline; }\n"
+		"        .header { background-color: #f4f4f4; padding: 10px; margin-bottom: 20px; border-radius: 4px; }\n"
+		"        .server-info { font-size: 12px; color: #777; margin-top: 20px; }\n"
+		"    </style>\n"
+		"</head>\n"
+		"<body>\n"
+		"    <div class=\"header\">\n"
+		"        <h1>Index of " + requestUri + "</h1>\n"
+		"    </div>\n"
+		"    <ul>\n";
+	
+	if (requestUri != "/") {
+		std::string parentUri = encode(requestUri);
+		parentUri = "/" + matchAndAppendPath(parentUri, "/../") + "/";
+		html += "        <li><a href=\"" + parentUri + "\">Parent Directory</a></li>\n";
+	}
+	
+	struct dirent* entry;
+	while ((entry = readdir(dir)) != NULL) {
+		std::string name = entry->d_name;
+		
+		if (name == "." || name == "..")
+			continue;
+		
+		std::string entryPath = dirPath + "/" + name;
+		struct stat entryStat;
+		if (stat(entryPath.c_str(), &entryStat) == 0) {
+			if (S_ISDIR(entryStat.st_mode))
+				name += "/";
+		}
+		
+		html += "        <li><a href=\"" + encode(requestUri);
+		if (requestUri[requestUri.length() - 1] != '/')
+			html += "/";
+		html += encode(name) + "\">" + name + "</a></li>\n";
+	}
+	
+	html += "    </ul>\n"
+		"    <div class=\"server-info\">\n"
+		"        <p>WebServ 1.0</p>\n"
+		"    </div>\n"
+		"</body>\n"
+		"</html>";
+		
+	closedir(dir);
+	return html;
 }
 
 std::string Client::getLocationPath(Request& req, const std::string& method) {	
@@ -592,101 +603,103 @@ std::string Client::getLocationPath(Request& req, const std::string& method) {
 	}
 	std::string fullPath = matchAndAppendPath(loc->rootLoc, loc->uploadDirPath);
 	fullPath = matchAndAppendPath(fullPath, req.getPath());
-    return fullPath;
+	return fullPath;
 }
 
 int Client::handlePostRequest(Request& req) {
 	locationLevel* loc = NULL;
-    if (!matchLocation(req.getPath(), req.getConf(), loc)) {
+	if (!matchLocation(req.getPath(), req.getConf(), loc)) {
 		std::cerr << getTimeStamp(_fd) << RED  << "Location not found for POST request: " 
-				  << RESET << req.getPath() << std::endl;
+				<< RESET << req.getPath() << std::endl;
 		sendErrorResponse(404, req);
 		return 1;
 	}
-    std::string fullPath = getLocationPath(req, "POST");
-    if (fullPath.empty())
-        return 1;
-    if (isCGIScript(req.getPath())) {
-		CGIHandler cgi = CGIHandler(_webserv, this, _server, &req);
+	std::string fullPath = getLocationPath(req, "POST");
+	if (fullPath.empty())
+		return 1;
+	if (isCGIScript(req.getPath())) {
+		_cgiDone = false;
+		CGIHandler *cgi = new CGIHandler(_webserv, this, _server, &req);//TODO: delete!
 		std::string cgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), req.getPath());
-		cgi.setPath(cgiPath);
-        return cgi.executeCGI(req);
-    }
-    
-    if (req.getContentType().find("multipart/form-data") != std::string::npos)
-        return handleMultipartPost(req);
-    
-    if (req.getPath().find("../") != std::string::npos) {
-        sendErrorResponse(403, req);
-        return 1;
-    }
-    
-    std::string contentToWrite;
-    
-    if (isChunkedRequest(req)) {
-        std::cout << getTimeStamp(_fd) << BLUE << "Processing chunked request" << RESET << std::endl;
-        contentToWrite = decodeChunkedBody(req.getBody());
-        
-        if (contentToWrite.empty()) {
-            std::cerr << getTimeStamp(_fd) << RED  << "Failed to decode chunked data" << RESET << std::endl;
-            sendErrorResponse(400, req);
-            return 1;
-        }
-    } else {
-        contentToWrite = req.getBody();
+		cgi->setPath(cgiPath);
+		return cgi->executeCGI(req);
+	}
+	
+	if (req.getContentType().find("multipart/form-data") != std::string::npos)
+		return handleMultipartPost(req);
+	
+	if (req.getPath().find("../") != std::string::npos) {
+		sendErrorResponse(403, req);
+		return 1;
+	}
+	
+	std::string contentToWrite;
+	
+	if (isChunkedRequest(req)) {
+		std::cout << getTimeStamp(_fd) << BLUE << "Processing chunked request" << RESET << std::endl;
+		contentToWrite = decodeChunkedBody(req.getBody());
+		
+		if (contentToWrite.empty()) {
+			std::cerr << getTimeStamp(_fd) << RED  << "Failed to decode chunked data" << RESET << std::endl;
+			sendErrorResponse(400, req);
+			return 1;
+		}
+	} else {
+		contentToWrite = req.getBody();
 		std::string fileName;
-        if (contentToWrite.empty() && !req.getQuery().empty())
+		if (contentToWrite.empty() && !req.getQuery().empty())
 			doQueryStuff(req.getQuery(), fileName, contentToWrite);
-        else
+		else
 			doQueryStuff(req.getBody(), fileName, contentToWrite);
 		fullPath = matchAndAppendPath(fullPath, fileName);
-    }
-    int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd < 0) {
-        std::cerr << getTimeStamp(_fd) << RED << "Failed to open file for writing: " << RESET << fullPath << std::endl;
-        sendErrorResponse(500, req);
-        return 1;
-    }
-    
-    std::cout << getTimeStamp(_fd) << BLUE << "Writing to file: " << RESET << fullPath << std::endl;
+	}
+	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (fd < 0) {
+		std::cerr << getTimeStamp(_fd) << RED << "Failed to open file for writing: " << RESET << fullPath << std::endl;
+		sendErrorResponse(500, req);
+		return 1;
+	}
+	
+	std::cout << getTimeStamp(_fd) << BLUE << "Writing to file: " << RESET << fullPath << std::endl;
 
-    ssize_t bytesWritten = 0;
-    if (!wrote(fd, contentToWrite.c_str(), contentToWrite.size(), bytesWritten, "Nothing was written to file", false)) {
-        sendErrorResponse(500, req);
-        safeClose(fd);
-        return 1;
-    }
-    std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
-    _connect = "keep-alive";
-    ssize_t responseResult = sendResponse(req, "keep-alive", responseBody);
-    
-    if (responseResult < 0) {
-        std::cerr << getTimeStamp(_fd) << RED  << "Failed to send response" << RESET << std::endl;
-        return 1;
-    }
-    
-    std::cout << getTimeStamp(_fd) << GREEN  << "Uploaded file: " << RESET << fullPath 
-              << " (" << bytesWritten << " bytes written)" << std::endl;
-    safeClose(fd);
-    return 0;
+	ssize_t bytesWritten = 0;
+	if (!wrote(fd, contentToWrite.c_str(), contentToWrite.size(), bytesWritten, "Nothing was written to file", false)) {
+		sendErrorResponse(500, req);
+		safeClose(fd);
+		return 1;
+	}
+	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
+	_connect = "keep-alive";
+	ssize_t responseResult = sendResponse(req, "keep-alive", responseBody);
+	
+	if (responseResult < 0) {
+		std::cerr << getTimeStamp(_fd) << RED  << "Failed to send response" << RESET << std::endl;
+		return 1;
+	}
+	
+	std::cout << getTimeStamp(_fd) << GREEN  << "Uploaded file: " << RESET << fullPath 
+			<< " (" << bytesWritten << " bytes written)" << std::endl;
+	safeClose(fd);
+	return 0;
 }
 
 int Client::handleDeleteRequest(Request& req) {
 	std::string fullPath = getLocationPath(req, "DELETE");
 	if (fullPath.empty())
 		return 1;
-    if (isCGIScript(req.getPath())) {
-		CGIHandler cgi = CGIHandler(_webserv, this, _server, &req);
-		cgi.setPath(fullPath);
+	if (isCGIScript(req.getPath())) {
+		_cgiDone = false;
+		CGIHandler *cgi = new CGIHandler(_webserv, this, _server, &req);//TODO: delete!
+		cgi->setPath(fullPath);
 		std::cout << MAGENTA << "HERE 3: " << fullPath << RESET << std::endl;
-        return cgi.executeCGI(req);
+		return cgi->executeCGI(req);
 	}
 
-    size_t end = fullPath.find_last_not_of(" \t\r\n");
-    if (end != std::string::npos)
-        fullPath = fullPath.substr(0, end + 1);
+	size_t end = fullPath.find_last_not_of(" \t\r\n");
+	if (end != std::string::npos)
+		fullPath = fullPath.substr(0, end + 1);
 
-    if (unlink(fullPath.c_str()) != 0) {
+	if (unlink(fullPath.c_str()) != 0) {
 		if (errno == ENOENT) {
 			std::cerr << getTimeStamp(_fd) << RED  << "File not found for deletion: " << RESET << fullPath << std::endl;
 			sendErrorResponse(404, req);
@@ -697,62 +710,62 @@ int Client::handleDeleteRequest(Request& req) {
 			return 1;
 		} else {
 			std::cerr << getTimeStamp(_fd) << RED  << "Error deleting file: " << RESET << fullPath
-					  << " - " << strerror(errno) << std::endl;
-        	sendErrorResponse(500, req);
-        	return 1;
+					<< " - " << strerror(errno) << std::endl;
+			sendErrorResponse(500, req);
+			return 1;
 		}
-    }
-    sendResponse(req, "keep-alive", "");
-    return 0;
+	}
+	sendResponse(req, "keep-alive", "");
+	return 0;
 }
 
 int Client::handleMultipartPost(Request& req) {
-    std::string boundary = req.getBoundary();
-    
-    if (boundary.empty()) {
-        sendErrorResponse(400, req);
-        return 1;
-    }
-    
-    Multipart parser(_requestBuffer, boundary);
-    
-    if (!parser.parse()) {
-        sendErrorResponse(400, req);
-        return 1;
-    }
-    
-    std::string filename = parser.getFilename();
-    if (filename.empty()) {
-        sendErrorResponse(400, req);
-        return 1;
-    }
+	std::string boundary = req.getBoundary();
+	
+	if (boundary.empty()) {
+		sendErrorResponse(400, req);
+		return 1;
+	}
+	
+	Multipart parser(_requestBuffer, boundary);
+	
+	if (!parser.parse()) {
+		sendErrorResponse(400, req);
+		return 1;
+	}
+	
+	std::string filename = parser.getFilename();
+	if (filename.empty()) {
+		sendErrorResponse(400, req);
+		return 1;
+	}
 
-    std::string fileContent = parser.getFileContent();
-    if (fileContent.empty() && !parser.isComplete()) {
-        return 1;
-    }
-    
-    if (!saveFile(req, filename, fileContent)) {
-        sendErrorResponse(500, req);
-        return 1;
-    }
-    std::cout << getTimeStamp(_fd) << GREEN  << "Received: " + parser.getFilename() << RESET << std::endl;
-    std::string successMsg = "Successfully uploaded file:" + filename;
-    sendResponse(req, "close", successMsg);
-    std::cout << getTimeStamp(_fd) << GREEN  << "File transfer ended" << RESET << std::endl;    
-    return 0;
+	std::string fileContent = parser.getFileContent();
+	if (fileContent.empty() && !parser.isComplete()) {
+		return 1;
+	}
+	
+	if (!saveFile(req, filename, fileContent)) {
+		sendErrorResponse(500, req);
+		return 1;
+	}
+	std::cout << getTimeStamp(_fd) << GREEN  << "Received: " + parser.getFilename() << RESET << std::endl;
+	std::string successMsg = "Successfully uploaded file:" + filename;
+	sendResponse(req, "close", successMsg);
+	std::cout << getTimeStamp(_fd) << GREEN  << "File transfer ended" << RESET << std::endl;    
+	return 0;
 }
 
 bool Client::ensureUploadDirectory(Request& req) {
-    struct stat st;
+	struct stat st;
 	std::string uploadDir = _server->getUploadDir(*this, req);
-    if (stat(uploadDir.c_str(), &st) != 0) {
-        if (mkdir(uploadDir.c_str(), 0755) != 0) {
-            std::cerr << getTimeStamp(_fd) << RED << "Error: Failed to create upload directory" << RESET << std::endl;
-            return false;
-        }
-    }
-    return true;
+	if (stat(uploadDir.c_str(), &st) != 0) {
+		if (mkdir(uploadDir.c_str(), 0755) != 0) {
+			std::cerr << getTimeStamp(_fd) << RED << "Error: Failed to create upload directory" << RESET << std::endl;
+			return false;
+		}
+	}
+	return true;
 }
 
 bool Client::saveFile(Request& req, const std::string& filename, const std::string& content) {
@@ -763,52 +776,52 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 		std::cerr << getTimeStamp(_fd) << RED << "Error: Failed to ensure upload directory exists" << RESET << std::endl;
 		return false;
 	}
-    
-    int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd < 0) {
-        std::cerr << getTimeStamp(_fd) << RED << "Error: Failed to open file for writing: " << RESET << fullPath << std::endl;
-        return false;
-    }
+	
+	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (fd < 0) {
+		std::cerr << getTimeStamp(_fd) << RED << "Error: Failed to open file for writing: " << RESET << fullPath << std::endl;
+		return false;
+	}
 
-    ssize_t bytesWritten = 0;
-    if (!wrote(fd, content.c_str(), content.size(), bytesWritten, "Nothing was written to file", false)) {
-        sendErrorResponse(500, req);
+	ssize_t bytesWritten = 0;
+	if (!wrote(fd, content.c_str(), content.size(), bytesWritten, "Nothing was written to file", false)) {
+		sendErrorResponse(500, req);
 		safeClose(fd);
-        return false;
-    }
+		return false;
+	}
 	safeClose(fd);
-    return true;
+	return true;
 }
 
 int    Client::handleRedirect(Request req) {
-    std::string path = req.getPath().substr(1);
-    std::map<std::string, locationLevel>::iterator it = req.getConf().locations.begin();
-    for ( ; it != req.getConf().locations.end() ; it++) {
-        if (it->first == path) {
-            sendRedirect(it->second.redirectionHTTP.first, it->second.redirectionHTTP.second);
-            return 0;
-        }
-    }
-    return 1;
+	std::string path = req.getPath().substr(1);
+	std::map<std::string, locationLevel>::iterator it = req.getConf().locations.begin();
+	for ( ; it != req.getConf().locations.end() ; it++) {
+		if (it->first == path) {
+			sendRedirect(it->second.redirectionHTTP.first, it->second.redirectionHTTP.second);
+			return 0;
+		}
+	}
+	return 1;
 }
 
 void Client::sendRedirect(int statusCode, const std::string& location) {
-    std::string statusText = getStatusMessage(statusCode);
-    
-    std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
-    body += "<body><h1>" + statusText + "</h1>";
-    body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
-    
-    std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
-    response += "Location: " + location + "\r\n";
-    response += "Content-Type: text/html\r\n";
-    response += "Content-Length: " + tostring(body.length()) + "\r\n";
-    response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
-    response += "Pragma: no-cache\r\n";
-    response += "Connection: close\r\n";
-    response += "\r\n";
-    response += body;
-    _connect = "close";
+	std::string statusText = getStatusMessage(statusCode);
+	
+	std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
+	body += "<body><h1>" + statusText + "</h1>";
+	body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
+	
+	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+	response += "Location: " + location + "\r\n";
+	response += "Content-Type: text/html\r\n";
+	response += "Content-Length: " + tostring(body.length()) + "\r\n";
+	response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
+	response += "Pragma: no-cache\r\n";
+	response += "Connection: close\r\n";
+	response += "\r\n";
+	response += body;
+	_connect = "close";
 	addSendBuf(*_webserv, _fd, response);
 	if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
 		std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 5" << RESET << std::endl;
@@ -820,65 +833,65 @@ void Client::sendRedirect(int statusCode, const std::string& location) {
 
 ssize_t Client::sendResponse(Request req, std::string connect, std::string body) {
 	_connect = connect;
-    if (_fd <= 0) {
-        std::cerr << getTimeStamp(_fd) << RED << "Invalid fd in sendResponse" << RESET << std::endl;
-        return -1;
-    }
-    std::string response = "HTTP/1.1 200 OK\r\n";
-    
-    std::map<std::string, std::string> headers = req.getHeaders();
-    bool isChunked = false;
-    std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
-    if (it != headers.end() && it->second.find("chunked") != std::string::npos)
-        isChunked = true;
-    
-    response += "Content-Type: " + req.getContentType() + "\r\n";
-    
-    std::string content = body;
-    
-    if (req.getMethod() == "POST" && content.empty())
-        content = "Upload successful";
-    
-    if (!isChunked)
-        response += "Content-Length: " + tostring(content.length()) + "\r\n";
+	if (_fd <= 0) {
+		std::cerr << getTimeStamp(_fd) << RED << "Invalid fd in sendResponse" << RESET << std::endl;
+		return -1;
+	}
+	std::string response = "HTTP/1.1 200 OK\r\n";
+	
+	std::map<std::string, std::string> headers = req.getHeaders();
+	bool isChunked = false;
+	std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
+	if (it != headers.end() && it->second.find("chunked") != std::string::npos)
+		isChunked = true;
+	
+	response += "Content-Type: " + req.getContentType() + "\r\n";
+	
+	std::string content = body;
+	
+	if (req.getMethod() == "POST" && content.empty())
+		content = "Upload successful";
+	
+	if (!isChunked)
+		response += "Content-Length: " + tostring(content.length()) + "\r\n";
 	else
-        response += "Transfer-Encoding: chunked\r\n";
-    
-    response += "Server: WebServ/1.0\r\n";
-    response += "Connection: " + connect + "\r\n";
-    response += "Access-Control-Allow-Origin: *\r\n";
-    response += "\r\n";
-    
-    if (_fd < 0) {
-        std::cerr << getTimeStamp(_fd) << RED  << "FD became invalid before send" << RESET << std::endl;
-        return -1;
-    }
-    
+		response += "Transfer-Encoding: chunked\r\n";
+	
+	response += "Server: WebServ/1.0\r\n";
+	response += "Connection: " + connect + "\r\n";
+	response += "Access-Control-Allow-Origin: *\r\n";
+	response += "\r\n";
+	
+	if (_fd < 0) {
+		std::cerr << getTimeStamp(_fd) << RED  << "FD became invalid before send" << RESET << std::endl;
+		return -1;
+	}
+	
 	addSendBuf(*_webserv, _fd, response);
-    
-    if (!content.empty()) {
-        if (isChunked) {
-            const size_t chunkSize = 4096;
-            size_t remaining = content.length();
-            size_t offset = 0;
-            
-            while (remaining > 0) {
-                size_t currentChunkSize;
-                if (remaining < chunkSize) 
-                    currentChunkSize = remaining;
-                else 
-                    currentChunkSize = chunkSize;
-                
-                std::stringstream hexStream;
-                hexStream << std::hex << currentChunkSize;
+	
+	if (!content.empty()) {
+		if (isChunked) {
+			const size_t chunkSize = 4096;
+			size_t remaining = content.length();
+			size_t offset = 0;
+			
+			while (remaining > 0) {
+				size_t currentChunkSize;
+				if (remaining < chunkSize) 
+					currentChunkSize = remaining;
+				else 
+					currentChunkSize = chunkSize;
+				
+				std::stringstream hexStream;
+				hexStream << std::hex << currentChunkSize;
 				std::string all = hexStream.str() + "\r\n";
-				all += content.c_str() + offset;
+				all += content.substr(offset, currentChunkSize);
 				all += "\r\n";
 				addSendBuf(*_webserv, _fd, all);
-                offset += currentChunkSize;
-                remaining -= currentChunkSize;
-            }
-            
+				offset += currentChunkSize;
+				remaining -= currentChunkSize;
+			}
+			
 			std::string s2 = "0\r\n\r\n";
 			addSendBuf(*_webserv, _fd, s2);
 			if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
@@ -887,46 +900,46 @@ ssize_t Client::sendResponse(Request req, std::string connect, std::string body)
 			}
 			std::cout << getTimeStamp(_fd) << GREEN  << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
 			return content.length();
-        } else {
+		} else {
 			addSendBuf(*_webserv, _fd, content);
 			if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
 				std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 7" << RESET << std::endl;
 				return 1;
 			}
 			return content.length();
-        }
-    } else {
+		}
+	} else {
 		if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
 			std::cerr << getTimeStamp(_fd) << RED << "Error: setEpollEvents() failed 8" << RESET << std::endl;
 			return 1;
 		}
 		std::cout << getTimeStamp(_fd) << GREEN  << "Response sent (headers only)" << RESET << std::endl;
 		return 0;
-    }
+	}
 }
 
 void Client::sendErrorResponse(int statusCode, Request& req) {
-    std::string body;
-    std::string statusText = getStatusMessage(statusCode);
-    
+	std::string body;
+	std::string statusText = getStatusMessage(statusCode);
+	
 	resolveErrorResponse(statusCode, statusText, body, req);    
-  
-    std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
-    response += "Content-Type: text/html\r\n";
-    response += "Content-Length: " + tostring(body.size()) + "\r\n";
-    response += "Server: WebServ/1.0\r\n";
-    response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
-    response += "Pragma: no-cache\r\n";
-    if (statusCode == 413) {
+
+	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+	response += "Content-Type: text/html\r\n";
+	response += "Content-Length: " + tostring(body.size()) + "\r\n";
+	response += "Server: WebServ/1.0\r\n";
+	response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
+	response += "Pragma: no-cache\r\n";
+	if (statusCode == 413) {
 		_connect = "keep-alive";
-        response += "Connection: keep-alive\r\n";
+		response += "Connection: keep-alive\r\n";
 	} else {
 		_connect = "close";
-        response += "Connection: close\r\n";
+		response += "Connection: close\r\n";
 	}
-    response += "\r\n";
-    response += body;
-    addSendBuf(*_webserv, _fd, response);
+	response += "\r\n";
+	response += body;
+	addSendBuf(*_webserv, _fd, response);
 	if (setEpollEvents(*_webserv, _fd, EPOLLOUT)) {
 		std::cerr << getTimeStamp() << RED << "Error: setEpollEvents() failed 9" << RESET << std::endl;
 		return;
@@ -936,68 +949,68 @@ void Client::sendErrorResponse(int statusCode, Request& req) {
 }
 
 bool Client::isChunkedRequest(const Request& req) {
-    std::map<std::string, std::string> headers = const_cast<Request&>(req).getHeaders();
-    std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
-    if (it != headers.end() && it->second.find("chunked") != std::string::npos)
-        return true;
-    return false;
+	std::map<std::string, std::string> headers = const_cast<Request&>(req).getHeaders();
+	std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
+	if (it != headers.end() && it->second.find("chunked") != std::string::npos)
+		return true;
+	return false;
 }
 
 std::string Client::decodeChunkedBody(const std::string& chunkedData) {
-    std::string decodedBody;
-    size_t pos = 0;
+	std::string decodedBody;
+	size_t pos = 0;
 
-    
-    while (pos < chunkedData.length()) {
-        size_t crlfPos = chunkedData.find("\r\n", pos);
-        size_t lineEndLength = 2;
-        
-        if (crlfPos == std::string::npos) {
-            crlfPos = chunkedData.find("\n", pos);
-            lineEndLength = 1;
-            if (crlfPos == std::string::npos) {
-                std::cerr << getTimeStamp(_fd) << RED  << "Malformed chunked data: no CRLF after chunk size" << RESET << std::endl;
-                break;
-            }
-        }
-        
-        std::string chunkSizeStr = chunkedData.substr(pos, crlfPos - pos);
-        
-        size_t semicolon = chunkSizeStr.find(';');
-        if (semicolon != std::string::npos) {
-            chunkSizeStr = chunkSizeStr.substr(0, semicolon);
-        }
-        
-        chunkSizeStr.erase(0, chunkSizeStr.find_first_not_of(" \t"));
-        chunkSizeStr.erase(chunkSizeStr.find_last_not_of(" \t") + 1);
-        
-        size_t chunkSize = 0;
-        std::istringstream hexStream(chunkSizeStr);
-        hexStream >> std::hex >> chunkSize;
-        
-        if (chunkSize == 0)
-            break;
-        
-        pos = crlfPos + lineEndLength;
-        
-        if (pos + chunkSize > chunkedData.length())
-            break;
-        
-        std::string chunkData = chunkedData.substr(pos, chunkSize);
-        decodedBody += chunkData;
-        
-        pos += chunkSize;
-        
-        if (pos < chunkedData.length() && chunkedData[pos] == '\r') {
-            pos++;
-        }
-        if (pos < chunkedData.length() && chunkedData[pos] == '\n') {
-            pos++;
-        }
-    }
-    
-    std::cout << getTimeStamp(_fd) << GREEN  << "Total decoded body: " << RESET << "\"" 
-              << decodedBody << "\" (" << decodedBody.length() << " bytes)" << std::endl;
-    
-    return decodedBody;
+	
+	while (pos < chunkedData.length()) {
+		size_t crlfPos = chunkedData.find("\r\n", pos);
+		size_t lineEndLength = 2;
+		
+		if (crlfPos == std::string::npos) {
+			crlfPos = chunkedData.find("\n", pos);
+			lineEndLength = 1;
+			if (crlfPos == std::string::npos) {
+				std::cerr << getTimeStamp(_fd) << RED  << "Malformed chunked data: no CRLF after chunk size" << RESET << std::endl;
+				break;
+			}
+		}
+		
+		std::string chunkSizeStr = chunkedData.substr(pos, crlfPos - pos);
+		
+		size_t semicolon = chunkSizeStr.find(';');
+		if (semicolon != std::string::npos) {
+			chunkSizeStr = chunkSizeStr.substr(0, semicolon);
+		}
+		
+		chunkSizeStr.erase(0, chunkSizeStr.find_first_not_of(" \t"));
+		chunkSizeStr.erase(chunkSizeStr.find_last_not_of(" \t") + 1);
+		
+		size_t chunkSize = 0;
+		std::istringstream hexStream(chunkSizeStr);
+		hexStream >> std::hex >> chunkSize;
+		
+		if (chunkSize == 0)
+			break;
+		
+		pos = crlfPos + lineEndLength;
+		
+		if (pos + chunkSize > chunkedData.length())
+			break;
+		
+		std::string chunkData = chunkedData.substr(pos, chunkSize);
+		decodedBody += chunkData;
+		
+		pos += chunkSize;
+		
+		if (pos < chunkedData.length() && chunkedData[pos] == '\r') {
+			pos++;
+		}
+		if (pos < chunkedData.length() && chunkedData[pos] == '\n') {
+			pos++;
+		}
+	}
+	
+	std::cout << getTimeStamp(_fd) << GREEN  << "Total decoded body: " << RESET << "\"" 
+			<< decodedBody << "\" (" << decodedBody.length() << " bytes)" << std::endl;
+	
+	return decodedBody;
 }
