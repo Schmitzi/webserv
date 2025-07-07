@@ -11,7 +11,8 @@ bool isCgiPipeFd(Webserv& web, int fd) {
 
 void registerCgiPipe(Webserv& web, int pipe, CGIHandler* handler) {
 	// std::cout << "\ninside registerCgiPipe, fd: " << pipe << std::endl;
-	web.getCgis().insert(std::pair<int, CGIHandler*>(pipe, handler));
+	if (pipe != -1 && handler)
+		web.getCgis().insert(std::pair<int, CGIHandler*>(pipe, handler));
 	// web.printCgis();
 }
 
@@ -28,8 +29,10 @@ void unregisterCgiPipe(Webserv& web, int pipe) {
 	// std::cout << "\ninside unregisterCgiPipe, fd: " << pipe << std::endl;
 	std::map<int, CGIHandler*>::iterator it = web.getCgis().begin();
 	for (; it != web.getCgis().end(); ++it) {
-		if (it->first == pipe) {
-			web.getCgis().erase(it);
+		if (it->first == pipe && isCgiPipeFd(web, pipe)) {
+			removeFromEpoll(web, pipe);
+			if (it->first != -1)
+				close(it->first);
 			return;
 		}
 	}

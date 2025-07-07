@@ -87,6 +87,7 @@ class Client {
 		std::string					_requestBuffer;
 		Webserv						*_webserv;
 		Server						*_server;
+		CGIHandler					*_cgi;
 		std::vector<serverLevel>	_configs;
 		size_t						_sendOffset;
 		std::string					_connect;

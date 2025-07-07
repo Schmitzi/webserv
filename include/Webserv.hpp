@@ -60,7 +60,7 @@ class Webserv {
 		int							getEpollFd();
 		std::string			        &getSendBuf(int fd);
         std::map<int, std::string>  &getSendBuf();
-        std::map<int, CGIHandler *> &getCgis();
+        std::map<int, CGIHandler*>	&getCgis();
 
         void            			initialize();
         int             			run();

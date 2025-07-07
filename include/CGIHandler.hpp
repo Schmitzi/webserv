@@ -21,8 +21,7 @@ struct	serverLevel;
 
 class CGIHandler {
 	public:
-		CGIHandler();
-		CGIHandler(Webserv* webserv, Client* client, Server* server, Request* request);
+		CGIHandler(Webserv* webserv = NULL, Client* client = NULL, Server* server = NULL);
 		CGIHandler(const CGIHandler& copy);
 		CGIHandler&operator=(const CGIHandler& copy);
 		~CGIHandler();
@@ -31,7 +30,7 @@ class CGIHandler {
 		void									setCGIBin(serverLevel *config);
 		void									setPath(const std::string& path);
 		std::string								getInfoPath();
-		int										doChecks(Request& req);
+		int										doChecks();
 		int										handleCgiPipeEvent(uint32_t events, int fd);
 		int										processScriptOutput();
 		int										handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
@@ -39,8 +38,8 @@ class CGIHandler {
 		void									prepareForExecve(std::vector<char*>& argsPtrs, std::vector<char*>& envPtrs);
 		int										doChild();
 		int										doParent();
-		int										executeCGI(Request& req);
-		int										prepareEnv(Request &req);
+		int										executeCGI();
+		int										prepareEnv();
 		std::map<std::string, std::string>		parseHeaders(const std::string& headerSection);
 		std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
 		void									makeArgs(std::string const &cgiBin, std::string& filePath);
@@ -50,6 +49,7 @@ class CGIHandler {
 		bool									inputIsDone();
 		bool									outputIsDone();
 		void									printPipes();
+		void									setReq(Request& req);
 
 	private:
 		int										_input[2];
@@ -62,13 +62,13 @@ class CGIHandler {
 		std::string								_path;
 		Client									*_client;
 		Server									*_server;
-		Request									*_request;
 		Webserv									*_webserv;
 		std::string								_outputBuffer;
 		bool									_inputDone;
 		bool									_outputDone;
 		bool									_errorDone;
 		size_t									_inputOffset;
+		Request									*_req;
 };
 
 #endif

@@ -12,6 +12,7 @@ Client::Client(Server& serv) {
 	_sendOffset = 0;
 	_exitCode = 0;
 	_cgiDone = true;
+	_cgi = NULL;
 }
 
 Client::Client(const Client& client) {
@@ -31,6 +32,7 @@ Client& Client::operator=(const Client& other) {
 		_sendOffset = other._sendOffset;
 		_exitCode = other._exitCode;
 		_cgiDone = other._cgiDone;
+		_cgi = other._cgi;
 	}
 	return *this;
 }
@@ -367,11 +369,13 @@ int Client::handleRegularRequest(Request& req) {
 	if (isCGIScript(reqPath)) {
 		_cgiDone = false;
 		std::cout << CYAN << "CGI script detected: " << RESET << reqPath << std::endl;
-		CGIHandler *cgi = new CGIHandler(_webserv, this, _server, &req);//TODO: delete!
-		cgi->setCGIBin(&req.getConf());
+		CGIHandler cgi = CGIHandler(_webserv, this, _server);
+		_cgi = &cgi;
+		_cgi->setReq(req);
+		_cgi->setCGIBin(&req.getConf());
 		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
-		cgi->setPath(fullCgiPath);
-		return cgi->executeCGI(req);
+		_cgi->setPath(fullCgiPath);
+		return _cgi->executeCGI();
 	}
 
 	std::cout << getTimeStamp(_fd) << BLUE << "Handling GET request for path: " << RESET << req.getPath() << std::endl;
@@ -619,10 +623,12 @@ int Client::handlePostRequest(Request& req) {
 		return 1;
 	if (isCGIScript(req.getPath())) {
 		_cgiDone = false;
-		CGIHandler *cgi = new CGIHandler(_webserv, this, _server, &req);//TODO: delete!
+		CGIHandler cgi = CGIHandler(_webserv, this, _server);
+		_cgi = &cgi;
+		_cgi->setReq(req);
 		std::string cgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), req.getPath());
-		cgi->setPath(cgiPath);
-		return cgi->executeCGI(req);
+		_cgi->setPath(cgiPath);
+		return _cgi->executeCGI();
 	}
 	
 	if (req.getContentType().find("multipart/form-data") != std::string::npos)
@@ -689,10 +695,11 @@ int Client::handleDeleteRequest(Request& req) {
 		return 1;
 	if (isCGIScript(req.getPath())) {
 		_cgiDone = false;
-		CGIHandler *cgi = new CGIHandler(_webserv, this, _server, &req);//TODO: delete!
-		cgi->setPath(fullPath);
-		std::cout << MAGENTA << "HERE 3: " << fullPath << RESET << std::endl;
-		return cgi->executeCGI(req);
+		CGIHandler cgi = CGIHandler(_webserv, this, _server);
+		_cgi = &cgi;
+		_cgi->setReq(req);
+		_cgi->setPath(fullPath);
+		return _cgi->executeCGI();
 	}
 
 	size_t end = fullPath.find_last_not_of(" \t\r\n");

@@ -1,33 +1,16 @@
 #include "../include/CGIHandler.hpp"
 #include "../include/Client.hpp"
 
-CGIHandler::CGIHandler() {
-	_client = NULL;
-	_server = NULL;
-	_webserv = NULL;
-	_request = NULL;
-	_input[0] = -1;
-	_input[1] = -1;
-	_output[0] = -1;
-	_output[1] = -1;
-	_cgiBinPath = "";
-	_pathInfo = "";
-	_path = "";
-	_inputDone = false;
-	_outputDone = false;
-	_errorDone = false;
-	_inputOffset = 0;
-}
-
-CGIHandler::CGIHandler(Webserv* webserv, Client* client, Server* server, Request* request) {
+CGIHandler::CGIHandler(Webserv* webserv, Client* client, Server* server) {
 	_client = client;
 	_server = server;
-	_request = request;
 	_webserv = webserv;
+	_req = NULL;
 	_input[0] = -1;
 	_input[1] = -1;
 	_output[0] = -1;
 	_output[1] = -1;
+	_pid = -1;
 	_cgiBinPath = "";
 	_pathInfo = "";
 	_path = "";
@@ -46,11 +29,12 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 		_client = copy._client;
 		_server = copy._server;
 		_webserv = copy._webserv;
-		_request = copy._request;
+		_req = copy._req;
 		_input[0] = copy._input[0];
 		_input[1] = copy._input[1];
 		_output[0] = copy._output[0];
 		_output[1] = copy._output[1];
+		_pid = copy._pid;
 		_cgiBinPath = copy._cgiBinPath;
 		_pathInfo = copy._pathInfo;
 		_env = copy._env;
@@ -98,6 +82,10 @@ void CGIHandler::printPipes() {
 	std::cout << std::endl;
 }
 
+void CGIHandler::setReq(Request& req) {
+	_req = &req;
+}
+
 void    CGIHandler::setCGIBin(serverLevel *config) {
 	_cgiBinPath = "";
 	
@@ -143,7 +131,7 @@ int CGIHandler::doChild() {
 	std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: execve() failed: " << RESET << strerror(errno) << std::endl;
 	_errorDone = true;
 	cleanupResources();
-	_client->sendErrorResponse(500, *_request);
+	_client->sendErrorResponse(500, *_req);
 	exit(1);
 	return 1;
 }
@@ -155,7 +143,7 @@ int CGIHandler::doParent() {
 	if (_output[0] >= 0 && addToEpoll(*_webserv, _output[0], EPOLLIN) == 0)
 		registerCgiPipe(*_webserv, _output[0], this);
 
-	if (_request && !_request->getBody().empty() && _input[1] >= 0) {
+	if (!_req->getBody().empty() && _input[1] >= 0) {
 		if (addToEpoll(*_webserv, _input[1], EPOLLOUT) == 0)
 			registerCgiPipe(*_webserv, _input[1], this);
 	}
@@ -163,19 +151,18 @@ int CGIHandler::doParent() {
 	return 0;
 }
 
-int CGIHandler::executeCGI(Request &req) {
-	if (doChecks(req) || prepareEnv(req)) {
+int CGIHandler::executeCGI() {
+	if (doChecks() || prepareEnv()) {
 		_errorDone = true;
-		_client->sendErrorResponse(500, req);
+		_client->sendErrorResponse(500, *_req);
 		cleanupResources();
 		return 1;
 	}
-	_request = &req;
 	_pid = fork();
 	if (_pid < 0) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: fork() failed" << RESET << std::endl;
 		_errorDone = true;
-		_client->sendErrorResponse(500, *_request);
+		_client->sendErrorResponse(500, *_req);
 		cleanupResources();
 		return 1;
 	}
@@ -190,16 +177,16 @@ int CGIHandler::handleCgiPipeEvent(uint32_t events, int fd) {
 
 	if (!_inputDone || !_outputDone) {
 		if ((events & EPOLLOUT) && !_inputDone) {
-			if (_request && !_request->getBody().empty() && fd == _input[1]) {
-				ssize_t bytesWritten = 0;
-				size_t remaining = _request->getBody().size() - _inputOffset;
-				const char* data = _request->getBody().c_str() + _inputOffset;
+			if (!_req->getBody().empty() && fd == _input[1]) {
+				ssize_t bytesWritten = -1;
+				size_t remaining = _req->getBody().size() - _inputOffset;
+				std::string s = _req->getBody().substr(_inputOffset);
+				const char* data = s.c_str();
 
 				if (!wrote(fd, data, remaining, bytesWritten, "Done with CGI input", false))
-					return 0;
-
+					return 1;
 				_inputOffset += bytesWritten;
-				if (_inputOffset >= _request->getBody().size()) {
+				if (_inputOffset >= _req->getBody().size()) {
 					_inputDone = true;
 					removeFromEpoll(*_webserv, fd);
 					safeClose(fd);
@@ -236,7 +223,7 @@ int CGIHandler::handleCgiPipeEvent(uint32_t events, int fd) {
 			return 0;
 		else if (result == -1) {
 			_errorDone = true;
-			_client->sendErrorResponse(500, *_request);
+			_client->sendErrorResponse(500, *_req);
 			cleanupResources();
 			return 1;
 		}
@@ -246,7 +233,7 @@ int CGIHandler::handleCgiPipeEvent(uint32_t events, int fd) {
 		} else {
 			_errorDone = true;
 			std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script failed" << RESET << std::endl;
-			_client->sendErrorResponse(500, *_request);
+			_client->sendErrorResponse(500, *_req);
 		}
 
 		cleanupResources();
@@ -402,20 +389,20 @@ std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& h
 	return headers;
 }
 
-int CGIHandler::prepareEnv(Request &req) {
+int CGIHandler::prepareEnv() {
 	std::string ext;
 	std::string filePath;
 	std::string fileName;
 	std::string fileContent;
 	locationLevel* loc = NULL;
 	
-	if (!req.getQuery().empty()) {
-		doQueryStuff(req.getQuery(), fileName, fileContent);
+	if (!_req->getQuery().empty()) {
+		doQueryStuff(_req->getQuery(), fileName, fileContent);
 		size_t dotPos = _path.find_last_of('.');
 		if (dotPos != std::string::npos) {
 			ext = "." + _path.substr(dotPos + 1); 
 			
-			if (!matchLocation(ext, req.getConf(), loc)) {
+			if (!matchLocation(ext, _req->getConf(), loc)) {
 				std::cerr << getTimeStamp(_client->getFd()) << RED << "Location not found for extension: " << RESET << ext << std::endl;
 				return 1;
 			}
@@ -433,7 +420,7 @@ int CGIHandler::prepareEnv(Request &req) {
 		if (dotPos != std::string::npos) {
 			ext = "." + _path.substr(dotPos + 1);
 			
-			if (!matchLocation(ext, req.getConf(), loc)) {
+			if (!matchLocation(ext, _req->getConf(), loc)) {
 				std::cerr << getTimeStamp(_client->getFd()) << RED << "Location not found for extension: " << RESET << ext << std::endl;
 				return 1;
 			}
@@ -447,11 +434,11 @@ int CGIHandler::prepareEnv(Request &req) {
 	_env.push_back("SCRIPT_FILENAME=" + abs_path);
 	_env.push_back("REDIRECT_STATUS=200");
 	_env.push_back("SERVER_SOFTWARE=WebServ/1.0");
-	_env.push_back("SERVER_NAME=" + req.getConf().servName[0]);
+	_env.push_back("SERVER_NAME=" + _req->getConf().servName[0]);
 	_env.push_back("GATEWAY_INTERFACE=CGI/1.1");
 	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
-	_env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(req.getConf())));
-	_env.push_back("REQUEST_METHOD=" + req.getMethod());
+	_env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(_req->getConf())));
+	_env.push_back("REQUEST_METHOD=" + _req->getMethod());
 	_env.push_back("PATH_INFO=" + getInfoPath());
 	
 	size_t slashPos = _path.find_last_of('/');
@@ -460,9 +447,9 @@ int CGIHandler::prepareEnv(Request &req) {
 		script = _path.substr(slashPos + 1);
 		_env.push_back("SCRIPT_NAME=/" + script);
 	}
-	_env.push_back("QUERY_STRING=" + req.getQuery());
-	_env.push_back("CONTENT_TYPE=" + req.getContentType());
-	_env.push_back("CONTENT_LENGTH=" + tostring(req.getBody().length()));
+	_env.push_back("QUERY_STRING=" + _req->getQuery());
+	_env.push_back("CONTENT_TYPE=" + _req->getContentType());
+	_env.push_back("CONTENT_LENGTH=" + tostring(_req->getBody().length()));
 	
 	return 0;
 }
@@ -486,24 +473,24 @@ void CGIHandler::cleanupResources() {
 	safeClose(_output[1]);
 }
 
-int CGIHandler::doChecks(Request& req) {
+int CGIHandler::doChecks() {
 	if (access(_path.c_str(), F_OK) != 0) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: Script does not exist: " << RESET << _path << std::endl;
-		_client->sendErrorResponse(404, req);
+		_client->sendErrorResponse(404, *_req);
 		cleanupResources();
 		return 1;
 	}
 
 	if (access(_path.c_str(), X_OK) != 0) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: Script is not executable: " << RESET << _path << std::endl;
-		_client->sendErrorResponse(403, req);
+		_client->sendErrorResponse(403, *_req);
 		cleanupResources();
 		return 1;
 	}
 
 	if (pipe(_input) < 0 || pipe(_output) < 0) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: Pipe creation failed" << RESET << std::endl;
-		_client->sendErrorResponse(500, req);
+		_client->sendErrorResponse(500, *_req);
 		cleanupResources();
 		return 1;
 	}
