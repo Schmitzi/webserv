@@ -1,4 +1,6 @@
 #include "../include/Response.hpp"
+#include "../include/Server.hpp"
+#include "../include/Webserv.hpp"
 
 bool matchLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch) {
 	size_t longestMatch = 0;

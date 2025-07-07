@@ -14,6 +14,7 @@
 #include <set>
 #include "Helper.hpp"
 #include "ConfigHelper.hpp"
+#include "ConfigValidator.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"

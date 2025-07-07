@@ -1,6 +1,14 @@
 #include "../include/Client.hpp"
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
+#include "../include/Request.hpp"
+// #include "../include/CGIHandler.hpp"
+#include "../include/Response.hpp"
+#include "../include/Helper.hpp"
+#include "../include/Multipart.hpp"
+#include "../include/ConfigParser.hpp"
+#include "../include/NoErrNo.hpp"
+#include "../include/EpollHelper.hpp"
 
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
@@ -8,6 +16,7 @@ Client::Client(Server& serv) {
 	_webserv = &serv.getWebServ();
 	_server = &serv;
 	_configs = serv.getConfigs();
+	_cgi = NULL;
 	_connect = "";
 	_sendOffset = 0;
 	_exitCode = 0;
@@ -26,6 +35,7 @@ Client& Client::operator=(const Client& other) {
 		_requestBuffer = other._requestBuffer;
 		_webserv = other._webserv;
 		_server = other._server;
+		_cgi = other._cgi;
 		_configs = other._configs;
 		_connect = other._connect;
 		_sendOffset = other._sendOffset;
@@ -35,7 +45,19 @@ Client& Client::operator=(const Client& other) {
 	return *this;
 }
 
-Client::~Client() {}
+Client::~Client() {
+	if (_cgi) {
+		if (isCgiPipeFd(*_webserv, _cgi->getInputPipe()))
+			unregisterCgiPipe(*_webserv, _cgi->getInputPipe());
+		if (isCgiPipeFd(*_webserv, _cgi->getOutputPipe()))
+			unregisterCgiPipe(*_webserv, _cgi->getOutputPipe());
+		else {
+			_cgi->cleanupResources();
+			delete _cgi;
+		}
+		_cgi = NULL;
+	}
+}
 
 int	&Client::getFd() {
 	return _fd;
@@ -367,11 +389,12 @@ int Client::handleRegularRequest(Request& req) {
 	if (isCGIScript(reqPath)) {
 		_cgiDone = false;
 		std::cout << CYAN << "CGI script detected: " << RESET << reqPath << std::endl;
-		CGIHandler *cgi = new CGIHandler(_webserv, this, _server, &req);//TODO: delete!
-		cgi->setCGIBin(&req.getConf());
+		// CGIHandler cgi = CGIHandler(this);
+		_cgi = new CGIHandler(this);
+		_cgi->setCGIBin(&req.getConf());
 		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), reqPath);
-		cgi->setPath(fullCgiPath);
-		return cgi->executeCGI(req);
+		_cgi->setPath(fullCgiPath);
+		return _cgi->executeCGI(req);
 	}
 
 	std::cout << getTimeStamp(_fd) << BLUE << "Handling GET request for path: " << RESET << req.getPath() << std::endl;
@@ -619,10 +642,11 @@ int Client::handlePostRequest(Request& req) {
 		return 1;
 	if (isCGIScript(req.getPath())) {
 		_cgiDone = false;
-		CGIHandler *cgi = new CGIHandler(_webserv, this, _server, &req);//TODO: delete!
+		// CGIHandler cgi = CGIHandler(this);
+		_cgi = new CGIHandler(this);
 		std::string cgiPath = matchAndAppendPath(_server->getWebRoot(req, *loc), req.getPath());
-		cgi->setPath(cgiPath);
-		return cgi->executeCGI(req);
+		_cgi->setPath(cgiPath);
+		return _cgi->executeCGI(req);
 	}
 	
 	if (req.getContentType().find("multipart/form-data") != std::string::npos)
@@ -689,10 +713,11 @@ int Client::handleDeleteRequest(Request& req) {
 		return 1;
 	if (isCGIScript(req.getPath())) {
 		_cgiDone = false;
-		CGIHandler *cgi = new CGIHandler(_webserv, this, _server, &req);//TODO: delete!
-		cgi->setPath(fullPath);
+		// CGIHandler cgi = CGIHandler(this);
+		_cgi = new CGIHandler(this);
+		_cgi->setPath(fullPath);
 		std::cout << MAGENTA << "HERE 3: " << fullPath << RESET << std::endl;
-		return cgi->executeCGI(req);
+		return _cgi->executeCGI(req);
 	}
 
 	size_t end = fullPath.find_last_not_of(" \t\r\n");

@@ -1,33 +1,39 @@
 #include "../include/CGIHandler.hpp"
 #include "../include/Client.hpp"
+#include "../include/ConfigValidator.hpp"
+#include "../include/Helper.hpp"
+#include "../include/NoErrNo.hpp"
+#include "../include/Server.hpp"
+#include "../include/EpollHelper.hpp"
 
-CGIHandler::CGIHandler() {
-	_client = NULL;
-	_server = NULL;
-	_webserv = NULL;
-	_request = NULL;
-	_input[0] = -1;
-	_input[1] = -1;
-	_output[0] = -1;
-	_output[1] = -1;
-	_cgiBinPath = "";
-	_pathInfo = "";
-	_path = "";
-	_inputDone = false;
-	_outputDone = false;
-	_errorDone = false;
-	_inputOffset = 0;
-}
+// CGIHandler::CGIHandler() {
+// 	_client = NULL;
+// 	_server = NULL;
+// 	_webserv = NULL;
+// 	_request = NULL;
+// 	_input[0] = -1;
+// 	_input[1] = -1;
+// 	_output[0] = -1;
+// 	_output[1] = -1;
+// 	_cgiBinPath = "";
+// 	_pathInfo = "";
+// 	_path = "";
+// 	_inputDone = false;
+// 	_outputDone = false;
+// 	_errorDone = false;
+// 	_inputOffset = 0;
+// }
 
-CGIHandler::CGIHandler(Webserv* webserv, Client* client, Server* server, Request* request) {
+CGIHandler::CGIHandler(Client* client) {
 	_client = client;
-	_server = server;
-	_request = request;
-	_webserv = webserv;
+	_server = client ? &client->getServer() : NULL;
+	_request = NULL;
+	_webserv = client ? &client->getServer().getWebServ() : NULL;
 	_input[0] = -1;
 	_input[1] = -1;
 	_output[0] = -1;
 	_output[1] = -1;
+	_pid = -1;
 	_cgiBinPath = "";
 	_pathInfo = "";
 	_path = "";
@@ -37,33 +43,51 @@ CGIHandler::CGIHandler(Webserv* webserv, Client* client, Server* server, Request
 	_inputOffset = 0;
 }
 
-CGIHandler::CGIHandler(const CGIHandler& copy) {
-	*this = copy;
-}
+// CGIHandler::CGIHandler(Webserv* webserv, Client* client, Server* server, Request* request) {
+// 	_client = client;
+// 	_server = server;
+// 	_request = request;
+// 	_webserv = webserv;
+// 	_input[0] = -1;
+// 	_input[1] = -1;
+// 	_output[0] = -1;
+// 	_output[1] = -1;
+// 	_cgiBinPath = "";
+// 	_pathInfo = "";
+// 	_path = "";
+// 	_inputDone = false;
+// 	_outputDone = false;
+// 	_errorDone = false;
+// 	_inputOffset = 0;
+// }
 
-CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
-	if (this != &copy) {
-		_client = copy._client;
-		_server = copy._server;
-		_webserv = copy._webserv;
-		_request = copy._request;
-		_input[0] = copy._input[0];
-		_input[1] = copy._input[1];
-		_output[0] = copy._output[0];
-		_output[1] = copy._output[1];
-		_cgiBinPath = copy._cgiBinPath;
-		_pathInfo = copy._pathInfo;
-		_env = copy._env;
-		_args = copy._args;
-		_path = copy._path;
-		_inputDone = copy._inputDone;
-		_outputDone = copy._outputDone;
-		_errorDone = copy._errorDone;
-		_outputBuffer = copy._outputBuffer;
-		_inputOffset = copy._inputOffset;
-	}
-	return *this;
-}
+// CGIHandler::CGIHandler(const CGIHandler& copy) {
+// 	*this = copy;
+// }
+
+// CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
+// 	if (this != &copy) {
+// 		_client = copy._client;
+// 		_server = copy._server;
+// 		_webserv = copy._webserv;
+// 		_request = copy._request;
+// 		_input[0] = copy._input[0];
+// 		_input[1] = copy._input[1];
+// 		_output[0] = copy._output[0];
+// 		_output[1] = copy._output[1];
+// 		_cgiBinPath = copy._cgiBinPath;
+// 		_pathInfo = copy._pathInfo;
+// 		_env = copy._env;
+// 		_args = copy._args;
+// 		_path = copy._path;
+// 		_inputDone = copy._inputDone;
+// 		_outputDone = copy._outputDone;
+// 		_errorDone = copy._errorDone;
+// 		_outputBuffer = copy._outputBuffer;
+// 		_inputOffset = copy._inputOffset;
+// 	}
+// 	return *this;
+// }
 
 CGIHandler::~CGIHandler() {
 	// cleanupResources();//TODO: check
@@ -87,6 +111,14 @@ std::string CGIHandler::getInfoPath() {
 
 void CGIHandler::setPath(const std::string& path) {
 	_path = path;
+}
+
+int &CGIHandler::getInputPipe() {
+	return _input[1];
+}
+
+int &CGIHandler::getOutputPipe() {
+	return _output[0];
 }
 
 void CGIHandler::printPipes() {
@@ -163,14 +195,15 @@ int CGIHandler::doParent() {
 	return 0;
 }
 
-int CGIHandler::executeCGI(Request &req) {
-	if (doChecks(req) || prepareEnv(req)) {
+int CGIHandler::executeCGI(Request& req) {
+	_deepCopyReq = req;
+	_request = &_deepCopyReq;
+	if (doChecks() || prepareEnv()) {
 		_errorDone = true;
-		_client->sendErrorResponse(500, req);
+		_client->sendErrorResponse(500, *_request);
 		cleanupResources();
 		return 1;
 	}
-	_request = &req;
 	_pid = fork();
 	if (_pid < 0) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: fork() failed" << RESET << std::endl;
@@ -195,14 +228,14 @@ int CGIHandler::handleCgiPipeEvent(uint32_t events, int fd) {
 				size_t remaining = _request->getBody().size() - _inputOffset;
 				const char* data = _request->getBody().c_str() + _inputOffset;
 
-				if (!wrote(fd, data, remaining, bytesWritten, "Done with CGI input", false))
+				if (!wrote(_input[1], data, remaining, bytesWritten, "Done with CGI input", false))
 					return 0;
 
 				_inputOffset += bytesWritten;
 				if (_inputOffset >= _request->getBody().size()) {
 					_inputDone = true;
-					removeFromEpoll(*_webserv, fd);
-					safeClose(fd);
+					removeFromEpoll(*_webserv, _input[1]);
+					safeClose(_input[1]);
 					std::cout << MAGENTA << "CGI input done, closing pipe" << RESET << std::endl;
 				}
 			}
@@ -214,13 +247,13 @@ int CGIHandler::handleCgiPipeEvent(uint32_t events, int fd) {
 				char buffer[4096];
 				ssize_t bytesRead = 0;
 
-				if (!readIt(fd, buffer, sizeof(buffer) - 1, bytesRead, _outputBuffer, "Done with reading CGI output", false))
+				if (!readIt(_output[0], buffer, sizeof(buffer) - 1, bytesRead, _outputBuffer, "Done with reading CGI output", false))
 					return 0;
 
 				if (bytesRead == 0) {
 					_outputDone = true;
-					removeFromEpoll(*_webserv, fd);
-					safeClose(fd);
+					removeFromEpoll(*_webserv, _output[0]);
+					safeClose(_output[0]);
 					std::cout << MAGENTA << "CGI output done, closing pipe" << RESET << std::endl;
 					processScriptOutput();
 				}
@@ -402,20 +435,20 @@ std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& h
 	return headers;
 }
 
-int CGIHandler::prepareEnv(Request &req) {
+int CGIHandler::prepareEnv() {
 	std::string ext;
 	std::string filePath;
 	std::string fileName;
 	std::string fileContent;
 	locationLevel* loc = NULL;
 	
-	if (!req.getQuery().empty()) {
-		doQueryStuff(req.getQuery(), fileName, fileContent);
+	if (!_request->getQuery().empty()) {
+		doQueryStuff(_request->getQuery(), fileName, fileContent);
 		size_t dotPos = _path.find_last_of('.');
 		if (dotPos != std::string::npos) {
 			ext = "." + _path.substr(dotPos + 1); 
 			
-			if (!matchLocation(ext, req.getConf(), loc)) {
+			if (!matchLocation(ext, _request->getConf(), loc)) {
 				std::cerr << getTimeStamp(_client->getFd()) << RED << "Location not found for extension: " << RESET << ext << std::endl;
 				return 1;
 			}
@@ -433,7 +466,7 @@ int CGIHandler::prepareEnv(Request &req) {
 		if (dotPos != std::string::npos) {
 			ext = "." + _path.substr(dotPos + 1);
 			
-			if (!matchLocation(ext, req.getConf(), loc)) {
+			if (!matchLocation(ext, _request->getConf(), loc)) {
 				std::cerr << getTimeStamp(_client->getFd()) << RED << "Location not found for extension: " << RESET << ext << std::endl;
 				return 1;
 			}
@@ -447,11 +480,11 @@ int CGIHandler::prepareEnv(Request &req) {
 	_env.push_back("SCRIPT_FILENAME=" + abs_path);
 	_env.push_back("REDIRECT_STATUS=200");
 	_env.push_back("SERVER_SOFTWARE=WebServ/1.0");
-	_env.push_back("SERVER_NAME=" + req.getConf().servName[0]);
+	_env.push_back("SERVER_NAME=" + _request->getConf().servName[0]);
 	_env.push_back("GATEWAY_INTERFACE=CGI/1.1");
 	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
-	_env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(req.getConf())));
-	_env.push_back("REQUEST_METHOD=" + req.getMethod());
+	_env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(_request->getConf())));
+	_env.push_back("REQUEST_METHOD=" + _request->getMethod());
 	_env.push_back("PATH_INFO=" + getInfoPath());
 	
 	size_t slashPos = _path.find_last_of('/');
@@ -460,9 +493,9 @@ int CGIHandler::prepareEnv(Request &req) {
 		script = _path.substr(slashPos + 1);
 		_env.push_back("SCRIPT_NAME=/" + script);
 	}
-	_env.push_back("QUERY_STRING=" + req.getQuery());
-	_env.push_back("CONTENT_TYPE=" + req.getContentType());
-	_env.push_back("CONTENT_LENGTH=" + tostring(req.getBody().length()));
+	_env.push_back("QUERY_STRING=" + _request->getQuery());
+	_env.push_back("CONTENT_TYPE=" + _request->getContentType());
+	_env.push_back("CONTENT_LENGTH=" + tostring(_request->getBody().length()));
 	
 	return 0;
 }
@@ -477,8 +510,10 @@ void    CGIHandler::makeArgs(std::string const &cgiBin, std::string& filePath) {
 
 void CGIHandler::cleanupResources() {
 	if (_webserv) {
-		if (_input[1] >= 0) unregisterCgiPipe(*_webserv, _input[1]);
-		if (_output[0] >= 0) unregisterCgiPipe(*_webserv, _output[0]);
+		if (_input[1] >= 0)
+			removeFromEpoll(*_webserv, _input[1]);
+		if (_output[0] >= 0)
+			removeFromEpoll(*_webserv, _output[0]);
 	}
 	safeClose(_input[0]);
 	safeClose(_input[1]);
@@ -486,24 +521,24 @@ void CGIHandler::cleanupResources() {
 	safeClose(_output[1]);
 }
 
-int CGIHandler::doChecks(Request& req) {
+int CGIHandler::doChecks() {
 	if (access(_path.c_str(), F_OK) != 0) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: Script does not exist: " << RESET << _path << std::endl;
-		_client->sendErrorResponse(404, req);
+		_client->sendErrorResponse(404, *_request);
 		cleanupResources();
 		return 1;
 	}
 
 	if (access(_path.c_str(), X_OK) != 0) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: Script is not executable: " << RESET << _path << std::endl;
-		_client->sendErrorResponse(403, req);
+		_client->sendErrorResponse(403, *_request);
 		cleanupResources();
 		return 1;
 	}
 
 	if (pipe(_input) < 0 || pipe(_output) < 0) {
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: Pipe creation failed" << RESET << std::endl;
-		_client->sendErrorResponse(500, req);
+		_client->sendErrorResponse(500, *_request);
 		cleanupResources();
 		return 1;
 	}

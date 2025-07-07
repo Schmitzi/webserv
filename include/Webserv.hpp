@@ -17,17 +17,19 @@
 #include <vector>
 #include <signal.h>
 #include <map>
-#include "Server.hpp"
-#include "Client.hpp"
+// #include "Server.hpp"
+// #include "Client.hpp"
 #include "ConfigParser.hpp"
-#include "CGIHandler.hpp"
-#include "Helper.hpp"
-#include "EpollHelper.hpp"
-#include "NoErrNo.hpp"
+// #include "CGIHandler.hpp"
+// #include "Helper.hpp"
+// #include "EpollHelper.hpp"
+// #include "NoErrNo.hpp"
 
 // Forward declarations
 class	Server;
 class	Client;
+class	ConfigParser;
+class	CGIHandler;
 
 // COLOURS
 #define BLUE    "\33[34m"
@@ -42,8 +44,6 @@ class	Client;
 
 // Others
 #define MAX_EVENTS 64
-
-class	CGIHandler;
 
 class Webserv {
     public:

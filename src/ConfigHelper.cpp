@@ -1,4 +1,7 @@
 #include "../include/ConfigHelper.hpp"
+#include "../include/Helper.hpp"
+#include "../include/ConfigValidator.hpp"
+// #include "../include/ConfigParser.hpp"
 
 std::string combinePath(std::string first, std::string second) {
 	std::string ret;

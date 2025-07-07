@@ -7,13 +7,15 @@
 #include <map>
 #include <dirent.h>
 #include <fcntl.h>
-#include "Response.hpp"
-#include "Helper.hpp"
-#include "Request.hpp"
+#include <unistd.h>
+#include <vector>
+// #include "Response.hpp"
+// #include "Helper.hpp"
+// #include "Request.hpp"
 #include "CGIHandler.hpp"
-#include "Multipart.hpp"
-#include "ConfigParser.hpp"
-#include "NoErrNo.hpp"
+// #include "Multipart.hpp"
+// #include "ConfigParser.hpp"
+// #include "NoErrNo.hpp"
 
 #define BLUE	"\33[34m"
 #define GREEN	"\33[32m"
@@ -29,6 +31,7 @@
 class	Webserv;
 class	Server;
 class	Request;
+// class	CGIHandler;
 struct	serverLevel;
 struct	locationLevel;
 
@@ -87,6 +90,7 @@ class Client {
 		std::string					_requestBuffer;
 		Webserv						*_webserv;
 		Server						*_server;
+		CGIHandler					*_cgi;
 		std::vector<serverLevel>	_configs;
 		size_t						_sendOffset;
 		std::string					_connect;

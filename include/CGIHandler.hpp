@@ -6,14 +6,15 @@
 #include <sys/wait.h>
 #include <cstdlib>
 #include <cerrno>
+#include <sys/epoll.h>
 #include "Request.hpp"
-#include "Helper.hpp"
-#include "ConfigValidator.hpp"
-#include "NoErrNo.hpp"
+// #include "Helper.hpp"
+// #include "ConfigValidator.hpp"
+// #include "NoErrNo.hpp"
 
 class	Client;
 class	Server;
-class	Request;
+// class	Request;
 class	Webserv;
 struct	serverLevel;
 
@@ -21,17 +22,18 @@ struct	serverLevel;
 
 class CGIHandler {
 	public:
-		CGIHandler();
-		CGIHandler(Webserv* webserv, Client* client, Server* server, Request* request);
-		CGIHandler(const CGIHandler& copy);
-		CGIHandler&operator=(const CGIHandler& copy);
+		// CGIHandler();
+		CGIHandler(Client *client = NULL);
+		// CGIHandler(Webserv* webserv, Client* client, Server* server, Request* request);
+		// CGIHandler(const CGIHandler& copy);
+		// CGIHandler&operator=(const CGIHandler& copy);
 		~CGIHandler();
 
 		void									setServer(Server &server);
 		void									setCGIBin(serverLevel *config);
 		void									setPath(const std::string& path);
 		std::string								getInfoPath();
-		int										doChecks(Request& req);
+		int										doChecks();
 		int										handleCgiPipeEvent(uint32_t events, int fd);
 		int										processScriptOutput();
 		int										handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
@@ -40,7 +42,7 @@ class CGIHandler {
 		int										doChild();
 		int										doParent();
 		int										executeCGI(Request& req);
-		int										prepareEnv(Request &req);
+		int										prepareEnv();
 		std::map<std::string, std::string>		parseHeaders(const std::string& headerSection);
 		std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
 		void									makeArgs(std::string const &cgiBin, std::string& filePath);
@@ -50,6 +52,8 @@ class CGIHandler {
 		bool									inputIsDone();
 		bool									outputIsDone();
 		void									printPipes();
+		int										&getInputPipe();
+		int										&getOutputPipe();
 
 	private:
 		int										_input[2];
@@ -62,6 +66,7 @@ class CGIHandler {
 		std::string								_path;
 		Client									*_client;
 		Server									*_server;
+		Request									_deepCopyReq;
 		Request									*_request;
 		Webserv									*_webserv;
 		std::string								_outputBuffer;

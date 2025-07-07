@@ -1,4 +1,7 @@
 #include "../include/EpollHelper.hpp"
+#include "../include/Webserv.hpp"
+#include "../include/CGIHandler.hpp"
+#include "../include/NoErrNo.hpp"
 
 bool isCgiPipeFd(Webserv& web, int fd) {
 	std::map<int, CGIHandler*>::iterator it = web.getCgis().begin();
@@ -9,8 +12,20 @@ bool isCgiPipeFd(Webserv& web, int fd) {
 	return false;
 }
 
-void registerCgiPipe(Webserv& web, int pipe, CGIHandler* handler) {
+void registerCgiPipe(Webserv& web, int pipe, CGIHandler *handler) {
 	// std::cout << "\ninside registerCgiPipe, fd: " << pipe << std::endl;
+	if (isCgiPipeFd(web, pipe)) {
+		std::cerr << getTimeStamp(pipe) << RED << "Error: Pipe already registered" << RESET << std::endl;
+		return;
+	}
+	if (pipe < 0) {
+		std::cerr << getTimeStamp(pipe) << RED << "Error: Invalid pipe" << RESET << std::endl;
+		return;
+	}
+	if (web.getEpollFd() < 0) {
+		std::cerr << getTimeStamp(pipe) << RED << "Error: Invalid epoll file descriptor" << RESET << std::endl;
+		return;
+	}
 	web.getCgis().insert(std::pair<int, CGIHandler*>(pipe, handler));
 	// web.printCgis();
 }
@@ -24,14 +39,14 @@ CGIHandler* getCgiHandler(Webserv& web, int fd) {
 	return NULL;
 }
 
-void unregisterCgiPipe(Webserv& web, int pipe) {
-	// std::cout << "\ninside unregisterCgiPipe, fd: " << pipe << std::endl;
-	std::map<int, CGIHandler*>::iterator it = web.getCgis().begin();
-	for (; it != web.getCgis().end(); ++it) {
-		if (it->first == pipe) {
-			web.getCgis().erase(it);
-			return;
-		}
+void unregisterCgiPipe(Webserv& web, int& fd) {
+	std::map<int, CGIHandler*>::iterator it = web.getCgis().find(fd);
+	if (it != web.getCgis().end()) {
+		removeFromEpoll(web, fd);
+		safeClose(fd);
+		// delete it->second;
+		web.getCgis().erase(it);
+		std::cout << getTimeStamp(fd) << " Unregistered CGI pipe" << std::endl;
 	}
 }
 
@@ -49,7 +64,7 @@ void clearSendBuf(Webserv& web, int fd) {
 	}
 }
 
-int setEpollEvents(Webserv& web, int fd, uint32_t events) {
+int setEpollEvents(Webserv& web, int& fd, uint32_t events) {
 	if (fd < 0)
 		return 1;
 	struct epoll_event ev;
@@ -62,7 +77,7 @@ int setEpollEvents(Webserv& web, int fd, uint32_t events) {
 	return 0;
 }
 
-int addToEpoll(Webserv& web, int fd, short events) {  
+int addToEpoll(Webserv& web, int& fd, short events) {  
 	struct epoll_event event;
 	event.events = events;
 	event.data.fd = fd;
@@ -73,7 +88,7 @@ int addToEpoll(Webserv& web, int fd, short events) {
 	return 0;
 }
 
-void removeFromEpoll(Webserv& web, int fd) {
+void removeFromEpoll(Webserv& web, int& fd) {
 	if (web.getEpollFd() < 0 || fd < 0)
 		return;
 	if (epoll_ctl(web.getEpollFd(), EPOLL_CTL_DEL, fd, NULL) == -1) {

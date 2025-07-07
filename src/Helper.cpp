@@ -1,4 +1,5 @@
 #include "../include/Helper.hpp"
+#include "../include/ConfigHelper.hpp"
 
 std::string tostring(int nbr) {
 	std::ostringstream oss;

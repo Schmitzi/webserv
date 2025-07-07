@@ -8,7 +8,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include "ConfigParser.hpp"
-#include "Server.hpp"
+// #include "Server.hpp"
 
 struct	serverLevel;
 struct	locationLevel;

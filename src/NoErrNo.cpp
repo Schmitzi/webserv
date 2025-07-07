@@ -1,4 +1,6 @@
 #include "../include/NoErrNo.hpp"
+#include "../include/Helper.hpp"
+#include "../include/EpollHelper.hpp"
 
 bool checkReturn(int fd, ssize_t r, const std::string& func, const std::string& isZero, bool errIfZero) {
 	if (r <= 0) {

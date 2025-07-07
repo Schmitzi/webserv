@@ -1,5 +1,9 @@
 #include "../include/Server.hpp"
 #include "../include/Webserv.hpp"
+#include "../include/Client.hpp"
+#include "../include/Request.hpp"
+#include "../include/ConfigParser.hpp"
+#include "../include/NoErrNo.hpp"
 
 Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 	_fd = -1;

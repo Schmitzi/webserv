@@ -1,4 +1,11 @@
 #include "../include/Webserv.hpp"
+#include "../include/Server.hpp"
+#include "../include/Client.hpp"
+// #include "../include/ConfigParser.hpp"
+#include "../include/CGIHandler.hpp"
+#include "../include/Helper.hpp"
+#include "../include/EpollHelper.hpp"
+#include "../include/NoErrNo.hpp"
 
 Webserv::Webserv(std::string config) : _epollFd(-1) {
 	_state = false;
@@ -280,6 +287,17 @@ void Webserv::handleClientDisconnect(int fd) {
 		}
 	}
 	if (_cgis.find(fd) != _cgis.end()) {
+		CGIHandler* handler = getCgiHandler(*this, fd);
+		if (!handler) {
+			std::cerr << getTimeStamp(fd) << RED << "Error: CGIHandler not found for fd " << fd << RESET << std::endl;
+			return;
+		}
+		if (isCgiPipeFd(*this, fd)) {
+			unregisterCgiPipe(*this, handler->getInputPipe());
+		}
+		handler->cleanupResources();
+		delete handler;
+		_cgis[fd] = NULL;
 		std::cout << getTimeStamp(fd) << GREEN << "Cleaned up cgi-handler connection" << RESET << std::endl;
 		_cgis.erase(fd);
 		return;
@@ -299,10 +317,31 @@ void Webserv::handleErrorEvent(int fd) {
 			return;
 		}
 	}
+	if (_cgis.find(fd) != _cgis.end()) {
+		CGIHandler* handler = getCgiHandler(*this, fd);
+		if (!handler) {
+			std::cerr << getTimeStamp(fd) << RED << "Error: CGIHandler not found for fd " << fd << RESET << std::endl;
+			return;
+		}
+		if (isCgiPipeFd(*this, fd)) {
+			unregisterCgiPipe(*this, handler->getInputPipe());
+		}
+		handler->cleanupResources();
+		delete handler;
+		_cgis[fd] = NULL;
+		std::cout << getTimeStamp(fd) << GREEN << "Cleaned up cgi-handler connection" << RESET << std::endl;
+		_cgis.erase(fd);
+		return;
+	}
 	std::cerr << getTimeStamp(fd) << RED << "Error on unknown fd" << RESET << std::endl;
 }
 
-void    Webserv::cleanup() {
+void Webserv::cleanup() {//TODO: when deleting& closing: be careful with deleting a handler when theres another entry with a different fd but same handler -> maybe thats why there are open fds!
+	for (std::map<int, CGIHandler*>::iterator it = _cgis.begin(); it != _cgis.end(); ++it) {
+		_cgis.erase(it);
+	}
+	_cgis.clear();
+
 	for (size_t i = 0; i < _clients.size(); ++i) {
 		if (_clients[i].getFd() >= 0) {
 			removeFromEpoll(*this, _clients[i].getFd());
@@ -315,7 +354,6 @@ void    Webserv::cleanup() {
 			removeFromEpoll(*this, _servers[i].getFd());
 			safeClose(_servers[i].getFd());
 		}
-
 	}
 	_servers.clear();
 
@@ -323,20 +361,10 @@ void    Webserv::cleanup() {
 		safeClose(_epollFd);
 		_epollFd = -1;
 	}
-	if (!_cgis.empty()) {
-		std::map<int, CGIHandler*>::iterator it = _cgis.begin();//TODO: need to delete correctly
-		for (; it != _cgis.end(); ++it) {
-			if (it->second) {
-				it->second->cleanupResources();
-				delete it->second;
-			}
-			_cgis.erase(it);
-		}
-	}
-	_clients.clear();
 	_sendBuf.clear();
 	std::cout << getTimeStamp() << GREEN << "Webserv cleanup completed" << RESET << std::endl;
 }
+
 
 void Webserv::printCgis() {
 	std::map<int, CGIHandler*>::iterator it = _cgis.begin();

@@ -8,9 +8,10 @@
 #include <unistd.h>
 #include <cstring>
 #include <iostream>
-#include "Client.hpp"
-#include "Request.hpp"
-#include "ConfigParser.hpp"
+// #include "Client.hpp"
+// #include "Request.hpp"
+// #include "ConfigParser.hpp"
+#include "Response.hpp"
 
 #define BLUE    "\33[34m"
 #define GREEN   "\33[32m"

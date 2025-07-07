@@ -1,4 +1,6 @@
 #include "../include/ConfigValidator.hpp"
+#include "../include/Helper.hpp"
+#include "../include/ConfigParser.hpp"
 
 bool isValidPath(std::string &path) {
 	struct stat	info;

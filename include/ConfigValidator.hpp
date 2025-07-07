@@ -1,9 +1,11 @@
 #ifndef CONFIGVALIDATOR_HPP
 #define CONFIGVALIDATOR_HPP
 
-#include "Helper.hpp"
-#include "ConfigParser.hpp"
+// #include "Helper.hpp"
+// #include "ConfigParser.hpp"
 #include <unistd.h>
+#include <string>
+#include <vector>
 
 struct	serverLevel;
 struct	locationLevel;
