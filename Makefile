@@ -20,7 +20,9 @@ FILES	=	main \
 			CGIHandler \
 			Multipart \
 			Helper \
-			Response
+			Response \
+			EpollHelper \
+			ClientHelper
 
 SRC_DIR = 	src/
 SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))
@@ -55,9 +57,15 @@ re:		fclean all
 	@echo "$(GREEN)Files cleaned and program re-compiled$(RESET)"
 
 start: re
-	@./webserv
+	@./webserv config/test.conf
 
 val: re
 	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./webserv config/test.conf
+
+nix: re
+	@./webserv config/nixos.conf
+
+nix-val: re
+	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./webserv config/nixos.conf
 
 .PHONY:		all clean fclean re

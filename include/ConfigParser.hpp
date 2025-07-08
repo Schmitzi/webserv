@@ -12,14 +12,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <set>
-#include "Helper.hpp"
-#include "ConfigHelper.hpp"
-
-#define BLUE    "\33[34m"
-#define GREEN   "\33[32m"
-#define RED     "\33[31m"
-#define WHITE   "\33[97m"
-#define RESET   "\33[0m" // No Colour
+#include "Colors.hpp"
 
 struct locationLevel {
 	locationLevel();
@@ -33,7 +26,6 @@ struct locationLevel {
 	bool														hasRedirect;
 	std::string													cgiProcessorPath;//cgi_pass
 	std::string													uploadDirPath;//upload_store
-	std::string													fullPath;//rootLoc + locName//TODO: idk if needed
 	bool														isRegex;
 };
 
@@ -84,7 +76,6 @@ class ConfigParser {
 		//extras..temporary
 		void													printAllConfigs();
 		void													printIpPortToServers();
-		void													printConfig(serverLevel& conf);
 };
 
 class configException : public std::exception {

@@ -4,13 +4,27 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <unistd.h>
 #include <vector>
-#include "ConfigHelper.hpp"
+#include <iomanip>
+#include <dirent.h>
+#include "Colors.hpp"
 
-std::string					tostring(int nbr);//like itoa
-std::vector<std::string>	split(const std::string& s);//like split but only for splitting by spaces
+struct	serverLevel;
+
+std::string					tostring(int nbr);
+std::vector<std::string>	split(const std::string& s);
+void						printVector(std::vector<std::string> &s, std::string sep);
 std::vector<std::string>	splitBy(const std::string& str, char div);
-void						printVector(std::vector<std::string> &s, std::string sep);//temporary
 std::string					matchAndAppendPath(const std::string& fullPath, const std::string& reqPath);
+std::string					decode(const std::string& encoded);
+std::string					encode(const std::string& decoded);
+std::string					getTimeStamp(int fd = -1);
+bool 						checkReturn(int fd, ssize_t r, const std::string& func, const std::string& isZero);
+void						doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent);
+bool						deleteErrorPages();
+
+void						printConfigs(std::vector<serverLevel> configs);
+void						printConfig(serverLevel& conf);
 
 #endif

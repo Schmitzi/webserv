@@ -3,26 +3,30 @@
 import subprocess
 import sys
 import time
+import os
 
 def main():
     scripts = [
-        "webCheck.py",
-        "webCheckFull.py", 
-        "webChunk.py",
-        "webTest.py",
-        "webTestCgiFileArg.py"
+        "tests/webAnother.py",
+        "tests/webCheck.py",
+        "tests/webCheckFull.py", 
+        "tests/webChunk.py",
+        "tests/webTest.py",
+        "tests/webTestCgiFileArg.py",
+        "tests/webUriEncoding.py"
     ]
     
     try:
         for script in scripts:
-            print(f"Running {script}...")
+            print(f"__________ Running {script}... __________")
             result = subprocess.run([sys.executable, script], 
                                   capture_output=True, 
                                   text=True, 
-                                  check=True)
-            print(f"✓ {script} completed successfully")
+                                  check=True,
+                                  cwd=os.path.abspath("."))
             if result.stdout:
-                print(f"Output: {result.stdout}")
+                print(f"{result.stdout}")
+            print(f"✓ {script} completed successfully\n")
             time.sleep(2)
             
     except subprocess.CalledProcessError as err:
@@ -31,7 +35,7 @@ def main():
     except FileNotFoundError:
         print(f"✗ Script not found: {script}")
     finally:
-        print("All done")
+        print("=============== ALL DONE ===============")
 
 if __name__ == "__main__":
     main()

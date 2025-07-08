@@ -1,4 +1,11 @@
 #include "../include/Response.hpp"
+#include "../include/ConfigParser.hpp"
+#include "../include/Server.hpp"
+#include "../include/Webserv.hpp"
+#include "../include/Request.hpp"
+#include "../include/Helper.hpp"
+#include "../include/Client.hpp"
+#include "../include/EpollHelper.hpp"
 
 bool matchLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch) {
 	size_t longestMatch = 0;
@@ -71,79 +78,204 @@ const std::string getStatusMessage(int code) {
 }
 
 void generateErrorPage(std::string& body, int statusCode, const std::string& statusText) {
-    body = "<!DOCTYPE html>\n"
-            "<html>\n<head>\n"
-            "<title>Error " + tostring(statusCode) + "</title>\n"
-            "<style>\n"
-            "  body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }\n"
-            "  h1 { color: #D32F2F; }\n"
-            "  .container { max-width: 800px; margin: 0 auto; padding: 20px; }\n"
-            "  .server-info { font-size: 12px; color: #777; margin-top: 20px; }\n"
-            "</style>\n"
-            "</head>\n"
-            "<body>\n"
-            "<div class=\"container\">\n"
-            "  <h1>Error " + tostring(statusCode) + " - " + statusText + "</h1>\n"
-            "  <p>The server cannot process your request.</p>\n"
-            "  <p><a href=\"/\">Return to homepage</a></p>\n"
-            "  <div class=\"server-info\">\n"
-            "    <p>WebServ/1.0</p>\n"
-            "  </div>\n"
-            "</div>\n"
-            "</body>\n"
-            "</html>";
+	body = "<!DOCTYPE html>\n"
+			"<html>\n<head>\n"
+			"<title>Error " + tostring(statusCode) + "</title>\n"
+			"<style>\n"
+			"  body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }\n"
+			"  h1 { color: #D32F2F; }\n"
+			"  .container { max-width: 800px; margin: 0 auto; padding: 20px; }\n"
+			"  .server-info { font-size: 12px; color: #777; margin-top: 20px; }\n"
+			"</style>\n"
+			"</head>\n"
+			"<body>\n"
+			"<div class=\"container\">\n"
+			"  <h1>Error " + tostring(statusCode) + " - " + statusText + "</h1>\n"
+			"  <p>The server cannot process your request.</p>\n"
+			"  <p><a href = \"/\">Return to homepage</a></p>\n" // TODO: This returns to index, but only from one level up (i.e cgi-bin) 
+			"  <div class=\"server-info\">\n"
+			"    <p>WebServ/1.0</p>\n"
+			"  </div>\n"
+			"</div>\n"
+			"</body>\n"
+			"</html>";
 }
 
 std::string findErrorPage(int statusCode, const std::string& dir, Request& req) {
-    std::map<std::vector<int>, std::string> errorPages = req.getConf().errPages;
-    std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
-    bool foundCustomPage = false;
+	std::map<std::vector<int>, std::string> errorPages = req.getConf().errPages;
+	std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
+	bool foundCustomPage = false;
 	std::string uri;
-    while (it != errorPages.end() && !foundCustomPage) {
-        for (size_t i = 0; i < it->first.size(); i++) {
-            if (it->first[i] == statusCode) {
-                foundCustomPage = true;
+	while (it != errorPages.end() && !foundCustomPage) {
+		for (size_t i = 0; i < it->first.size(); i++) {
+			if (it->first[i] == statusCode) {
+				foundCustomPage = true;
 				uri = it->second;
-                break;
-            }
-        }
-        ++it;
-    }
-    
-    std::string filePath;
-    if (foundCustomPage) {
+				break;
+			}
+		}
+		++it;
+	}
+	
+	std::string filePath;
+	if (foundCustomPage) {
 		if (uri.find(req.getConf().rootServ) == std::string::npos)
 			filePath = matchAndAppendPath(req.getConf().rootServ, uri);
 		else
 			filePath = uri;
 	}
-    else
-        filePath = matchAndAppendPath(dir, tostring(statusCode)) + ".html";
-    return filePath;
+	else
+		filePath = matchAndAppendPath(dir, tostring(statusCode)) + ".html";
+	return filePath;
 }
 
 void resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req) {
-    std::string dir = "errorPages";
-    std::string filePath = findErrorPage(statusCode, dir, req);
+	std::string dir = "errorPages";
+	std::string filePath = findErrorPage(statusCode, dir, req);
 
-    struct stat st;
-    if (stat(dir.c_str(), &st) != 0) {
-    	mkdir(dir.c_str(), 0755);
+	struct stat st;
+	if (stat(dir.c_str(), &st) != 0) {
+		mkdir(dir.c_str(), 0755);
 	}
-    std::ifstream file(filePath.c_str());
-    if (file.good()) {
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        body = buffer.str();
-        file.close();
-    } else {
-        generateErrorPage(body, statusCode, statusText);
-        std::ofstream out(filePath.c_str());
-        if (out) {
-            out << body;
-            out.close();
-        }
-    }
+	std::ifstream file(filePath.c_str());
+	if (file.good()) {
+		std::stringstream buffer;
+		buffer << file.rdbuf();
+		body = buffer.str();
+		file.close();
+	} else {
+		generateErrorPage(body, statusCode, statusText);
+		std::ofstream out(filePath.c_str());
+		if (out) {
+			out << body;
+			out.close();
+		}
+	}
 }
 
+void sendRedirect(Client& c, int statusCode, const std::string& location) {
+	std::string statusText = getStatusMessage(statusCode);
+	
+	std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
+	body += "<body><h1>" + statusText + "</h1>";
+	body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
+	
+	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+	response += "Location: " + location + "\r\n";
+	response += "Content-Type: text/html\r\n";
+	response += "Content-Length: " + tostring(body.length()) + "\r\n";
+	response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
+	response += "Pragma: no-cache\r\n";
+	response += "Connection: close\r\n";
+	response += "\r\n";
+	response += body;
+	c.setConnect("close");
+	addSendBuf(c.getWebserv(), c.getFd(), response);
+	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
+	std::cout << getTimeStamp(c.getFd()) << BLUE << "Sent redirect response: " << RESET
+			<< statusCode << " " << statusText << " to " << location << std::endl;
+}
 
+ssize_t sendResponse(Client& c, Request req, std::string connect, std::string body) {
+	c.setConnect(connect);
+	if (c.getFd() <= 0) {
+		std::cerr << getTimeStamp(c.getFd()) << RED << "Invalid fd in sendResponse" << RESET << std::endl;
+		return -1;
+	}
+	std::string response = "HTTP/1.1 200 OK\r\n";
+	
+	std::map<std::string, std::string> headers = req.getHeaders();
+	bool isChunked = false;
+	std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
+	if (it != headers.end() && it->second.find("chunked") != std::string::npos)
+		isChunked = true;
+	
+	response += "Content-Type: " + req.getContentType() + "\r\n";
+	
+	std::string content = body;
+	
+	if (req.getMethod() == "POST" && content.empty())
+		content = "Upload successful";
+	
+	if (!isChunked)
+		response += "Content-Length: " + tostring(content.length()) + "\r\n";
+	else
+		response += "Transfer-Encoding: chunked\r\n";
+	
+	response += "Server: WebServ/1.0\r\n";
+	response += "Connection: " + connect + "\r\n";
+	response += "Access-Control-Allow-Origin: *\r\n";
+	response += "\r\n";
+	
+	if (c.getFd() < 0) {
+		std::cerr << getTimeStamp(c.getFd()) << RED  << "FD became invalid before send" << RESET << std::endl;
+		return -1;
+	}
+	
+	addSendBuf(c.getWebserv(), c.getFd(), response);
+	
+	if (!content.empty()) {
+		if (isChunked) {
+			const size_t chunkSize = 4096;
+			size_t remaining = content.length();
+			size_t offset = 0;
+			
+			while (remaining > 0) {
+				size_t currentChunkSize;
+				if (remaining < chunkSize) 
+					currentChunkSize = remaining;
+				else 
+					currentChunkSize = chunkSize;
+				
+				std::stringstream hexStream;
+				hexStream << std::hex << currentChunkSize;
+				std::string all = hexStream.str() + "\r\n";
+				all += content.c_str() + offset;
+				all += "\r\n";
+				addSendBuf(c.getWebserv(), c.getFd(), all);
+				offset += currentChunkSize;
+				remaining -= currentChunkSize;
+			}
+			
+			std::string s2 = "0\r\n\r\n";
+			addSendBuf(c.getWebserv(), c.getFd(), s2);
+			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
+			std::cout << getTimeStamp(c.getFd()) << GREEN  << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
+			return content.length();
+		} else {
+			addSendBuf(c.getWebserv(), c.getFd(), content);
+			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
+			return content.length();
+		}
+	} else {
+		setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
+		std::cout << getTimeStamp(c.getFd()) << GREEN  << "Response sent (headers only)" << RESET << std::endl;
+		return 0;
+	}
+}
+
+void sendErrorResponse(Client& c, int statusCode, Request& req) {
+	std::string body;
+	std::string statusText = getStatusMessage(statusCode);
+	
+	resolveErrorResponse(statusCode, statusText, body, req);    
+
+	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+	response += "Content-Type: text/html\r\n";
+	response += "Content-Length: " + tostring(body.size()) + "\r\n";
+	response += "Server: WebServ/1.0\r\n";
+	response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
+	response += "Pragma: no-cache\r\n";
+	if (statusCode == 413) {
+		c.setConnect("keep-alive");
+		response += "Connection: keep-alive\r\n";
+	} else {
+		c.setConnect("close");
+		response += "Connection: close\r\n";
+	}
+	response += "\r\n";
+	response += body;
+	addSendBuf(c.getWebserv(), c.getFd(), response);
+	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
+	std::cerr << getTimeStamp(c.getFd()) << RED  << "Error sent: " << statusCode << RESET << std::endl;
+}

@@ -5,10 +5,7 @@
 #include <vector>
 #include <sys/wait.h>
 #include <cstdlib>
-#include <cerrno>
-#include "Request.hpp"
-#include "Helper.hpp"
-#include "ConfigValidator.hpp"
+#include <map>
 
 class	Client;
 class	Server;
@@ -18,41 +15,46 @@ struct	serverLevel;
 #define NIX false
 
 class CGIHandler {
-    public:
-		CGIHandler();
-        ~CGIHandler();
+	public:
+		CGIHandler(Client *client = NULL);
+		CGIHandler(const CGIHandler& copy);
+		CGIHandler&operator=(const CGIHandler& copy);
+		~CGIHandler();
 
-        void									setClient(Client &client);
-        void									setServer(Server &server);
-        void									setCGIBin(serverLevel *config);
-        std::string								getInfoPath();
-        bool									isCGIScript(const std::string& path);
-        int										doChecks(Client client, Request& req);
-        int										processScriptOutput(Client &client);
-        int										handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
-        int										handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
-        int										executeCGI(Client &client, Request& req, std::string const &scriptPath);
-        void									doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent);
+		//getters & setters
+		std::string								getInfoPath();
+		Client*									getClient() const;
+		void									setServer(Server &server);
+		void									setPath(const std::string& path);
+		void									setCGIBin(serverLevel *config);
+
+		int										executeCGI(Request& req);
+		int										doChecks(Request& req);
 		int										prepareEnv(Request &req);
-        std::map<std::string, std::string>		parseHeaders(const std::string& headerSection);
-        std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
 		void									makeArgs(std::string const &cgiBin, std::string& filePath);
-        void									cleanupResources();
-        std::string								getTimeStamp();
-        std::string								formatChunkedResponse(const std::string& body);
-        bool									isChunkedTransfer(const std::map<std::string, std::string>& headers);
+		int										doChild();
+		void									prepareForExecve(std::vector<char*>& argsPtrs, std::vector<char*>& envPtrs);
+		int										doParent(Request& req);
+		int										processScriptOutput();
+		bool									isChunkedTransfer(const std::map<std::string, std::string>& headers);
+		int										handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
+		int										handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
+		std::string								formatChunkedResponse(const std::string& body);
+		std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
+		std::map<std::string, std::string>		parseHeaders(const std::string& headerSection);
+		void									cleanupResources();
 
 	private:
-        int										_input[2];
-        int										_output[2];
-        std::string								_cgiBinPath;
-        std::vector<std::string>				_supportedExt;
-        std::string								_pathInfo;
-        std::vector<std::string>				_env;
+		int										_input[2];
+		int										_output[2];
+		std::string								_cgiBinPath;
+		std::string								_pathInfo;
+		std::vector<std::string>				_env;
 		std::vector<std::string>				_args;
-        std::string								_path;
-        Client									*_client;
-        Server									*_server;
+		std::string								_path;
+		Client									*_client;
+		Server									*_server;
+		std::string								_outputBuffer;
 };
 
 #endif

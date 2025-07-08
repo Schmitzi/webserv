@@ -1,13 +1,12 @@
 #ifndef CONFIGHELPER_HPP
 #define CONFIGHELPER_HPP
 
-#include "Helper.hpp"
-#include "ConfigValidator.hpp"
-#include "ConfigParser.hpp"
+#include <string>
+#include <vector>
 
+class	ConfigParser;
 struct	serverLevel;
 struct	locationLevel;
-class	ConfigParser;
 
 std::string					combinePath(std::string first, std::string second);
 bool						onlyDigits(const std::string& s);
@@ -23,7 +22,7 @@ void						checkBracket(std::vector<std::string>& s, bool& bracket);
 
 //set Location Level
 void						setRootLoc(locationLevel& loc, std::vector<std::string>& s);
-void						setLocIndexFile(locationLevel& loc, std::vector<std::string>& s, serverLevel &serv);
+void						setLocIndexFile(locationLevel& loc, std::vector<std::string>& s);
 void						setMethods(locationLevel& loc, std::vector<std::string>& s);
 void						setAutoindex(locationLevel& loc, std::vector<std::string>& s);
 void						setRedirection(locationLevel& loc, std::vector<std::string>& s);

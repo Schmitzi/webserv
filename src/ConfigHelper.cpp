@@ -1,4 +1,7 @@
 #include "../include/ConfigHelper.hpp"
+#include "../include/Helper.hpp"
+#include "../include/ConfigValidator.hpp"
+#include "../include/ConfigParser.hpp"
 
 std::string combinePath(std::string first, std::string second) {
 	std::string ret;
@@ -82,17 +85,17 @@ void setPort(std::vector<std::string>& s, serverLevel& serv) {
 	if (colon != std::string::npos) {
 		std::string tmp = s[1].substr(0, colon);
 		if (tmp != "localhost")
-        	ip = s[1].substr(0, colon);
+			ip = s[1].substr(0, colon);
 		if (s.size() == 3 && s[2] == "default_server")
 			isDefault = true;
 		port = std::atoi(s[1].substr(colon + 1).c_str());
-    } else {
+	} else {
 		if (s.size() == 3 && s[2] == "default_server")
 			isDefault = true;
 		port = std::atoi(s[1].c_str());
 	}
 	if (port < 0)
-		port = 8080;
+		throw configException("Error: invalid port");
 	serv.port.push_back(std::pair<std::pair<std::string, int>, bool>(std::pair<std::string, int>(ip, port), isDefault));
 }
 
@@ -105,7 +108,7 @@ void setErrorPages(std::vector<std::string>& s, serverLevel &serv) {
 	for (size_t j = 1; j < s.size(); j++) {
 		if (onlyDigits(s[j])) {
 			err = atoi(s[j].c_str());
-			if (err < 400 || err > 599)
+			if (err < 100 || err > 599)
 				throw configException("Error: Invalid error status code.");
 			errCodes.push_back(err);
 			waitingForPath = true;
@@ -163,11 +166,10 @@ void setRootLoc(locationLevel& loc, std::vector<std::string>& s) {
 	loc.rootLoc = s[1];
 }
 
-void setLocIndexFile(locationLevel& loc, std::vector<std::string>& s, serverLevel &serv) {
+void setLocIndexFile(locationLevel& loc, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidIndexFile(s[1]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
 	loc.indexFile = s[1];
-	(void)serv;
 }
 
 void setMethods(locationLevel& loc, std::vector<std::string>& s) {
@@ -199,18 +201,15 @@ void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
 }
 
 void setCgiProcessorPath(locationLevel& loc, std::vector<std::string>& s) {
-	std::string path = s[1];
-    if (!path.empty() && !isValidExecutable(path)) {
-        throw configException("Error: invalid executable path for " + s[0] + " -> " + s[1]);
-    }
-    loc.cgiProcessorPath = path;
+	if (!s[1].empty() && !isValidExecutable(s[1]))
+		throw configException("Error: invalid executable path for " + s[0] + " -> " + s[1]);
+	loc.cgiProcessorPath = s[1];
 }
 
 void setUploadDirPath(locationLevel& loc, std::vector<std::string>& s) {
-	std::string path = s[1];
-	if (!path.empty() && (path.find("..") != std::string::npos || path.find("/.") != std::string::npos))
+	if (!s[1].empty() && (s[1].find("..") != std::string::npos || s[1].find("/.") != std::string::npos))
 		throw configException("Error: invalid directory path for " + s[0] + " -> " + s[1]);
-	loc.uploadDirPath = path;
+	loc.uploadDirPath = s[1];
 }
 
 /* ____________________________set Server Level____________________________ */
