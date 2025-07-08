@@ -47,7 +47,6 @@ class CGIHandler {
         std::string                             getInterpreterFromConfig(Request& req, const std::string& scriptPath);
         std::string                             getDirectoryFromPath(const std::string& fullPath);
         int                                     waitForCGICompletion(pid_t pid, int timeoutSeconds);
-        std::string                             extractPathInfo(const std::string& requestPath, const std::string& scriptPath);
         Client*                                 getClient() const;
 
 	private:

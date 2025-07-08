@@ -48,7 +48,7 @@ class Client {
         std::pair<int, std::vector<std::string> > getSends();
         int                     	acceptConnection(int serverFd);
         void                    	displayConnection();
-        int                     	recieveData();
+        void                     	recieveData();
         int                     	checkLength(bool &printNewLine);
         int                     	processRequest(Request& req);
         int                     	handleGetRequest(Request& req);

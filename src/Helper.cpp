@@ -105,7 +105,7 @@ std::string getTimeStamp(int fd) {
     struct tm* tm_info = localtime(&now);
     
     std::ostringstream oss;
-    oss << "[" 
+    oss << GREY << "[" 
         << (tm_info->tm_year + 1900) << "-"
         << std::setw(2) << std::setfill('0') << (tm_info->tm_mon + 1) << "-"
         << std::setw(2) << std::setfill('0') << tm_info->tm_mday << " "
@@ -113,7 +113,7 @@ std::string getTimeStamp(int fd) {
         << std::setw(2) << std::setfill('0') << tm_info->tm_min << ":"
         << std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
 	if (fd >= 0)
-		oss << "[" << fd << "] ";
+		oss << "[" << fd << "] " << RESET;
     
     return oss.str();
 }

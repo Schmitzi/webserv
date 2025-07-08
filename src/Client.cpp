@@ -87,7 +87,7 @@ int Client::acceptConnection(int serverFd) {
 		std::cerr << getTimeStamp() << RED << "Error: accept() failed" << RESET << std::endl;
         return 1;
     }
-    
+    std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
     std::cout << getTimeStamp(_fd) << "Client accepted" << std::endl;
     
     return 0;
@@ -100,27 +100,24 @@ void Client::displayConnection() {
             << (int)ip[3] << ":" << ntohs(_addr.sin_port) << RESET << std::endl;
 }
 
-int Client::recieveData() {
+void Client::recieveData() {
     static bool printNewLine = false;
     char buffer[1000000];
     memset(buffer, 0, sizeof(buffer));
     
     ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
     if (bytesRead < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            return 0;
-        }
+		_exitCode = 1;
         std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
-        return 1;
+        return;
     }
     
     if (bytesRead == 0) {
-        std::cout << getTimeStamp(_fd) << BLUE << "Client closed connection" << RESET << std::endl;
-        return 1;
+		_exitCode = 1;
+        return;
     }
     
     _requestBuffer.append(buffer, bytesRead);
-
     bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
                         _requestBuffer.find("chunked") != std::string::npos);
     
@@ -128,11 +125,14 @@ int Client::recieveData() {
         if (!isChunkedBodyComplete(_requestBuffer)) {
             std::cout << getTimeStamp(_fd) << BLUE 
                         << "Chunked body incomplete, waiting for more data" << RESET << std::endl;
-            return 0;
+			_exitCode = 0;
+            return;
         }
     } else {
-        if (checkLength(printNewLine) == 0)
-            return 0;
+        if (checkLength(printNewLine) == 0) {
+			_exitCode = 0;
+            return;
+		}
     }
     if (printNewLine == true)
         std::cout << std::endl;
@@ -142,16 +142,14 @@ int Client::recieveData() {
     if (_requestBuffer.empty() || _requestBuffer.find("HTTP/") == std::string::npos) {
         std::cout << getTimeStamp(_fd) << YELLOW << "Empty or invalid request received, closing connection" << RESET << std::endl;
         _requestBuffer.clear();
-        return 1;
+		_exitCode = 1;
+        return;
     }
     
     Request req(_requestBuffer, *this, _fd);
-    int processResult = processRequest(req);
-    
-    if (processResult != 1)
+    _exitCode = processRequest(req);
+    if (_exitCode != 1)
         _requestBuffer.clear();
-    _exitCode = processResult;
-    return processResult;
 }
 
 int Client::checkLength(bool &printNewLine) {
@@ -438,7 +436,6 @@ int Client::buildBody(Request &req, std::string fullPath) {
     }
     
     std::vector<char> buffer(fileStat.st_size);
-
     ssize_t bytesRead = read(fd, buffer.data(), fileStat.st_size);
 	if (bytesRead == 0) {
 		close(fd);
