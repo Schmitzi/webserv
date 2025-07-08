@@ -52,8 +52,8 @@ class Webserv {
 
         void            			setEnvironment(char **envp);
         void            			flipState();
-        Server        				findServerByFd(int fd, bool& found);
-		Client&						findClientByFd(int fd, bool& found);
+        Server        				*findServerByFd(int fd);
+		Client						*findClientByFd(int fd);
         void            			handleErrorEvent(int fd);
         int             			addToEpoll(int fd, short events);
         void            			removeFromEpoll(int fd);

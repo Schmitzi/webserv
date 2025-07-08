@@ -66,24 +66,13 @@ void Webserv::clearSendBuf(int fd) {
 }
 
 bool Webserv::isCgiPipeFd(int fd) const {
-    bool isCgi = _cgis.find(fd) != _cgis.end();
-    std::cout << getTimeStamp(fd) << BLUE << "Checking if FD " << fd << " is CGI pipe: " << (isCgi ? "YES" : "NO") << " (total CGI pipes: " << _cgis.size() << ")" << RESET << std::endl;
-    
-    if (_cgis.size() > 0) {
-        std::cout << getTimeStamp(fd) << BLUE << "Current CGI FDs: ";
-        for (std::map<int, CGIHandler*>::const_iterator it = _cgis.begin(); it != _cgis.end(); ++it) {
-            std::cout << it->first << " ";
-        }
-        std::cout << RESET << std::endl;
-    }
-    
-    return isCgi;
+    return _cgis.find(fd) != _cgis.end();
 }
 
 void Webserv::registerCgiPipe(int fd, CGIHandler* handler) {
-    std::cout << getTimeStamp(fd) << GREEN << "Registering CGI pipe FD: " << fd << RESET << std::endl;
+    // std::cout << getTimeStamp(fd) << GREEN << "Registering CGI pipe FD: " << fd << RESET << std::endl;
     _cgis[fd] = handler;
-    std::cout << getTimeStamp(fd) << GREEN << "CGI pipe registered. Total CGI pipes: " << _cgis.size() << RESET << std::endl;
+    // std::cout << getTimeStamp(fd) << GREEN << "CGI pipe registered. Total CGI pipes: " << _cgis.size() << RESET << std::endl;
 }
 
 CGIHandler* Webserv::getCgiHandler(int fd) const {
@@ -94,14 +83,14 @@ CGIHandler* Webserv::getCgiHandler(int fd) const {
 }
 
 void Webserv::unregisterCgiPipe(int fd) {
-    std::cout << getTimeStamp(fd) << GREEN << "Unregistering CGI pipe FD: " << fd << RESET << std::endl;
+    // std::cout << getTimeStamp(fd) << GREEN << "Unregistering CGI pipe FD: " << fd << RESET << std::endl;
     std::map<int, CGIHandler*>::iterator it = _cgis.find(fd);
     if (it != _cgis.end()) {
         _cgis.erase(it);
-        std::cout << getTimeStamp(fd) << GREEN << "CGI pipe unregistered. Total CGI pipes: " << _cgis.size() << RESET << std::endl;
-    } else {
-        std::cout << getTimeStamp(fd) << RED << "WARNING: Tried to unregister non-existent CGI pipe FD: " << fd << RESET << std::endl;
-    }
+        // std::cout << getTimeStamp(fd) << GREEN << "CGI pipe unregistered. Total CGI pipes: " << _cgis.size() << RESET << std::endl;
+	}// } else {
+    //     std::cout << getTimeStamp(fd) << RED << "WARNING: Tried to unregister non-existent CGI pipe FD: " << fd << RESET << std::endl;
+    // }
 }
 
 void Webserv::initialize() {
@@ -198,12 +187,11 @@ int Webserv::run() {
             if (!checkEventMaskErrors(eventMask, fd))
                 continue;
             
-            bool found = false;
-            Server activeServer = findServerByFd(fd, found);
+            Server *activeServer = findServerByFd(fd);
             
-            if (found) {
+            if (activeServer) {
                 if (eventMask & EPOLLIN)
-                    handleNewConnection(activeServer, eventMask);
+                    handleNewConnection(*activeServer, eventMask);
             } else {
                 if (eventMask & (EPOLLIN | EPOLLHUP))
                     handleClientActivity(fd);
@@ -216,28 +204,22 @@ int Webserv::run() {
     return 0;
 }
 
-Server Webserv::findServerByFd(int fd, bool& found) {
+Server* Webserv::findServerByFd(int fd) {
     for (size_t i = 0; i < _servers.size(); i++) {
         if (_servers[i].getFd() == fd) {
-			found = true;
-			return _servers[i];
+			return &_servers[i];
         }
     }
-	if (!_servers.empty())
-		return _servers[0];
-	throw configException("Can't find server by FD");
+	return NULL;
 }
 
-Client& Webserv::findClientByFd(int fd, bool& found) {
+Client* Webserv::findClientByFd(int fd) {
 	for (size_t i = 0; i < _clients.size(); i++) {
 		if (_clients[i].getFd() == fd) {
-			found = true;
-			return _clients[i];
+			return &_clients[i];
 		}
 	}
-	if (!_clients.empty())
-		return _clients[0];
-	throw configException("Can't find client by FD");
+	return NULL;
 }
 
 void Webserv::handleErrorEvent(int fd) {
@@ -347,7 +329,7 @@ void Webserv::handleNewConnection(Server &server, u_int32_t eventMask) {
 }
 
 void Webserv::handleClientActivity(int clientFd) {
-    std::cout << getTimeStamp(clientFd) << CYAN << "=== handleClientActivity called for FD: " << clientFd << " ===" << RESET << std::endl;
+    // std::cout << getTimeStamp(clientFd) << CYAN << "=== handleClientActivity called for FD: " << clientFd << " ===" << RESET << std::endl;
     
     if (isCgiPipeFd(clientFd)) {
         std::cout << getTimeStamp(clientFd) << BLUE << "Handling CGI pipe activity for FD: " << clientFd << RESET << std::endl;
@@ -377,28 +359,21 @@ void Webserv::handleClientActivity(int clientFd) {
         }
         return;
     }
-
-    std::cout << getTimeStamp(clientFd) << CYAN << "Handling regular client activity for FD: " << clientFd << RESET << std::endl;
-    bool found = false;
-    Client& client = findClientByFd(clientFd, found);
+    Client *client = findClientByFd(clientFd);
     
-    if (!found) {
+    if (!client) {
         std::cerr << getTimeStamp(clientFd) << RED << "Client not found for FD: " << clientFd << RESET << std::endl;
         removeFromEpoll(clientFd);
         close(clientFd);
         return;
     }
     
-    int result = client.recieveData();
-    if (result == 1) {
-        handleClientDisconnect(clientFd);
-    }
+    client->recieveData();
 }
 
 void Webserv::handleEpollOut(int fd) {
-	bool found = false;
-	Client& c = findClientByFd(fd, found);
-	if (!found) {
+	Client *c = findClientByFd(fd);
+	if (!c) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: no client was found" << RESET << std::endl;
 		return;
 	}
@@ -409,7 +384,7 @@ void Webserv::handleEpollOut(int fd) {
 		return;
 	}
 
-	size_t& offset = c.getOffset();
+	size_t& offset = c->getOffset();
 	const char* data = toSend.data() + offset;
 	size_t remaining = toSend.size() - offset;
 
@@ -417,7 +392,7 @@ void Webserv::handleEpollOut(int fd) {
 	if (s < 0) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: send() failed" << RESET << std::endl;
 		clearSendBuf(fd);
-		c.setExitCode(1);
+		c->setExitCode(1);
 	}
 
 	offset += static_cast<size_t>(s);
@@ -425,20 +400,15 @@ void Webserv::handleEpollOut(int fd) {
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(fd);
-		if (c.getConnect() == "keep-alive")
-			setEpollEvents(fd, EPOLLIN);
-		else
-			c.setExitCode(1);
+		// if (c->getConnect() == "keep-alive" && c->getExitCode() == 0) {
+		// 	std::cout << RED << "KEEP ALIVE?" << RESET << std::endl;
+		// 	setEpollEvents(fd, EPOLLIN);
+		// }
+		// else
+			c->setExitCode(1);
 	}
-	if (c.getExitCode() != 0) {
-		removeFromEpoll(fd);
-        close(fd);
-		for (size_t i = 0; i < _clients.size(); i++) {
-            if (_clients[i].getFd() == fd) {
-                _clients.erase(_clients.begin() + i);
-                break;
-            }
-        }
+	if (c->getExitCode() != 0) {
+		handleClientDisconnect(fd);
 	}
 }
 

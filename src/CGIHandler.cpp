@@ -255,11 +255,6 @@ int CGIHandler::processScriptOutput() {
         return 1;
     }
     else {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            std::cout << getTimeStamp(_client->getFd()) << BLUE << "CGI pipe would block, continuing..." << RESET << std::endl;
-            return 0;
-        }
-        
         std::cerr << getTimeStamp(_client->getFd()) << RED
                   << "Error reading CGI output: " << strerror(errno) << RESET << std::endl;
         
@@ -463,8 +458,7 @@ int CGIHandler::prepareEnv(Request &req) {
     _env.push_back("SCRIPT_FILENAME=" + _path);     // Full filesystem path to script
     
     // PATH_INFO handling (for URLs like /script.php/extra/path)
-    std::string pathInfo = extractPathInfo(req.getPath(), _path);
-    _env.push_back("PATH_INFO=" + pathInfo);
+    _env.push_back("PATH_INFO=" + _pathInfo);
     
     // Add HTTP headers as environment variables
     std::map<std::string, std::string> headers = req.getHeaders();
@@ -497,7 +491,7 @@ void CGIHandler::cleanupResources() {
         return;
     }
     
-    std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI cleanup started" << RESET << std::endl;
+    // std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI cleanup started" << RESET << std::endl;
 
     for (int i = 0; i < 2; i++) {
         if (_input[i] >= 0) {
@@ -529,7 +523,7 @@ void CGIHandler::cleanupResources() {
     _env.clear();
     _outputBuffer.clear();
     
-    std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI cleanup completed" << RESET << std::endl;
+    // std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI cleanup completed" << RESET << std::endl;
 }
 
 int CGIHandler::doChecks(Request& req) {
@@ -554,10 +548,3 @@ int CGIHandler::doChecks(Request& req) {
     _server->getWebServ().registerCgiPipe(_output[0], this);
     return 0;
 }
-
-
-std::string CGIHandler::extractPathInfo(const std::string& requestPath, const std::string& scriptPath) {
-    std::cout << "Req path: " << requestPath << "\n";
-    std::cout << "Path: " << scriptPath << " \n";
-    return "";
-} 
