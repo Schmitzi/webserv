@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <vector>
 #include <iomanip>
-#include <dirent.h>
 #include "ConfigHelper.hpp"
 
 struct	serverLevel;
@@ -24,6 +23,5 @@ bool 						checkReturn(int fd, ssize_t r, const std::string& func, const std::st
 void						doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent);
 void						printConfigs(std::vector<serverLevel> configs);
 void						printConfig(serverLevel& conf);
-bool                        deleteErrorPages();
 
 #endif

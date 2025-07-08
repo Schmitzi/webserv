@@ -87,7 +87,6 @@ int Client::acceptConnection(int serverFd) {
 		std::cerr << getTimeStamp() << RED << "Error: accept() failed" << RESET << std::endl;
         return 1;
     }
-    // _cgi.setServer(*_server);
     
     std::cout << getTimeStamp(_fd) << "Client accepted" << std::endl;
     
@@ -646,7 +645,6 @@ int Client::handlePostRequest(Request& req) {
 
         int result = cgi->executeCGI(req);
         
-        // If executeCGI fails immediately, clean up
         if (result != 0) {
             delete cgi;
         }

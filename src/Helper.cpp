@@ -228,31 +228,3 @@ void printConfig(serverLevel& conf) {//only temporary, for debugging
 	}
 	std::cout << "}" << std::endl;
 }
-
-bool deleteErrorPages() {
-	struct stat info;
-	std::string path = "errorPages";
-
-	if (stat(path.c_str(), &info) != 0 || !S_ISDIR(info.st_mode))
-		return true;
-	DIR* dir = opendir(path.c_str());
-	if (!dir) {
-		return false;
-	}
-	struct dirent* entry;
-	while ((entry = readdir(dir)) != NULL) {
-		std::string entryName(entry->d_name);
-		if (entryName == "." || entryName == "..")
-			continue;
-		std::string fullPath = path + "/" + entryName;
-		if (unlink(fullPath.c_str()) != 0) {
-			closedir(dir);
-			return false;
-		}
-	}
-	closedir(dir);
-	if (rmdir(path.c_str()) != 0) {
-		return false;
-	}
-	return true;
-}

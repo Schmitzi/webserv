@@ -47,7 +47,9 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 }
 
 CGIHandler::~CGIHandler() {
-
+    if (_client) {
+        std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI destructor called" << RESET << std::endl;
+    }
 }
 
 Client*  CGIHandler::getClient() const {
@@ -85,8 +87,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
     }
 }
 
-void CGIHandler::prepareForExecve(std::vector<char*>& argsPtrs, 
-        std::vector<char*>& envPtrs) {
+void CGIHandler::prepareForExecve(std::vector<char*>& argsPtrs, std::vector<char*>& envPtrs) {
 	for (size_t i = 0; i < _args.size(); i++)
         argsPtrs.push_back(const_cast<char*>(_args[i].c_str()));
     argsPtrs.push_back(NULL);
@@ -103,8 +104,7 @@ int CGIHandler::doChild() {
 	close(_output[0]);
 	
 	if (dup2(_input[0], STDIN_FILENO) < 0 || dup2(_output[1], STDOUT_FILENO) < 0) {
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: dup2() failed"
-            << RESET << std::endl;
+		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: dup2() failed" << RESET << std::endl;
 		cleanupResources();
 		return 1;
 	}
@@ -113,21 +113,68 @@ int CGIHandler::doChild() {
 	
 	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
 	
-	std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: execve() failed" 
-        << RESET << std::endl;
+	std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: execve() failed" << RESET << std::endl;
 	cleanupResources();
 	return 1;
 }
 
-int CGIHandler::doParent(Request& req, int pid) {
-    if (_input[0] >= 0) {
-        close(_input[0]);
-        _input[0] = -1;
-    }
-    if (_input[1] >= 0) {
-        close(_input[1]);
-        _input[1] = -1;
-    }
+// int CGIHandler::doParent(Request& req, pid_t& pid) {
+// 	close(_input[0]);
+// 	close(_output[1]);
+
+// 	if (!req.getBody().empty()) {
+// 		ssize_t w = write(_input[1], req.getBody().c_str(), req.getBody().length());
+// 		if (!checkReturn(_client->getFd(), w, "write()", "Failed to write into pipe")) {
+// 			close(_input[1]);
+// 			_input[1] = -1;
+// 			_client->sendErrorResponse(500, req);//TODO: should this be sent?
+// 			cleanupResources();
+// 			return 1;
+// 		}
+// 	}
+// 	close(_input[1]);
+// 	_input[1] = -1;
+
+// 	const int TIMEOUT_SECONDS = 30;
+// 	time_t startTime = time(NULL);//TODO: 'Return the current time and put it in *TIMER if TIMER is not NULL.' ??
+// 	int status;
+	
+// 	while (true) {
+// 		pid_t result = waitpid(pid, &status, WNOHANG);
+// 		if (result == pid)
+// 			break;
+// 		else if (result == -1) {
+// 			std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: waitpid() failed" << RESET << std::endl;
+// 			_client->sendErrorResponse(500, req);
+// 			cleanupResources();
+// 			return 1;
+// 		}
+// 		if (time(NULL) - startTime > TIMEOUT_SECONDS) {
+// 			std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI timeout, killing process " << pid << RESET << std::endl;
+// 			kill(pid, SIGKILL);
+// 			waitpid(pid, &status, 0);
+// 			_client->sendErrorResponse(504, req); //TODO: This may not need to be 504 but keeps retrying with 408
+// 			cleanupResources();
+// 			return 1;
+// 		}
+// 		usleep(100000);
+// 	}
+// 	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+// 		std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+// 		int result = processScriptOutput();
+// 		cleanupResources();
+// 		return result;
+// 	} else {
+// 		std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+// 		_client->sendErrorResponse(500, req);
+// 		cleanupResources();
+// 		return 1;
+// 	}
+// }
+
+int CGIHandler::doParent(Request& req) {
+	close(_input[0]);
+    close(_output[1]);
 
     if (!req.getBody().empty()) {
         ssize_t w = write(_input[1], req.getBody().c_str(), req.getBody().length());
@@ -142,34 +189,8 @@ int CGIHandler::doParent(Request& req, int pid) {
     close(_input[1]);
     _input[1] = -1;
 
-    const int TIMEOUT_SECONDS = 30;
-    time_t start_time = time(NULL);
-    int status;
-    
-    while (true) {
-        pid_t result = waitpid(pid, &status, WNOHANG);
-        if (result == pid)
-            break;
-        else if (result == -1) {
-            std::cerr << getTimeStamp(_client->getFd()) << RED << "waitpid error" << RESET << std::endl;
-            _client->sendErrorResponse(500, req);
-            cleanupResources();
-            return 1;
-        }
-        if (time(NULL) - start_time > TIMEOUT_SECONDS) {
-            std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI timeout, killing process " << pid << RESET << std::endl;
-            kill(pid, SIGKILL);
-            waitpid(pid, &status, 0);
-            _client->sendErrorResponse(504, req);
-            cleanupResources();
-            return 1;
-        }
-        
-        usleep(100000);
-    }
-
     if (_server->getWebServ().addToEpoll(_output[0], EPOLLIN) != 0) {
-        std::cerr << getTimeStamp(_client->getFd()) << RED << "Failed to add CGI pipe to epoll\n" << RESET;
+        std::cerr << getTimeStamp(_client->getFd()) << RED << "Failed to add CGI pipe to epoll" << RESET << std::endl;
         _client->sendErrorResponse(500, req);
         cleanupResources();
         return 1;
@@ -183,14 +204,14 @@ int CGIHandler::executeCGI(Request &req) {
 
     pid_t pid = fork();
     if (pid < 0) {
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: fork() failed\n" << RESET;
+		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: fork() failed" << RESET << std::endl;
 		_client->sendErrorResponse(500, req);
     	cleanupResources();
     	return 1;
 	}
     else if (pid == 0)
         return doChild();
-    return doParent(req, pid);
+    return doParent(req);
 }
 
 int CGIHandler::processScriptOutput() {
@@ -198,12 +219,12 @@ int CGIHandler::processScriptOutput() {
     ssize_t bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
 
     if (bytesRead > 0) {
-        buffer[bytesRead] = '\0';
+        buffer[bytesRead] = '\0'; // Null terminate for safety
         _outputBuffer.append(buffer, bytesRead);
         std::cout << getTimeStamp(_client->getFd()) << BLUE
                   << "Received CGI bytes: " << RESET << bytesRead 
                   << " (total: " << _outputBuffer.length() << ")" << std::endl;
-        return 0;
+        return 0; // Continue reading
     }
     else if (bytesRead == 0) {
         std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI script finished output (EOF)" << RESET << std::endl;
@@ -438,20 +459,25 @@ int CGIHandler::prepareEnv(Request &req) {
     _env.push_back("CONTENT_LENGTH=" + tostring(req.getBody().length()));
     
     // Script information
-    _env.push_back("SCRIPT_NAME=" + req.getPath());
-    _env.push_back("SCRIPT_FILENAME=" + _path);
+    _env.push_back("SCRIPT_NAME=" + req.getPath()); // The URL path to the script
+    _env.push_back("SCRIPT_FILENAME=" + _path);     // Full filesystem path to script
     
-    _env.push_back("PATH_INFO=" + _pathInfo);
+    // PATH_INFO handling (for URLs like /script.php/extra/path)
+    std::string pathInfo = extractPathInfo(req.getPath(), _path);
+    _env.push_back("PATH_INFO=" + pathInfo);
     
+    // Add HTTP headers as environment variables
     std::map<std::string, std::string> headers = req.getHeaders();
     for (std::map<std::string, std::string>::iterator it = headers.begin(); 
          it != headers.end(); ++it) {
         std::string envName = "HTTP_" + it->first;
+        // Convert to uppercase and replace - with _
         std::transform(envName.begin(), envName.end(), envName.begin(), ::toupper);
         std::replace(envName.begin(), envName.end(), '-', '_');
         _env.push_back(envName + "=" + it->second);
     }
     
+    // Add some common environment variables
     _env.push_back("REDIRECT_STATUS=200");
     
     return 0;
@@ -471,6 +497,8 @@ void CGIHandler::cleanupResources() {
         return;
     }
     
+    std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI cleanup started" << RESET << std::endl;
+
     for (int i = 0; i < 2; i++) {
         if (_input[i] >= 0) {
             close(_input[i]);
@@ -484,7 +512,7 @@ void CGIHandler::cleanupResources() {
     }
     
     if (_output[0] >= 0) {
-        std::cout << getTimeStamp(_client->getFd()) << YELLOW << "Cleaning up CGI pipe" << _output[0] << RESET << std::endl;
+        std::cout << getTimeStamp(_client->getFd()) << YELLOW << "Cleaning up CGI pipe FD: " << _output[0] << RESET << std::endl;
         
         _server->getWebServ().removeFromEpoll(_output[0]);
         
@@ -501,7 +529,7 @@ void CGIHandler::cleanupResources() {
     _env.clear();
     _outputBuffer.clear();
     
-    std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI cleanup completed" << RESET << std::endl;
+    std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI cleanup completed" << RESET << std::endl;
 }
 
 int CGIHandler::doChecks(Request& req) {
@@ -526,3 +554,10 @@ int CGIHandler::doChecks(Request& req) {
     _server->getWebServ().registerCgiPipe(_output[0], this);
     return 0;
 }
+
+
+std::string CGIHandler::extractPathInfo(const std::string& requestPath, const std::string& scriptPath) {
+    std::cout << "Req path: " << requestPath << "\n";
+    std::cout << "Path: " << scriptPath << " \n";
+    return "";
+} 
