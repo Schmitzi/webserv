@@ -7,7 +7,8 @@
 #include <unistd.h>
 #include <vector>
 #include <iomanip>
-#include "ConfigHelper.hpp"
+#include <dirent.h>
+#include "Colors.hpp"
 
 struct	serverLevel;
 
@@ -21,6 +22,8 @@ std::string					encode(const std::string& decoded);
 std::string					getTimeStamp(int fd = -1);
 bool 						checkReturn(int fd, ssize_t r, const std::string& func, const std::string& isZero);
 void						doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent);
+bool						deleteErrorPages();
+
 void						printConfigs(std::vector<serverLevel> configs);
 void						printConfig(serverLevel& conf);
 

@@ -2,15 +2,13 @@
 #define RESPONSE_HPP
 
 #include <iostream>
-#include "ConfigParser.hpp"
-#include "Server.hpp"
-#include "Webserv.hpp"
-#include "Request.hpp"
+#include <unistd.h>
 
 struct	serverLevel;
 struct	locationLevel;
 class	Server;
 class	Request;
+class	Client;
 
 struct HttpErrorFormat {
 	int code;
@@ -49,12 +47,14 @@ static const HttpErrorFormat httpErrors[] = {
 	{505, "HTTP Version Not Supported"}
 };
 
-bool						matchLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch);
-bool						matchUploadLocation(const std::string&, const serverLevel& serv, locationLevel*& bestMatch);
-const std::string			getStatusMessage(int code);
-void						generateErrorPage(std::string& body, int statusCode, const std::string& statusText);
-std::string					findErrorPage(int statusCode, const std::string& dir, Request& req);
-void						resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req);
-
+bool				matchLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch);
+bool				matchUploadLocation(const std::string&, const serverLevel& serv, locationLevel*& bestMatch);
+const std::string	getStatusMessage(int code);
+void				generateErrorPage(std::string& body, int statusCode, const std::string& statusText);
+std::string			findErrorPage(int statusCode, const std::string& dir, Request& req);
+void				resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req);
+void				sendRedirect(Client& c, int statusCode, const std::string& location);
+ssize_t				sendResponse(Client& c, Request req, std::string connect, std::string body);
+void				sendErrorResponse(Client& c, int statusCode, Request& req);
 
 #endif

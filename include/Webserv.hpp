@@ -2,13 +2,12 @@
 #define WEBSERV_HPP
 
 #include <iostream>
-#include <cstring>
+#include <string>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cstdio>
 #include <cstdlib>
-#include <cerrno>
 #include <sys/stat.h>
 #include <sstream>
 #include <ctime>
@@ -17,74 +16,53 @@
 #include <vector>
 #include <signal.h>
 #include <map>
-#include "Server.hpp"
-#include "Client.hpp"
+#include "Colors.hpp"
 #include "ConfigParser.hpp"
-#include "CGIHandler.hpp"
-#include "Helper.hpp"
 
-// Forward declarations
-class	Server;
-class	Client;
-
-// COLOURS
-#define BLUE    "\33[34m"
-#define GREEN   "\33[32m"
-#define RED     "\33[31m"
-#define WHITE   "\33[97m"
-#define YELLOW  "\33[33m"
-#define CYAN    "\33[36m"
-#define MAGENTA "\33[35m"
-#define GREY    "\33[90m"
-#define RESET   "\33[0m" // No Colour
-
-// Others
 #define MAX_EVENTS 64
 
+class	Server;
+class	Client;
 class	CGIHandler;
 
 class Webserv {
-    public:
-        Webserv(std::string config = "config/test.conf");
-        Webserv(Webserv const &other);
-        Webserv &operator=(Webserv const &other);
-        ~Webserv();
+	public:
+		Webserv(std::string config = "config/test.conf");
+		Webserv(Webserv const &other);
+		Webserv &operator=(Webserv const &other);
+		~Webserv();
 
-        void            			setEnvironment(char **envp);
-        void            			flipState();
-        Server        				*findServerByFd(int fd);
-		Client						*findClientByFd(int fd);
-        void            			handleErrorEvent(int fd);
-        int             			addToEpoll(int fd, short events);
-        void            			removeFromEpoll(int fd);
-        void            			handleClientDisconnect(int fd);
-        void            			initialize();
-		bool						checkEventMaskErrors(uint32_t &eventMask, int &fd);
-        int             			run();
-        void            			handleNewConnection(Server& server, u_int32_t eventMask);
-        void            			handleClientActivity(int clientFd);
-		void						handleEpollOut(int fd);
-        void            			cleanup();
+		//setters & getters
+		void						flipState();
+		void						setEnvironment(char **envp);
+		std::string					&getSendBuf(int fd);
+		std::map<int, std::string>	&getSendBuf();
+		std::map<int, CGIHandler*>	&getCgis();
 		int							getEpollFd();
-		void						setEpollEvents(int fd, uint32_t events);
-		void						addSendBuf(int fd, const std::string& s);
-		void						clearSendBuf(int fd);
-		const std::string&			getSendBuf(int fd);
-		bool						isCgiPipeFd(int fd) const;
-		void						registerCgiPipe(int fd, CGIHandler* handler);
-		void						unregisterCgiPipe(int fd);
-		CGIHandler*					getCgiHandler(int fd) const;
+		CGIHandler					*getCgiHandler(int fd);
+		Server						*getServerByFd(int fd);
+		Client						*getClientByFd(int fd);
 
-    private:
-        bool                        _state;
-        std::vector<Server> 		_servers;
-        std::vector<Client>   	    _clients;
+		void						initialize();
+		bool						checkEventMaskErrors(uint32_t &eventMask, int fd);
+		int							run();
+		void						handleErrorEvent(int fd);
+		void						handleClientDisconnect(int fd);
+		void						handleNewConnection(Server& server);
+		void						handleClientActivity(int clientFd);
+		void						handleEpollOut(int fd);
+		void						cleanup();
+
+	private:
+		bool						_state;
+		std::vector<Server>			_servers;
+		std::vector<Client>			_clients;
 		std::map<int, CGIHandler*>	_cgis;
-        char                    	**_env;
-        int                         _epollFd;
-        struct epoll_event          _events[MAX_EVENTS];
-        ConfigParser				_confParser;
-        std::vector<serverLevel>	_configs; 
+		char						**_env;
+		int							_epollFd;
+		struct epoll_event			_events[MAX_EVENTS];
+		ConfigParser				_confParser;
+		std::vector<serverLevel>	_configs; 
 		std::map<int, std::string>	_sendBuf;
 };
 
