@@ -6,10 +6,10 @@
 #include <sys/wait.h>
 #include <cstdlib>
 #include <map>
+#include "Request.hpp"
 
 class	Client;
 class	Server;
-class	Request;
 struct	serverLevel;
 
 #define NIX false
@@ -22,19 +22,18 @@ class CGIHandler {
 		~CGIHandler();
 
 		//getters & setters
-		std::string								getInfoPath();
 		Client*									getClient() const;
 		void									setServer(Server &server);
 		void									setPath(const std::string& path);
 		void									setCGIBin(serverLevel *config);
 
 		int										executeCGI(Request& req);
-		int										doChecks(Request& req);
-		int										prepareEnv(Request &req);
+		int										doChecks();
+		int										prepareEnv();
 		void									makeArgs(std::string const &cgiBin, std::string& filePath);
 		int										doChild();
 		void									prepareForExecve(std::vector<char*>& argsPtrs, std::vector<char*>& envPtrs);
-		int										doParent(Request& req);
+		int										doParent();
 		int										processScriptOutput();
 		bool									isChunkedTransfer(const std::map<std::string, std::string>& headers);
 		int										handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody);
@@ -55,6 +54,8 @@ class CGIHandler {
 		Client									*_client;
 		Server									*_server;
 		std::string								_outputBuffer;
+		pid_t									_pid;
+		Request									_req;
 };
 
 #endif

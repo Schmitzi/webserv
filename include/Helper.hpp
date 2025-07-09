@@ -14,7 +14,6 @@ struct	serverLevel;
 
 std::string					tostring(int nbr);
 std::vector<std::string>	split(const std::string& s);
-void						printVector(std::vector<std::string> &s, std::string sep);
 std::vector<std::string>	splitBy(const std::string& str, char div);
 std::string					matchAndAppendPath(const std::string& fullPath, const std::string& reqPath);
 std::string					decode(const std::string& encoded);
@@ -24,6 +23,7 @@ bool 						checkReturn(int fd, ssize_t r, const std::string& func, const std::st
 void						doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent);
 bool						deleteErrorPages();
 
+//extras
 void						printConfigs(std::vector<serverLevel> configs);
 void						printConfig(serverLevel& conf);
 
