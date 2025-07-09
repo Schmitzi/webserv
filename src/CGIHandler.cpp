@@ -47,9 +47,6 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 }
 
 CGIHandler::~CGIHandler() {
-    if (_client) {
-        std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI destructor called" << RESET << std::endl;
-    }
 }
 
 Client*  CGIHandler::getClient() const {
@@ -118,60 +115,6 @@ int CGIHandler::doChild() {
 	return 1;
 }
 
-// int CGIHandler::doParent(Request& req, pid_t& pid) {
-// 	close(_input[0]);
-// 	close(_output[1]);
-
-// 	if (!req.getBody().empty()) {
-// 		ssize_t w = write(_input[1], req.getBody().c_str(), req.getBody().length());
-// 		if (!checkReturn(_client->getFd(), w, "write()", "Failed to write into pipe")) {
-// 			close(_input[1]);
-// 			_input[1] = -1;
-// 			_client->sendErrorResponse(500, req);//TODO: should this be sent?
-// 			cleanupResources();
-// 			return 1;
-// 		}
-// 	}
-// 	close(_input[1]);
-// 	_input[1] = -1;
-
-// 	const int TIMEOUT_SECONDS = 30;
-// 	time_t startTime = time(NULL);//TODO: 'Return the current time and put it in *TIMER if TIMER is not NULL.' ??
-// 	int status;
-	
-// 	while (true) {
-// 		pid_t result = waitpid(pid, &status, WNOHANG);
-// 		if (result == pid)
-// 			break;
-// 		else if (result == -1) {
-// 			std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: waitpid() failed" << RESET << std::endl;
-// 			_client->sendErrorResponse(500, req);
-// 			cleanupResources();
-// 			return 1;
-// 		}
-// 		if (time(NULL) - startTime > TIMEOUT_SECONDS) {
-// 			std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI timeout, killing process " << pid << RESET << std::endl;
-// 			kill(pid, SIGKILL);
-// 			waitpid(pid, &status, 0);
-// 			_client->sendErrorResponse(504, req); //TODO: This may not need to be 504 but keeps retrying with 408
-// 			cleanupResources();
-// 			return 1;
-// 		}
-// 		usleep(100000);
-// 	}
-// 	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-// 		std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
-// 		int result = processScriptOutput();
-// 		cleanupResources();
-// 		return result;
-// 	} else {
-// 		std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
-// 		_client->sendErrorResponse(500, req);
-// 		cleanupResources();
-// 		return 1;
-// 	}
-// }
-
 int CGIHandler::doParent(Request& req) {
 	close(_input[0]);
     close(_output[1]);
@@ -187,8 +130,9 @@ int CGIHandler::doParent(Request& req) {
         }
     }
     close(_input[1]);
-    _input[1] = -1;
 
+    _input[1] = -1;
+    
     if (_server->getWebServ().addToEpoll(_output[0], EPOLLIN) != 0) {
         std::cerr << getTimeStamp(_client->getFd()) << RED << "Failed to add CGI pipe to epoll" << RESET << std::endl;
         _client->sendErrorResponse(500, req);
@@ -215,16 +159,16 @@ int CGIHandler::executeCGI(Request &req) {
 }
 
 int CGIHandler::processScriptOutput() {
-    char buffer[4096];
+    char buffer[1000000];
     ssize_t bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
 
     if (bytesRead > 0) {
-        buffer[bytesRead] = '\0'; // Null terminate for safety
+        buffer[bytesRead] = '\0';
         _outputBuffer.append(buffer, bytesRead);
         std::cout << getTimeStamp(_client->getFd()) << BLUE
                   << "Received CGI bytes: " << RESET << bytesRead 
                   << " (total: " << _outputBuffer.length() << ")" << std::endl;
-        return 0; // Continue reading
+        return 0; 
     }
     else if (bytesRead == 0) {
         std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI script finished output (EOF)" << RESET << std::endl;
@@ -490,21 +434,7 @@ void CGIHandler::cleanupResources() {
         std::cout << "CGI cleanup called with null client" << std::endl;
         return;
     }
-    
-    // std::cout << getTimeStamp(_client->getFd()) << YELLOW << "CGI cleanup started" << RESET << std::endl;
-
-    for (int i = 0; i < 2; i++) {
-        if (_input[i] >= 0) {
-            close(_input[i]);
-            _input[i] = -1;
-        }
-    }
-    
-    if (_output[1] >= 0) {
-        close(_output[1]);
-        _output[1] = -1;
-    }
-    
+     
     if (_output[0] >= 0) {
         std::cout << getTimeStamp(_client->getFd()) << YELLOW << "Cleaning up CGI pipe FD: " << _output[0] << RESET << std::endl;
         

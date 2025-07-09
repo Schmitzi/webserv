@@ -70,9 +70,7 @@ bool Webserv::isCgiPipeFd(int fd) const {
 }
 
 void Webserv::registerCgiPipe(int fd, CGIHandler* handler) {
-    // std::cout << getTimeStamp(fd) << GREEN << "Registering CGI pipe FD: " << fd << RESET << std::endl;
     _cgis[fd] = handler;
-    // std::cout << getTimeStamp(fd) << GREEN << "CGI pipe registered. Total CGI pipes: " << _cgis.size() << RESET << std::endl;
 }
 
 CGIHandler* Webserv::getCgiHandler(int fd) const {
@@ -83,14 +81,9 @@ CGIHandler* Webserv::getCgiHandler(int fd) const {
 }
 
 void Webserv::unregisterCgiPipe(int fd) {
-    // std::cout << getTimeStamp(fd) << GREEN << "Unregistering CGI pipe FD: " << fd << RESET << std::endl;
     std::map<int, CGIHandler*>::iterator it = _cgis.find(fd);
-    if (it != _cgis.end()) {
-        _cgis.erase(it);
-        // std::cout << getTimeStamp(fd) << GREEN << "CGI pipe unregistered. Total CGI pipes: " << _cgis.size() << RESET << std::endl;
-	}// } else {
-    //     std::cout << getTimeStamp(fd) << RED << "WARNING: Tried to unregister non-existent CGI pipe FD: " << fd << RESET << std::endl;
-    // }
+    if (it != _cgis.end())
+        _cgis.erase(it); 
 }
 
 void Webserv::initialize() {
@@ -279,7 +272,6 @@ void Webserv::handleClientDisconnect(int fd) {
         }
     }
     
-    // Clean up CGI handlers (do this in separate loop to avoid iterator invalidation)
     for (size_t i = 0; i < cgiPipesToCleanup.size(); ++i) {
         int cgiFd = cgiPipesToCleanup[i];
         CGIHandler* handler = getCgiHandler(cgiFd);
@@ -310,12 +302,13 @@ void Webserv::handleNewConnection(Server &server, u_int32_t eventMask) {
         struct sockaddr_in addr;
         socklen_t addrLen = sizeof(addr);
         int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);
-        if (newFd >= 0)
+        if (newFd >= 0) {
+            std::cout << RED << "New connection failed\n" << RESET;
             close(newFd);
+        }
         return;
     }
-    Client newClient(server, eventMask); //eventMask
-    
+    Client newClient(server, eventMask);    
     if (newClient.acceptConnection(server.getFd()) == 0) {
         newClient.displayConnection();
 
@@ -329,8 +322,6 @@ void Webserv::handleNewConnection(Server &server, u_int32_t eventMask) {
 }
 
 void Webserv::handleClientActivity(int clientFd) {
-    // std::cout << getTimeStamp(clientFd) << CYAN << "=== handleClientActivity called for FD: " << clientFd << " ===" << RESET << std::endl;
-    
     if (isCgiPipeFd(clientFd)) {
         std::cout << getTimeStamp(clientFd) << BLUE << "Handling CGI pipe activity for FD: " << clientFd << RESET << std::endl;
         CGIHandler* handler = getCgiHandler(clientFd);
@@ -339,19 +330,16 @@ void Webserv::handleClientActivity(int clientFd) {
             if (result == 1) {
                 std::cout << getTimeStamp(clientFd) << GREEN << "CGI processing completed for FD: " << clientFd << RESET << std::endl;
                 
-                // Clean up and delete the handler
                 handler->cleanupResources();
-                unregisterCgiPipe(clientFd); // This removes from _cgis map
+                unregisterCgiPipe(clientFd);
                 delete handler;
-                
             } else if (result == 0) {
                 std::cout << getTimeStamp(clientFd) << BLUE << "CGI still processing for FD: " << clientFd << RESET << std::endl;
             } else {
                 std::cout << getTimeStamp(clientFd) << RED << "CGI processing error for FD: " << clientFd << RESET << std::endl;
                 
-                // Clean up and delete the handler
                 handler->cleanupResources();
-                unregisterCgiPipe(clientFd); // This removes from _cgis map
+                unregisterCgiPipe(clientFd); 
                 delete handler;
             }
         } else {
@@ -400,12 +388,7 @@ void Webserv::handleEpollOut(int fd) {
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(fd);
-		// if (c->getConnect() == "keep-alive" && c->getExitCode() == 0) {
-		// 	std::cout << RED << "KEEP ALIVE?" << RESET << std::endl;
-		// 	setEpollEvents(fd, EPOLLIN);
-		// }
-		// else
-			c->setExitCode(1);
+		c->setExitCode(1);
 	}
 	if (c->getExitCode() != 0) {
 		handleClientDisconnect(fd);
@@ -413,6 +396,8 @@ void Webserv::handleEpollOut(int fd) {
 }
 
 void    Webserv::cleanup() {
+    std::cout << "\r" << std::string(80, ' ') << "\r" << std::flush;
+    std::cout << CYAN << "Received signal, cleaning up...\n" << RESET;
     for (std::map<int, CGIHandler*>::iterator it = _cgis.begin(); it != _cgis.end(); ++it) {
         if (it->second) {
             it->second->cleanupResources();
@@ -441,4 +426,5 @@ void    Webserv::cleanup() {
         close(_epollFd);
         _epollFd = -1;
     }
+    std::cout << CYAN << "Goodbye!" << RESET << std::endl;
 }

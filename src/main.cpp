@@ -33,13 +33,9 @@ bool deleteErrorPages() {
 
 void signalHandler(int signal) {
     if (signal == SIGINT || signal == SIGTERM) {
-        std::cout << "\r" << std::string(80, ' ') << "\r" << std::flush;
-        std::cout << "Received signal, shutting down...\n";
-
 		if (!deleteErrorPages())
 			std::cerr << getTimeStamp() << RED << "Failed to delete error pages directory" << RESET << std::endl;
     
-        std::cout << "Goodbye!" << std::endl;
 		g_webserv->flipState();
     }
 }

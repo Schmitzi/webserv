@@ -1,0 +1,139 @@
+  ______ _       _     _    _____ _       _     
+ |  ____(_)     | |   | |  / ____| |     | |    
+ | |__   _  __ _| |__ | |_| |    | |_   _| |__  
+ |  __| | |/ _` | '_ \| __| |    | | | | | '_ \ 
+ | |    | | (_| | | | | |_| |____| | |_| | |_) |
+ |_|    |_|\__, |_| |_|\__|\_____|_|\__,_|_.__/ 
+            __/ |                               
+           |___/                           
+
+           His name is Robert Paulson
+====================================================
+                   WEB ANOTHER	 			   
+====================================================
+   Webserv Testing Started at http://localhost:8080
+====================================================
+
+===> Basic GET Request
+Basic GET Request
+[32m✅ Success[0m
+
+===> Static File Request (/index.html)
+Static File Request (/index.html)
+[32m✅ Success[0m
+
+===> 404 Not Found
+404 Not Found
+Static File Request (/index.html)
+[31m❌ Failed[0m
+[31m('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))[0m
+
+===> 403 Forbidden (no permission dir)
+403 Forbidden (no permission dir
+[31m❌ Failed[0m
+[31m('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))[0m
+
+===> Autoindex Directory
+Autoindex Directory
+[31m❌ Failed[0m
+[31mMissing autoindex title[0m
+
+===> POST Form Data
+POST Form Data
+[32m✅ Success[0m
+
+===> File Upload (text/plain)
+File Upload (text/plain)
+[32m✅ Success[0m
+
+===> Multipart Upload
+[32m✅ Success[0m
+
+===> DELETE Uploaded File
+DELETE Uploaded File
+[31m❌ Failed[0m
+[31m('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))[0m
+
+===> HTTP Redirect (301/302)
+HTTP Redirect (301/302)
+[31m❌ Failed[0m
+[31m[0m
+
+===> Virtual Host
+Virtual Host
+[32m✅ Success[0m
+
+===> CGI Execution (GET)
+CGI Execution (GET)
+[32m✅ Success[0m
+
+===> CGI Execution (POST)
+CGI Execution (POST)
+[32m✅ Success[0m
+
+===> Chunked Transfer Encoding
+Chunked Transfer Encoding
+Chunk encoded: b'File uploaded successfully. Wrote 21 bytes.'
+Response status: 200
+Response body: File uploaded successfully. Wrote 21 bytes.
+[31m❌ Failed[0m
+[31m[0m
+
+===> Method Not Allowed (PUT)
+Method Not Allowed (PUT)
+[31m❌ Failed[0m
+[31m('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))[0m
+
+===> Keep-Alive Header (Connection reuse)
+[34m[INFO][0m === Testing Keep-Alive Connections ===
+[31m[FAIL][0m Keep-alive test failed: Remote end closed connection without response
+
+
+[32m✅ Success[0m
+
+===> Unsupported HTTP Version
+Unsupported HTTP Version
+[31m❌ Failed[0m
+[31mExpected HTTP 400 for HTTP/0.9[0m
+
+===> Missing Host Header (HTTP/1.1)
+Missing Host Header (HTTP/1.1)
+[31m❌ Failed[0m
+[31mExpected 400 for missing Host header[0m
+
+===> Invalid HTTP Method (via netcat workaround)
+[*] Testing invalid HTTP method...
+❌ Invalid method response missing or incorrect.
+[32m✅ Success[0m
+
+✅ [32mwebAnother tests completed successfully
+[0m
+====================================================
+                   webTestCgiFileArg 			   
+====================================================
+Status: 405
+Response Body: <!DOCTYPE html>
+<html>
+<head>
+<title>Error 405</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+  h1 { color: #D32F2F; }
+  .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+  .server-info { font-size: 12px; color: #777; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Error 405 - Method Not Allowed</h1>
+  <p>The server cannot process your request.</p>
+  <p><a href = "/">Return to homepage</a></p>
+  <div class="server-info">
+    <p>WebServ/1.0</p>
+  </div>
+</div>
+</body>
+</html>
+✗ [31m Error in webTestCgiFileArgs: Expected HTTP 200 OK, got 405[0m
+[32m=== [10]/[22] TESTS PASSED ===[0m
+[34m~~~~~~~~~~~~~~~~~~ ALL DONE ~~~~~~~~~~~~~~~~~~[0m
