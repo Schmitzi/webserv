@@ -1,4 +1,7 @@
 #include "../include/ConfigHelper.hpp"
+#include "../include/Helper.hpp"
+#include "../include/ConfigValidator.hpp"
+#include "../include/ConfigParser.hpp"
 
 std::string combinePath(std::string first, std::string second) {
 	std::string ret;
@@ -82,11 +85,11 @@ void setPort(std::vector<std::string>& s, serverLevel& serv) {
 	if (colon != std::string::npos) {
 		std::string tmp = s[1].substr(0, colon);
 		if (tmp != "localhost")
-        	ip = s[1].substr(0, colon);
+			ip = s[1].substr(0, colon);
 		if (s.size() == 3 && s[2] == "default_server")
 			isDefault = true;
 		port = std::atoi(s[1].substr(colon + 1).c_str());
-    } else {
+	} else {
 		if (s.size() == 3 && s[2] == "default_server")
 			isDefault = true;
 		port = std::atoi(s[1].c_str());
@@ -199,8 +202,8 @@ void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
 
 void setCgiProcessorPath(locationLevel& loc, std::vector<std::string>& s) {
 	if (!s[1].empty() && !isValidExecutable(s[1]))
-        throw configException("Error: invalid executable path for " + s[0] + " -> " + s[1]);
-    loc.cgiProcessorPath = s[1];
+		throw configException("Error: invalid executable path for " + s[0] + " -> " + s[1]);
+	loc.cgiProcessorPath = s[1];
 }
 
 void setUploadDirPath(locationLevel& loc, std::vector<std::string>& s) {

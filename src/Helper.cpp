@@ -1,4 +1,6 @@
 #include "../include/Helper.hpp"
+#include "../include/ConfigHelper.hpp"
+#include "../include/ConfigParser.hpp"
 
 std::string tostring(int nbr) {
 	std::ostringstream oss;
@@ -143,12 +145,38 @@ void doQueryStuff(const std::string text, std::string& fileName, std::string& fi
 
 			if (key == "file" || key == "name" || key == "test")
 				fileName = value;
-			// else if (key == "content" || key == "body" || key == "data" || key == "text" || key == "value")
-			// 	fileContent = value;
 			else
 				fileContent = value;
 		}
 	}
+}
+
+bool deleteErrorPages() {
+	struct stat info;
+	std::string path = "errorPages";
+
+	if (stat(path.c_str(), &info) != 0 || !S_ISDIR(info.st_mode))
+		return true;
+	DIR* dir = opendir(path.c_str());
+	if (!dir) {
+		return false;
+	}
+	struct dirent* entry;
+	while ((entry = readdir(dir)) != NULL) {
+		std::string entryName(entry->d_name);
+		if (entryName == "." || entryName == "..")
+			continue;
+		std::string fullPath = path + "/" + entryName;
+		if (unlink(fullPath.c_str()) != 0) {
+			closedir(dir);
+			return false;
+		}
+	}
+	closedir(dir);
+	if (rmdir(path.c_str()) != 0) {
+		return false;
+	}
+	return true;
 }
 
 void printConfigs(std::vector<serverLevel> configs) {
@@ -159,7 +187,7 @@ void printConfigs(std::vector<serverLevel> configs) {
 	}
 }
 
-void printConfig(serverLevel& conf) {//only temporary, for debugging
+void printConfig(serverLevel& conf) {
 	std::cout << "___config___" << std::endl
 	<< "server {" << std::endl;
 	if (!conf.rootServ.empty())

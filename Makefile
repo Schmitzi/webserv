@@ -20,7 +20,9 @@ FILES	=	main \
 			CGIHandler \
 			Multipart \
 			Helper \
-			Response
+			Response \
+			EpollHelper \
+			ClientHelper
 
 SRC_DIR = 	src/
 SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))

@@ -1,13 +1,12 @@
 #ifndef CONFIGHELPER_HPP
 #define CONFIGHELPER_HPP
 
-#include "Helper.hpp"
-#include "ConfigValidator.hpp"
-#include "ConfigParser.hpp"
+#include <string>
+#include <vector>
 
+class	ConfigParser;
 struct	serverLevel;
 struct	locationLevel;
-class	ConfigParser;
 
 std::string					combinePath(std::string first, std::string second);
 bool						onlyDigits(const std::string& s);

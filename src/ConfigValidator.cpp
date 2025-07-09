@@ -1,4 +1,6 @@
 #include "../include/ConfigValidator.hpp"
+#include "../include/Helper.hpp"
+#include "../include/ConfigParser.hpp"
 
 bool isValidPath(std::string &path) {
 	struct stat	info;
@@ -15,11 +17,11 @@ bool isValidDir(std::string &path) {
 }
 
 bool isValidExecutable(const std::string& path) {
-    struct stat info;
-    if (stat(path.c_str(), &info) != 0) return false;
-    if (!S_ISREG(info.st_mode)) return false;
-    if (access(path.c_str(), X_OK) != 0) return false;
-    return true;
+	struct stat info;
+	if (stat(path.c_str(), &info) != 0) return false;
+	if (!S_ISREG(info.st_mode)) return false;
+	if (access(path.c_str(), X_OK) != 0) return false;
+	return true;
 }
 
 bool isValidName(const std::string& name) {
@@ -102,7 +104,7 @@ void checkRoot(serverLevel &serv) {
 		if (it->second.rootLoc.empty() && serv.rootServ.empty())
 			throw configException("Error: No rootLoc found.");
 		else if (it->second.rootLoc.empty())
-			it->second.rootLoc = serv.rootServ;//take default value from server if not specified
+			it->second.rootLoc = serv.rootServ;
 		++it;
 	}
 }
@@ -122,7 +124,7 @@ void checkIndex(serverLevel &serv) {
 		std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
 		while (it != serv.locations.end()) {
 			if (it->second.indexFile.empty())
-				it->second.indexFile = serv.indexFile;//take default value from server if not specified
+				it->second.indexFile = serv.indexFile;
 			++it;
 		}
 	}
@@ -136,7 +138,6 @@ void checkConfig(serverLevel &serv) {
 		parseClientMaxBodySize(serv);
 	}
 	checkRoot(serv);
-	// checkIndex(serv);//TODO: check if needed
 }
 
 void checkMethods(locationLevel& loc) {
