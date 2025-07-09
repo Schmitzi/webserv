@@ -92,7 +92,7 @@ void generateErrorPage(std::string& body, int statusCode, const std::string& sta
 			"<div class=\"container\">\n"
 			"  <h1>Error " + tostring(statusCode) + " - " + statusText + "</h1>\n"
 			"  <p>The server cannot process your request.</p>\n"
-			"  <p><a href = \"/\">Return to homepage</a></p>\n" // TODO: This returns to index, but only from one level up (i.e cgi-bin) 
+			"  <p><a href = \"/\">Return to homepage</a></p>\n"
 			"  <div class=\"server-info\">\n"
 			"    <p>WebServ/1.0</p>\n"
 			"  </div>\n"
