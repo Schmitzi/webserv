@@ -93,7 +93,7 @@ i=1
 while [ $numruns -ge $i ]
 	do
 		echo "Starting run number" $i
-		/home/lbaumeis/CCore/projects/webserv/bin/siege -f $site -c $currentcl -t $numurls -d $delay >> siege.$serial
+		/home/lbaumeis/.local/bin/siege -f $site -c $currentcl -t $numurls -d $delay >> siege.$serial
         currentcl=$(($currentcl+$inc))
 		i=$(($i+1))
 		#sleep 30

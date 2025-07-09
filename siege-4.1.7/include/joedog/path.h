@@ -23,10 +23,10 @@
 #ifndef  JOEDOG_PATH_H
 #define  JOEDOG_PATH_H
 
-#define SIEGE_HOME     "/home/lbaumeis/CCore/projects/webserv"
-#define URL_FILE       "/home/lbaumeis/CCore/projects/webserv/etc/urls.txt"
-#define CNF_FILE       "/home/lbaumeis/CCore/projects/webserv/etc/siegerc"
-#define LOG_FILE       "/home/lbaumeis/CCore/projects/webserv/var/log/siege.log"
+#define SIEGE_HOME     "/home/lbaumeis/.local"
+#define URL_FILE       "/home/lbaumeis/.local/etc/urls.txt"
+#define CNF_FILE       "/home/lbaumeis/.local/etc/siegerc"
+#define LOG_FILE       "/home/lbaumeis/.local/var/log/siege.log"
 #define PLATFORM       "pc-x86_64-linux-gnu"
 
 #endif/*JOEDOG_PATH_H*/

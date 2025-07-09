@@ -186,7 +186,7 @@ int CGIHandler::prepareEnv() {
 		it != headers.end(); ++it) {
 		std::string envName = "HTTP_" + it->first;
 		// Convert to uppercase and replace - with _
-		std::transform(envName.begin(), envName.end(), envName.begin(), ::toupper);//TODO: not c++98?
+		std::transform(envName.begin(), envName.end(), envName.begin(), ::toupper);
 		std::replace(envName.begin(), envName.end(), '-', '_');
 		_env.push_back(envName + "=" + it->second);
 	}
@@ -261,15 +261,13 @@ int CGIHandler::doParent() {
 
 int CGIHandler::processScriptOutput() {
 	char buffer[4096];
-	const int TIMEOUT_SECONDS = 60;
+	const int TIMEOUT_SECONDS = 20;
 	static time_t startTime = time(NULL);
 	int status;
-	size_t maxSize = _outputBuffer.max_size();
 	ssize_t bytesRead = -1;
 
-	if (_outputBuffer.size() < maxSize)
-		bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
-	if (bytesRead > 0 && !(time(NULL) - startTime > TIMEOUT_SECONDS) && !(_outputBuffer.size() + bytesRead > maxSize)) {
+	bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
+	if (bytesRead > 0 && !(time(NULL) - startTime > TIMEOUT_SECONDS)) {
 		buffer[bytesRead] = '\0';
 		_outputBuffer.append(buffer, bytesRead);
 		return 0;
@@ -323,42 +321,6 @@ int CGIHandler::processScriptOutput() {
 		return 1;
 	}
 }
-
-// int CGIHandler::processScriptOutput() {
-// 	char buffer[4096];
-// 	ssize_t bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
-
-// 	if (bytesRead > 0) {
-// 		buffer[bytesRead] = '\0';
-// 		_outputBuffer.append(buffer, bytesRead);
-// 		return 0;
-// 	}
-// 	else if (bytesRead == 0) {
-// 		if (_outputBuffer.empty()) {
-// 			std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
-// 			defaultResponse += "Content-Type: text/plain\r\n";
-// 			defaultResponse += "Content-Length: 22\r\n\r\n";
-// 			defaultResponse += "No output from script\n";
-
-// 			addSendBuf(_server->getWebServ(), _client->getFd(), defaultResponse);
-// 			setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
-// 		} else {
-// 			std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
-// 			std::map<std::string, std::string> headerMap = parseHeaders(headerAndBody.first);
-
-// 			if (isChunkedTransfer(headerMap))
-// 				handleChunkedOutput(headerMap, headerAndBody.second);
-// 			else
-// 				handleStandardOutput(headerMap, headerAndBody.second);
-// 		}
-// 		return 1;
-// 	}
-// 	else {
-// 		std::cerr << getTimeStamp(_client->getFd()) << RED
-// 				<< "Error: read() failed for CGI output" << RESET << std::endl;
-// 		return 1;
-// 	}
-// }
 
 bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& headers) {
 	std::map<std::string, std::string>::const_iterator it = headers.find("Transfer-Encoding");
