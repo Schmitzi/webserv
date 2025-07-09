@@ -16,6 +16,14 @@ class	Request;
 struct	serverLevel;
 struct	locationLevel;
 
+enum {
+	UNTRACKED,
+	RECEIVING,
+	CHECKING,
+	PROCESSING,
+	DONE
+};
+
 class Client {
 	public:
 		Client(Server& serv);
@@ -27,11 +35,14 @@ class Client {
 		int							&getFd();
 		Server						&getServer();
 		Webserv						&getWebserv();
+		Request						&getRequest();
 		size_t						&getOffset();
 		int							getExitCode();
 		std::vector<serverLevel>	getConfigs();
 		void						setConnect(std::string connect);
 		void						setExitCode(int i);
+		void						setState(int e);
+		int							state();
 
 		int							acceptConnection(int serverFd);
 		void						displayConnection();
@@ -57,12 +68,14 @@ class Client {
 		socklen_t           		_addrLen;
 		int                 		_fd;
 		std::string         		_requestBuffer;
-		Webserv             		*_webserv;
 		Server              		*_server;
+		Webserv             		*_webserv;
+		Request						*_req;
 		std::vector<serverLevel>	_configs;
 		size_t						_sendOffset;
 		std::string					_connect;
 		int							_exitCode;
+		int							_state;
 };
 
 #endif

@@ -228,3 +228,7 @@ std::string decodeChunkedBody(int fd, const std::string& chunkedData) {
 	
 	return decodedBody;
 }
+
+bool endsWith(const std::string& str, const std::string& suffix) {
+	return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}

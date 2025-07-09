@@ -1,4 +1,21 @@
-# webserv
+## Tests
+
+netcat:	Processing uncomplete Headersection leads to fail
+POST:	wrong status code
+POST:	Bad Request: curl -v -X POST -H "Host: abc.com" localhost:8080/hello.txt "Hello world" leads to 500
+POST:	On any error -> delete file
+
+Long POST:
+	yes | curl -v -X POST -H "Host: abc.com" -H "Content-Type: text/plain" --data @- http://localhost:8080/hello.txt
+	
+	single POST: content was not uploaded, file was not removed on interupt
+	Double POST: no 407 confict response
+
+If multipart supportet extract filename from there?
+
+Support POST with no filename 
+
+<!-- # webserv
 
 Build a HTTP server
 
@@ -89,4 +106,6 @@ Books:
    "Unix Network Programming" by W. Richard Stevens
 
 Online Tutorials:
-   CS50 Web Development with Python and JavaScript
+   CS50 Web Development with Python and JavaScript -->
+
+

@@ -13,12 +13,14 @@
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
-	_webserv = &serv.getWebServ();
 	_server = &serv;
+	_webserv = &serv.getWebServ();
+	_req = NULL;
 	_configs = serv.getConfigs();
 	_connect = "";
 	_sendOffset = 0;
 	_exitCode = 0;
+	_state = UNTRACKED;
 }
 
 Client::Client(const Client& client) {
@@ -31,12 +33,14 @@ Client& Client::operator=(const Client& other) {
 		_fd = other._fd;
 		_addrLen = other._addrLen;
 		_requestBuffer = other._requestBuffer;
-		_webserv = other._webserv;
 		_server = other._server;
+		_webserv = other._webserv;
+		_req = other._req;
 		_configs = other._configs;
 		_connect = other._connect;
 		_sendOffset = other._sendOffset;
 		_exitCode = other._exitCode;
+		_state = other._state;
 	}
 	return *this;
 }
@@ -53,6 +57,10 @@ Server &Client::getServer() {
 
 Webserv& Client::getWebserv() {
 	return *_webserv;
+}
+
+Request& Client::getRequest() {
+	return *_req;
 }
 
 size_t& Client::getOffset() {
@@ -73,6 +81,16 @@ void Client::setConnect(std::string connect) {
 
 void Client::setExitCode(int i) {
 	_exitCode = i;
+}
+
+void Client::setState(int e) {
+	if (e < 0 || e > 4)
+		return;
+	_state = e;
+}
+
+int Client::state() {
+	return _state;
 }
 
 int Client::acceptConnection(int serverFd) {
@@ -107,44 +125,52 @@ void Client::recieveData() {
 		return;
 	}
 	
-	if (bytesRead == 0) {
-		_exitCode = 1;
-		return;
-	}
-	
 	_requestBuffer.append(buffer, bytesRead);
-	bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
-						_requestBuffer.find("chunked") != std::string::npos);
-	
-	if (isChunked) {
-		if (!isChunkedBodyComplete(_requestBuffer)) {
-			std::cout << getTimeStamp(_fd) << BLUE 
-						<< "Chunked body incomplete, waiting for more data" << RESET << std::endl;
-			_exitCode = 0;
-			return;
-		}
-	} else {
-		if (checkLength(_requestBuffer, _fd, printNewLine) == 0) {
-			_exitCode = 0;
-			return;
-		}
-	}
-	if (printNewLine == true)
-		std::cout << std::endl;
-	std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
-	printNewLine = false;
-	
-	if (_requestBuffer.empty() || _requestBuffer.find("HTTP/") == std::string::npos) {
-		std::cout << getTimeStamp(_fd) << YELLOW << "Empty or invalid request received, closing connection" << RESET << std::endl;
-		_requestBuffer.clear();
-		_exitCode = 1;
+
+	if (endsWith(_requestBuffer, "\r\n\r\n") || endsWith(_requestBuffer, "\n\n"))
+		_state = CHECKING;
+
+	if (bytesRead == 0) {
+		_exitCode = 0;
 		return;
 	}
-	
-	Request req(_requestBuffer, *this, _fd);
-	_exitCode = processRequest(req);
-	if (_exitCode != 1)
-		_requestBuffer.clear();
+	if (_state == CHECKING) {
+		bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
+							_requestBuffer.find("chunked") != std::string::npos);
+		
+		if (isChunked) {
+			if (!isChunkedBodyComplete(_requestBuffer)) {
+				std::cout << getTimeStamp(_fd) << BLUE 
+							<< "Chunked body incomplete, waiting for more data" << RESET << std::endl;
+				_exitCode = 0;
+				return;
+			}
+		} else {
+			if (checkLength(_requestBuffer, _fd, printNewLine) == 0) {
+				_exitCode = 0;
+				return;
+			}
+		}
+		if (printNewLine == true)
+			std::cout << std::endl;
+		std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
+		printNewLine = false;
+		_state = PROCESSING;
+	}
+	if (_state == PROCESSING) {		
+		if (_requestBuffer.empty() || _requestBuffer.find("HTTP/") == std::string::npos) {
+			std::cout << getTimeStamp(_fd) << YELLOW << "Empty or invalid request received, closing connection" << RESET << std::endl;
+			_requestBuffer.clear();
+			_exitCode = 1;
+			return;
+		}
+		
+		Request req(_requestBuffer, *this, _fd);
+		_exitCode = processRequest(req);
+		if (_exitCode != 1)
+			_requestBuffer.clear();
+		_state = DONE;
+	}
 }
 
 int Client::processRequest(Request& req) {
@@ -186,16 +212,19 @@ int Client::processRequest(Request& req) {
 	std::cout << getTimeStamp(_fd) << BLUE << "Parsed Request: " << RESET << 
 		req.getMethod() << " " << req.getPath() << " " << req.getVersion() << std::endl;
 
+	int ret = 1;
 	if (req.getMethod() == "GET")
-		return handleGetRequest(req);
+		ret = handleGetRequest(req);
 	else if (req.getMethod() == "POST")
-		return handlePostRequest(req);
+		ret = handlePostRequest(req);
 	else if (req.getMethod() == "DELETE")
-		return handleDeleteRequest(req);
+		ret = handleDeleteRequest(req);
 	else {
 		sendErrorResponse(*this, 405, req);
-		return 1;
+		ret = 1;
 	}
+	_state = DONE;
+	return ret;
 }
 
 int Client::handleGetRequest(Request& req) {
@@ -278,6 +307,7 @@ int Client::handlePostRequest(Request& req) {
 	
 	if (!checkReturn(_fd, bytesWritten, "write()", "Failed to write to file")) {
 		sendErrorResponse(*this, 500, req);
+		unlink(fullPath.c_str());
 		close(fd);
 		return 1;
 	}
@@ -287,6 +317,7 @@ int Client::handlePostRequest(Request& req) {
 	
 	if (responseResult < 0) {
 		std::cerr << getTimeStamp(_fd) << RED  << "Failed to send response" << RESET << std::endl;
+		unlink(fullPath.c_str());
 		return 1;
 	}
 	

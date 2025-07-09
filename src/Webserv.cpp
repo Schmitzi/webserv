@@ -294,7 +294,10 @@ void Webserv::handleClientActivity(int clientFd) {
 		close(clientFd);
 		return;
 	}
-	client->recieveData();
+	if (client->state() == UNTRACKED || client->state() == RECEIVING) {
+		client->setState(RECEIVING);
+		client->recieveData();
+	}
 }
 
 void Webserv::handleEpollOut(int fd) {

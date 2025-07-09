@@ -293,7 +293,7 @@ int CGIHandler::processScriptOutput() {
 		usleep(100000);
 	}
 	if (WIFEXITED(status) && WEXITSTATUS(status) == 0 && bytesRead == 0) {
-		std::cout << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+		std::cout << getTimeStamp(_client->getFd()) << GREEN << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
 		if (_outputBuffer.empty()) {
 			std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
 			defaultResponse += "Content-Type: text/plain\r\n";
