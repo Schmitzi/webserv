@@ -59,32 +59,12 @@ size_t& Client::getOffset() {
 	return _sendOffset;
 }
 
-std::string Client::getConnect() {
-	return _connect;
-}
-
 int Client::getExitCode() {
 	return _exitCode;
 }
 
 std::vector<serverLevel> Client::getConfigs() {
 	return _configs;
-}
-
-std::string& Client::getRequestBuffer() {
-	return _requestBuffer;
-}
-
-void Client::setWebserv(Webserv &webserv) {
-	_webserv = &webserv;
-}
-
-void Client::setServer(Server &server) {
-	_server = &server;
-}
-
-void    Client::setConfigs(const std::vector<serverLevel> &configs) {
-	_configs = configs;
 }
 
 void Client::setConnect(std::string connect) {

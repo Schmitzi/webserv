@@ -11,7 +11,6 @@ void	setEpollEvents(Webserv& web, int fd, uint32_t events);
 int		addToEpoll(Webserv& web, int fd, short events);
 void	removeFromEpoll(Webserv& web, int fd);
 void	addSendBuf(Webserv& web, int fd, const std::string& s);
-void	addSendBuf(Webserv& web, int fd, const std::string& s);
 void	clearSendBuf(Webserv& web, int fd);
 bool	isCgiPipeFd(Webserv& web, int fd);
 void	registerCgiPipe(Webserv& web, int fd, CGIHandler* handler);

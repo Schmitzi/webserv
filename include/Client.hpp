@@ -28,13 +28,8 @@ class Client {
 		Server						&getServer();
 		Webserv						&getWebserv();
 		size_t						&getOffset();
-		std::string					getConnect();
 		int							getExitCode();
 		std::vector<serverLevel>	getConfigs();
-		std::string					&getRequestBuffer();
-		void						setWebserv(Webserv &webserv);
-		void						setServer(Server &server);
-		void						setConfigs(const std::vector<serverLevel> &configs);
 		void						setConnect(std::string connect);
 		void						setExitCode(int i);
 

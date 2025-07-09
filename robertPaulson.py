@@ -1321,7 +1321,7 @@ def test_server_resilience():
         print_test("Server may have issues with connection handling", "FAIL")
     print("\n")
 
-def test_http_headers():#TODO: this test cannot fail?
+def test_http_headers():
     global TOTAL, PASS
     print_test("=== Testing HTTP Headers ===")
     TOTAL += 1
@@ -1339,7 +1339,7 @@ def test_http_headers():#TODO: this test cannot fail?
             print_test(f"Server header: {server_header}", "PASS")
         if content_length:
             print_test(f"Content-Length header present: {content_length}", "PASS")
-    PASS += 1
+        PASS += 1
     print("\n")
 
 def test_different_ports():
