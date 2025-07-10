@@ -194,10 +194,10 @@ def test_chunked_encoding():
     body = smth.decode(errors='ignore')
     print(f"Response status: {response.status}")
     print(f"Response body: {body}")
-    if response.status != 200:
-        raise Exception(f"Expected 200 OK, got {response.status}")
+    if response.status != 201:
+        raise Exception(f"Expected 201 OK, got {response.status}")
     r_check = requests.get(f"{BASE_URL}/upload/test_chunked")
-    assert r_check.status_code == 200
+    assert r_check.status_code == 201
     assert "this is a test upload" in r_check.text
     if DELETE == True:
         conn.request("DELETE", "/upload/test_chunked")
@@ -378,7 +378,7 @@ def test_post_upload():
     }
     body = "name=test&value=upload"
     # Expecting 200 or 201 (created) here depending on your server config
-    status, res, data = test_connection("/upload", "POST", body=body, headers=headers, expect_status=200)
+    status, res, data = test_connection("/upload", "POST", body=body, headers=headers, expect_status=201)
     if status in (200, 201):
         PASS += 1
 
@@ -406,10 +406,10 @@ def test_post_upload_with_content():
         "Content-Length": str(len(body))
     }
 
-    res = test_connection("/upload", "POST", body=body, headers=headers, expect_status=200)
+    res = test_connection("/upload", "POST", body=body, headers=headers, expect_status=201)
     status, _, _ = res  # unpack result, guaranteed by test_connection if no exception
     # After upload, try to GET the uploaded file to verify content
-    get_res = test_connection(f"/upload/{filename}", "GET", expect_status=200)
+    get_res = test_connection(f"/upload/{filename}", "GET", expect_status=201)
     _, _, data = get_res
     if file_content in data:
         PASS += 1
@@ -536,7 +536,7 @@ def test_large_post():
     TOTAL += 1
     large_body = "data=" + ("A" * (1024 * 1024 - 5))  # ~1MB form data
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    res = test_connection("/upload/large_post", "POST", body=large_body, headers=headers, expect_status=200)
+    res = test_connection("/upload/large_post", "POST", body=large_body, headers=headers, expect_status=201)
     if res:
         PASS += 1
         print_result(True, "Large POST body test was successful.")
@@ -1436,6 +1436,7 @@ def webTestCgiFileArg():
         f.write("""#!/usr/bin/env python3
 import sys
 print("Content-Type: text/plain\\n")
+print("Host: abc.com"\\n)
 try:
     with open(sys.argv[1], 'r') as file:
         print(file.read())
@@ -1447,12 +1448,13 @@ except Exception as e:
 
     # Send the request
     conn = http.client.HTTPConnection(HOST, PORT)
-    conn.request("GET", "/cgi-bin/echo_file.py?file=data.txt")
+    conn.request("GET", "/cgi-bin/hello.py?file=data.txt")
     response = conn.getresponse()
     body = response.read().decode(errors='ignore')
     conn.close()
     print("Status:", response.status)
     print("Response Body:", body)
+    print(expected_content)
     assert response.status == 200, f"Expected HTTP 200 OK, got {response.status}"
     assert expected_content.strip() in body, "Expected file content not found in response."
 
@@ -1543,20 +1545,7 @@ def main():
         # Run integrated test suites
         for test_name, test_func in integrated_tests:
             run_test_suite(test_name, test_func)
-        
-        # # Run external scripts (until migrated)
-        # for script in external_scripts:
-        #     print(f"Running {script}...")
-        #     result = subprocess.run([sys.executable, script], 
-        #                           capture_output=True, 
-        #                           text=True, 
-        #                           check=True,
-        #                           cwd=os.path.abspath("."))
-        #     print(f"✓ {script} completed successfully")
-        #     if result.stdout:
-        #         print(f"Output: {result.stdout}")
-        #     time.sleep(2)
-            
+
     except subprocess.CalledProcessError as err:
         print(f"✗{RED} Error running external script: {err}{RESET}")
         print(f"{RED} Error output: {err.stderr}{RESET}")

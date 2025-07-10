@@ -54,7 +54,7 @@ void				generateErrorPage(std::string& body, int statusCode, const std::string& 
 std::string			findErrorPage(int statusCode, const std::string& dir, Request& req);
 void				resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req);
 void				sendRedirect(Client& c, int statusCode, const std::string& location);
-ssize_t				sendResponse(Client& c, Request req, std::string connect, std::string body);
+ssize_t				sendResponse(Client& c, Request req, std::string connect, std::string body, int code);
 void				sendErrorResponse(Client& c, int statusCode, Request& req);
 
 #endif

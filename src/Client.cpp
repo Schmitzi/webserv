@@ -278,10 +278,13 @@ int Client::handlePostRequest(Request& req) {
 			doQueryStuff(req.getBody(), fileName, contentToWrite);
 		fullPath = matchAndAppendPath(fullPath, fileName);
 	}
+
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {
 		std::cerr << getTimeStamp(_fd) << RED << "Failed to open file for writing: " << RESET << fullPath << std::endl;
 		sendErrorResponse(*this, 500, req);
+        remove(fullPath.c_str());
+        std::cerr << getTimeStamp(_fd) << RED << "File removed: " + fullPath << "\n" << RESET;
 		return 1;
 	}
 	
@@ -290,13 +293,16 @@ int Client::handlePostRequest(Request& req) {
 	ssize_t bytesWritten = write(fd, contentToWrite.c_str(), contentToWrite.length());
 	
 	if (!checkReturn(_fd, bytesWritten, "write()", "Failed to write to file")) {
+        std::cout << "HERE\n";
 		sendErrorResponse(*this, 500, req);
+        remove(fullPath.c_str());
+        std::cerr << getTimeStamp(_fd) << RED << "File removed: " + fullPath << "\n" << RESET;
 		close(fd);
 		return 1;
 	}
 	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
 	_connect = "keep-alive";
-	ssize_t responseResult = sendResponse(*this, req, "keep-alive", responseBody);
+	ssize_t responseResult = sendResponse(*this, req, "keep-alive", responseBody, 201);
 	
 	if (responseResult < 0) {
 		std::cerr << getTimeStamp(_fd) << RED  << "Failed to send response" << RESET << std::endl;
@@ -342,7 +348,7 @@ int Client::handleDeleteRequest(Request& req) {
 			return 1;
 		}
 	}
-	sendResponse(*this, req, "keep-alive", "");
+	sendResponse(*this, req, "keep-alive", "", 200);
 	return 0;
 }
 
@@ -373,7 +379,7 @@ int Client::handleFileBrowserRequest(Request& req) {
 			if (buildBody(*this, req, actualFullPath) == 1)
 				return 1;
 			req.setContentType(req.getMimeType(actualFullPath));
-			sendResponse(*this, req, "keep-alive", req.getBody());
+			sendResponse(*this, req, "keep-alive", req.getBody(), 200);
 			std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served file from browser: " 
 					<< RESET << actualFullPath << std::endl;
 			return 0;
@@ -452,7 +458,7 @@ int Client::handleRegularRequest(Request& req) {
 
 	req.setContentType(contentType);
 
-	sendResponse(*this, req, "close", req.getBody());
+	sendResponse(*this, req, "close", req.getBody(), 200);
 	std::cout << getTimeStamp(_fd) << GREEN  << "Sent file: " << RESET << fullPath << std::endl;
 	return 0;
 }
@@ -489,7 +495,7 @@ int Client::handleMultipartPost(Request& req) {
 	}
 	std::cout << getTimeStamp(_fd) << GREEN  << "Received: " + parser.getFilename() << RESET << std::endl;
 	std::string successMsg = "Successfully uploaded file:" + filename;
-	sendResponse(*this, req, "close", successMsg);
+	sendResponse(*this, req, "close", successMsg, 201);
 	std::cout << getTimeStamp(_fd) << GREEN  << "File transfer ended" << RESET << std::endl;    
 	return 0;
 }
@@ -521,7 +527,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 					return 1;
 				req.setContentType("text/html");
 				_connect = "keep-alive";
-				sendResponse(*this, req, "keep-alive", req.getBody());
+				sendResponse(*this, req, "keep-alive", req.getBody(), 200);
 				std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served index file: " << RESET << indexPath << std::endl;
 				return 0;
 			} else {
@@ -544,7 +550,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 					return 1;
 				req.setContentType("text/html");
 				_connect = "keep-alive";
-				sendResponse(*this, req, "keep-alive", req.getBody());
+				sendResponse(*this, req, "keep-alive", req.getBody(), 200);
 				std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served index file: " << RESET << indexPath << std::endl;
 				return 0;
 			} else {

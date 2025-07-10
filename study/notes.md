@@ -1,4 +1,4 @@
-# webserv
+<!-- # webserv
 
 Build a HTTP server
 
@@ -89,4 +89,37 @@ Books:
    "Unix Network Programming" by W. Richard Stevens
 
 Online Tutorials:
-   CS50 Web Development with Python and JavaScript
+   CS50 Web Development with Python and JavaScript -->
+
+
+netcat: Processing uncomplete Headersection leads to fail -> DONE
+POST: wrong status code -> DONE 
+POST: Bad Request: curl -v -X POST -H "Host: abc.com" localhost:8080/hello.txt "Hello world" leads to 500 
+    Fixed: checkReturn() changed to allow zero size requests
+POST: On any error -> delete file     -> DONE?
+
+Long POST: yes | curl -v -X POST -H "Host: abc.com" -H "Content-Type: text/plain" --data @- http://localhost:8080/hello.txt
+
+Using @- to read from STDIN does not seem to work, closing the FD and sending data isnt working
+
+However, this works:
+yes | curl -v -X POST -H "Host: abc.com\n\nContent-Type: plain/text" --data "BODY IS HERE write something shorter or longer than body limit" http://localhost:8080/hello.txt
+
+
+
+
+
+
+
+
+
+
+
+
+
+single POST: content was not uploaded, file was not removed on interupt
+Double POST: no 407 confict response
+
+If multipart supportet extract filename from there?
+
+Support POST with no filename

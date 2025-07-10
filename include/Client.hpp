@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <vector>
+#include <cstdio>
 #include "Colors.hpp"
 
 class	Webserv;
