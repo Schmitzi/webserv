@@ -39,6 +39,7 @@ class Client {
 		size_t						&getOffset();
 		int							getExitCode();
 		std::vector<serverLevel>	getConfigs();
+		std::string					getConnect();
 		void						setConnect(std::string connect);
 		void						setExitCode(int i);
 		void						setState(int e);

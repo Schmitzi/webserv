@@ -275,7 +275,7 @@ int Request::parseHeaders(const std::string& headerSection) {
 			_headers[key] = value;
 		}
 	}
-	return true;//host;
+	return host;
 }
 
 void Request::checkContentLength(std::string buffer) {

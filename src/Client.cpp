@@ -75,6 +75,10 @@ std::vector<serverLevel> Client::getConfigs() {
 	return _configs;
 }
 
+std::string Client::getConnect() {
+	return _connect;
+}
+
 void Client::setConnect(std::string connect) {
 	_connect = connect;
 }
@@ -294,6 +298,11 @@ int Client::handlePostRequest(Request& req) {
 			doQueryStuff(req.getBody(), fileName, contentToWrite);
 		fullPath = matchAndAppendPath(fullPath, fileName);
 	}
+	if (!tryLockFile(fullPath, _fd)) {
+		std::cerr << getTimeStamp(_fd) << RED << "Error: File is being used at the moment: " << RESET << fullPath << std::endl;
+		sendErrorResponse(*this, 423, req);
+		return 1;
+	}
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {
 		std::cerr << getTimeStamp(_fd) << RED << "Failed to open file for writing: " << RESET << fullPath << std::endl;
@@ -304,14 +313,15 @@ int Client::handlePostRequest(Request& req) {
 	std::cout << getTimeStamp(_fd) << BLUE << "Writing to file: " << RESET << fullPath << std::endl;
 	
 	ssize_t bytesWritten = write(fd, contentToWrite.c_str(), contentToWrite.length());
-	
-	if (!checkReturn(_fd, bytesWritten, "write()", "Failed to write to file")) {
+	releaseLockFile(fullPath);
+	if (bytesWritten < 0) {
+		std::cerr << getTimeStamp(_fd) << RED << "Error: write() failed" << RESET << std::endl;
 		sendErrorResponse(*this, 500, req);
 		unlink(fullPath.c_str());
 		close(fd);
 		return 1;
 	}
-	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
+	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.\r\n";
 	_connect = "keep-alive";
 	ssize_t responseResult = sendResponse(*this, req, "keep-alive", responseBody);
 	
@@ -672,6 +682,9 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 		return false;
 	}
 	
+	if (!tryLockFile(fullPath, _fd))
+		return false;
+
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {
 		std::cerr << getTimeStamp(_fd) << RED << "Error: Failed to open file for writing: " << RESET << fullPath << std::endl;
@@ -685,5 +698,6 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 		return false;
 	}
 	close(fd);
+	releaseLockFile(fullPath);
 	return true;
 }

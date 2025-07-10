@@ -329,7 +329,13 @@ void Webserv::handleEpollOut(int fd) {
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
-		c->setExitCode(1);
+		if (c->getConnect() == "keep-alive") {//maybe add exitCode check as well?
+			c->setState(UNTRACKED);
+			c->setExitCode(0);
+			setEpollEvents(*this, fd, EPOLLIN);
+		}
+		else
+			c->setExitCode(1);
 	}
 	if (c->getExitCode() != 0)
 		handleClientDisconnect(fd);

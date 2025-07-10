@@ -118,6 +118,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 		return 1;
 	}
 	std::string fileContent(buffer.data(), bytesRead);
+	fileContent += "\r\n";
 	req.setBody(fileContent);
 	close(fd);
 	return 0;
@@ -231,4 +232,26 @@ std::string decodeChunkedBody(int fd, const std::string& chunkedData) {
 
 bool endsWith(const std::string& str, const std::string& suffix) {
 	return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+bool tryLockFile(const std::string& path, int timeStampFd) {
+	std::string lockPath = path + ".lock";
+
+	int fd = open(lockPath.c_str(), O_CREAT | O_EXCL, 0644);
+	if (fd == -1) {
+		if (errno == EEXIST) {
+			std::cerr << getTimeStamp(timeStampFd) << RED << "Error: File is being used at the moment: " << RESET << path << std::endl;
+			return false;
+		} else {
+			std::cerr << getTimeStamp(timeStampFd) << RED << "Error: creating lock file failed" << RESET << std::endl;
+			return false;
+		}
+	}
+	close(fd);
+	return true;
+}
+
+void releaseLockFile(const std::string& path) {
+	std::string lockPath = path + ".lock";
+	unlink(lockPath.c_str());
 }
