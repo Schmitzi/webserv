@@ -151,7 +151,6 @@ void resolveErrorResponse(int statusCode, std::string& statusText, std::string& 
 			out.close();
 		}
 	}
-	body += "\r\n";
 }
 
 void sendRedirect(Client& c, int statusCode, const std::string& location) {

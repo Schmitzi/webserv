@@ -121,20 +121,24 @@ void Client::recieveData() {
 	static bool printNewLine = false;
 	char buffer[1000000];
 	memset(buffer, 0, sizeof(buffer));
+	ssize_t bytesRead = -1;
 	
-	ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
-	if (bytesRead < 0) {
-		_exitCode = 1;
-		std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
-		return;
+	if (_state == RECEIVING) {
+		bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+		if (bytesRead < 0) {
+			_exitCode = 1;
+			std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
+			return;
+		}
+		
+		_requestBuffer.append(buffer, bytesRead);
 	}
-	
-	_requestBuffer.append(buffer, bytesRead);
 
-	if (endsWith(_requestBuffer, "\r\n\r\n") || endsWith(_requestBuffer, "\n\n"))
+	// if (endsWith(_requestBuffer, "\r\n\r\n") || endsWith(_requestBuffer, "\n\n"))
+	if (_state == RECEIVING && (_requestBuffer.find("\r\n\r\n") != std::string::npos || _requestBuffer.find("\n\n") != std::string::npos))
 		_state = CHECKING;
 
-	if (bytesRead == 0) {
+	if (bytesRead == 0 && _state == RECEIVING) {
 		_exitCode = 0;
 		return;
 	}
@@ -162,10 +166,12 @@ void Client::recieveData() {
 		_state = PROCESSING;
 	}
 	if (_state == PROCESSING) {		
-		if (_requestBuffer.empty() || _requestBuffer.find("HTTP/") == std::string::npos) {
+		if (_requestBuffer.empty() || _requestBuffer.find("HTTP/") == std::string::npos) {//TODO: need to actually close connection?
 			std::cout << getTimeStamp(_fd) << YELLOW << "Empty or invalid request received, closing connection" << RESET << std::endl;
+			// setEpollEvents(*_webserv, _fd, EPOLLOUT);//??
+			// _state = DONE;//??
 			_requestBuffer.clear();
-			_exitCode = 1;
+			_exitCode = 2;
 			return;
 		}
 		
@@ -305,6 +311,7 @@ int Client::handlePostRequest(Request& req) {
 	}
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {
+		releaseLockFile(fullPath);
 		std::cerr << getTimeStamp(_fd) << RED << "Failed to open file for writing: " << RESET << fullPath << std::endl;
 		sendErrorResponse(*this, 500, req);
 		return 1;
@@ -321,7 +328,7 @@ int Client::handlePostRequest(Request& req) {
 		close(fd);
 		return 1;
 	}
-	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.\r\n";
+	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";//\r\n";
 	_connect = "keep-alive";
 	ssize_t responseResult = sendResponse(*this, req, "keep-alive", responseBody);
 	
@@ -693,6 +700,7 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 	
 	ssize_t bytesWritten = write(fd, content.c_str(), content.length());
 	if (!checkReturn(_fd, bytesWritten, "write()", "Failed to write to file")) {
+		releaseLockFile(fullPath);
 		sendErrorResponse(*this, 500, req);
 		close(fd);
 		return false;

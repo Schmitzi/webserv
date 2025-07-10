@@ -294,10 +294,9 @@ void Webserv::handleClientActivity(int clientFd) {
 		close(clientFd);
 		return;
 	}
-	if (client->state() == UNTRACKED || client->state() == RECEIVING) {
+	if (client->state() == UNTRACKED)
 		client->setState(RECEIVING);
-		client->recieveData();
-	}
+	client->recieveData();
 }
 
 void Webserv::handleEpollOut(int fd) {
@@ -306,7 +305,11 @@ void Webserv::handleEpollOut(int fd) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: no client was found" << RESET << std::endl;
 		return;
 	}
-
+	if (c->getExitCode() == 2) {
+		std::cerr << getTimeStamp(fd) << RED << "Error: Client is in an invalid state" << RESET << std::endl;
+		handleClientDisconnect(fd);
+		return;
+	}
 	const std::string& toSend = getSendBuf(fd);
 	if (toSend.empty()) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: _sendBuf is empty" << RESET << std::endl;
@@ -329,9 +332,8 @@ void Webserv::handleEpollOut(int fd) {
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
-		if (c->getConnect() == "keep-alive") {//maybe add exitCode check as well?
-			c->setState(UNTRACKED);
-			c->setExitCode(0);
+		if (c->getConnect() == "keep-alive" && c->getExitCode() == 0) {
+			c->setState(RECEIVING);
 			setEpollEvents(*this, fd, EPOLLIN);
 		}
 		else

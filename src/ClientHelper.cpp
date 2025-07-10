@@ -118,7 +118,6 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 		return 1;
 	}
 	std::string fileContent(buffer.data(), bytesRead);
-	fileContent += "\r\n";
 	req.setBody(fileContent);
 	close(fd);
 	return 0;
