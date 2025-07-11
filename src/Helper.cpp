@@ -115,7 +115,7 @@ std::string getTimeStamp(int fd) {
 }
 
 bool checkReturn(int fd, ssize_t r, const std::string& func, const std::string& isZero) {
-	if (r <= 0) {
+	if (r < 0) { // TODO: Changed to < from <= to allow POST with zero size
 		if (r < 0)
 			std::cerr << getTimeStamp(fd) << RED << "Error: " << func << " failed" << RESET << std::endl;
 		else

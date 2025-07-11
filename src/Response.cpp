@@ -176,13 +176,13 @@ void sendRedirect(Client& c, int statusCode, const std::string& location) {
 			<< statusCode << " " << statusText << " to " << location << std::endl;
 }
 
-ssize_t sendResponse(Client& c, Request req, std::string connect, std::string body) {
+ssize_t sendResponse(Client& c, Request req, std::string connect, std::string body, int code) {
 	c.setConnect(connect);
 	if (c.getFd() <= 0) {
 		std::cerr << getTimeStamp(c.getFd()) << RED << "Invalid fd in sendResponse" << RESET << std::endl;
 		return -1;
 	}
-	std::string response = "HTTP/1.1 200 OK\r\n";
+	std::string response = "HTTP/1.1 " + tostring(code) + " OK\r\n";
 	
 	std::map<std::string, std::string> headers = req.getHeaders();
 	bool isChunked = false;

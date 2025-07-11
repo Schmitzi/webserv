@@ -118,69 +118,68 @@ void Client::displayConnection() {
 }
 
 void Client::recieveData() {
-	static bool printNewLine = false;
-	char buffer[1000000];
-	memset(buffer, 0, sizeof(buffer));
-	ssize_t bytesRead = -1;
-	
-	if (_state == RECEIVING) {
-		bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
-		if (bytesRead < 0) {
-			_exitCode = 1;
-			std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
-			return;
-		}
-		
-		_requestBuffer.append(buffer, bytesRead);
-	}
+    static bool printNewLine = false;
+    char buffer[1000000];
+    memset(buffer, 0, sizeof(buffer));
+    
+    ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+    if (bytesRead < 0) {
+        _exitCode = 1;
+        std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
+        return;
+    }
+    
+    if (bytesRead == 0) {
+        _exitCode = 1;
+        return;
+    }
+    
+    _requestBuffer.append(buffer, bytesRead);
 
-	// if (endsWith(_requestBuffer, "\r\n\r\n") || endsWith(_requestBuffer, "\n\n"))
-	if (_state == RECEIVING && (_requestBuffer.find("\r\n\r\n") != std::string::npos || _requestBuffer.find("\n\n") != std::string::npos))
-		_state = CHECKING;
+    if (_requestBuffer.find("\r\n\r\n") == std::string::npos && 
+        _requestBuffer.find("\n\n") == std::string::npos) {
+        std::cout << getTimeStamp(_fd) << BLUE 
+                  << "Headers incomplete, waiting for more data" << RESET << std::endl;
+        _exitCode = 0;
+        return;
+    }
 
-	if (bytesRead == 0 && _state == RECEIVING) {
-		_exitCode = 0;
-		return;
-	}
-	if (_state == CHECKING) {
-		bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
-							_requestBuffer.find("chunked") != std::string::npos);
-		
-		if (isChunked) {
-			if (!isChunkedBodyComplete(_requestBuffer)) {
-				std::cout << getTimeStamp(_fd) << BLUE 
-							<< "Chunked body incomplete, waiting for more data" << RESET << std::endl;
-				_exitCode = 0;
-				return;
-			}
-		} else {
-			if (checkLength(_requestBuffer, _fd, printNewLine) == 0) {
-				_exitCode = 0;
-				return;
-			}
-		}
-		if (printNewLine == true)
-			std::cout << std::endl;
-		std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
-		printNewLine = false;
-		_state = PROCESSING;
-	}
-	if (_state == PROCESSING) {		
-		if (_requestBuffer.empty() || _requestBuffer.find("HTTP/") == std::string::npos) {//TODO: need to actually close connection?
-			std::cout << getTimeStamp(_fd) << YELLOW << "Empty or invalid request received, closing connection" << RESET << std::endl;
-			// setEpollEvents(*_webserv, _fd, EPOLLOUT);//??
-			// _state = DONE;//??
-			_requestBuffer.clear();
-			_exitCode = 2;
-			return;
-		}
-		
-		Request req(_requestBuffer, *this, _fd);
-		_exitCode = processRequest(req);
-		if (_exitCode != 1)
-			_requestBuffer.clear();
-		_state = DONE;
-	}
+    bool isComplete = false;
+    bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
+                      _requestBuffer.find("chunked") != std::string::npos);
+    bool hasContentLength = (_requestBuffer.find("Content-Length:") != std::string::npos);
+    
+    if (isChunked) {
+        isComplete = isChunkedBodyComplete(_requestBuffer);
+    } else if (hasContentLength) {
+        isComplete = (checkLength(_requestBuffer, _fd, printNewLine) == 1);
+    } else {
+        isComplete = true;
+    }
+    
+    if (!isComplete) {
+        //std::cout << getTimeStamp(_fd) << BLUE 
+        //          << "Incomplete request, waiting for more data" << RESET << std::endl;
+        _exitCode = 0;
+        return;
+    }
+
+    if (printNewLine == true)
+        std::cout << std::endl;
+    std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
+    printNewLine = false;
+    
+    if (_requestBuffer.empty() || _requestBuffer.find("HTTP/") == std::string::npos) {
+        std::cout << getTimeStamp(_fd) << YELLOW << "Empty or invalid request received, closing connection" << RESET << std::endl;
+        _requestBuffer.clear();
+        _exitCode = 1;
+        return;
+    }
+    
+    Request req(_requestBuffer, *this, _fd);
+    _exitCode = processRequest(req);
+    if (_exitCode != 1)
+        _requestBuffer.clear();
 }
 
 int Client::processRequest(Request& req) {
@@ -314,6 +313,8 @@ int Client::handlePostRequest(Request& req) {
 		releaseLockFile(fullPath);
 		std::cerr << getTimeStamp(_fd) << RED << "Failed to open file for writing: " << RESET << fullPath << std::endl;
 		sendErrorResponse(*this, 500, req);
+        remove(fullPath.c_str());
+        std::cerr << getTimeStamp(_fd) << RED << "File removed: " + fullPath << "\n" << RESET;
 		return 1;
 	}
 	
@@ -324,13 +325,14 @@ int Client::handlePostRequest(Request& req) {
 	if (bytesWritten < 0) {
 		std::cerr << getTimeStamp(_fd) << RED << "Error: write() failed" << RESET << std::endl;
 		sendErrorResponse(*this, 500, req);
-		unlink(fullPath.c_str());
+        remove(fullPath.c_str());
+        std::cerr << getTimeStamp(_fd) << RED << "File removed: " + fullPath << "\n" << RESET;
 		close(fd);
 		return 1;
 	}
 	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";//\r\n";
 	_connect = "keep-alive";
-	ssize_t responseResult = sendResponse(*this, req, "keep-alive", responseBody);
+	ssize_t responseResult = sendResponse(*this, req, "keep-alive", responseBody, 201);
 	
 	if (responseResult < 0) {
 		std::cerr << getTimeStamp(_fd) << RED  << "Failed to send response" << RESET << std::endl;
@@ -377,7 +379,7 @@ int Client::handleDeleteRequest(Request& req) {
 			return 1;
 		}
 	}
-	sendResponse(*this, req, "keep-alive", "");
+	sendResponse(*this, req, "keep-alive", "", 200);
 	return 0;
 }
 
@@ -408,7 +410,7 @@ int Client::handleFileBrowserRequest(Request& req) {
 			if (buildBody(*this, req, actualFullPath) == 1)
 				return 1;
 			req.setContentType(req.getMimeType(actualFullPath));
-			sendResponse(*this, req, "keep-alive", req.getBody());
+			sendResponse(*this, req, "keep-alive", req.getBody(), 200);
 			std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served file from browser: " 
 					<< RESET << actualFullPath << std::endl;
 			return 0;
@@ -487,7 +489,7 @@ int Client::handleRegularRequest(Request& req) {
 
 	req.setContentType(contentType);
 
-	sendResponse(*this, req, "close", req.getBody());
+	sendResponse(*this, req, "close", req.getBody(), 200);
 	std::cout << getTimeStamp(_fd) << GREEN  << "Sent file: " << RESET << fullPath << std::endl;
 	return 0;
 }
@@ -524,7 +526,7 @@ int Client::handleMultipartPost(Request& req) {
 	}
 	std::cout << getTimeStamp(_fd) << GREEN  << "Received: " + parser.getFilename() << RESET << std::endl;
 	std::string successMsg = "Successfully uploaded file:" + filename;
-	sendResponse(*this, req, "close", successMsg);
+	sendResponse(*this, req, "close", successMsg, 201);
 	std::cout << getTimeStamp(_fd) << GREEN  << "File transfer ended" << RESET << std::endl;    
 	return 0;
 }
@@ -556,7 +558,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 					return 1;
 				req.setContentType("text/html");
 				_connect = "keep-alive";
-				sendResponse(*this, req, "keep-alive", req.getBody());
+				sendResponse(*this, req, "keep-alive", req.getBody(), 200);
 				std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served index file: " << RESET << indexPath << std::endl;
 				return 0;
 			} else {
@@ -579,7 +581,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 					return 1;
 				req.setContentType("text/html");
 				_connect = "keep-alive";
-				sendResponse(*this, req, "keep-alive", req.getBody());
+				sendResponse(*this, req, "keep-alive", req.getBody(), 200);
 				std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served index file: " << RESET << indexPath << std::endl;
 				return 0;
 			} else {
