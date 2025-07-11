@@ -19,6 +19,7 @@ CGIHandler::CGIHandler(Client *client) {
 	_path = "";
 	_outputBuffer = "";
 	_pid = -1;
+    _startTime = 0;
 }
 
 CGIHandler::CGIHandler(const CGIHandler& copy) {
@@ -41,6 +42,7 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 		_outputBuffer = copy._outputBuffer;
 		_pid = copy._pid;
 		_req = copy._req;
+        _startTime = copy._startTime;
 	}
 	return *this;
 }
@@ -259,116 +261,45 @@ int CGIHandler::doParent() {
 	return 0;
 }
 
-// int CGIHandler::processScriptOutput() {
-// 	char buffer[4096];
-// 	const int TIMEOUT_SECONDS = 60;
-// 	time_t startTime = time(NULL);
-// 	int status;
-// 	size_t maxSize = _outputBuffer.max_size();
-// 	ssize_t bytesRead = -1;
-
-// 	if (_outputBuffer.size() < maxSize)
-// 		bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
-// 	if (bytesRead > 0 && !(time(NULL) - startTime > TIMEOUT_SECONDS) && !(_outputBuffer.size() + bytesRead > maxSize)) {
-// 		buffer[bytesRead] = '\0';
-// 		_outputBuffer.append(buffer, bytesRead);
-// 		return 0;
-// 	}
-// 	while (true) {
-// 		pid_t result = waitpid(_pid, &status, WNOHANG);
-// 		if (result == _pid)
-// 			break;
-// 		else if (result == -1) {
-// 			std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: waitpid() failed" << RESET << std::endl;
-// 			sendErrorResponse(*_client, 500, _req);
-// 			cleanupResources();
-// 			return 1;
-// 		}
-// 		if (time(NULL) - startTime > TIMEOUT_SECONDS) {
-// 			std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI timeout, killing process" << RESET << std::endl;
-// 			cleanupResources();
-// 			if (_pid >= 0)
-// 				kill(_pid, SIGKILL);
-// 			sendErrorResponse(*_client, 504, _req);
-// 			return 1;
-// 		}
-// 		usleep(100000);
-// 	}
-// 	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) { // && bytesRead == 0
-// 		std::cout << getTimeStamp(_client->getFd()) << BLUE << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
-// 		if (_outputBuffer.empty()) {
-// 			std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
-// 			defaultResponse += "Content-Type: text/plain\r\n";
-// 			defaultResponse += "Content-Length: 22\r\n\r\n";
-// 			defaultResponse += "No output from script\n";
-
-// 			addSendBuf(_server->getWebServ(), _client->getFd(), defaultResponse);
-// 			setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
-// 			cleanupResources();
-// 			return 0;
-// 		} else {
-// 			std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
-// 			std::map<std::string, std::string> headerMap = parseHeaders(headerAndBody.first);
-// 			cleanupResources();
-// 			if (isChunkedTransfer(headerMap))
-// 				handleChunkedOutput(headerMap, headerAndBody.second);
-// 			else
-// 				handleStandardOutput(headerMap, headerAndBody.second);
-// 			return 1;
-// 		}
-// 	} else {
-// 		std::cerr << getTimeStamp(_client->getFd()) << RED << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
-// 		sendErrorResponse(*_client, 500, _req);
-// 		cleanupResources();
-// 		return 1;
-// 	}
-// }
-
 int CGIHandler::processScriptOutput() {
-    static time_t functionStartTime = 0;
-    const int TIMEOUT_SECONDS = 60;
+    static const int TIMEOUT_SECONDS = 14;
+    
+    if (_startTime == 0) {
+        _startTime = time(NULL);
+    }
+    
     char buffer[4096];
     int status;
     size_t maxSize = _outputBuffer.max_size();
     ssize_t bytesRead = -1;
     
-    if (functionStartTime == 0) {
-        functionStartTime = time(NULL);
-    }
-    
-    time_t elapsedTime = time(NULL) - functionStartTime;
-    
-    if (_outputBuffer.size() < maxSize) {
-        bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
-        if (bytesRead > 0) {
-            // Successfully read data
-            buffer[bytesRead] = '\0';
-            _outputBuffer.append(buffer, bytesRead);
-            return 0; // Continue reading
-        }
-    }
-    
-    // Check if we need to timeout
+    time_t elapsedTime = time(NULL) - _startTime;
     if (elapsedTime > TIMEOUT_SECONDS) {
         std::cerr << getTimeStamp(_client->getFd()) << RED 
-                << "CGI timeout after " << elapsedTime 
-                << " seconds, killing process" << RESET << std::endl;
+                  << "CGI timeout after " << elapsedTime 
+                  << " seconds, killing process" << RESET << std::endl;
         cleanupResources();
         if (_pid >= 0)
             kill(_pid, SIGKILL);
         sendErrorResponse(*_client, 504, _req);
-        functionStartTime = 0; // Reset for next call
         return 1;
     }
     
-    // Check if process has completed
+    if (_outputBuffer.size() < maxSize) {
+        bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
+        if (bytesRead > 0) {
+            buffer[bytesRead] = '\0';
+            _outputBuffer.append(buffer, bytesRead);
+            return 0;
+        }
+    }
+    
     pid_t result = waitpid(_pid, &status, WNOHANG);
     if (result == _pid) {
-        // Process has exited
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
             std::cout << getTimeStamp(_client->getFd()) << GREEN 
-                    << "CGI Script completed successfully after " 
-                    << elapsedTime << " seconds" << RESET << std::endl;
+                      << "CGI Script completed successfully after " 
+                      << elapsedTime << " seconds" << RESET << std::endl;
             
             if (_outputBuffer.empty()) {
                 std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
@@ -379,13 +310,11 @@ int CGIHandler::processScriptOutput() {
                 addSendBuf(_server->getWebServ(), _client->getFd(), defaultResponse);
                 setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
                 cleanupResources();
-                functionStartTime = 0; // Reset for next call
                 return 0;
             } else {
                 std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
                 std::map<std::string, std::string> headerMap = parseHeaders(headerAndBody.first);
                 cleanupResources();
-                functionStartTime = 0; // Reset for next call
                 
                 if (isChunkedTransfer(headerMap))
                     handleChunkedOutput(headerMap, headerAndBody.second);
@@ -395,23 +324,19 @@ int CGIHandler::processScriptOutput() {
             }
         } else {
             std::cerr << getTimeStamp(_client->getFd()) << RED 
-                    << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+                      << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
             sendErrorResponse(*_client, 500, _req);
             cleanupResources();
-            functionStartTime = 0; // Reset for next call
             return 1;
         }
     } else if (result == -1) {
         std::cerr << getTimeStamp(_client->getFd()) << RED 
-                << "Error: waitpid() failed" << RESET << std::endl;
+                  << "Error: waitpid() failed" << RESET << std::endl;
         sendErrorResponse(*_client, 500, _req);
         cleanupResources();
-        functionStartTime = 0; // Reset for next call
         return 1;
     }
     
-    // Process still running, wait a bit and try again
-    usleep(100000);
     return 0;
 }
 
@@ -555,4 +480,5 @@ void CGIHandler::cleanupResources() {
 	_args.clear();
 	_env.clear();
 	_outputBuffer.clear();
+	_startTime = 0;
 }
