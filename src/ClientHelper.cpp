@@ -90,8 +90,13 @@ bool isCGIScript(const std::string& path) {
 }
 
 int buildBody(Client& c, Request &req, std::string fullPath) {
+	if (!tryLockFile(fullPath, c.getFd(), c.getFileIsNew())) {
+		sendErrorResponse(c, 423, req);
+		return 1;
+	}
 	int fd = open(fullPath.c_str(), O_RDONLY);
 	if (fd < 0) {
+		releaseLockFile(fullPath);
 		std::cerr << getTimeStamp(c.getFd()) << RED << "Failed to open file: " << RESET << fullPath << std::endl;
 		sendErrorResponse(c, 500, req);
 		return 1;
@@ -99,6 +104,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	
 	struct stat fileStat;
 	if (fstat(fd, &fileStat) < 0) {
+		releaseLockFile(fullPath);
 		sendErrorResponse(c, 500, req);
 		close(fd);
 		return 1;
@@ -106,6 +112,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	
 	std::vector<char> buffer(fileStat.st_size);
 	ssize_t bytesRead = read(fd, buffer.data(), fileStat.st_size);
+	releaseLockFile(fullPath);
 	if (bytesRead == 0) {
 		close(fd);
 		std::cout << getTimeStamp(c.getFd()) << BLUE << "Nothing to be read in file: " << RESET << fullPath << std::endl;
@@ -229,14 +236,17 @@ std::string decodeChunkedBody(int fd, const std::string& chunkedData) {
 	return decodedBody;
 }
 
-bool endsWith(const std::string& str, const std::string& suffix) {
-	return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
-
-bool tryLockFile(const std::string& path, int timeStampFd) {
+bool tryLockFile(const std::string& path, int timeStampFd, bool& isNew) {
+	int fd = open(path.c_str(), O_CREAT | O_EXCL, 0644);
+	if (fd == -1 && errno == EEXIST)
+		isNew = false;
+	else
+		close(fd);
+	remove(path.c_str());
+	
 	std::string lockPath = path + ".lock";
 
-	int fd = open(lockPath.c_str(), O_CREAT | O_EXCL, 0644);
+	fd = open(lockPath.c_str(), O_CREAT | O_EXCL, 0644);
 	if (fd == -1) {
 		if (errno == EEXIST) {
 			std::cerr << getTimeStamp(timeStampFd) << RED << "Error: File is being used at the moment: " << RESET << path << std::endl;
@@ -252,5 +262,5 @@ bool tryLockFile(const std::string& path, int timeStampFd) {
 
 void releaseLockFile(const std::string& path) {
 	std::string lockPath = path + ".lock";
-	unlink(lockPath.c_str());
+	remove(lockPath.c_str());
 }

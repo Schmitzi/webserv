@@ -161,7 +161,7 @@ bool deleteErrorPages() {
 		if (entryName == "." || entryName == "..")
 			continue;
 		std::string fullPath = path + "/" + entryName;
-		if (unlink(fullPath.c_str()) != 0) {
+		if (remove(fullPath.c_str()) != 0) {
 			closedir(dir);
 			return false;
 		}

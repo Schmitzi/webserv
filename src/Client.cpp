@@ -20,7 +20,7 @@ Client::Client(Server& serv) {
 	_connect = "";
 	_sendOffset = 0;
 	_exitCode = 0;
-	_state = UNTRACKED;
+	_fileIsNew = false;
 }
 
 Client::Client(const Client& client) {
@@ -40,7 +40,7 @@ Client& Client::operator=(const Client& other) {
 		_connect = other._connect;
 		_sendOffset = other._sendOffset;
 		_exitCode = other._exitCode;
-		_state = other._state;
+		_fileIsNew = other._fileIsNew;
 	}
 	return *this;
 }
@@ -79,6 +79,10 @@ std::string Client::getConnect() {
 	return _connect;
 }
 
+bool& Client::getFileIsNew() {
+	return _fileIsNew;
+}
+
 void Client::setConnect(std::string connect) {
 	_connect = connect;
 }
@@ -87,24 +91,18 @@ void Client::setExitCode(int i) {
 	_exitCode = i;
 }
 
-void Client::setState(int e) {
-	if (e < 0 || e > 4)
-		return;
-	_state = e;
-}
-
-int Client::state() {
-	return _state;
+void Client::setFileIsNew(bool x) {
+	_fileIsNew = x;
 }
 
 int Client::acceptConnection(int serverFd) {
+	std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
 	_addrLen = sizeof(_addr);
 	_fd  = accept(serverFd, (struct sockaddr *)&_addr, &_addrLen);
 	if (_fd < 0) {
 		std::cerr << getTimeStamp() << RED << "Error: accept() failed" << RESET << std::endl;
 		return 1;
 	}
-	std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
 	std::cout << getTimeStamp(_fd) << "Client accepted" << std::endl;
 	
 	return 0;
@@ -118,68 +116,66 @@ void Client::displayConnection() {
 }
 
 void Client::recieveData() {
-    static bool printNewLine = false;
-    char buffer[1000000];
-    memset(buffer, 0, sizeof(buffer));
-    
-    ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
-    if (bytesRead < 0) {
-        _exitCode = 1;
-        std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
-        return;
-    }
-    
-    if (bytesRead == 0) {
-        _exitCode = 1;
-        return;
-    }
-    
-    _requestBuffer.append(buffer, bytesRead);
+	static bool printNewLine = false;
+	char buffer[1000000];
+	memset(buffer, 0, sizeof(buffer));
+	
+	ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+	if (bytesRead < 0) {
+		_exitCode = 1;
+		std::cerr << getTimeStamp(_fd) << RED << "Error: recv() failed" << RESET << std::endl;
+		return;
+	}
+	
+	if (bytesRead == 0) {
+		_exitCode = 1;
+		return;
+	}
+	
+	_requestBuffer.append(buffer, bytesRead);
 
-    if (_requestBuffer.find("\r\n\r\n") == std::string::npos && 
-        _requestBuffer.find("\n\n") == std::string::npos) {
-        std::cout << getTimeStamp(_fd) << BLUE 
-                  << "Headers incomplete, waiting for more data" << RESET << std::endl;
-        _exitCode = 0;
-        return;
-    }
+	if (_requestBuffer.find("\r\n\r\n") == std::string::npos && 
+		_requestBuffer.find("\n\n") == std::string::npos) {
+		std::cout << getTimeStamp(_fd) << BLUE 
+				<< "Headers incomplete, waiting for more data" << RESET << std::endl;
+		_exitCode = 0;
+		return;
+	}
 
-    bool isComplete = false;
-    bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
-                      _requestBuffer.find("chunked") != std::string::npos);
-    bool hasContentLength = (_requestBuffer.find("Content-Length:") != std::string::npos);
-    
-    if (isChunked) {
-        isComplete = isChunkedBodyComplete(_requestBuffer);
-    } else if (hasContentLength) {
-        isComplete = (checkLength(_requestBuffer, _fd, printNewLine) == 1);
-    } else {
-        isComplete = true;
-    }
-    
-    if (!isComplete) {
-        //std::cout << getTimeStamp(_fd) << BLUE 
-        //          << "Incomplete request, waiting for more data" << RESET << std::endl;
-        _exitCode = 0;
-        return;
-    }
+	bool isComplete = false;
+	bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
+					_requestBuffer.find("chunked") != std::string::npos);
+	bool hasContentLength = (_requestBuffer.find("Content-Length:") != std::string::npos);
+	
+	if (isChunked) {
+		isComplete = isChunkedBodyComplete(_requestBuffer);
+	} else if (hasContentLength) {
+		isComplete = (checkLength(_requestBuffer, _fd, printNewLine) == 1);
+	} else {
+		isComplete = true;
+	}
+	
+	if (!isComplete) {
+		_exitCode = 0;
+		return;
+	}
 
-    if (printNewLine == true)
-        std::cout << std::endl;
-    std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
-    printNewLine = false;
-    
-    if (_requestBuffer.empty() || _requestBuffer.find("HTTP/") == std::string::npos) {
-        std::cout << getTimeStamp(_fd) << YELLOW << "Empty or invalid request received, closing connection" << RESET << std::endl;
-        _requestBuffer.clear();
-        _exitCode = 1;
-        return;
-    }
-    
-    Request req(_requestBuffer, *this, _fd);
-    _exitCode = processRequest(req);
-    if (_exitCode != 1)
-        _requestBuffer.clear();
+	if (printNewLine == true)
+		std::cout << std::endl;
+	std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
+	printNewLine = false;
+	
+	if (_requestBuffer.empty() || _requestBuffer.find("HTTP/") == std::string::npos) {
+		std::cout << getTimeStamp(_fd) << YELLOW << "Empty or invalid request received, closing connection" << RESET << std::endl;
+		_requestBuffer.clear();
+		_exitCode = 1;
+		return;
+	}
+	
+	Request req(_requestBuffer, *this, _fd);
+	_exitCode = processRequest(req);
+	if (_exitCode != 1)
+		_requestBuffer.clear();
 }
 
 int Client::processRequest(Request& req) {
@@ -232,7 +228,7 @@ int Client::processRequest(Request& req) {
 		sendErrorResponse(*this, 405, req);
 		ret = 1;
 	}
-	_state = DONE;
+	// _state = DONE;
 	return ret;
 }
 
@@ -303,8 +299,7 @@ int Client::handlePostRequest(Request& req) {
 			doQueryStuff(req.getBody(), fileName, contentToWrite);
 		fullPath = matchAndAppendPath(fullPath, fileName);
 	}
-	if (!tryLockFile(fullPath, _fd)) {
-		std::cerr << getTimeStamp(_fd) << RED << "Error: File is being used at the moment: " << RESET << fullPath << std::endl;
+	if (!tryLockFile(fullPath, _fd, _fileIsNew)) {
 		sendErrorResponse(*this, 423, req);
 		return 1;
 	}
@@ -313,8 +308,9 @@ int Client::handlePostRequest(Request& req) {
 		releaseLockFile(fullPath);
 		std::cerr << getTimeStamp(_fd) << RED << "Failed to open file for writing: " << RESET << fullPath << std::endl;
 		sendErrorResponse(*this, 500, req);
-        remove(fullPath.c_str());
-        std::cerr << getTimeStamp(_fd) << RED << "File removed: " + fullPath << "\n" << RESET;
+		if (_fileIsNew == true)
+			remove(fullPath.c_str());
+		std::cerr << getTimeStamp(_fd) << RED << "File removed: " + fullPath << RESET << std::endl;
 		return 1;
 	}
 	
@@ -325,8 +321,9 @@ int Client::handlePostRequest(Request& req) {
 	if (bytesWritten < 0) {
 		std::cerr << getTimeStamp(_fd) << RED << "Error: write() failed" << RESET << std::endl;
 		sendErrorResponse(*this, 500, req);
-        remove(fullPath.c_str());
-        std::cerr << getTimeStamp(_fd) << RED << "File removed: " + fullPath << "\n" << RESET;
+		if (_fileIsNew == true)
+			remove(fullPath.c_str());
+		std::cerr << getTimeStamp(_fd) << RED << "File removed: " + fullPath << RESET << std::endl;
 		close(fd);
 		return 1;
 	}
@@ -336,7 +333,8 @@ int Client::handlePostRequest(Request& req) {
 	
 	if (responseResult < 0) {
 		std::cerr << getTimeStamp(_fd) << RED  << "Failed to send response" << RESET << std::endl;
-		unlink(fullPath.c_str());
+		if (_fileIsNew == true)
+			remove(fullPath.c_str());
 		return 1;
 	}
 	
@@ -363,7 +361,7 @@ int Client::handleDeleteRequest(Request& req) {
 	if (end != std::string::npos)
 		fullPath = fullPath.substr(0, end + 1);
 
-	if (unlink(fullPath.c_str()) != 0) {
+	if (remove(fullPath.c_str()) != 0) {
 		if (errno == ENOENT) {
 			std::cerr << getTimeStamp(_fd) << RED  << "File not found for deletion: " << RESET << fullPath << std::endl;
 			sendErrorResponse(*this, 404, req);
@@ -488,7 +486,6 @@ int Client::handleRegularRequest(Request& req) {
 		contentType = "text/html";
 
 	req.setContentType(contentType);
-
 	sendResponse(*this, req, "close", req.getBody(), 200);
 	std::cout << getTimeStamp(_fd) << GREEN  << "Sent file: " << RESET << fullPath << std::endl;
 	return 0;
@@ -557,7 +554,6 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 				if (buildBody(*this, req, indexPath) == 1)
 					return 1;
 				req.setContentType("text/html");
-				_connect = "keep-alive";
 				sendResponse(*this, req, "keep-alive", req.getBody(), 200);
 				std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served index file: " << RESET << indexPath << std::endl;
 				return 0;
@@ -580,7 +576,6 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 				if (buildBody(*this, req, indexPath) == 1)
 					return 1;
 				req.setContentType("text/html");
-				_connect = "keep-alive";
 				sendResponse(*this, req, "keep-alive", req.getBody(), 200);
 				std::cout << getTimeStamp(_fd) << GREEN  << "Successfully served index file: " << RESET << indexPath << std::endl;
 				return 0;
@@ -691,8 +686,10 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 		return false;
 	}
 	
-	if (!tryLockFile(fullPath, _fd))
+	if (!tryLockFile(fullPath, _fd, _fileIsNew)) {
+		sendErrorResponse(*this, 423, req);
 		return false;
+	}
 
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {

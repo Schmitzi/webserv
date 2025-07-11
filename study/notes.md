@@ -98,7 +98,7 @@ POST: Bad Request: curl -v -X POST -H "Host: abc.com" localhost:8080/hello.txt "
     Fixed: checkReturn() changed to allow zero size requests
 POST: On any error -> delete file     -> DONE?
 
-Long POST: yes | curl -v -X POST -H "Host: abc.com" -H "Content-Type: text/plain" --data @- http://localhost:8080/hello.txt
+Long POST: yes | curl -v -X POST -H "Host: abc.com" -H "Content-Type: text/plain" --data @- http://localhost:8080/upload/hello.txt
 
 Using @- to read from STDIN does not seem to work, closing the FD and sending data isnt working
 
@@ -123,3 +123,10 @@ Double POST: no 407 confict response
 If multipart supportet extract filename from there?
 
 Support POST with no filename
+
+
+-add newlines
+-check if should be deleted DONE
+-check difference between remove and unlink
+-remove clients before goodbye message
+-add "Server disconnected" instead of Client for the actual servers

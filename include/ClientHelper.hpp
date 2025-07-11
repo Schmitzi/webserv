@@ -16,8 +16,7 @@ bool			ensureUploadDirectory(Client& c, Request& req);
 bool			isChunkedRequest(Request& req);
 std::string		getLocationPath(Client& c, Request& req, const std::string& method);
 std::string		decodeChunkedBody(int fd, const std::string& chunkedData);
-bool			endsWith(const std::string& str, const std::string& suffix);
-bool			tryLockFile(const std::string& path, int timeStampFd);
+bool			tryLockFile(const std::string& path, int timeStampFd, bool& isNew);
 void			releaseLockFile(const std::string& path);
 
 #endif

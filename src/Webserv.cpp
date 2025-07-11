@@ -4,6 +4,7 @@
 #include "../include/CGIHandler.hpp"
 #include "../include/Helper.hpp"
 #include "../include/EpollHelper.hpp"
+#include "../include/ClientHelper.hpp"
 
 Webserv::Webserv(std::string config) : _epollFd(-1) {
 	_state = false;
@@ -173,14 +174,21 @@ int Webserv::run() {
 			std::cerr << getTimeStamp() << RED << "Error: epoll_wait() failed" << RESET << std::endl;
 			continue;
 		}
-		
+		// static int one = 0;
 		for (int i = 0; i < nfds; i++) {
+			// if (one < 15)
+			// 	std::cout << GREEN << one << RESET << std::endl;
 			int fd = _events[i].data.fd;
 			uint32_t eventMask = _events[i].events;
 			
 			if (!checkEventMaskErrors(eventMask, fd))
 				continue;
-			
+			// if (one == 0) {
+			// 	if (!tryLockFile("local/upload/hello.txt", 111))
+			// 		std::cout << CYAN << "------------------NOT LOCKED------------------" << RESET << std::endl;
+			// 	else
+			// 		std::cout << MAGENTA << "------------------LOCKED------------------" << RESET << std::endl;
+			// }
 			Server *activeServer = getServerByFd(fd);
 			if (activeServer) {
 				if (eventMask & EPOLLIN)
@@ -192,6 +200,11 @@ int Webserv::run() {
 				if (eventMask & EPOLLOUT)
 					handleEpollOut(fd);
 			}
+			// if (one == 10) {
+			// 	releaseLockFile("local/upload/hello.txt");
+			// 	std::cout << GREEN << "------------------UNLOCKED------------------" << RESET << std::endl;
+			// }
+			// one++;
 		}
 	}
 	return 0;
@@ -252,6 +265,7 @@ void Webserv::handleNewConnection(Server &server) {
 			close(newFd);
 		return;
 	}
+
 	Client newClient(server);
 	
 	if (newClient.acceptConnection(server.getFd()) == 0) {
@@ -294,8 +308,8 @@ void Webserv::handleClientActivity(int clientFd) {
 		close(clientFd);
 		return;
 	}
-	if (client->state() == UNTRACKED)
-		client->setState(RECEIVING);
+	// if (client->state() == UNTRACKED)
+	// 	client->setState(RECEIVING);
 	client->recieveData();
 }
 
@@ -305,11 +319,11 @@ void Webserv::handleEpollOut(int fd) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: no client was found" << RESET << std::endl;
 		return;
 	}
-	if (c->getExitCode() == 2) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: Client is in an invalid state" << RESET << std::endl;
-		handleClientDisconnect(fd);
-		return;
-	}
+	// if (c->getExitCode() == 2) {
+	// 	std::cerr << getTimeStamp(fd) << RED << "Error: Client is in an invalid state" << RESET << std::endl;
+	// 	handleClientDisconnect(fd);
+	// 	return;
+	// }
 	const std::string& toSend = getSendBuf(fd);
 	if (toSend.empty()) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: _sendBuf is empty" << RESET << std::endl;
@@ -333,7 +347,7 @@ void Webserv::handleEpollOut(int fd) {
 		offset = 0;
 		clearSendBuf(*this, fd);
 		if (c->getConnect() == "keep-alive" && c->getExitCode() == 0) {
-			c->setState(RECEIVING);
+			// c->setState(RECEIVING);
 			setEpollEvents(*this, fd, EPOLLIN);
 		}
 		else

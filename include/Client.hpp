@@ -17,13 +17,13 @@ class	Request;
 struct	serverLevel;
 struct	locationLevel;
 
-enum {
-	UNTRACKED,
-	RECEIVING,
-	CHECKING,
-	PROCESSING,
-	DONE
-};
+// enum {
+// 	UNTRACKED,
+// 	RECEIVING,
+// 	CHECKING,
+// 	PROCESSING,
+// 	DONE
+// };
 
 class Client {
 	public:
@@ -41,10 +41,10 @@ class Client {
 		int							getExitCode();
 		std::vector<serverLevel>	getConfigs();
 		std::string					getConnect();
+		bool						&getFileIsNew();
 		void						setConnect(std::string connect);
 		void						setExitCode(int i);
-		void						setState(int e);
-		int							state();
+		void						setFileIsNew(bool x);
 
 		int							acceptConnection(int serverFd);
 		void						displayConnection();
@@ -77,7 +77,7 @@ class Client {
 		size_t						_sendOffset;
 		std::string					_connect;
 		int							_exitCode;
-		int							_state;
+		bool						_fileIsNew;
 };
 
 #endif
