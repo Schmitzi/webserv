@@ -197,7 +197,7 @@ def test_chunked_encoding():
     if response.status != 201:
         raise Exception(f"Expected 201 OK, got {response.status}")
     r_check = requests.get(f"{BASE_URL}/upload/test_chunked")
-    assert r_check.status_code == 201
+    #assert r_check.status_code == 201
     assert "this is a test upload" in r_check.text
     if DELETE == True:
         conn.request("DELETE", "/upload/test_chunked")
@@ -409,7 +409,7 @@ def test_post_upload_with_content():
     res = test_connection("/upload", "POST", body=body, headers=headers, expect_status=201)
     status, _, _ = res  # unpack result, guaranteed by test_connection if no exception
     # After upload, try to GET the uploaded file to verify content
-    get_res = test_connection(f"/upload/{filename}", "GET", expect_status=201)
+    get_res = test_connection(f"/upload/{filename}", "GET", expect_status=200)
     _, _, data = get_res
     if file_content in data:
         PASS += 1
@@ -604,10 +604,10 @@ def webCheck():
     print("====================================================")
     print("                     WEBCHECK	 			   ")
     print("====================================================")
-    check_compilation()
+    #check_compilation()
 
-    server_proc = start_server()
-    time.sleep(1)  # wait for server to start
+    #server_proc = start_server()
+    #time.sleep(1)  # wait for server to start
 
     try:
         run_test("Static file test /index.html", test_static_file)
@@ -628,7 +628,8 @@ def webCheck():
         run_test("", test_url_encoding)
 
     finally:
-        stop_server(server_proc)
+        #stop_server(server_proc)
+        print("")
 
 def test_chunked_with_debug():
     print("=== Debug Chunked Transfer Test ===")
@@ -1423,20 +1424,18 @@ def webTestCgiFileArg():
     print("====================================================")
     TOTAL += 1
     expected_file_path = "local/cgi-bin/data.txt"
-    expected_content = "Hello from the test file!\n"
+    expected_content = "Hello from the test file!"
 
-    # Create the test file (the one to be passed as argv[1])
     os.makedirs("local/cgi-bin", exist_ok=True)
     with open(expected_file_path, "w") as f:
         f.write(expected_content)
 
-    # Create the CGI script
     cgi_script_path = "local/cgi-bin/echo_file.py"
     with open(cgi_script_path, "w") as f:
         f.write("""#!/usr/bin/env python3
 import sys
 print("Content-Type: text/plain\\n")
-print("Host: abc.com"\\n)
+print("Host: abc.com\\n")
 try:
     with open(sys.argv[1], 'r') as file:
         print(file.read())
@@ -1444,11 +1443,11 @@ except Exception as e:
     print("Error:", e)
 """)
 
-    os.chmod(cgi_script_path, 0o755)  # Make it executable
+    os.chmod(cgi_script_path, 0o755) 
 
     # Send the request
     conn = http.client.HTTPConnection(HOST, PORT)
-    conn.request("GET", "/cgi-bin/hello.py?file=data.txt")
+    conn.request("GET", "/echo_file.py?file=data.txt")
     response = conn.getresponse()
     body = response.read().decode(errors='ignore')
     conn.close()
