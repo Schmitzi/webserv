@@ -5,6 +5,7 @@
 #include "../include/Helper.hpp"
 #include "../include/EpollHelper.hpp"
 #include "../include/ClientHelper.hpp"
+#include "../include/Response.hpp"
 
 Webserv::Webserv(std::string config) : _epollFd(-1) {
 	_state = false;
@@ -308,8 +309,6 @@ void Webserv::handleClientActivity(int clientFd) {
 		close(clientFd);
 		return;
 	}
-	// if (client->state() == UNTRACKED)
-	// 	client->setState(RECEIVING);
 	client->recieveData();
 }
 
@@ -319,11 +318,6 @@ void Webserv::handleEpollOut(int fd) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: no client was found" << RESET << std::endl;
 		return;
 	}
-	// if (c->getExitCode() == 2) {
-	// 	std::cerr << getTimeStamp(fd) << RED << "Error: Client is in an invalid state" << RESET << std::endl;
-	// 	handleClientDisconnect(fd);
-	// 	return;
-	// }
 	const std::string& toSend = getSendBuf(fd);
 	if (toSend.empty()) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: _sendBuf is empty" << RESET << std::endl;
@@ -338,7 +332,7 @@ void Webserv::handleEpollOut(int fd) {
 	if (s < 0) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: send() failed" << RESET << std::endl;
 		clearSendBuf(*this, fd);
-		c->setExitCode(1);
+		c->getRequest().statusCode() = 500;
 	}
 
 	offset += static_cast<size_t>(s);
@@ -346,14 +340,14 @@ void Webserv::handleEpollOut(int fd) {
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
-		if (c->getConnect() == "keep-alive" && c->getExitCode() == 0) {
-			// c->setState(RECEIVING);
+		if (c->shouldClose() == true)
+			c->exitErr() = true;
+		else {
+			c->exitErr() = false;
 			setEpollEvents(*this, fd, EPOLLIN);
 		}
-		else
-			c->setExitCode(1);
 	}
-	if (c->getExitCode() != 0)
+	if (c->exitErr() == true)
 		handleClientDisconnect(fd);
 }
 

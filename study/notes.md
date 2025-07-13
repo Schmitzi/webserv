@@ -125,8 +125,22 @@ If multipart supportet extract filename from there?
 Support POST with no filename
 
 
--add newlines
--check if should be deleted DONE
--check difference between remove and unlink
--remove clients before goodbye message
--add "Server disconnected" instead of Client for the actual servers
+X add newlines
+X check if should be deleted
+X check difference between remove and unlink -> remove can delete empty respositories, unlink can not
+	=> changed all to remove
+-> remove clients before goodbye message
+-> add "Server disconnected" instead of Client for the actual servers
+X checkReturn only checks for -1 because of the empty post thing, but if we are not using it for 0 as well
+	should i just get rid of it and check for -1 and 0 manually since we have to check anyway?
+	i just changed the checkReturn function to take the last argument as the error message for 0 if it is given, otherwise defaults to empty and returns true
+-> [started checking] check ALL error codes
+-> should stuff like "error sent" etc. keep being printed before we actually do it (in handleEpollOut)?
+-> [switched but needs to be tested more] HTTP/1.1 will by default set the connection to "keep-alive"
+	only shows the connection for close if:
+	- it was requested to be closed by the Client
+	- we (the server) decide to do so because we have encountered an error or smth thats not implemented
+	- the response has no (valid) content length included and no chunked encoding was used
+-> tried to upload a file (in browser) and check along with what the terminal says:
+	after deleting the file it creates another request to get the same file and tells me its not found
+	(deleted the default GET method from the request constructor..?)

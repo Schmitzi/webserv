@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <unistd.h>
+#include <errno.h>
 
 struct	serverLevel;
 struct	locationLevel;
@@ -11,8 +12,8 @@ class	Request;
 class	Client;
 
 struct HttpErrorFormat {
-	int code;
-	const std::string message;
+	int					code;
+	const std::string	message;
 };
 
 static const HttpErrorFormat httpErrors[] = {
@@ -90,14 +91,35 @@ static const HttpErrorFormat httpErrors[] = {
 };
 
 
+struct FileErrorFormat {
+	int					errnoCode;
+	const std::string	msg;
+};
+
+static const FileErrorFormat fileErrors[] = {
+	{ENOENT, "No such file or directory"},
+	{EACCES, "Permission denied"},
+	{ENOTDIR, "Not a directory"},
+	{EISDIR, "Is a directory"},
+	{ENOSPC, "No space left on device"},
+	// {EEXIST, "File exists"},
+	{ENAMETOOLONG, "File name too long"},
+	{EINVAL, "Invalid argument"},
+	{EIO, "Input/output error"},
+	{EPERM, "Operation not permitted"},
+	{EFAULT, "Bad address"},
+};
+
 bool				matchLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch);
 bool				matchUploadLocation(const std::string&, const serverLevel& serv, locationLevel*& bestMatch);
 const std::string	getStatusMessage(int code);
 void				generateErrorPage(std::string& body, int statusCode, const std::string& statusText);
 std::string			findErrorPage(int statusCode, const std::string& dir, Request& req);
 void				resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req);
-void				sendRedirect(Client& c, int statusCode, const std::string& location);
-ssize_t				sendResponse(Client& c, Request req, std::string connect, std::string body, int code);
-void				sendErrorResponse(Client& c, int statusCode, Request& req);
+void				sendRedirect(Client& c, const std::string& location, Request& req);//, int statusCode = 0);
+ssize_t				sendResponse(Client& c, Request& req, std::string body);//, int code = 0);
+void				sendErrorResponse(Client& c, Request& req);//, int statusCode = 0);
+bool				shouldCloseConnection(Request& req);
+const std::string	fileErrorMessage(int errnoCode, int& statusCode);
 
 #endif

@@ -58,15 +58,15 @@ std::string matchAndAppendPath(const std::string& base, const std::string& add) 
 
 std::string decode(const std::string& encoded) {
     std::string decoded;
-    char hex_buf[3] = {0};
+    char hexBuf[3] = {0};
 
     for (std::string::size_type i = 0; i < encoded.length(); ++i) {
         if (encoded[i] == '%' && i + 2 < encoded.length()) {
-            hex_buf[0] = encoded[i + 1];
-            hex_buf[1] = encoded[i + 2];
+            hexBuf[0] = encoded[i + 1];
+            hexBuf[1] = encoded[i + 2];
 
-            char decoded_char = static_cast<char>(strtol(hex_buf, NULL, 16));
-            decoded += decoded_char;
+            char decodedChar = static_cast<char>(strtol(hexBuf, NULL, 16));
+            decoded += decodedChar;
             i += 2;
         } else if (encoded[i] == '+')
             decoded += ' ';
@@ -114,15 +114,15 @@ std::string getTimeStamp(int fd) {
     return oss.str();
 }
 
-bool checkReturn(int fd, ssize_t r, const std::string& func, const std::string& isZero) {
-	if (r < 0) { // TODO: Changed to < from <= to allow POST with zero size
-		if (r < 0)
-			std::cerr << getTimeStamp(fd) << RED << "Error: " << func << " failed" << RESET << std::endl;
-		else
-			std::cerr << getTimeStamp(fd) << RED << isZero << RESET << std::endl;
+bool checkReturn(int fd, ssize_t r, const std::string& func, std::string errMsgOnZero) {
+	if (r < 0) {
+		std::cerr << getTimeStamp(fd) << RED << "Error: " << func << " failed" << RESET << std::endl;
 		return false;
-	}
-	return true;
+	} else if (r == 0 && errMsgOnZero != "") {
+		std::cerr << getTimeStamp(fd) << RED << errMsgOnZero << RESET << std::endl;
+		return false;
+	} else
+		return true;
 }
 
 void doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent) {

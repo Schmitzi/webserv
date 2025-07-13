@@ -218,8 +218,8 @@ def test_http_0_9():
     print("Unsupported HTTP Version")
     raw = b"GET / HTTP/0.9\r\nHost: localhost\r\n\r\n"
     result = subprocess.run(["nc", HOST, str(PORT)], input=raw, stdout=subprocess.PIPE)
-    if b"HTTP/1.1 400 Bad Request" not in result.stdout:
-        raise Exception("Expected HTTP 400 for HTTP/0.9")
+    if b"HTTP/1.1 505 HTTP Version Not Supported" not in result.stdout:
+        raise Exception("Expected HTTP 505 for HTTP/0.9")
 
 def test_missing_host():
     print("Missing Host Header (HTTP/1.1)")
