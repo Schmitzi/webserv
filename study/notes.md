@@ -144,3 +144,28 @@ X checkReturn only checks for -1 because of the empty post thing, but if we are 
 -> tried to upload a file (in browser) and check along with what the terminal says:
 	after deleting the file it creates another request to get the same file and tells me its not found
 	(deleted the default GET method from the request constructor..?)
+-> host names and header fields must be case insensitive
+-> A server which receives an entity-body with a transfer-coding it does
+   not understand SHOULD return 501 (Unimplemented), and close the
+   connection.
+-> GET request with body-> should ignore body
+-> If a request contains a message-body and a Content-Length is not given,
+   the server SHOULD respond with 400 (bad request) if it cannot determine the length of the message
+-> Messages MUST NOT include both a Content-Length header field and a
+   non-identity transfer-coding. If the message does include a non-
+   identity transfer-coding, the Content-Length MUST be ignored.
+   When a Content-Length is given in a message where a message-body is
+   allowed, its field value MUST exactly match the number of OCTETs in
+   the message-body. HTTP/1.1 user agents MUST notify the user when an
+   invalid length is received and detected.
+-> Note that the absolute path cannot be empty; if none is present in the original URI,
+	it MUST be given as "/" (the server root).
+-> 1. If Request-URI is an absoluteURI, the host is part of the
+     Request-URI. Any Host header field value in the request MUST be
+     ignored.
+   2. If the Request-URI is not an absoluteURI, and the request includes
+     a Host header field, the host is determined by the Host header
+     field value.
+   3. If the host as determined by rule 1 or 2 is not a valid host on
+     the server, the response MUST be a 400 (Bad Request) error message.
+
