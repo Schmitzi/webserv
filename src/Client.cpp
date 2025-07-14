@@ -84,7 +84,7 @@ bool &Client::shouldClose() {
 }
 
 int Client::acceptConnection(int serverFd) {
-	std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
+	std::cout << GREY << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << RESET << std::endl;
 	_addrLen = sizeof(_addr);
 	_fd  = accept(serverFd, (struct sockaddr *)&_addr, &_addrLen);
 	if (_fd < 0) {
@@ -153,13 +153,6 @@ void Client::recieveData() {
 	std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
 	printNewLine = false;
 	
-	if (_requestBuffer.empty() || _requestBuffer.find("HTTP/") == std::string::npos) {
-		std::cout << getTimeStamp(_fd) << YELLOW << "Empty or invalid request received, closing connection" << RESET << std::endl;
-		_requestBuffer.clear();
-		_exitErr = true;
-		return;
-	}
-	
 	Request req(_requestBuffer, *this, _fd);
 	_req = &req;
 	_exitErr = processRequest();
@@ -173,7 +166,6 @@ void Client::recieveData() {
 int Client::processRequest() {
 	serverLevel &conf = _req->getConf();
 	if (_req->getContentLength() > conf.requestLimit) {
-		std::cerr << getTimeStamp(_fd) << RED  << "Content-Length too large" << RESET << std::endl;
 		_req->statusCode() = 413;
 		sendErrorResponse(*this, *_req);
 		_requestBuffer.clear();
@@ -181,7 +173,6 @@ int Client::processRequest() {
 	}
 
 	if (_req->getCheck() == "BAD") {
-		std::cerr << getTimeStamp(_fd) << RED  << "Bad request format " << RESET << std::endl;
 		sendErrorResponse(*this, *_req);
 		_requestBuffer.clear();
 		return 1;
@@ -365,12 +356,10 @@ int Client::handleDeleteRequest() {
 	if (remove(fullPath.c_str()) != 0) {
 		if (errno == ENOENT) {
 			_req->statusCode() = 404;
-			std::cerr << getTimeStamp(_fd) << RED  << "File not found for deletion: " << RESET << fullPath << std::endl;
 			sendErrorResponse(*this, *_req);
 			return 1;
 		} else if (errno == EACCES || errno == EPERM) {
 			_req->statusCode() = 403;
-			std::cerr << getTimeStamp(_fd) << RED  << "Permission denied for deletion: " << RESET << fullPath << std::endl;
 			sendErrorResponse(*this, *_req);
 			return 1;
 		} else {
@@ -473,7 +462,7 @@ int Client::handleRegularRequest() {
 
 	struct stat fileStat;
 	if (stat(fullPath.c_str(), &fileStat) != 0) {
-		std::cerr << getTimeStamp(_fd) << RED << fileErrorMessage(errno, _req->statusCode()) << RESET << std::endl;
+		translateErrorCode(errno, _req->statusCode());
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}

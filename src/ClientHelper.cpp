@@ -106,7 +106,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	
 	struct stat fileStat;
 	if (fstat(fd, &fileStat) < 0) {
-		std::cerr << getTimeStamp(c.getFd()) << RED << fileErrorMessage(errno, req.statusCode()) << RESET << std::endl;
+		translateErrorCode(errno, req.statusCode());
 		releaseLockFile(fullPath);
 		sendErrorResponse(c, req);
 		close(fd);

@@ -215,8 +215,7 @@ void Webserv::handleErrorEvent(int fd) {
 	removeFromEpoll(*this, fd);
 	for (size_t i = 0; i < _clients.size(); i++) {
 		if (_clients[i].getFd() == fd) {
-			std::cerr << getTimeStamp(fd) << RED << "Removing client due to error " << RESET << std::endl;
-			
+			std::cerr << getTimeStamp(fd) << RED << "Removing client due to error" << RESET << std::endl;
 			close(_clients[i].getFd());
 			_clients.erase(_clients.begin() + i);
 			return;
@@ -246,13 +245,13 @@ void Webserv::handleClientDisconnect(int fd) {
 
 	for (size_t i = 0; i < _clients.size(); i++) {
 		if (_clients[i].getFd() == fd) {
-			std::cout << getTimeStamp(fd) << GREEN << "Cleaned up client connection" << RESET << std::endl;
+			std::cout << getTimeStamp(fd) << "Cleaned up and disconnected client" << std::endl;
 			close(_clients[i].getFd());
 			_clients.erase(_clients.begin() + i);
 			return;
 		}
 	}
-	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd: " << fd << RESET << std::endl;
+	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
 void Webserv::handleNewConnection(Server &server) {
@@ -362,7 +361,11 @@ void    Webserv::cleanup() {
 	
 	for (size_t i = 0; i < _clients.size(); ++i) {
 		if (_clients[i].getFd() >= 0) {
-			removeFromEpoll(*this, _clients[i].getFd());
+			if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, _clients[i].getFd(), NULL) == -1) {
+				if (errno != EBADF && errno != ENOENT)
+					std::cerr << getTimeStamp(_clients[i].getFd()) << RED << "Warning: epoll_ctl DEL failed" << RESET << std::endl;
+			}
+			std::cout << getTimeStamp(_clients[i].getFd()) << "Client disconnected" << std::endl;
 			close(_clients[i].getFd());
 		}
 	}
@@ -370,7 +373,11 @@ void    Webserv::cleanup() {
 
 	for (size_t i = 0; i < _servers.size(); i++) {
 		if (_servers[i].getFd() >= 0) {
-			removeFromEpoll(*this, _servers[i].getFd());
+			if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, _servers[i].getFd(), NULL) == -1) {
+				if (errno != EBADF && errno != ENOENT)
+					std::cerr << getTimeStamp(_servers[i].getFd()) << RED << "Warning: epoll_ctl DEL failed" << RESET << std::endl;
+			}
+			std::cout << getTimeStamp(_servers[i].getFd()) << "Server disconnected" << std::endl;
 			close(_servers[i].getFd());
 		}
 	}

@@ -276,7 +276,7 @@ void sendErrorResponse(Client& c, Request& req) {
 	response += "\n"; //added for better netcat output
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-	std::cerr << getTimeStamp(c.getFd()) << RED  << "Error sent: " << req.statusCode() << RESET << std::endl;
+	std::cerr << getTimeStamp(c.getFd()) << RED  << "Error sent: " << req.statusCode() << " " << getStatusMessage(req.statusCode()) << RESET << std::endl;
 }
 
 bool shouldCloseConnection(Request& req) {
@@ -292,23 +292,40 @@ bool shouldCloseConnection(Request& req) {
 	return false;
 }
 
-const std::string fileErrorMessage(int errnoCode, int& statusCode) {
+void translateErrorCode(int errnoCode, int& statusCode) {
 	switch (errnoCode) {
 		case ENOENT:
 			statusCode = 404;
-			return "File not found";
+			return;
 		case EACCES:
 			statusCode = 403;
-			return "Permission denied";
+			return;
+		case ENOTDIR:
+			statusCode = 404;
+			return;
+		case EISDIR:
+			statusCode = 403;
+			return;
 		case ENOSPC:
 			statusCode = 507;
-			return "Insufficient storage space";
-		// case EEXIST:
-			// statusCode = 409;
-			// return "File already exists";
+			return;
+		case ENAMETOOLONG:
+			statusCode = 414;
+			return;
+		case EINVAL:
+			statusCode = 400;
+			return;
+		case EIO:
+			statusCode = 500;
+			return;
+		case EPERM:
+			statusCode = 403;
+			return;
+		case EFAULT:
+			statusCode = 500;
+			return;
 		default:
 			statusCode = 500;
-			// return "Internal server error";
-			return "Error: " + std::string(strerror(errnoCode));
+			return;
 	}
 }

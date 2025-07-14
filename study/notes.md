@@ -125,32 +125,46 @@ If multipart supportet extract filename from there?
 Support POST with no filename
 
 
-X add newlines
-X check if should be deleted
-X check difference between remove and unlink -> remove can delete empty respositories, unlink can not
-	=> changed all to remove
--> remove clients before goodbye message
--> add "Server disconnected" instead of Client for the actual servers
-X checkReturn only checks for -1 because of the empty post thing, but if we are not using it for 0 as well
+<!-- -> add newlines -->
+
+<!-- -> check if should be deleted -->
+
+<!-- -> check difference between remove and unlink -> remove can delete empty respositories, unlink can not
+	=> changed all to remove -->
+
+<!-- -> remove clients before goodbye message -->
+
+<!-- -> add "Server disconnected" instead of Client for the actual servers -->
+
+<!-- -> checkReturn only checks for -1 because of the empty post thing, but if we are not using it for 0 as well
 	should i just get rid of it and check for -1 and 0 manually since we have to check anyway?
-	i just changed the checkReturn function to take the last argument as the error message for 0 if it is given, otherwise defaults to empty and returns true
+	i just changed the checkReturn function to take the last argument as the error message for 0 if it is given, otherwise defaults to empty and returns true -->
+
 -> [started checking] check ALL error codes
+
 -> should stuff like "error sent" etc. keep being printed before we actually do it (in handleEpollOut)?
--> [switched but needs to be tested more] HTTP/1.1 will by default set the connection to "keep-alive"
+
+<!-- -> [switched but needs to be tested more] HTTP/1.1 will by default set the connection to "keep-alive"
 	only shows the connection for close if:
 	- it was requested to be closed by the Client
 	- we (the server) decide to do so because we have encountered an error or smth thats not implemented
-	- the response has no (valid) content length included and no chunked encoding was used
+	- the response has no (valid) content length included and no chunked encoding was used -->
+
 -> tried to upload a file (in browser) and check along with what the terminal says:
 	after deleting the file it creates another request to get the same file and tells me its not found
 	(deleted the default GET method from the request constructor..?)
+
 -> host names and header fields must be case insensitive
+
 -> A server which receives an entity-body with a transfer-coding it does
    not understand SHOULD return 501 (Unimplemented), and close the
    connection.
--> GET request with body-> should ignore body
+
+<!-- -> GET request with body-> should ignore body -->
+
 -> If a request contains a message-body and a Content-Length is not given,
    the server SHOULD respond with 400 (bad request) if it cannot determine the length of the message
+
 -> Messages MUST NOT include both a Content-Length header field and a
    non-identity transfer-coding. If the message does include a non-
    identity transfer-coding, the Content-Length MUST be ignored.
@@ -158,8 +172,10 @@ X checkReturn only checks for -1 because of the empty post thing, but if we are 
    allowed, its field value MUST exactly match the number of OCTETs in
    the message-body. HTTP/1.1 user agents MUST notify the user when an
    invalid length is received and detected.
+
 -> Note that the absolute path cannot be empty; if none is present in the original URI,
 	it MUST be given as "/" (the server root).
+
 -> 1. If Request-URI is an absoluteURI, the host is part of the
      Request-URI. Any Host header field value in the request MUST be
      ignored.

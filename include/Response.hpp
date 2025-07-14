@@ -92,22 +92,21 @@ static const HttpErrorFormat httpErrors[] = {
 
 
 struct FileErrorFormat {
-	int					errnoCode;
-	const std::string	msg;
+	int	errnoCode;
+	int	statusCode;
 };
 
 static const FileErrorFormat fileErrors[] = {
-	{ENOENT, "No such file or directory"},
-	{EACCES, "Permission denied"},
-	{ENOTDIR, "Not a directory"},
-	{EISDIR, "Is a directory"},
-	{ENOSPC, "No space left on device"},
-	// {EEXIST, "File exists"},
-	{ENAMETOOLONG, "File name too long"},
-	{EINVAL, "Invalid argument"},
-	{EIO, "Input/output error"},
-	{EPERM, "Operation not permitted"},
-	{EFAULT, "Bad address"},
+	{ENOENT, 404},
+	{EACCES, 403},
+	{ENOTDIR, 404},
+	{EISDIR, 403},
+	{ENOSPC, 507},
+	{ENAMETOOLONG, 414},
+	{EINVAL, 400},
+	{EIO, 500},
+	{EPERM, 403},
+	{EFAULT, 500},
 };
 
 bool				matchLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch);
@@ -116,10 +115,10 @@ const std::string	getStatusMessage(int code);
 void				generateErrorPage(std::string& body, int statusCode, const std::string& statusText);
 std::string			findErrorPage(int statusCode, const std::string& dir, Request& req);
 void				resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req);
-void				sendRedirect(Client& c, const std::string& location, Request& req);//, int statusCode = 0);
-ssize_t				sendResponse(Client& c, Request& req, std::string body);//, int code = 0);
-void				sendErrorResponse(Client& c, Request& req);//, int statusCode = 0);
+void				sendRedirect(Client& c, const std::string& location, Request& req);
+ssize_t				sendResponse(Client& c, Request& req, std::string body);
+void				sendErrorResponse(Client& c, Request& req);
 bool				shouldCloseConnection(Request& req);
-const std::string	fileErrorMessage(int errnoCode, int& statusCode);
+void				translateErrorCode(int errnoCode, int& statusCode);
 
 #endif
