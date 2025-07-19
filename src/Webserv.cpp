@@ -4,6 +4,8 @@
 #include "../include/CGIHandler.hpp"
 #include "../include/Helper.hpp"
 #include "../include/EpollHelper.hpp"
+#include "../include/ClientHelper.hpp"
+#include "../include/Response.hpp"
 
 Webserv::Webserv(std::string config) : _epollFd(-1) {
 	_state = false;
@@ -173,14 +175,21 @@ int Webserv::run() {
 			std::cerr << getTimeStamp() << RED << "Error: epoll_wait() failed" << RESET << std::endl;
 			continue;
 		}
-		
+		// static int one = 0;
 		for (int i = 0; i < nfds; i++) {
+			// if (one < 15)
+			// 	std::cout << GREEN << one << RESET << std::endl;
 			int fd = _events[i].data.fd;
 			uint32_t eventMask = _events[i].events;
 			
 			if (!checkEventMaskErrors(eventMask, fd))
 				continue;
-			
+			// if (one == 0) {
+			// 	if (!tryLockFile("local/upload/hello.txt", 111))
+			// 		std::cout << CYAN << "------------------NOT LOCKED------------------" << RESET << std::endl;
+			// 	else
+			// 		std::cout << MAGENTA << "------------------LOCKED------------------" << RESET << std::endl;
+			// }
 			Server *activeServer = getServerByFd(fd);
 			if (activeServer) {
 				if (eventMask & EPOLLIN)
@@ -192,6 +201,11 @@ int Webserv::run() {
 				if (eventMask & EPOLLOUT)
 					handleEpollOut(fd);
 			}
+			// if (one == 10) {
+			// 	releaseLockFile("local/upload/hello.txt");
+			// 	std::cout << GREEN << "------------------UNLOCKED------------------" << RESET << std::endl;
+			// }
+			// one++;
 		}
 	}
 	return 0;
@@ -201,8 +215,7 @@ void Webserv::handleErrorEvent(int fd) {
 	removeFromEpoll(*this, fd);
 	for (size_t i = 0; i < _clients.size(); i++) {
 		if (_clients[i].getFd() == fd) {
-			std::cerr << getTimeStamp(fd) << RED << "Removing client due to error " << RESET << std::endl;
-			
+			std::cerr << getTimeStamp(fd) << RED << "Removing client due to error" << RESET << std::endl;
 			close(_clients[i].getFd());
 			_clients.erase(_clients.begin() + i);
 			return;
@@ -232,13 +245,13 @@ void Webserv::handleClientDisconnect(int fd) {
 
 	for (size_t i = 0; i < _clients.size(); i++) {
 		if (_clients[i].getFd() == fd) {
-			std::cout << getTimeStamp(fd) << GREEN << "Cleaned up client connection" << RESET << std::endl;
+			std::cout << getTimeStamp(fd) << "Cleaned up and disconnected client" << std::endl;
 			close(_clients[i].getFd());
 			_clients.erase(_clients.begin() + i);
 			return;
 		}
 	}
-	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd: " << fd << RESET << std::endl;
+	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
 void Webserv::handleNewConnection(Server &server) {
@@ -252,6 +265,7 @@ void Webserv::handleNewConnection(Server &server) {
 			close(newFd);
 		return;
 	}
+
 	Client newClient(server);
 	
 	if (newClient.acceptConnection(server.getFd()) == 0) {
@@ -303,7 +317,6 @@ void Webserv::handleEpollOut(int fd) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: no client was found" << RESET << std::endl;
 		return;
 	}
-
 	const std::string& toSend = getSendBuf(fd);
 	if (toSend.empty()) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: _sendBuf is empty" << RESET << std::endl;
@@ -318,7 +331,7 @@ void Webserv::handleEpollOut(int fd) {
 	if (s < 0) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: send() failed" << RESET << std::endl;
 		clearSendBuf(*this, fd);
-		c->setExitCode(1);
+		c->getRequest().statusCode() = 500;
 	}
 
 	offset += static_cast<size_t>(s);
@@ -326,9 +339,14 @@ void Webserv::handleEpollOut(int fd) {
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
-		c->setExitCode(1);
+		if (c->shouldClose() == true)
+			c->exitErr() = true;
+		else {
+			c->exitErr() = false;
+			setEpollEvents(*this, fd, EPOLLIN);
+		}
 	}
-	if (c->getExitCode() != 0)
+	if (c->exitErr() == true)
 		handleClientDisconnect(fd);
 }
 
@@ -343,7 +361,11 @@ void    Webserv::cleanup() {
 	
 	for (size_t i = 0; i < _clients.size(); ++i) {
 		if (_clients[i].getFd() >= 0) {
-			removeFromEpoll(*this, _clients[i].getFd());
+			if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, _clients[i].getFd(), NULL) == -1) {
+				if (errno != EBADF && errno != ENOENT)
+					std::cerr << getTimeStamp(_clients[i].getFd()) << RED << "Warning: epoll_ctl DEL failed" << RESET << std::endl;
+			}
+			std::cout << getTimeStamp(_clients[i].getFd()) << "Client disconnected" << std::endl;
 			close(_clients[i].getFd());
 		}
 	}
@@ -351,7 +373,11 @@ void    Webserv::cleanup() {
 
 	for (size_t i = 0; i < _servers.size(); i++) {
 		if (_servers[i].getFd() >= 0) {
-			removeFromEpoll(*this, _servers[i].getFd());
+			if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, _servers[i].getFd(), NULL) == -1) {
+				if (errno != EBADF && errno != ENOENT)
+					std::cerr << getTimeStamp(_servers[i].getFd()) << RED << "Warning: epoll_ctl DEL failed" << RESET << std::endl;
+			}
+			std::cout << getTimeStamp(_servers[i].getFd()) << "Server disconnected" << std::endl;
 			close(_servers[i].getFd());
 		}
 	}

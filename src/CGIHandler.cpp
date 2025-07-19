@@ -6,6 +6,7 @@
 #include "../include/Webserv.hpp"
 #include "../include/Response.hpp"
 #include "../include/EpollHelper.hpp"
+#include "../include/Response.hpp"
 
 CGIHandler::CGIHandler(Client *client) {
 	_client = client ? client : NULL;
@@ -19,7 +20,7 @@ CGIHandler::CGIHandler(Client *client) {
 	_path = "";
 	_outputBuffer = "";
 	_pid = -1;
-    _startTime = 0;
+	_startTime = 0;
 }
 
 CGIHandler::CGIHandler(const CGIHandler& copy) {
@@ -42,7 +43,7 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 		_outputBuffer = copy._outputBuffer;
 		_pid = copy._pid;
 		_req = copy._req;
-        _startTime = copy._startTime;
+		_startTime = copy._startTime;
 	}
 	return *this;
 }
@@ -86,8 +87,9 @@ int CGIHandler::executeCGI(Request &req) {
 		return 1;
 	_pid = fork();
 	if (_pid < 0) {
+		_req.statusCode() = 500;
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: fork() failed" << RESET << std::endl;
-		sendErrorResponse(*_client, 500, _req);
+		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
 	}
@@ -98,20 +100,23 @@ int CGIHandler::executeCGI(Request &req) {
 
 int CGIHandler::doChecks() {
 	if (access(_path.c_str(), F_OK) != 0) {
+		_req.statusCode() = 404;
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Script does not exist: " << RESET << _path << std::endl;
-		sendErrorResponse(*_client, 404, _req);
+		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (access(_path.c_str(), X_OK) != 0) {
+		_req.statusCode() = 403;
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Script is not executable: " << RESET << _path << std::endl;
-		sendErrorResponse(*_client, 403, _req);
+		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (pipe(_input) < 0 || pipe(_output) < 0) {
+		_req.statusCode() = 500;
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: pipe() failed" << RESET << std::endl;
-		sendErrorResponse(*_client, 500, _req);
+		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
@@ -188,7 +193,7 @@ int CGIHandler::prepareEnv() {
 		it != headers.end(); ++it) {
 		std::string envName = "HTTP_" + it->first;
 		// Convert to uppercase and replace - with _
-		std::transform(envName.begin(), envName.end(), envName.begin(), ::toupper);//TODO: not c++98?
+		std::transform(envName.begin(), envName.end(), envName.begin(), ::toupper);
 		std::replace(envName.begin(), envName.end(), '-', '_');
 		_env.push_back(envName + "=" + it->second);
 	}
@@ -212,6 +217,7 @@ int CGIHandler::doChild() {
 	close(_output[0]);
 	
 	if (dup2(_input[0], STDIN_FILENO) < 0 || dup2(_output[1], STDOUT_FILENO) < 0) {
+		_req.statusCode() = 500;
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: dup2() failed" << RESET << std::endl;
 		cleanupResources();
 		return 1;
@@ -220,7 +226,7 @@ int CGIHandler::doChild() {
 	close(_output[1]);
 	
 	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
-	
+	_req.statusCode() = 500;
 	std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: execve() failed" << RESET << std::endl;
 	cleanupResources();
 	return 1;
@@ -241,10 +247,11 @@ int CGIHandler::doParent() {
 
 	if (!_req.getBody().empty()) {
 		ssize_t w = write(_input[1], _req.getBody().c_str(), _req.getBody().length());
-		if (!checkReturn(_client->getFd(), w, "write()", "Nothing was written into _input[1]")) {
+		if (!checkReturn(_client->getFd(), w, "write()")) {
 			close(_input[1]);
 			_input[1] = -1;
-			sendErrorResponse(*_client, 500, _req);
+			_req.statusCode() = 500;
+			sendErrorResponse(*_client, _req);
 			cleanupResources();
 			return 1;
 		}
@@ -253,8 +260,9 @@ int CGIHandler::doParent() {
 	_input[1] = -1;
 
 	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN) != 0) {
+		_req.statusCode() = 500;
 		std::cerr << getTimeStamp(_client->getFd()) << RED << "Failed to add CGI pipe to epoll" << RESET << std::endl;
-		sendErrorResponse(*_client, 500, _req);
+		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
 	}
@@ -262,82 +270,88 @@ int CGIHandler::doParent() {
 }
 
 int CGIHandler::processScriptOutput() {
-    static const int TIMEOUT_SECONDS = 14;
-    
-    if (_startTime == 0) {
-        _startTime = time(NULL);
-    }
-    
-    char buffer[4096];
-    int status;
-    size_t maxSize = _outputBuffer.max_size();
-    ssize_t bytesRead = -1;
-    
-    time_t elapsedTime = time(NULL) - _startTime;
-    if (elapsedTime > TIMEOUT_SECONDS) {
-        std::cerr << getTimeStamp(_client->getFd()) << RED 
-                  << "CGI timeout after " << elapsedTime 
-                  << " seconds, killing process" << RESET << std::endl;
-        cleanupResources();
-        if (_pid >= 0)
-            kill(_pid, SIGKILL);
-        sendErrorResponse(*_client, 504, _req);
-        return 1;
-    }
-    
-    if (_outputBuffer.size() < maxSize) {
-        bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
-        if (bytesRead > 0) {
-            buffer[bytesRead] = '\0';
-            _outputBuffer.append(buffer, bytesRead);
-            return 0;
-        }
-    }
-    
-    pid_t result = waitpid(_pid, &status, WNOHANG);
-    if (result == _pid) {
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            std::cout << getTimeStamp(_client->getFd()) << GREEN 
-                      << "CGI Script completed successfully after " 
-                      << elapsedTime << " seconds" << RESET << std::endl;
-            
-            if (_outputBuffer.empty()) {
-                std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
-                defaultResponse += "Content-Type: text/plain\r\n";
-                defaultResponse += "Content-Length: 22\r\n\r\n";
-                defaultResponse += "No output from script\n";
-                
-                addSendBuf(_server->getWebServ(), _client->getFd(), defaultResponse);
-                setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
-                cleanupResources();
-                return 0;
-            } else {
-                std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
-                std::map<std::string, std::string> headerMap = parseHeaders(headerAndBody.first);
-                cleanupResources();
-                
-                if (isChunkedTransfer(headerMap))
-                    handleChunkedOutput(headerMap, headerAndBody.second);
-                else
-                    handleStandardOutput(headerMap, headerAndBody.second);
-                return 1;
-            }
-        } else {
-            std::cerr << getTimeStamp(_client->getFd()) << RED 
-                      << "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
-            sendErrorResponse(*_client, 500, _req);
-            cleanupResources();
-            return 1;
-        }
-    } else if (result == -1) {
-        std::cerr << getTimeStamp(_client->getFd()) << RED 
-                  << "Error: waitpid() failed" << RESET << std::endl;
-        sendErrorResponse(*_client, 500, _req);
-        cleanupResources();
-        return 1;
-    }
-    
-    return 0;
+	static const int TIMEOUT_SECONDS = 14;
+	char buffer[4096];
+	int status;
+	size_t maxSize = _outputBuffer.max_size();
+	ssize_t bytesRead = -1;
+	
+	if (_startTime == 0)
+		_startTime = time(NULL);
+	time_t elapsedTime = time(NULL) - _startTime;
+	
+	if (elapsedTime > TIMEOUT_SECONDS) {
+		std::cerr << getTimeStamp(_client->getFd()) << RED 
+				<< "CGI timeout after " << elapsedTime 
+				<< " seconds, killing process" << RESET << std::endl;
+		cleanupResources();
+		if (_pid >= 0)
+			kill(_pid, SIGKILL);
+		_req.statusCode() = 504;
+		sendErrorResponse(*_client, _req);
+		return 1;
+	}
+	
+	if (_outputBuffer.size() < maxSize) {
+		bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
+		if (!checkReturn(_client->getFd(), bytesRead, "read()")) {
+			cleanupResources();
+			if (_pid >= 0)
+				kill(_pid, SIGKILL);
+			_req.statusCode() = 500;
+			sendErrorResponse(*_client, _req);
+			return 1;
+		} else if (bytesRead > 0){
+			buffer[bytesRead] = '\0';
+			_outputBuffer.append(buffer, bytesRead);
+			return 0;
+		}
+	}
+	pid_t result = waitpid(_pid, &status, WNOHANG);
+	if (result == _pid) {
+		if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+			std::cout << getTimeStamp(_client->getFd()) << GREEN 
+					<< "CGI Script completed successfully after " 
+					<< elapsedTime << " seconds" << RESET << std::endl;
+			
+			if (_outputBuffer.empty()) {
+				std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
+				defaultResponse += "Content-Type: text/plain\r\n";
+				defaultResponse += "Content-Length: 22\r\n\r\n";
+				defaultResponse += "No output from script\n";
+				defaultResponse += "\n"; //added for better netcat output
+				addSendBuf(_server->getWebServ(), _client->getFd(), defaultResponse);
+				setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
+				cleanupResources();
+				return 0;
+			} else {
+				std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
+				std::map<std::string, std::string> headerMap = parseHeaders(headerAndBody.first);
+				cleanupResources();
+				if (isChunkedTransfer(headerMap))
+					handleChunkedOutput(headerMap, headerAndBody.second);
+				else
+					handleStandardOutput(headerMap, headerAndBody.second);
+				return 1;
+			}
+		} else {
+			std::cerr << getTimeStamp(_client->getFd()) << RED 
+					<< "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+			_req.statusCode() = 500;
+			sendErrorResponse(*_client, _req);
+			cleanupResources();
+			return 1;
+		}
+	} else if (result == -1) {
+		std::cerr << getTimeStamp(_client->getFd()) << RED 
+				<< "Error: waitpid() failed" << RESET << std::endl;
+		_req.statusCode() = 500;
+		sendErrorResponse(*_client, _req);
+		cleanupResources();
+		return 1;
+	}
+	usleep(100000);
+	return 0;
 }
 
 bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& headers) {
@@ -363,11 +377,12 @@ int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& h
 	
 	response += "Content-Length: " + tostring(initialBody.length()) + "\r\n";
 	response += "Server: WebServ/1.0\r\n";
-	response += "Connection: close\r\n";
+	if (shouldCloseConnection(_req))
+		response += "Connection: close\r\n";
 	response += "\r\n";
 	response += initialBody;
+	response += "\n"; //added for better netcat output
 	
-	_client->setConnect("close");
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
 	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);    
 	return 0;
@@ -384,10 +399,11 @@ int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& he
 	if (headerMap.find("Transfer-Encoding") == headerMap.end())
 		response += "Transfer-Encoding: chunked\r\n";
 	
-	response += "Connection: keep-alive\r\n";
+	if (shouldCloseConnection(_req))
+		response += "Connection: close\r\n";
 	response += "\r\n";
-	_client->setConnect("keep-alive");
 	response += formatChunkedResponse(initialBody);
+	response += "\n"; //added for better netcat output
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
 	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
 	return 0;
@@ -475,6 +491,7 @@ void CGIHandler::cleanupResources() {
 			unregisterCgiPipe(_server->getWebServ(), _output[0]);
 		close(_output[0]);
 		_output[0] = -1;
+		std::cout << getTimeStamp(_client->getFd()) << "Cleaned up and disconnected CGI" << std::endl;
 	}
 	_path.clear();
 	_args.clear();

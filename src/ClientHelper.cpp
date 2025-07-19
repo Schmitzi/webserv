@@ -90,36 +90,43 @@ bool isCGIScript(const std::string& path) {
 }
 
 int buildBody(Client& c, Request &req, std::string fullPath) {
+	if (!tryLockFile(fullPath, c.getFd(), c.fileIsNew())) {
+		req.statusCode() = 423;
+		sendErrorResponse(c, req);
+		return 1;
+	}
 	int fd = open(fullPath.c_str(), O_RDONLY);
 	if (fd < 0) {
+		releaseLockFile(fullPath);
+		req.statusCode() = 500;
 		std::cerr << getTimeStamp(c.getFd()) << RED << "Failed to open file: " << RESET << fullPath << std::endl;
-		sendErrorResponse(c, 500, req);
+		sendErrorResponse(c, req);
 		return 1;
 	}
 	
 	struct stat fileStat;
 	if (fstat(fd, &fileStat) < 0) {
-		sendErrorResponse(c, 500, req);
+		translateErrorCode(errno, req.statusCode());
+		releaseLockFile(fullPath);
+		sendErrorResponse(c, req);
 		close(fd);
 		return 1;
 	}
 	
 	std::vector<char> buffer(fileStat.st_size);
 	ssize_t bytesRead = read(fd, buffer.data(), fileStat.st_size);
-	if (bytesRead == 0) {
-		close(fd);
-		std::cout << getTimeStamp(c.getFd()) << BLUE << "Nothing to be read in file: " << RESET << fullPath << std::endl;
+	close(fd);
+	releaseLockFile(fullPath);
+	if (bytesRead == 0)
 		return 0;
-	}
 	else if (bytesRead < 0) {
 		std::cerr << getTimeStamp(c.getFd()) << RED << "Error: read() failed on file: " << RESET << fullPath << std::endl;
-		sendErrorResponse(c, 500, req);
-		close(fd);
+		req.statusCode() = 500;
+		sendErrorResponse(c, req);
 		return 1;
 	}
 	std::string fileContent(buffer.data(), bytesRead);
 	req.setBody(fileContent);
-	close(fd);
 	return 0;
 }
 
@@ -127,6 +134,7 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 	struct stat st;
 	std::string uploadDir = c.getServer().getUploadDir(c, req);
 	if (stat(uploadDir.c_str(), &st) != 0) {
+		req.statusCode() = 500;
 		if (mkdir(uploadDir.c_str(), 0755) != 0) {
 			std::cerr << getTimeStamp(c.getFd()) << RED << "Error: Failed to create upload directory" << RESET << std::endl;
 			return false;
@@ -146,27 +154,31 @@ bool isChunkedRequest(Request& req) {
 std::string getLocationPath(Client& c, Request& req, const std::string& method) {	
 	locationLevel* loc = NULL;
 	if (req.getPath().empty()) {
+		req.statusCode() = 400;
 		std::cerr << getTimeStamp(c.getFd()) << RED << "Request path is empty for " << method << " request" << RESET << std::endl;
-		sendErrorResponse(c, 400, req);
+		sendErrorResponse(c, req);
 		return "";
 	}
 	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
+		req.statusCode() = 404;
 		std::cerr << getTimeStamp(c.getFd()) << RED << "Location not found for " << method << " request: " << RESET << req.getPath() << std::endl;
-		sendErrorResponse(c, 404, req);
+		sendErrorResponse(c, req);
 		return "";
 	}
 	for (size_t i = 0; i < loc->methods.size(); i++) {
 		if (loc->methods[i] == method)
 			break;
 		if (i == loc->methods.size() - 1) {
+			req.statusCode() = 405;
 			std::cerr << getTimeStamp(c.getFd()) << RED << "Method not allowed for " << method << " request: " << RESET << req.getPath() << std::endl;
-			sendErrorResponse(c, 405, req);
+			sendErrorResponse(c, req);
 			return "";
 		}
 	}
 	if (loc->uploadDirPath.empty()) {
+		req.statusCode() = 403;
 		std::cerr << getTimeStamp(c.getFd()) << RED << "Upload directory not set for " << method << " request: " << RESET << req.getPath() << std::endl;
-		sendErrorResponse(c, 403, req);
+		sendErrorResponse(c, req);
 		return "";
 	}
 	std::string fullPath = matchAndAppendPath(loc->rootLoc, loc->uploadDirPath);
@@ -227,4 +239,34 @@ std::string decodeChunkedBody(int fd, const std::string& chunkedData) {
 			<< decodedBody << "\" (" << decodedBody.length() << " bytes)" << std::endl;
 	
 	return decodedBody;
+}
+
+bool tryLockFile(const std::string& path, int timeStampFd, bool& isNew) {
+	int fd = open(path.c_str(), O_CREAT | O_EXCL, 0644);
+	if (fd == -1 && errno == EEXIST)
+		isNew = false;
+	else {
+		isNew = true;
+		close(fd);
+		remove(path.c_str());
+	}
+	
+	std::string lockPath = path + ".lock";
+	fd = open(lockPath.c_str(), O_CREAT | O_EXCL, 0644);
+	if (fd == -1) {
+		if (errno == EEXIST) {
+			std::cerr << getTimeStamp(timeStampFd) << RED << "Error: File is being used at the moment: " << RESET << path << std::endl;
+			return false;
+		} else {
+			std::cerr << getTimeStamp(timeStampFd) << RED << "Error: creating lock file failed" << RESET << std::endl;
+			return false;
+		}
+	}
+	close(fd);
+	return true;
+}
+
+void releaseLockFile(const std::string& path) {
+	std::string lockPath = path + ".lock";
+	remove(lockPath.c_str());
 }

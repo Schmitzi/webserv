@@ -92,7 +92,7 @@ void generateErrorPage(std::string& body, int statusCode, const std::string& sta
 			"<div class=\"container\">\n"
 			"  <h1>Error " + tostring(statusCode) + " - " + statusText + "</h1>\n"
 			"  <p>The server cannot process your request.</p>\n"
-			"  <p><a href = \"/\">Return to homepage</a></p>\n" // TODO: This returns to index, but only from one level up (i.e cgi-bin) 
+			"  <p><a href = \"/\">Return to homepage</a></p>\n"
 			"  <div class=\"server-info\">\n"
 			"    <p>WebServ/1.0</p>\n"
 			"  </div>\n"
@@ -153,36 +153,36 @@ void resolveErrorResponse(int statusCode, std::string& statusText, std::string& 
 	}
 }
 
-void sendRedirect(Client& c, int statusCode, const std::string& location) {
-	std::string statusText = getStatusMessage(statusCode);
+void sendRedirect(Client& c, const std::string& location, Request& req) {
+	std::string statusText = getStatusMessage(req.statusCode());
 	
 	std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
 	body += "<body><h1>" + statusText + "</h1>";
 	body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
 	
-	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+	std::string response = "HTTP/1.1 " + tostring(req.statusCode()) + " " + statusText + "\r\n";
 	response += "Location: " + location + "\r\n";
 	response += "Content-Type: text/html\r\n";
 	response += "Content-Length: " + tostring(body.length()) + "\r\n";
 	response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
 	response += "Pragma: no-cache\r\n";
-	response += "Connection: close\r\n";
+	if (shouldCloseConnection(req))
+		response += "Connection: close\r\n";
 	response += "\r\n";
 	response += body;
-	c.setConnect("close");
+	response += "\n"; //added for better netcat output
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
 	std::cout << getTimeStamp(c.getFd()) << BLUE << "Sent redirect response: " << RESET
-			<< statusCode << " " << statusText << " to " << location << std::endl;
+			<< req.statusCode() << " " << statusText << " to " << location << std::endl;
 }
 
-ssize_t sendResponse(Client& c, Request req, std::string connect, std::string body, int code) {
-	c.setConnect(connect);
+ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	if (c.getFd() <= 0) {
 		std::cerr << getTimeStamp(c.getFd()) << RED << "Invalid fd in sendResponse" << RESET << std::endl;
 		return -1;
 	}
-	std::string response = "HTTP/1.1 " + tostring(code) + " OK\r\n";
+	std::string response = "HTTP/1.1 " + tostring(req.statusCode()) + " OK\r\n";
 	
 	std::map<std::string, std::string> headers = req.getHeaders();
 	bool isChunked = false;
@@ -203,7 +203,9 @@ ssize_t sendResponse(Client& c, Request req, std::string connect, std::string bo
 		response += "Transfer-Encoding: chunked\r\n";
 	
 	response += "Server: WebServ/1.0\r\n";
-	response += "Connection: " + connect + "\r\n";
+	
+	if (shouldCloseConnection(req))
+		response += "Connection: close\r\n";
 	response += "Access-Control-Allow-Origin: *\r\n";
 	response += "\r\n";
 	
@@ -213,7 +215,6 @@ ssize_t sendResponse(Client& c, Request req, std::string connect, std::string bo
 	}
 	
 	addSendBuf(c.getWebserv(), c.getFd(), response);
-	
 	if (!content.empty()) {
 		if (isChunked) {
 			const size_t chunkSize = 4096;
@@ -241,41 +242,90 @@ ssize_t sendResponse(Client& c, Request req, std::string connect, std::string bo
 			addSendBuf(c.getWebserv(), c.getFd(), s2);
 			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
 			std::cout << getTimeStamp(c.getFd()) << GREEN  << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
-			return content.length();
+			return 0;
 		} else {
+			content += "\n"; //added for better netcat output
 			addSendBuf(c.getWebserv(), c.getFd(), content);
 			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-			return content.length();
+			return 0;
 		}
 	} else {
+		addSendBuf(c.getWebserv(), c.getFd(), "\n"); //added for better netcat output
 		setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
 		std::cout << getTimeStamp(c.getFd()) << GREEN  << "Response sent (headers only)" << RESET << std::endl;
 		return 0;
 	}
 }
 
-void sendErrorResponse(Client& c, int statusCode, Request& req) {
+void sendErrorResponse(Client& c, Request& req) {
 	std::string body;
-	std::string statusText = getStatusMessage(statusCode);
+	std::string statusText = getStatusMessage(req.statusCode());
 	
-	resolveErrorResponse(statusCode, statusText, body, req);    
+	resolveErrorResponse(req.statusCode(), statusText, body, req);    
 
-	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+	std::string response = "HTTP/1.1 " + tostring(req.statusCode()) + " " + statusText + "\r\n";
 	response += "Content-Type: text/html\r\n";
 	response += "Content-Length: " + tostring(body.size()) + "\r\n";
 	response += "Server: WebServ/1.0\r\n";
 	response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
 	response += "Pragma: no-cache\r\n";
-	if (statusCode == 413) {
-		c.setConnect("keep-alive");
-		response += "Connection: keep-alive\r\n";
-	} else {
-		c.setConnect("close");
+	if (shouldCloseConnection(req))
 		response += "Connection: close\r\n";
-	}
 	response += "\r\n";
 	response += body;
+	response += "\n"; //added for better netcat output
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-	std::cerr << getTimeStamp(c.getFd()) << RED  << "Error sent: " << statusCode << RESET << std::endl;
+	std::cerr << getTimeStamp(c.getFd()) << RED  << "Error sent: " << req.statusCode() << " " << getStatusMessage(req.statusCode()) << RESET << std::endl;
+}
+
+bool shouldCloseConnection(Request& req) {
+	std::map<std::string, std::string>::iterator it = req.getHeaders().find("Connection");
+	if (it != req.getHeaders().end() && it->second == "close")
+		return true;
+	if (req.statusCode() == 400 || req.statusCode() == 411 || (req.statusCode() >= 500 && req.statusCode() != 501))
+		return true;
+	if (req.statusCode() == 413)
+		return false;
+	if (!req.hasLengthOrIsChunked() == true)
+		return true;
+	return false;
+}
+
+void translateErrorCode(int errnoCode, int& statusCode) {
+	switch (errnoCode) {
+		case ENOENT:
+			statusCode = 404;
+			return;
+		case EACCES:
+			statusCode = 403;
+			return;
+		case ENOTDIR:
+			statusCode = 404;
+			return;
+		case EISDIR:
+			statusCode = 403;
+			return;
+		case ENOSPC:
+			statusCode = 507;
+			return;
+		case ENAMETOOLONG:
+			statusCode = 414;
+			return;
+		case EINVAL:
+			statusCode = 400;
+			return;
+		case EIO:
+			statusCode = 500;
+			return;
+		case EPERM:
+			statusCode = 403;
+			return;
+		case EFAULT:
+			statusCode = 500;
+			return;
+		default:
+			statusCode = 500;
+			return;
+	}
 }

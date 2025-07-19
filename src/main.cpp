@@ -6,12 +6,11 @@ Webserv* g_webserv;
 void signalHandler(int signal) {
 	if (signal == SIGINT || signal == SIGTERM) {
 		std::cout << "\r" << std::string(80, ' ') << "\r" << std::flush;
-		std::cout << "Received signal, shutting down...\n";
+		std::cout << CYAN << "________________Received signal, cleaning up...________________" << RESET << std::endl;
 
 		if (!deleteErrorPages())
 			std::cerr << getTimeStamp() << RED << "Failed to delete error pages directory" << RESET << std::endl;
-	
-		std::cout << "Goodbye!" << std::endl;
+
 		g_webserv->flipState();
 	}
 }
@@ -42,5 +41,6 @@ int main(int ac, char **av, char **envp) {
 	} catch (const std::exception& e) {
 		std::cerr << "Exception: " << e.what() << std::endl;
 	}
+	std::cout << CYAN << "-------------------------Goodbye!-------------------------" << RESET << std::endl;
 	return 0;
 }

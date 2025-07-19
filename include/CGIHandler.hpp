@@ -56,7 +56,7 @@ class CGIHandler {
 		std::string								_outputBuffer;
 		pid_t									_pid;
 		Request									_req;
-        time_t                                  _startTime;
+		time_t									_startTime;
 };
 
 #endif
