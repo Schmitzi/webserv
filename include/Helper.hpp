@@ -15,6 +15,8 @@ struct	serverLevel;
 std::string					tostring(int nbr);
 std::vector<std::string>	split(const std::string& s);
 std::vector<std::string>	splitBy(const std::string& str, char div);
+size_t						iFind(const std::string& haystack, const std::string& needle);
+bool						iEqual(const std::string& a, const std::string& b);
 std::string					matchAndAppendPath(const std::string& fullPath, const std::string& reqPath);
 std::string					decode(const std::string& encoded);
 std::string					encode(const std::string& decoded);

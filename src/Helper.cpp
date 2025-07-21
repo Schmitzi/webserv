@@ -29,6 +29,35 @@ std::vector<std::string> splitBy(const std::string& str, char div) {
 	return ret;
 }
 
+size_t iFind(const std::string& haystack, const std::string& needle) {
+	if (needle.empty())
+		return 0;
+	if (needle.size() > haystack.size())
+		return std::string::npos;
+	for (size_t i = 0; i <= haystack.size() - needle.size(); i++) {
+		bool match = true;
+		for (size_t j = 0; j < needle.size(); j++) {
+			if (std::tolower(haystack[i + j]) != std::tolower(needle[j])) {
+				match = false;
+				break;
+			}
+		}
+		if (match)
+			return i;
+	}
+	return std::string::npos;
+}
+
+bool iEqual(const std::string& a, const std::string& b) {
+	if (a.size() != b.size())
+		return false;
+	for (size_t i = 0; i < a.size(); i++) {
+		if (std::tolower(a[i]) != std::tolower(b[i]))
+			return false;
+	}
+	return true;
+}
+
 std::string matchAndAppendPath(const std::string& base, const std::string& add) {
 	std::vector<std::string> baseParts = splitBy(base, '/');
 	std::vector<std::string> addParts = splitBy(add, '/');
@@ -137,7 +166,7 @@ void doQueryStuff(const std::string text, std::string& fileName, std::string& fi
 			std::string key = pair.substr(0, pos);
 			std::string value = pair.substr(pos + 1);
 
-			if (key == "file" || key == "name" || key == "test")
+			if (iEqual(key, "file") || iEqual(key, "name") || iEqual(key, "test"))//TODO: case insensitive search
 				fileName = value;
 			else
 				fileContent = value;

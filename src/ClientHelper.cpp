@@ -6,7 +6,7 @@
 #include "../include/Request.hpp"
 
 int checkLength(std::string& reqBuf, int fd, bool &printNewLine) {
-	size_t contentLengthPos = reqBuf.find("Content-Length:");
+	size_t contentLengthPos = iFind(reqBuf, "Content-Length:");//TODO: case insensitive search
 	if (contentLengthPos != std::string::npos) {
 		size_t valueStart = contentLengthPos + 15;
 		while (valueStart < reqBuf.length() && 
@@ -145,8 +145,8 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 
 bool isChunkedRequest(Request& req) {
 	std::map<std::string, std::string> headers = req.getHeaders();
-	std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
-	if (it != headers.end() && it->second.find("chunked") != std::string::npos)
+	std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");//TODO: case insensitive search
+	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)//TODO: case insensitive search
 		return true;
 	return false;
 }

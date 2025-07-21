@@ -101,18 +101,18 @@ void ConfigParser::storeConfigs() {
 	configNum = -1;
 	while (std::getline(file, line)) {
 		line = skipComments(line);
-		if (!line.empty() && line.find("server {") != std::string::npos) {
+		if (!line.empty() && iFind(line, "server {") != std::string::npos) {//TODO: case insensitive search
 			nextConfig:
 			configNum++;
 			_storedConfigs.resize(configNum + 1);
 			_storedConfigs[configNum].push_back(line);
-			while (std::getline(file, line) && line.find("server {") == std::string::npos) {
+			while (std::getline(file, line) && iFind(line, "server {") == std::string::npos) {//TODO: case insensitive search
 				line = skipComments(line);
 				if (!line.empty())
 					_storedConfigs[configNum].push_back(line);
 			}
 			line = skipComments(line);
-			if (!line.empty() && line.find("server {") != std::string::npos)
+			if (!line.empty() && iFind(line, "server {") != std::string::npos)//TODO: case insensitive search
 				goto nextConfig;
 		}
 	}
@@ -125,13 +125,13 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 		if (conf[i].find("}") != std::string::npos) break;
 		else if (!whiteLine(conf[i])) {
 			s = splitIfSemicolon(conf[i]);
-			if (s[0] == "root") setRootLoc(loc, s);
-			else if (s[0] == "index") setLocIndexFile(loc, s);
-			else if (s[0] == "limit_except") setMethods(loc, s);
-			else if (s[0] == "autoindex") setAutoindex(loc, s);
-			else if (s[0] == "return") setRedirection(loc, s);
-			else if (s[0] == "cgi_pass") setCgiProcessorPath(loc, s);
-			else if (s[0] == "upload_store") setUploadDirPath(loc, s);
+			if (iEqual(s[0], "root")) setRootLoc(loc, s);//TODO: case insensitive search
+			else if (iEqual(s[0], "index")) setLocIndexFile(loc, s);//TODO: case insensitive search
+			else if (iEqual(s[0], "limit_except")) setMethods(loc, s);//TODO: case insensitive search
+			else if (iEqual(s[0], "autoindex")) setAutoindex(loc, s);//TODO: case insensitive search
+			else if (iEqual(s[0], "return")) setRedirection(loc, s);//TODO: case insensitive search
+			else if (iEqual(s[0], "cgi_pass")) setCgiProcessorPath(loc, s);//TODO: case insensitive search
+			else if (iEqual(s[0], "upload_store")) setUploadDirPath(loc, s);//TODO: case insensitive search
 		}
 		i++;
 	}
@@ -143,18 +143,18 @@ void ConfigParser::setLocationLevel(size_t &i, std::vector<std::string>& s, serv
 
 void ConfigParser::setServerLevel(size_t &i, std::vector<std::string> &s, serverLevel &serv, std::vector<std::string> &conf) {
 	while (i < conf.size() && conf[i].find("}") == std::string::npos) {
-		if (conf[i].find("location ") != std::string::npos) {
+		if (iFind(conf[i], "location ") != std::string::npos) {//TODO: case insensitive search
 			i--;
 			return;
 		}
 		if (!whiteLine(conf[i])) {
 			s = splitIfSemicolon(conf[i]);
-			if (s[0] == "listen") setPort(s, serv);
-			else if (s[0] == "root") setRootServ(serv, s);
-			else if (s[0] == "index") setServIndexFile(serv, s);
-			else if (s[0] == "server_name") setServName(serv, s);
-			else if (s[0] == "error_page") setErrorPages(s, serv);
-			else if (s[0] == "client_max_body_size") setMaxRequestSize(serv, s);
+			if (iEqual(s[0], "listen")) setPort(s, serv);//TODO: case insensitive search
+			else if (iEqual(s[0], "server_name")) setServName(serv, s);//TODO: case insensitive search
+			else if (iEqual(s[0], "root")) setRootServ(serv, s);//TODO: case insensitive search
+			else if (iEqual(s[0], "index")) setServIndexFile(serv, s);//TODO: case insensitive search
+			else if (iEqual(s[0], "error_page")) setErrorPages(s, serv);//TODO: case insensitive search
+			else if (iEqual(s[0], "client_max_body_size")) setMaxRequestSize(serv, s);//TODO: case insensitive search
 		}
 		i++;
 	}

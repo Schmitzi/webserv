@@ -67,7 +67,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
 	
 	std::map<std::string, locationLevel>::iterator it = config->locations.begin();
 	for (; it != config->locations.end(); ++it) {
-		if (it->first.find("cgi-bin") != std::string::npos) {
+		if (iFind(it->first, "cgi-bin") != std::string::npos) {//TODO: case insensitive search
 			_cgiBinPath = it->second.cgiProcessorPath;
 			break;
 		}
@@ -355,8 +355,8 @@ int CGIHandler::processScriptOutput() {
 }
 
 bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& headers) {
-	std::map<std::string, std::string>::const_iterator it = headers.find("Transfer-Encoding");
-	if (it != headers.end() && it->second.find("chunked") != std::string::npos)
+	std::map<std::string, std::string>::const_iterator it = headers.find("Transfer-Encoding");//TODO: case insensitive search
+	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)//TODO: case insensitive search
 		return true;
 	return false;
 }
@@ -364,7 +364,7 @@ bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& hea
 int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
 	std::string response = "HTTP/1.1 200 OK\r\n";
 	
-	std::map<std::string, std::string>::const_iterator typeIt = headerMap.find("Content-Type");
+	std::map<std::string, std::string>::const_iterator typeIt = headerMap.find("Content-Type");//TODO: case insensitive search
 	if (typeIt != headerMap.end())
 		response += "Content-Type: " + typeIt->second + "\r\n";
 	else
@@ -392,11 +392,11 @@ int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& he
 	std::string response = "HTTP/1.1 200 OK\r\n";
 	
 	for (std::map<std::string, std::string>::const_iterator it = headerMap.begin(); it != headerMap.end(); ++it) {
-		if (it->first != "Content-Length")
+		if (iFind(it->first, "Content-Length") == std::string::npos)//TODO: case insensitive search
 			response += it->first + ": " + it->second + "\r\n";
 	}
 	
-	if (headerMap.find("Transfer-Encoding") == headerMap.end())
+	if (headerMap.find("Transfer-Encoding") == headerMap.end())//TODO: case insensitive search
 		response += "Transfer-Encoding: chunked\r\n";
 	
 	if (shouldCloseConnection(_req))
