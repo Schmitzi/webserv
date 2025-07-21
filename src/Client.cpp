@@ -21,6 +21,7 @@ Client::Client(Server& serv) {
 	_exitErr = false;
 	_fileIsNew = false;
 	_shouldClose = false;
+	_lastUsed = time(NULL);//TODO: lra
 }
 
 Client::Client(const Client& client) {
@@ -41,6 +42,7 @@ Client& Client::operator=(const Client& other) {
 		_exitErr = other._exitErr;
 		_fileIsNew = other._fileIsNew;
 		_shouldClose = other._shouldClose;
+		_lastUsed = other._lastUsed; //TODO: lra
 	}
 	return *this;
 }
@@ -81,6 +83,10 @@ bool &Client::fileIsNew() {
 
 bool &Client::shouldClose() {
 	return _shouldClose;
+}
+
+time_t &Client::lastUsed() {//TODO: lra
+	return _lastUsed;
 }
 
 int Client::acceptConnection(int serverFd) {
