@@ -21,6 +21,7 @@ Client::Client(Server& serv) {
 	_exitErr = false;
 	_fileIsNew = false;
 	_shouldClose = false;
+	_lastUsed = time(NULL);//TODO: lra
 }
 
 Client::Client(const Client& client) {
@@ -41,6 +42,7 @@ Client& Client::operator=(const Client& other) {
 		_exitErr = other._exitErr;
 		_fileIsNew = other._fileIsNew;
 		_shouldClose = other._shouldClose;
+		_lastUsed = other._lastUsed; //TODO: lra
 	}
 	return *this;
 }
@@ -81,6 +83,10 @@ bool &Client::fileIsNew() {
 
 bool &Client::shouldClose() {
 	return _shouldClose;
+}
+
+time_t &Client::lastUsed() {//TODO: lra
+	return _lastUsed;
 }
 
 int Client::acceptConnection(int serverFd) {
@@ -131,17 +137,16 @@ void Client::recieveData() {
 	}
 
 	bool isComplete = false;
-	bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
-					_requestBuffer.find("chunked") != std::string::npos);
-	bool hasContentLength = (_requestBuffer.find("Content-Length:") != std::string::npos);
-	
-	if (isChunked) {
+	bool isChunked = (iFind(_requestBuffer, "Transfer-Encoding:") != std::string::npos &&
+					iFind(_requestBuffer, "chunked") != std::string::npos);
+	bool hasContentLength = (iFind(_requestBuffer, "Content-Length:") != std::string::npos);
+
+	if (isChunked)
 		isComplete = isChunkedBodyComplete(_requestBuffer);
-	} else if (hasContentLength) {
+	else if (hasContentLength)
 		isComplete = (checkLength(_requestBuffer, _fd, printNewLine) == 1);
-	} else {
+	else
 		isComplete = true;
-	}
 	
 	if (!isComplete) {
 		_exitErr = false;
@@ -193,7 +198,7 @@ int Client::processRequest() {
 			return 0;
 		}
 	}
-	if (_req->getContentType().find("multipart/form-data") != std::string::npos) {
+	if (iFind(_req->getContentType(), "multipart/form-data") != std::string::npos) {
 		int result = handleMultipartPost();
 		if (result != -1)
 			return result;
@@ -259,8 +264,8 @@ int Client::handlePostRequest() {
 			delete cgi;
 		return result;
 	}
-	
-	if (_req->getContentType().find("multipart/form-data") != std::string::npos)
+
+	if (iFind(_req->getContentType(), "multipart/form-data") != std::string::npos)
 		return handleMultipartPost();
 	
 	if (_req->getPath().find("../") != std::string::npos) {

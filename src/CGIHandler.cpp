@@ -67,7 +67,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
 	
 	std::map<std::string, locationLevel>::iterator it = config->locations.begin();
 	for (; it != config->locations.end(); ++it) {
-		if (it->first.find("cgi-bin") != std::string::npos) {
+		if (iFind(it->first, "cgi-bin") != std::string::npos) {
 			_cgiBinPath = it->second.cgiProcessorPath;
 			break;
 		}
@@ -356,7 +356,7 @@ int CGIHandler::processScriptOutput() {
 
 bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& headers) {
 	std::map<std::string, std::string>::const_iterator it = headers.find("Transfer-Encoding");
-	if (it != headers.end() && it->second.find("chunked") != std::string::npos)
+	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)
 		return true;
 	return false;
 }
@@ -392,7 +392,7 @@ int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& he
 	std::string response = "HTTP/1.1 200 OK\r\n";
 	
 	for (std::map<std::string, std::string>::const_iterator it = headerMap.begin(); it != headerMap.end(); ++it) {
-		if (it->first != "Content-Length")
+		if (iFind(it->first, "Content-Length") == std::string::npos)
 			response += it->first + ": " + it->second + "\r\n";
 	}
 	

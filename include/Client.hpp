@@ -42,6 +42,7 @@ class Client {
 		bool						&exitErr();
 		bool						&fileIsNew();
 		bool						&shouldClose();
+		time_t						&lastUsed();//TODO: lra
 
 		int							acceptConnection(int serverFd);
 		void						displayConnection();
@@ -75,6 +76,7 @@ class Client {
 		bool						_exitErr;
 		bool						_fileIsNew;
 		bool						_shouldClose;
+		time_t						_lastUsed;//TODO: lra
 };
 
 #endif

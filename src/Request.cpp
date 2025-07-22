@@ -121,13 +121,16 @@ void    Request::setContentType(std::string const content) {
 	_contentType = content;
 }
 
-bool Request::hasServerName(std::string servName) {
-	if (servName.find("localhost") != std::string::npos) {
-		std::cout << "!\n";
+bool Request::hasServerName() {
+	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Host");
+	std::string servName;
+	if (it != _headers.end())
+		servName = it->second;
+	if (iFind(servName, "localhost") != std::string::npos) {
 		std::string portPart = servName.substr(servName.find(":") + 1);
 		if (onlyDigits(portPart)) {
 			std::string sum = "localhost:" + portPart;
-			if (sum == servName)
+			if (iEqual(sum, servName))
 				return false;
 		}
 	}
@@ -135,7 +138,7 @@ bool Request::hasServerName(std::string servName) {
 }
 
 bool Request::matchHostServerName() {
-	std::map<std::string, std::string>::iterator it = _headers.find("Host");
+	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Host");
 	std::string servName;
 	if (it != _headers.end()) {
 		servName = it->second;
@@ -145,8 +148,7 @@ bool Request::matchHostServerName() {
         std::cout << RED << "HERE!\n" << RESET;
 		for (size_t i = 0; i < _configs.size(); i++) {
 			for (size_t j = 0; j < _configs[i].servName.size(); j++) {
-				if (std::tolower(servName) == std::tolower(_configs[i].servName[j])) {
-					std::cout << RED << "config: " + _configs[i].servName[j] << "\n";
+				if (iEqual(servName, _configs[i].servName[j])) {
 					_curConf = _configs[i];
 					return true;
 				}
@@ -296,7 +298,7 @@ int Request::parseHeaders(const std::string& headerSection) {
 			key.erase(key.find_last_not_of(" \t\r\n") + 1);
 			value.erase(0, value.find_first_not_of(" \t"));
 			value.erase(value.find_last_not_of(" \t\r\n") + 1);
-			if (key == "Host")
+			if (iEqual(key, "Host"))
 				host = true;
 			_headers[key] = value;
 		}
@@ -305,7 +307,7 @@ int Request::parseHeaders(const std::string& headerSection) {
 }
 
 void Request::checkContentLength(std::string buffer) {
-	size_t pos = buffer.find("Content-Length:");
+	size_t pos = iFind(buffer, "Content-Length:");
 	if (pos != std::string::npos) {
 		pos += 15;
 		while (pos < buffer.size() && (buffer[pos] == ' ' || buffer[pos] == '\t'))
@@ -322,8 +324,8 @@ void Request::checkContentLength(std::string buffer) {
 			return;
 		}
 	}
-	
-	pos = buffer.find("Transfer-Encoding:");
+
+	pos = iFind(buffer, "Transfer-Encoding:");
 	if (pos != std::string::npos) {
 		size_t eol = buffer.find("\r\n", pos);
 		if (eol == std::string::npos)
@@ -331,7 +333,7 @@ void Request::checkContentLength(std::string buffer) {
 		
 		if (eol != std::string::npos) {
 			std::string transferEncoding = buffer.substr(pos + 18, eol - pos - 18);
-			if (transferEncoding.find("chunked") != std::string::npos) {
+			if (iFind(transferEncoding, "chunked") != std::string::npos) {
 				_contentLength = 0;
 				_hasLengthOrIsChunked = true;
 				std::cout << getTimeStamp(_clientFd) << BLUE << "Transfer-Encoding: chunked detected" << RESET << std::endl;
@@ -344,9 +346,9 @@ void Request::parseContentType() {
 	std::map<std::string, std::string>::iterator it = _headers.find("Content-Type");
 	if (it != _headers.end()) {
 		_contentType = it->second;
-		
-		if (_contentType.find("multipart/form-data") != std::string::npos) {
-			size_t boundaryPos = _contentType.find("boundary=");
+
+		if (iFind(_contentType, "multipart/form-data") != std::string::npos) {
+			size_t boundaryPos = iFind(_contentType, "boundary=");
 			if (boundaryPos != std::string::npos) {
 				std::string boundary = _contentType.substr(boundaryPos + 9);
 				
@@ -409,7 +411,7 @@ std::string Request::getMimeType(std::string const &path) {
 
 bool Request::isChunkedTransfer() const {
 	std::map<std::string, std::string>::const_iterator it = _headers.find("Transfer-Encoding");
-	if (it != _headers.end() && it->second.find("chunked") != std::string::npos)
+	if (it != _headers.end() && iFind(it->second, "chunked") != std::string::npos)
 		return true;
 	return false;
 }

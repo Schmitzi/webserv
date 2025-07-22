@@ -1,4 +1,5 @@
 #include "../include/Multipart.hpp"
+#include "../include/Helper.hpp"
 
 Multipart::Multipart(const std::string& data, const std::string& boundary) 
 			: _data(data), _boundary(boundary), _isComplete(false) {}
@@ -60,14 +61,14 @@ bool Multipart::parseHeaders(size_t partStart, size_t headersEnd) {
 }
 
 bool Multipart::extractFilename(const std::string& headers) {
-	size_t cdPos = headers.find("Content-Disposition:");
+	size_t cdPos = iFind(headers, "Content-Disposition:");
 	if (cdPos == std::string::npos)
 		return false;
 	
 	size_t cdEnd = findLineEnd(headers, cdPos);
 	std::string contentDisposition = headers.substr(cdPos, cdEnd - cdPos);
-	
-	size_t filenamePos = contentDisposition.find("filename=\"");
+
+	size_t filenamePos = iFind(contentDisposition, "filename=\"");
 	if (filenamePos == std::string::npos)
 		return false;
 	
