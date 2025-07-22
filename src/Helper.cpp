@@ -58,6 +58,15 @@ bool iEqual(const std::string& a, const std::string& b) {
 	return true;
 }
 
+std::map<std::string, std::string>::iterator iMapFind(std::map<std::string, std::string>& map, const std::string& s) {
+	std::map<std::string, std::string>::iterator it = map.begin();
+	for (; it != map.end(); ++it) {
+		if (iEqual(it->first, s))
+			return it;
+	}
+	return map.end();
+}
+
 std::string matchAndAppendPath(const std::string& base, const std::string& add) {
 	std::vector<std::string> baseParts = splitBy(base, '/');
 	std::vector<std::string> addParts = splitBy(add, '/');
@@ -166,7 +175,7 @@ void doQueryStuff(const std::string text, std::string& fileName, std::string& fi
 			std::string key = pair.substr(0, pos);
 			std::string value = pair.substr(pos + 1);
 
-			if (iEqual(key, "file") || iEqual(key, "name") || iEqual(key, "test"))//TODO: case insensitive search
+			if (iEqual(key, "file") || iEqual(key, "name") || iEqual(key, "test"))
 				fileName = value;
 			else
 				fileContent = value;

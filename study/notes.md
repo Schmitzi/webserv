@@ -154,7 +154,7 @@ Support POST with no filename
 	after deleting the file it creates another request to get the same file and tells me its not found
 	(deleted the default GET method from the request constructor..?)
 
--> host names and header fields must be case insensitive
+<!-- -> host names and header fields must be case insensitive -->
 
 -> A server which receives an entity-body with a transfer-coding it does
    not understand SHOULD return 501 (Unimplemented), and close the
@@ -173,8 +173,8 @@ Support POST with no filename
    the message-body. HTTP/1.1 user agents MUST notify the user when an
    invalid length is received and detected.
 
--> Note that the absolute path cannot be empty; if none is present in the original URI,
-	it MUST be given as "/" (the server root).
+<!-- -> Note that the absolute path cannot be empty; if none is present in the original URI,
+	it MUST be given as "/" (the server root). -->
 
 -> 1. If Request-URI is an absoluteURI, the host is part of the
      Request-URI. Any Host header field value in the request MUST be

@@ -23,7 +23,7 @@ bool matchLocation(const std::string& path, const serverLevel& serv, locationLev
 				}
 			}
 		} else {
-			if (iFind(path, it->second.locName) != std::string::npos && it->second.locName.size() > longestMatch) {//TODO: case insensitive search
+			if (iFind(path, it->second.locName) != std::string::npos && it->second.locName.size() > longestMatch) {
 				bestMatch = const_cast<locationLevel*>(&(it->second));
 				found = true;
 				longestMatch = it->second.locName.size();
@@ -186,8 +186,8 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	
 	std::map<std::string, std::string> headers = req.getHeaders();
 	bool isChunked = false;
-	std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");//TODO: case insensitive search
-	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)//TODO: case insensitive search
+	std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
+	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)
 		isChunked = true;
 	
 	response += "Content-Type: " + req.getContentType() + "\r\n";
@@ -280,8 +280,8 @@ void sendErrorResponse(Client& c, Request& req) {
 }
 
 bool shouldCloseConnection(Request& req) {
-	std::map<std::string, std::string>::iterator it = req.getHeaders().find("Connection");//TODO: case insensitive search
-	if (it != req.getHeaders().end() && iEqual(it->second, "close"))//TODO: case insensitive search
+	std::map<std::string, std::string>::iterator it = req.getHeaders().find("Connection");
+	if (it != req.getHeaders().end() && iEqual(it->second, "close"))
 		return true;
 	if (req.statusCode() == 400 || req.statusCode() == 411 || (req.statusCode() >= 500 && req.statusCode() != 501))
 		return true;

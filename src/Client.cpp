@@ -138,8 +138,8 @@ void Client::recieveData() {
 
 	bool isComplete = false;
 	bool isChunked = (iFind(_requestBuffer, "Transfer-Encoding:") != std::string::npos &&
-					iFind(_requestBuffer, "chunked") != std::string::npos);//TODO: case insensitive search
-	bool hasContentLength = (iFind(_requestBuffer, "Content-Length:") != std::string::npos);//TODO: case insensitive search
+					iFind(_requestBuffer, "chunked") != std::string::npos);
+	bool hasContentLength = (iFind(_requestBuffer, "Content-Length:") != std::string::npos);
 
 	if (isChunked)
 		isComplete = isChunkedBodyComplete(_requestBuffer);
@@ -198,7 +198,7 @@ int Client::processRequest() {
 			return 0;
 		}
 	}
-	if (iFind(_req->getContentType(), "multipart/form-data") != std::string::npos) {//TODO: case insensitive search
+	if (iFind(_req->getContentType(), "multipart/form-data") != std::string::npos) {
 		int result = handleMultipartPost();
 		if (result != -1)
 			return result;
@@ -265,7 +265,7 @@ int Client::handlePostRequest() {
 		return result;
 	}
 
-	if (iFind(_req->getContentType(), "multipart/form-data") != std::string::npos)//TODO: case insensitive search
+	if (iFind(_req->getContentType(), "multipart/form-data") != std::string::npos)
 		return handleMultipartPost();
 	
 	if (_req->getPath().find("../") != std::string::npos) {

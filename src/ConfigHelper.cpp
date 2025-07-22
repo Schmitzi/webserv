@@ -131,7 +131,7 @@ void setErrorPages(std::vector<std::string>& s, serverLevel &serv) {
 /* ____________________________set Config Levels____________________________ */
 
 bool foundServer(std::vector<std::string>& s) {
-	if (iEqual(s[0], "server")) {//TODO: case insensitive search
+	if (iEqual(s[0], "server")) {
 		if (s.size() != 2)
 			throw configException("Error: invalid server declaration.");
 		if (s.back() != "{")
@@ -142,7 +142,7 @@ bool foundServer(std::vector<std::string>& s) {
 }
 
 bool foundLocation(std::vector<std::string>& s) {
-	if (iEqual(s[0], "location")) {//TODO: case insensitive search
+	if (iEqual(s[0], "location")) {
 		if (s.back() != "{")
 			throw configException("Error: No opening bracket found for location.");
 		return true;
@@ -174,7 +174,7 @@ void setLocIndexFile(locationLevel& loc, std::vector<std::string>& s) {
 
 void setMethods(locationLevel& loc, std::vector<std::string>& s) {
 	for (size_t i = 1; i < s.size(); i++) {
-		if (iEqual(s[i], "GET") || iEqual(s[i], "POST") || iEqual(s[i], "DELETE")) {//TODO: case insensitive search
+		if (iEqual(s[i], "GET") || iEqual(s[i], "POST") || iEqual(s[i], "DELETE")) {
 			std::string m;
 			for (size_t j = 0; j < s[i].size(); j++)
 				m += std::toupper(s[i][j]);
@@ -186,9 +186,9 @@ void setMethods(locationLevel& loc, std::vector<std::string>& s) {
 }
 
 void setAutoindex(locationLevel& loc, std::vector<std::string>& s) {
-	if (iEqual(s[1], "on"))//TODO: case insensitive search
+	if (iEqual(s[1], "on"))
 		loc.autoindex = true;
-	else if (iEqual(s[1], "off"))//TODO: case insensitive search
+	else if (iEqual(s[1], "off"))
 		loc.autoindex = false;
 	else
 		throw configException("Error: invalid autoindex value -> " + s[1]);

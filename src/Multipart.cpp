@@ -61,14 +61,14 @@ bool Multipart::parseHeaders(size_t partStart, size_t headersEnd) {
 }
 
 bool Multipart::extractFilename(const std::string& headers) {
-	size_t cdPos = iFind(headers, "Content-Disposition:");//TODO: case insensitive search
+	size_t cdPos = iFind(headers, "Content-Disposition:");
 	if (cdPos == std::string::npos)
 		return false;
 	
 	size_t cdEnd = findLineEnd(headers, cdPos);
 	std::string contentDisposition = headers.substr(cdPos, cdEnd - cdPos);
 
-	size_t filenamePos = iFind(contentDisposition, "filename=\"");//TODO: case insensitive search
+	size_t filenamePos = iFind(contentDisposition, "filename=\"");
 	if (filenamePos == std::string::npos)
 		return false;
 	
