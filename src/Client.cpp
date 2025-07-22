@@ -170,6 +170,7 @@ void Client::recieveData() {
 
 int Client::processRequest() {
 	serverLevel &conf = _req->getConf();
+
 	if (_req->getContentLength() > conf.requestLimit) {
 		_req->statusCode() = 413;
 		sendErrorResponse(*this, *_req);
@@ -345,7 +346,6 @@ int Client::handleDeleteRequest() {
 		return 1;
 	}
     if (isCGIScript(_req->getPath())) {
-		//TODO: shouldnt cgi only use get and post?
     	CGIHandler* cgi = new CGIHandler(this);
 		cgi->setPath(fullPath);        
 		int result = cgi->executeCGI(*_req);

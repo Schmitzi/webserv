@@ -171,6 +171,7 @@ bool Request::matchHostServerName() {
 }
 
 void Request::parse(const std::string& rawRequest) {
+	std:: cout << CYAN << rawRequest + "\n" << RESET;
 	if (rawRequest.empty()) {
 		std::cerr << getTimeStamp(_clientFd) << RED << "Empty request!" << RESET << std::endl;
 		_statusCode = 400;
@@ -202,6 +203,7 @@ void Request::parse(const std::string& rawRequest) {
 		_check = "BAD";
 		return;
 	}
+
 	if (!matchHostServerName()) {
 		std::cerr << getTimeStamp(_clientFd) << RED << "No Host-ServerName match + no default config specified!" << RESET << std::endl;
 		_statusCode = 404;
