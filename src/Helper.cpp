@@ -1,6 +1,7 @@
 #include "../include/Helper.hpp"
 #include "../include/ConfigHelper.hpp"
 #include "../include/ConfigParser.hpp"
+#include "../include/Client.hpp"
 
 std::string tostring(int nbr) {
 	std::ostringstream oss;
@@ -152,12 +153,12 @@ std::string getTimeStamp(int fd) {
     return oss.str();
 }
 
-bool checkReturn(int fd, ssize_t r, const std::string& func, std::string errMsgOnZero) {
+bool checkReturn(Client& c, int fd, ssize_t r, const std::string& func, std::string errMsgOnZero) {
 	if (r < 0) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: " << func << " failed" << RESET << std::endl;
+		c.output() = getTimeStamp(fd) + RED + "Error: " + func + " failed" + RESET;
 		return false;
 	} else if (r == 0 && errMsgOnZero != "") {
-		std::cerr << getTimeStamp(fd) << RED << errMsgOnZero << RESET << std::endl;
+		c.output() = getTimeStamp(fd) + RED + errMsgOnZero + RESET;
 		return false;
 	} else
 		return true;

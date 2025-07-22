@@ -27,7 +27,6 @@ class Request {
 		//getters & setters
 		std::string							&getPath();
 		std::string const					&getMethod();
-		std::string const					&getCheck();
 		std::string const					&getVersion();
 		std::string const					&getBody();
 		std::string const					&getContentType();
@@ -38,6 +37,7 @@ class Request {
 		std::map<std::string, std::string>	&getHeaders();
 		bool								&hasLengthOrIsChunked();
 		int									&statusCode();
+		std::string							&check();
 		std::string							getMimeType(std::string const &path);
 		void								setPath(std::string const path);
 		void								setBody(std::string const body);

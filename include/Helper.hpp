@@ -12,6 +12,7 @@
 #include "Colors.hpp"
 
 struct	serverLevel;
+class	Client;
 
 std::string										tostring(int nbr);
 std::vector<std::string>						split(const std::string& s);
@@ -23,7 +24,7 @@ std::string										matchAndAppendPath(const std::string& fullPath, const std::
 std::string										decode(const std::string& encoded);
 std::string										encode(const std::string& decoded);
 std::string										getTimeStamp(int fd = -1);
-bool 											checkReturn(int fd, ssize_t r, const std::string& func, std::string errMsgOnZero = "");
+bool 											checkReturn(Client& c, int fd, ssize_t r, const std::string& func, std::string errMsgOnZero = "");
 void											doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent);
 bool											deleteErrorPages();
 

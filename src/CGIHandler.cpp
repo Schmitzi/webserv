@@ -88,7 +88,7 @@ int CGIHandler::executeCGI(Request &req) {
 	_pid = fork();
 	if (_pid < 0) {
 		_req.statusCode() = 500;
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: fork() failed" << RESET << std::endl;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: fork() failed" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
@@ -101,21 +101,21 @@ int CGIHandler::executeCGI(Request &req) {
 int CGIHandler::doChecks() {
 	if (access(_path.c_str(), F_OK) != 0) {
 		_req.statusCode() = 404;
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "Script does not exist: " << RESET << _path << std::endl;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path;
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (access(_path.c_str(), X_OK) != 0) {
 		_req.statusCode() = 403;
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "Script is not executable: " << RESET << _path << std::endl;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script is not executable: " + RESET + _path;
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (pipe(_input) < 0 || pipe(_output) < 0) {
 		_req.statusCode() = 500;
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: pipe() failed" << RESET << std::endl;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: pipe() failed" + RESET;
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
@@ -138,12 +138,12 @@ int CGIHandler::prepareEnv() {
 			ext = "." + _path.substr(dotPos + 1); 
 			
 			if (!matchLocation(ext, _req.getConf(), loc)) {
-				std::cerr << getTimeStamp(_client->getFd()) << RED << "Location not found for extension: " << RESET << ext << std::endl;
+				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext;
 				return 1;
 			}
 			
 			if (loc->uploadDirPath.empty()) {
-				std::cerr << getTimeStamp(_client->getFd()) << RED << "Upload directory not set for extension: " << RESET << ext << std::endl;
+				_client->output() = getTimeStamp(_client->getFd()) + RED + "Upload directory not set for extension: " + RESET + ext;
 				return 1;
 			}
 			filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
@@ -155,7 +155,7 @@ int CGIHandler::prepareEnv() {
 			ext = "." + _path.substr(dotPos + 1);
 			
 			if (!matchLocation(ext, _req.getConf(), loc)) {
-				std::cerr << getTimeStamp(_client->getFd()) << RED << "Location not found for extension: " << RESET << ext << std::endl;
+				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext;
 				return 1;
 			}
 			makeArgs(loc->cgiProcessorPath, filePath);
@@ -218,7 +218,7 @@ int CGIHandler::doChild() {
 	
 	if (dup2(_input[0], STDIN_FILENO) < 0 || dup2(_output[1], STDOUT_FILENO) < 0) {
 		_req.statusCode() = 500;
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: dup2() failed" << RESET << std::endl;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: dup2() failed" + RESET;
 		cleanupResources();
 		return 1;
 	}
@@ -227,7 +227,7 @@ int CGIHandler::doChild() {
 	
 	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
 	_req.statusCode() = 500;
-	std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: execve() failed" << RESET << std::endl;
+	_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: execve() failed" + RESET;
 	cleanupResources();
 	return 1;
 }
@@ -247,7 +247,7 @@ int CGIHandler::doParent() {
 
 	if (!_req.getBody().empty()) {
 		ssize_t w = write(_input[1], _req.getBody().c_str(), _req.getBody().length());
-		if (!checkReturn(_client->getFd(), w, "write()")) {
+		if (!checkReturn(*_client, _client->getFd(), w, "write()")) {
 			close(_input[1]);
 			_input[1] = -1;
 			_req.statusCode() = 500;
@@ -261,7 +261,7 @@ int CGIHandler::doParent() {
 
 	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN) != 0) {
 		_req.statusCode() = 500;
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "Failed to add CGI pipe to epoll" << RESET << std::endl;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
@@ -281,9 +281,7 @@ int CGIHandler::processScriptOutput() {
 	time_t elapsedTime = time(NULL) - _startTime;
 	
 	if (elapsedTime > TIMEOUT_SECONDS) {
-		std::cerr << getTimeStamp(_client->getFd()) << RED 
-				<< "CGI timeout after " << elapsedTime 
-				<< " seconds, killing process" << RESET << std::endl;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "CGI timeout after " + tostring(elapsedTime) + " seconds, killing process" + RESET;
 		cleanupResources();
 		if (_pid >= 0)
 			kill(_pid, SIGKILL);
@@ -294,7 +292,7 @@ int CGIHandler::processScriptOutput() {
 	
 	if (_outputBuffer.size() < maxSize) {
 		bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
-		if (!checkReturn(_client->getFd(), bytesRead, "read()")) {
+		if (!checkReturn(*_client, _client->getFd(), bytesRead, "read()")) {
 			cleanupResources();
 			if (_pid >= 0)
 				kill(_pid, SIGKILL);
@@ -310,16 +308,14 @@ int CGIHandler::processScriptOutput() {
 	pid_t result = waitpid(_pid, &status, WNOHANG);
 	if (result == _pid) {
 		if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-			std::cout << getTimeStamp(_client->getFd()) << GREEN 
-					<< "CGI Script completed successfully after " 
-					<< elapsedTime << " seconds" << RESET << std::endl;
+			_client->output() = getTimeStamp(_client->getFd()) + GREEN + "CGI Script completed successfully after " + tostring(elapsedTime) + " seconds" + RESET;
 			
 			if (_outputBuffer.empty()) {
 				std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
 				defaultResponse += "Content-Type: text/plain\r\n";
 				defaultResponse += "Content-Length: 22\r\n\r\n";
 				defaultResponse += "No output from script\n";
-				defaultResponse += "\n"; //added for better netcat output
+				defaultResponse += "\n";
 				addSendBuf(_server->getWebServ(), _client->getFd(), defaultResponse);
 				setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
 				cleanupResources();
@@ -330,21 +326,22 @@ int CGIHandler::processScriptOutput() {
 				cleanupResources();
 				if (isChunkedTransfer(headerMap))
 					handleChunkedOutput(headerMap, headerAndBody.second);
-				else
+				else {
+					if (_req.statusCode() == 501)
+						return 1;
 					handleStandardOutput(headerMap, headerAndBody.second);
+				}
 				return 1;
 			}
 		} else {
-			std::cerr << getTimeStamp(_client->getFd()) << RED 
-					<< "CGI Script exit status: " << RESET << WEXITSTATUS(status) << std::endl;
+			_client->output() = getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status));
 			_req.statusCode() = 500;
 			sendErrorResponse(*_client, _req);
 			cleanupResources();
 			return 1;
 		}
 	} else if (result == -1) {
-		std::cerr << getTimeStamp(_client->getFd()) << RED 
-				<< "Error: waitpid() failed" << RESET << std::endl;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: waitpid() failed" + RESET;
 		_req.statusCode() = 500;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
@@ -356,8 +353,14 @@ int CGIHandler::processScriptOutput() {
 
 bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& headers) {
 	std::map<std::string, std::string>::const_iterator it = headers.find("Transfer-Encoding");
-	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)
-		return true;
+	if (it != headers.end()) {
+		if (iFind(it->second, "chunked") != std::string::npos)
+			return true;
+		else {
+			_req.statusCode() = 501;
+			return false;
+		}
+	}
 	return false;
 }
 
@@ -491,7 +494,7 @@ void CGIHandler::cleanupResources() {
 			unregisterCgiPipe(_server->getWebServ(), _output[0]);
 		close(_output[0]);
 		_output[0] = -1;
-		std::cout << getTimeStamp(_client->getFd()) << "Cleaned up and disconnected CGI" << std::endl;
+		_client->output() = getTimeStamp(_client->getFd()) + "Cleaned up and disconnected CGI";
 	}
 	_path.clear();
 	_args.clear();

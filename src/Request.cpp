@@ -65,10 +65,6 @@ std::string const &Request::getMethod() {
 	return _method;
 }
 
-std::string const &Request::getCheck() {
-	return _check;
-}
-
 std::string const &Request::getVersion() {
 	return _version;
 }
@@ -107,6 +103,10 @@ bool &Request::hasLengthOrIsChunked() {
 
 int &Request::statusCode() {
 	return _statusCode;
+}
+
+std::string &Request::check() {
+	return _check;
 }
 
 void    Request::setPath(std::string const path) {
@@ -176,7 +176,7 @@ bool Request::matchHostServerName() {
 
 void Request::parse(const std::string& rawRequest) {
 	if (rawRequest.empty()) {
-		std::cerr << getTimeStamp(_clientFd) << RED << "Empty request!" << RESET << std::endl;
+		_client->output() = getTimeStamp(_clientFd) + RED + "Empty request!" + RESET;
 		_statusCode = 400;
 		_check = "BAD";
 		return;
@@ -206,8 +206,9 @@ void Request::parse(const std::string& rawRequest) {
 		_check = "BAD";
 		return;
 	}
+
 	if (!matchHostServerName()) {
-		std::cerr << getTimeStamp(_clientFd) << RED << "No Host-ServerName match + no default config specified!" << RESET << std::endl;
+		_client->output() = getTimeStamp(_clientFd) + RED + "No Host-ServerName match + no default config specified!" + RESET;
 		_statusCode = 404;
 		_check = "BAD";
 		return;
@@ -259,7 +260,7 @@ void Request::parse(const std::string& rawRequest) {
 		|| _method == "PUT" || _method == "HEAD" || _method == "OPTIONS"
 		|| _method == "PATCH" || _method == "TRACE" || _method == "CONNECT") {
 		if (_method != "GET" && _method != "POST" && _method != "DELETE") {
-			_statusCode = 405;//or 501 for not implemented?
+			_statusCode = 405;
 			_check = "NOTALLOWED";
 			return;
 		}
@@ -270,6 +271,8 @@ void Request::parse(const std::string& rawRequest) {
 	}
 
 	if (isChunkedTransfer()) {
+		if (_statusCode == 501)
+			return;
 		_hasLengthOrIsChunked = true;
 		if (_method == "POST") {
 			std::cout << getTimeStamp(_clientFd) << BLUE << "POST request with chunked body: " << RESET << _body.length() 
