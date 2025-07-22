@@ -44,7 +44,7 @@ class Request {
 		void								setBody(std::string const body);
 		void								setContentType(std::string const content);
 
-		bool								hasServerName(std::string servName);
+		bool								hasServerName(const std::string servName);
 		bool								matchHostServerName();
 		void								parse(const std::string& rawRequest);
 		int									parseHeaders(const std::string& headerSection);

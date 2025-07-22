@@ -121,11 +121,7 @@ void    Request::setContentType(std::string const content) {
 	_contentType = content;
 }
 
-bool Request::hasServerName() {
-	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Host");
-	std::string servName;
-	if (it != _headers.end())
-		servName = it->second;
+bool Request::hasServerName(const std::string servName) {
 	if (iFind(servName, "localhost") != std::string::npos) {
 		std::string portPart = servName.substr(servName.find(":") + 1);
 		if (onlyDigits(portPart)) {
@@ -140,12 +136,9 @@ bool Request::hasServerName() {
 bool Request::matchHostServerName() {
 	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Host");
 	std::string servName;
-	if (it != _headers.end()) {
+	if (it != _headers.end())
 		servName = it->second;
-		std::cout << RED << "Servename: " + servName << "\n" << RESET;
-	}
 	if (hasServerName(servName)) {
-        std::cout << RED << "HERE!\n" << RESET;
 		for (size_t i = 0; i < _configs.size(); i++) {
 			for (size_t j = 0; j < _configs[i].servName.size(); j++) {
 				if (iEqual(servName, _configs[i].servName[j])) {

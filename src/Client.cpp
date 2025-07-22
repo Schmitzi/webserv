@@ -344,9 +344,9 @@ int Client::handleDeleteRequest() {
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
-	if (isCGIScript(_req->getPath())) {
+    if (isCGIScript(_req->getPath())) {
 		//TODO: shouldnt cgi only use get and post?
-		CGIHandler* cgi = new CGIHandler(this);
+    	CGIHandler* cgi = new CGIHandler(this);
 		cgi->setPath(fullPath);        
 		int result = cgi->executeCGI(*_req);
 		if (result != 0)
