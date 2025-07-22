@@ -121,12 +121,9 @@ void    Request::setContentType(std::string const content) {
 	_contentType = content;
 }
 
-bool Request::hasServerName() {
-	std::map<std::string, std::string>::iterator it = _headers.find("Host");
-	std::string servName;
-	if (it != _headers.end())
-		servName = it->second;
+bool Request::hasServerName(std::string servName) {
 	if (servName.find("localhost") != std::string::npos) {
+		std::cout << "!\n";
 		std::string portPart = servName.substr(servName.find(":") + 1);
 		if (onlyDigits(portPart)) {
 			std::string sum = "localhost:" + portPart;
@@ -140,12 +137,16 @@ bool Request::hasServerName() {
 bool Request::matchHostServerName() {
 	std::map<std::string, std::string>::iterator it = _headers.find("Host");
 	std::string servName;
-	if (it != _headers.end())
+	if (it != _headers.end()) {
 		servName = it->second;
-	if (hasServerName()) {
+		std::cout << RED << "Servename: " + servName << "\n" << RESET;
+	}
+	if (hasServerName(servName)) {
+        std::cout << RED << "HERE!\n" << RESET;
 		for (size_t i = 0; i < _configs.size(); i++) {
 			for (size_t j = 0; j < _configs[i].servName.size(); j++) {
-				if (servName == _configs[i].servName[j]) {
+				if (std::tolower(servName) == std::tolower(_configs[i].servName[j])) {
+					std::cout << RED << "config: " + _configs[i].servName[j] << "\n";
 					_curConf = _configs[i];
 					return true;
 				}

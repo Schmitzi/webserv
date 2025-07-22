@@ -91,11 +91,36 @@ Books:
 Online Tutorials:
    CS50 Web Development with Python and JavaScript -->
 
+### Lilly
+
+netcat:	Processing uncomplete Headersection leads to fail
+
+POST:	wrong status code
+
+POST:	Bad Request: curl -v -X POST -H "Host: abc.com" localhost:8080/hello.txt "Hello world" leads to 500
+
+POST:	On any error -> delete file
+
+Long POST:
+	yes | curl -v -X POST -H "Host: abc.com" -H "Content-Type: text/plain" --data @- http://localhost:8080/hello.txt
+	
+	single POST: content was not uploaded, file was not removed on interupt
+	Double POST: no 407 confict response
+
+If multipart supportet extract filename from there?
+
+Support POST with no filename 
+
+
+### Mine
 
 netcat: Processing uncomplete Headersection leads to fail -> DONE
+
 POST: wrong status code -> DONE 
+
 POST: Bad Request: curl -v -X POST -H "Host: abc.com" localhost:8080/hello.txt "Hello world" leads to 500 
-    Fixed: checkReturn() changed to allow zero size requests
+    - Fixed: checkReturn() changed to allow zero size requests
+
 POST: On any error -> delete file     -> DONE?
 
 Long POST: yes | curl -v -X POST -H "Host: abc.com" -H "Content-Type: text/plain" --data @- http://localhost:8080/upload/hello.txt
@@ -105,8 +130,7 @@ Using @- to read from STDIN does not seem to work, closing the FD and sending da
 However, this works:
 yes | curl -v -X POST -H "Host: abc.com\n\nContent-Type: plain/text" --data "BODY IS HERE write something shorter or longer than body limit" http://localhost:8080/hello.txt
 
-
-
+Hosts are matched incorrectly. Host: def gives abc, no host gives def, def is first displayed at startup, could be out of order -- Or maybe not
 
 
 
@@ -142,7 +166,7 @@ Support POST with no filename
 
 -> [started checking] check ALL error codes
 
--> should stuff like "error sent" etc. keep being printed before we actually do it (in handleEpollOut)?
+-> should stuff like "error sent" etc. keep being printed before we actually do it (in handleEpollOut)? - NO
 
 <!-- -> [switched but needs to be tested more] HTTP/1.1 will by default set the connection to "keep-alive"
 	only shows the connection for close if:
