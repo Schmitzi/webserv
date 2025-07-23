@@ -170,16 +170,15 @@ void sendRedirect(Client& c, const std::string& location, Request& req) {
 		response += "Connection: close\r\n";
 	response += "\r\n";
 	response += body;
-	response += "\n"; //added for better netcat output
+	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-	std::cout << getTimeStamp(c.getFd()) << BLUE << "Sent redirect response: " << RESET
-			<< req.statusCode() << " " << statusText << " to " << location << std::endl;
+	c.output() = getTimeStamp(c.getFd()) + BLUE + "Sent redirect response: " + RESET + tostring(req.statusCode()) + " " + statusText + " to " + location;
 }
 
 ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	if (c.getFd() <= 0) {
-		std::cerr << getTimeStamp(c.getFd()) << RED << "Invalid fd in sendResponse" << RESET << std::endl;
+		c.output() = getTimeStamp(c.getFd()) + RED + "Invalid fd in sendResponse" + RESET;
 		return -1;
 	}
 	std::string response = "HTTP/1.1 " + tostring(req.statusCode()) + " OK\r\n";
@@ -210,7 +209,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	response += "\r\n";
 	
 	if (c.getFd() < 0) {
-		std::cerr << getTimeStamp(c.getFd()) << RED  << "FD became invalid before send" << RESET << std::endl;
+		c.output() = getTimeStamp(c.getFd()) + RED  + "FD became invalid before send" + RESET;
 		return -1;
 	}
 	
@@ -241,18 +240,18 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 			std::string s2 = "0\r\n\r\n";
 			addSendBuf(c.getWebserv(), c.getFd(), s2);
 			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-			std::cout << getTimeStamp(c.getFd()) << GREEN  << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
+			c.output() = getTimeStamp(c.getFd()) + GREEN  + "Sent chunked body " + RESET + "(" + tostring(content.length()) + " bytes)";
 			return 0;
 		} else {
-			content += "\n"; //added for better netcat output
+			content += "\n";
 			addSendBuf(c.getWebserv(), c.getFd(), content);
 			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
 			return 0;
 		}
 	} else {
-		addSendBuf(c.getWebserv(), c.getFd(), "\n"); //added for better netcat output
+		addSendBuf(c.getWebserv(), c.getFd(), "\n");
 		setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-		std::cout << getTimeStamp(c.getFd()) << GREEN  << "Response sent (headers only)" << RESET << std::endl;
+		c.output() = getTimeStamp(c.getFd()) + GREEN  + "Response sent (headers only)" + RESET;
 		return 0;
 	}
 }
@@ -273,10 +272,10 @@ void sendErrorResponse(Client& c, Request& req) {
 		response += "Connection: close\r\n";
 	response += "\r\n";
 	response += body;
-	response += "\n"; //added for better netcat output
+	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-	std::cerr << getTimeStamp(c.getFd()) << RED  << "Error sent: " << req.statusCode() << " " << getStatusMessage(req.statusCode()) << RESET << std::endl;
+	c.output() = getTimeStamp(c.getFd()) + RED  + "Error sent: " + tostring(req.statusCode()) + " " + getStatusMessage(req.statusCode()) + RESET;
 }
 
 bool shouldCloseConnection(Request& req) {

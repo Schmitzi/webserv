@@ -90,7 +90,7 @@ bool isCGIScript(const std::string& path) {
 }
 
 int buildBody(Client& c, Request &req, std::string fullPath) {
-	if (!tryLockFile(fullPath, c.getFd(), c.fileIsNew())) {
+	if (!tryLockFile(c, fullPath, c.getFd(), c.fileIsNew())) {
 		req.statusCode() = 423;
 		sendErrorResponse(c, req);
 		return 1;
@@ -99,7 +99,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	if (fd < 0) {
 		releaseLockFile(fullPath);
 		req.statusCode() = 500;
-		std::cerr << getTimeStamp(c.getFd()) << RED << "Failed to open file: " << RESET << fullPath << std::endl;
+		c.output() = getTimeStamp(c.getFd()) + RED + "Failed to open file: " + RESET + fullPath;
 		sendErrorResponse(c, req);
 		return 1;
 	}
@@ -120,13 +120,19 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	if (bytesRead == 0)
 		return 0;
 	else if (bytesRead < 0) {
-		std::cerr << getTimeStamp(c.getFd()) << RED << "Error: read() failed on file: " << RESET << fullPath << std::endl;
+		c.output() = getTimeStamp(c.getFd()) + RED + "Error: read() failed on file: " + RESET + fullPath;
 		req.statusCode() = 500;
 		sendErrorResponse(c, req);
 		return 1;
 	}
 	std::string fileContent(buffer.data(), bytesRead);
 	req.setBody(fileContent);
+	// if (req.getBody().size() != req.getContentLength()) {
+	// 	req.statusCode() = 400;
+	// 	req.check() = "BAD";
+	// 	sendErrorResponse(c, req);
+	// 	return 1;
+	// }
 	return 0;
 }
 
@@ -136,7 +142,7 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 	if (stat(uploadDir.c_str(), &st) != 0) {
 		req.statusCode() = 500;
 		if (mkdir(uploadDir.c_str(), 0755) != 0) {
-			std::cerr << getTimeStamp(c.getFd()) << RED << "Error: Failed to create upload directory" << RESET << std::endl;
+			c.output() = getTimeStamp(c.getFd()) + RED + "Error: Failed to create upload directory" + RESET;
 			return false;
 		}
 	}
@@ -155,13 +161,13 @@ std::string getLocationPath(Client& c, Request& req, const std::string& method) 
 	locationLevel* loc = NULL;
 	if (req.getPath().empty()) {
 		req.statusCode() = 400;
-		std::cerr << getTimeStamp(c.getFd()) << RED << "Request path is empty for " << method << " request" << RESET << std::endl;
+		c.output() = getTimeStamp(c.getFd()) + RED + "Request path is empty for " + method + " request" + RESET;
 		sendErrorResponse(c, req);
 		return "";
 	}
 	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
 		req.statusCode() = 404;
-		std::cerr << getTimeStamp(c.getFd()) << RED << "Location not found for " << method << " request: " << RESET << req.getPath() << std::endl;
+		c.output() = getTimeStamp(c.getFd()) + RED + "Location not found for " + method + " request: " + RESET + req.getPath();
 		sendErrorResponse(c, req);
 		return "";
 	}
@@ -170,14 +176,14 @@ std::string getLocationPath(Client& c, Request& req, const std::string& method) 
 			break;
 		if (i == loc->methods.size() - 1) {
 			req.statusCode() = 405;
-			std::cerr << getTimeStamp(c.getFd()) << RED << "Method not allowed for " << method << " request: " << RESET << req.getPath() << std::endl;
+			c.output() = getTimeStamp(c.getFd()) + RED + "Method not allowed for " + method + " request: " + RESET + req.getPath();
 			sendErrorResponse(c, req);
 			return "";
 		}
 	}
 	if (loc->uploadDirPath.empty()) {
 		req.statusCode() = 403;
-		std::cerr << getTimeStamp(c.getFd()) << RED << "Upload directory not set for " << method << " request: " << RESET << req.getPath() << std::endl;
+		c.output() = getTimeStamp(c.getFd()) + RED + "Upload directory not set for " + method + " request: " + RESET + req.getPath();
 		sendErrorResponse(c, req);
 		return "";
 	}
@@ -186,7 +192,7 @@ std::string getLocationPath(Client& c, Request& req, const std::string& method) 
 	return fullPath;
 }
 
-std::string decodeChunkedBody(int fd, const std::string& chunkedData) {
+std::string decodeChunkedBody(Client& c, int fd, const std::string& chunkedData) {
 	std::string decodedBody;
 	size_t pos = 0;
 	
@@ -198,7 +204,7 @@ std::string decodeChunkedBody(int fd, const std::string& chunkedData) {
 			crlfPos = chunkedData.find("\n", pos);
 			lineEndLength = 1;
 			if (crlfPos == std::string::npos) {
-				std::cerr << getTimeStamp(fd) << RED  << "Malformed chunked data: no CRLF after chunk size" << RESET << std::endl;
+				c.output() = getTimeStamp(fd) + RED  + "Malformed chunked data: no CRLF after chunk size" + RESET;
 				break;
 			}
 		}
@@ -241,7 +247,7 @@ std::string decodeChunkedBody(int fd, const std::string& chunkedData) {
 	return decodedBody;
 }
 
-bool tryLockFile(const std::string& path, int timeStampFd, bool& isNew) {
+bool tryLockFile(Client& c, const std::string& path, int timeStampFd, bool& isNew) {
 	int fd = open(path.c_str(), O_CREAT | O_EXCL, 0644);
 	if (fd == -1 && errno == EEXIST)
 		isNew = false;
@@ -255,10 +261,10 @@ bool tryLockFile(const std::string& path, int timeStampFd, bool& isNew) {
 	fd = open(lockPath.c_str(), O_CREAT | O_EXCL, 0644);
 	if (fd == -1) {
 		if (errno == EEXIST) {
-			std::cerr << getTimeStamp(timeStampFd) << RED << "Error: File is being used at the moment: " << RESET << path << std::endl;
+			c.output() = getTimeStamp(timeStampFd) + RED + "Error: File is being used at the moment: " + RESET + path;
 			return false;
 		} else {
-			std::cerr << getTimeStamp(timeStampFd) << RED << "Error: creating lock file failed" << RESET << std::endl;
+			c.output() = getTimeStamp(timeStampFd) + RED + "Error: creating lock file failed" + RESET;
 			return false;
 		}
 	}

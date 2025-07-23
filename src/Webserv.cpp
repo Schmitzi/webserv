@@ -175,7 +175,6 @@ int Webserv::run() {
 			std::cerr << getTimeStamp() << RED << "Error: epoll_wait() failed" << RESET << std::endl;
 			continue;
 		}
-		// static int one = 0;
 		for (int i = 0; i < nfds; i++) {
 			// if (one < 15)
 			// 	std::cout << GREEN << one << RESET << std::endl;
@@ -184,12 +183,6 @@ int Webserv::run() {
 			
 			if (!checkEventMaskErrors(eventMask, fd))
 				continue;
-			// if (one == 0) {
-			// 	if (!tryLockFile("local/upload/hello.txt", 111))
-			// 		std::cout << CYAN << "------------------NOT LOCKED------------------" << RESET << std::endl;
-			// 	else
-			// 		std::cout << MAGENTA << "------------------LOCKED------------------" << RESET << std::endl;
-			// }
 			Server *activeServer = getServerByFd(fd);
 			if (activeServer) {
 				if (eventMask & EPOLLIN)
@@ -337,7 +330,7 @@ void Webserv::handleClientActivity(int clientFd) {
 void Webserv::handleEpollOut(int fd) {
 	Client *c = getClientByFd(fd);
 	if (!c) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: no client was found" << RESET << std::endl;
+		std::cerr << getTimeStamp(fd) << RED << "Error: Client not found" << RESET << std::endl;
 		return;
 	}
 	const std::string& toSend = getSendBuf(fd);
@@ -363,6 +356,11 @@ void Webserv::handleEpollOut(int fd) {
 		offset = 0;
 		clearSendBuf(*this, fd);
 		c->lastUsed() = time(NULL);//TODO: lra
+		if (c->getRequest().statusCode() == 200 || c->getRequest().statusCode() == 201)
+			std::cout << c->output() << std::endl;
+		else
+			std::cerr << c->output() << std::endl;
+		c->output().clear();
 		if (c->shouldClose() == true)
 			c->exitErr() = true;
 		else {

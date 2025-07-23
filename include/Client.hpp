@@ -43,6 +43,7 @@ class Client {
 		bool						&fileIsNew();
 		bool						&shouldClose();
 		time_t						&lastUsed();//TODO: lra
+		std::string					&output();
 
 		int							acceptConnection(int serverFd);
 		void						displayConnection();
@@ -77,6 +78,7 @@ class Client {
 		bool						_fileIsNew;
 		bool						_shouldClose;
 		time_t						_lastUsed;//TODO: lra
+		std::string					_output;
 };
 
 #endif
