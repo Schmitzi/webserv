@@ -163,7 +163,7 @@ void sendRedirect(Client& c, const std::string& location, Request& req) {
 	std::string response = "HTTP/1.1 " + tostring(req.statusCode()) + " " + statusText + "\r\n";
 	response += "Location: " + location + "\r\n";
 	response += "Content-Type: text/html\r\n";
-	response += "Content-Length: " + tostring(body.length()) + "\r\n";
+	response += "Content-Length: " + tostring(body.size()) + "\r\n";
 	response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
 	response += "Pragma: no-cache\r\n";
 	if (shouldCloseConnection(req))
@@ -197,7 +197,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 		content = "Upload successful";
 	
 	if (!isChunked)
-		response += "Content-Length: " + tostring(content.length()) + "\r\n";
+		response += "Content-Length: " + tostring(content.size()) + "\r\n";
 	else
 		response += "Transfer-Encoding: chunked\r\n";
 	

@@ -322,14 +322,13 @@ int CGIHandler::processScriptOutput() {
 				return 0;
 			} else {
 				std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
-				std::map<std::string, std::string> headerMap = parseHeaders(headerAndBody.first);
 				cleanupResources();
-				if (isChunkedTransfer(headerMap))
-					handleChunkedOutput(headerMap, headerAndBody.second);
+				if (_req.isChunkedTransfer())
+					handleChunkedOutput(_req.getHeaders(), headerAndBody.second);
 				else {
 					if (_req.statusCode() == 501)
 						return 1;
-					handleStandardOutput(headerMap, headerAndBody.second);
+					handleStandardOutput(_req.getHeaders(), headerAndBody.second);
 				}
 				return 1;
 			}
@@ -349,19 +348,6 @@ int CGIHandler::processScriptOutput() {
 	}
 	usleep(100000);
 	return 0;
-}
-
-bool CGIHandler::isChunkedTransfer(const std::map<std::string, std::string>& headers) {
-	std::map<std::string, std::string>::const_iterator it = headers.find("Transfer-Encoding");
-	if (it != headers.end()) {
-		if (iFind(it->second, "chunked") != std::string::npos)
-			return true;
-		else {
-			_req.statusCode() = 501;
-			return false;
-		}
-	}
-	return false;
 }
 
 int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
@@ -384,7 +370,7 @@ int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& h
 		response += "Connection: close\r\n";
 	response += "\r\n";
 	response += initialBody;
-	response += "\n"; //added for better netcat output
+	response += "\n";
 	
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
 	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);    
@@ -458,31 +444,31 @@ std::pair<std::string, std::string> CGIHandler::splitHeaderAndBody(const std::st
 	}
 }
 
-std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& headerSection) {
-	std::map<std::string, std::string> headers;
-	std::istringstream iss(headerSection);
-	std::string line;
+// std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& headerSection) {
+// 	std::map<std::string, std::string> headers;
+// 	std::istringstream iss(headerSection);
+// 	std::string line;
 	
-	while (std::getline(iss, line) && !line.empty() && line != "\r") {
-		if (!line.empty() && line[line.length() - 1] == '\r') {
-			line.erase(line.length() - 1);
-		}
+// 	while (std::getline(iss, line) && !line.empty() && line != "\r") {
+// 		if (!line.empty() && line[line.length() - 1] == '\r') {
+// 			line.erase(line.length() - 1);
+// 		}
 		
-		size_t colonPos = line.find(':');
-		if (colonPos != std::string::npos) {
-			std::string key = line.substr(0, colonPos);
-			std::string value = line.substr(colonPos + 1);
+// 		size_t colonPos = line.find(':');
+// 		if (colonPos != std::string::npos) {
+// 			std::string key = line.substr(0, colonPos);
+// 			std::string value = line.substr(colonPos + 1);
 			
-			key.erase(0, key.find_first_not_of(" \t"));
-			key.erase(key.find_last_not_of(" \t") + 1);
-			value.erase(0, value.find_first_not_of(" \t"));
-			value.erase(value.find_last_not_of(" \t") + 1);
+// 			key.erase(0, key.find_first_not_of(" \t"));
+// 			key.erase(key.find_last_not_of(" \t") + 1);
+// 			value.erase(0, value.find_first_not_of(" \t"));
+// 			value.erase(value.find_last_not_of(" \t") + 1);
 			
-			headers[key] = value;
-		}
-	}
-	return headers;
-}
+// 			headers[key] = value;
+// 		}
+// 	}
+// 	return headers;
+// }
 
 void CGIHandler::cleanupResources() {
 	if (!_client)
