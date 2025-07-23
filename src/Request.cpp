@@ -121,11 +121,7 @@ void    Request::setContentType(std::string const content) {
 	_contentType = content;
 }
 
-bool Request::hasServerName() {
-	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Host");
-	std::string servName;
-	if (it != _headers.end())
-		servName = it->second;
+bool Request::hasServerName(std::string& servName) {
 	if (iFind(servName, "localhost") != std::string::npos) {
 		std::string portPart = servName.substr(servName.find(":") + 1);
 		if (onlyDigits(portPart)) {
@@ -142,7 +138,7 @@ bool Request::matchHostServerName() {
 	std::string servName;
 	if (it != _headers.end())
 		servName = it->second;
-	if (hasServerName()) {
+	if (hasServerName(servName)) {
 		for (size_t i = 0; i < _configs.size(); i++) {
 			for (size_t j = 0; j < _configs[i].servName.size(); j++) {
 				if (iEqual(servName, _configs[i].servName[j])) {
@@ -201,8 +197,9 @@ void Request::parse(const std::string& rawRequest) {
 		_body = rawRequest.substr(headerEnd + headerSeparatorLength);
 	}
 	
-	if (!parseHeaders(headerSection)) {
+	if (!parseHeaders(headerSection))
 		_statusCode = 400;
+	if (_statusCode == 400) {
 		_check = "BAD";
 		return;
 	}
@@ -299,8 +296,9 @@ int Request::parseHeaders(const std::string& headerSection) {
 			key.erase(key.find_last_not_of(" \t\r\n") + 1);
 			value.erase(0, value.find_first_not_of(" \t"));
 			value.erase(value.find_last_not_of(" \t\r\n") + 1);
-			// if (split(value).size() > 1)
-			// 	return false;
+			std::vector<std::string> values = split(value);
+			if (values.size() > 1)
+				_statusCode = 400;
 			if (iEqual(key, "Host"))
 				host = true;
 			_headers[key] = value;
@@ -312,19 +310,23 @@ int Request::parseHeaders(const std::string& headerSection) {
 void Request::checkContentLength(std::string buffer) {
 	size_t pos = iFind(buffer, "Content-Length:");
 	if (pos != std::string::npos) {
-		pos += 15;
-		while (pos < buffer.size() && (buffer[pos] == ' ' || buffer[pos] == '\t'))
-			pos++;
-		
 		size_t eol = buffer.find("\r\n", pos);
 		if (eol == std::string::npos)
 			eol = buffer.find("\n", pos);
-		
 		if (eol != std::string::npos) {
-			std::string valueStr = buffer.substr(pos, eol - pos);
-			_contentLength = strtoul(valueStr.c_str(), NULL, 10);
-			_hasLengthOrIsChunked = true;
-			return;
+			std::string line = buffer.substr(pos, eol - pos);
+			std::vector<std::string> values = splitBy(line, ':');
+			if (values.size() == 1) {
+				std::vector<std::string> elements = split(values[1]);
+				if (elements.size() > 1)
+					_statusCode = 400;
+				else {
+					_contentLength = strtoul(elements[0].c_str(), NULL, 10);
+					_hasLengthOrIsChunked = true;
+				}
+			} else
+				_statusCode = 400;
+
 		}
 	}
 
