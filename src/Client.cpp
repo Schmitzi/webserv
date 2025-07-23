@@ -176,7 +176,7 @@ void Client::recieveData() {
 int Client::processRequest() {
 	serverLevel &conf = _req->getConf();
 	if (_req->getContentLength() > conf.requestLimit) {
-		_req->statusCode() = 413;
+		_req->setStatusCode(413);
 		sendErrorResponse(*this, *_req);
 		_requestBuffer.clear();
 		return 1;
@@ -198,7 +198,7 @@ int Client::processRequest() {
 	locationLevel* loc = NULL;
 	if (matchLocation(_req->getPath(), conf, loc)) {
 		if (loc->hasRedirect == true) {
-			_req->statusCode() = loc->redirectionHTTP.first;
+			_req->setStatusCode(loc->redirectionHTTP.first);
 			sendRedirect(*this, loc->redirectionHTTP.second, *_req);
 			return 0;
 		}
@@ -230,12 +230,12 @@ int Client::handleGetRequest() {
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
 		_output = getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath();
-		_req->statusCode() = 404;
+		_req->setStatusCode(404);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
 	if (_req->getPath().find("../") != std::string::npos) {
-		_req->statusCode() = 403;
+		_req->setStatusCode(403);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -249,13 +249,13 @@ int Client::handlePostRequest() {
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
 		_output = getTimeStamp(_fd) + RED  + "Location not found for POST request: " + RESET + _req->getPath();
-		_req->statusCode() = 404;
+		_req->setStatusCode(404);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
 	std::string fullPath = getLocationPath(*this, *_req, "POST");
 	if (fullPath.empty()) {
-		_req->statusCode() = 404;
+		_req->setStatusCode(404);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -273,7 +273,7 @@ int Client::handlePostRequest() {
 		return handleMultipartPost();
 	
 	if (_req->getPath().find("../") != std::string::npos) {
-		_req->statusCode() = 403;
+		_req->setStatusCode(403);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -285,7 +285,7 @@ int Client::handlePostRequest() {
 		contentToWrite = decodeChunkedBody(*this, _fd, _req->getBody());
 		
 		if (contentToWrite.empty()) {
-			_req->statusCode() = 400;
+			_req->setStatusCode(400);
 			_output = getTimeStamp(_fd) + RED  + "Failed to decode chunked data" + RESET;
 			sendErrorResponse(*this, *_req);
 			return 1;
@@ -300,14 +300,14 @@ int Client::handlePostRequest() {
 		fullPath = matchAndAppendPath(fullPath, fileName);
 	}
 	if (!tryLockFile(*this, fullPath, _fd, _fileIsNew)) {
-		_req->statusCode() = 423;
+		_req->setStatusCode(423);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {
 		releaseLockFile(fullPath);
-		_req->statusCode() = 418;
+		_req->setStatusCode(418);
 		_output = getTimeStamp(_fd) + RED + "Failed to open file for writing: " + RESET + fullPath;
 		sendErrorResponse(*this, *_req);
 		if (_fileIsNew == true) {
@@ -322,7 +322,7 @@ int Client::handlePostRequest() {
 	ssize_t bytesWritten = write(fd, contentToWrite.c_str(), contentToWrite.length());
 	releaseLockFile(fullPath);
 	if (bytesWritten < 0) {
-		_req->statusCode() = 500;
+		_req->setStatusCode(500);
 		_output = getTimeStamp(_fd) + RED + "Error: write() failed" + RESET;
 		sendErrorResponse(*this, *_req);
 		if (_fileIsNew == true) {
@@ -333,7 +333,7 @@ int Client::handlePostRequest() {
 		return 1;
 	}
 	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";//TODO: why one too many bytes here?
-	_req->statusCode() = 201;
+	_req->setStatusCode(201);
 	sendResponse(*this, *_req, responseBody);//TODO: we are adding a new line in here
 	_output = getTimeStamp(_fd) + GREEN  + "Uploaded file: " + RESET + fullPath + " (" + tostring(bytesWritten) + " bytes written)";
 	close(fd);
@@ -343,7 +343,7 @@ int Client::handlePostRequest() {
 int Client::handleDeleteRequest() {
 	std::string fullPath = getLocationPath(*this, *_req, "DELETE");
 	if (fullPath.empty()) {
-		_req->statusCode() = 404;
+		_req->setStatusCode(404);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -362,15 +362,15 @@ int Client::handleDeleteRequest() {
 
 	if (remove(fullPath.c_str()) != 0) {
 		if (errno == ENOENT) {
-			_req->statusCode() = 404;
+			_req->setStatusCode(404);
 			sendErrorResponse(*this, *_req);
 			return 1;
 		} else if (errno == EACCES || errno == EPERM) {
-			_req->statusCode() = 403;
+			_req->setStatusCode(403);
 			sendErrorResponse(*this, *_req);
 			return 1;
 		} else {
-			_req->statusCode() = 500;
+			_req->setStatusCode(500);
 			_output = getTimeStamp(_fd) + RED  + "Error deleting file: " + RESET + fullPath + " - " + strerror(errno);
 			sendErrorResponse(*this, *_req);
 			return 1;
@@ -396,7 +396,7 @@ int Client::handleFileBrowserRequest() {
 		
 		struct stat fileStat;
 		if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-			_req->statusCode() = 404;
+			_req->setStatusCode(404);
 			_output = getTimeStamp(_fd) + RED  + "File not found: " + RESET + actualFullPath;
 			sendErrorResponse(*this, *_req);
 			return 1;
@@ -412,7 +412,7 @@ int Client::handleFileBrowserRequest() {
 			_output = getTimeStamp(_fd) + GREEN  + "Successfully served file from browser: " + RESET + actualFullPath;
 			return 0;
 		} else {
-			_req->statusCode() = 403;
+			_req->setStatusCode(403);
 			_output = getTimeStamp(_fd) + RED + "Not a regular file or directory: " + RESET + actualFullPath;
 			sendErrorResponse(*this, *_req);
 			return 1;
@@ -424,7 +424,7 @@ int Client::handleFileBrowserRequest() {
 int Client::handleRegularRequest() {
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
-		_req->statusCode() = 404;
+		_req->setStatusCode(404);
 		_output = getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath();
 		sendErrorResponse(*this, *_req);
 		return 1;
@@ -443,7 +443,7 @@ int Client::handleRegularRequest() {
 		fullPath = reqPath;
 
 	if (fullPath.find("root") != std::string::npos && loc->autoindex == false) {
-		_req->statusCode() = 403;
+		_req->setStatusCode(403);
 		_output = getTimeStamp(_fd) + RED + "Access to directory browser is forbidden when autoindex is off" + RESET;
 		sendErrorResponse(*this, *_req);
 		return 1;
@@ -467,7 +467,7 @@ int Client::handleRegularRequest() {
 
 	struct stat fileStat;
 	if (stat(fullPath.c_str(), &fileStat) != 0) {
-		translateErrorCode(errno, _req->statusCode());
+		translateErrorCode(errno, _req->getStatusCode());
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -475,7 +475,7 @@ int Client::handleRegularRequest() {
 	if (S_ISDIR(fileStat.st_mode))
 		return viewDirectory(fullPath, *_req);
 	else if (!S_ISREG(fileStat.st_mode)) {
-		_req->statusCode() = 403;
+		_req->setStatusCode(403);
 		_output = getTimeStamp(_fd) + RED + "Not a regular file: " + RESET + fullPath;
 		sendErrorResponse(*this, *_req);
 		return 1;
@@ -498,7 +498,7 @@ int Client::handleMultipartPost() {
 	std::string boundary = _req->getBoundary();
 	
 	if (boundary.empty()) {
-		_req->statusCode() = 400;
+		_req->setStatusCode(400);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -506,33 +506,33 @@ int Client::handleMultipartPost() {
 	Multipart parser(_requestBuffer, boundary);
 	
 	if (!parser.parse()) {
-		_req->statusCode() = 400;
+		_req->setStatusCode(400);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
 	
 	std::string filename = parser.getFilename();
 	if (filename.empty()) {
-		_req->statusCode() = 400;
+		_req->setStatusCode(400);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
 
 	std::string fileContent = parser.getFileContent();
 	if (fileContent.empty() && !parser.isComplete()) {
-		_req->statusCode() = 400;
+		_req->setStatusCode(400);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
 	
 	if (!saveFile(*_req, filename, fileContent)) {
-		_req->statusCode() = 500;
+		_req->setStatusCode(500);
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
 	std::cout << getTimeStamp(_fd) << GREEN  << "Received: " + parser.getFilename() << RESET << std::endl;
 	std::string successMsg = "Successfully uploaded file:" + filename;
-	_req->statusCode() = 201;
+	_req->setStatusCode(201);
 	sendResponse(*this, *_req, successMsg);
 	_output = getTimeStamp(_fd) + GREEN  + "File transfer ended" + RESET;
 	return 0;
@@ -543,7 +543,7 @@ int    Client::handleRedirect() {
 	std::map<std::string, locationLevel>::iterator it = _req->getConf().locations.begin();
 	for ( ; it != _req->getConf().locations.end() ; it++) {
 		if (it->first == path) {
-			_req->statusCode() = it->second.redirectionHTTP.first;
+			_req->setStatusCode(it->second.redirectionHTTP.first);
 			sendRedirect(*this, it->second.redirectionHTTP.second, *_req);
 			return 0;
 		}
@@ -560,7 +560,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 			std::string indexPath = matchAndAppendPath(fullPath, loc->indexFile);
 			struct stat indexStat;
 			if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
-				Request req;
+				Request req(this);
 				req.setPath(indexPath);
 				if (buildBody(*this, req, indexPath) == 1)
 					return 1;
@@ -569,7 +569,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 				_output = getTimeStamp(_fd) + GREEN  + "Successfully served index file: " + RESET + indexPath;
 				return 0;
 			} else {
-				req.statusCode() = 403;
+				req.setStatusCode(403);
 				_output = getTimeStamp(_fd) + RED  + "Autoindex off and no index.html: " + RESET + fullPath;
 				sendErrorResponse(*this, req);
 				return 1;
@@ -583,7 +583,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 			std::string indexPath = matchAndAppendPath(fullPath, loc->indexFile);
 			struct stat indexStat;
 			if (stat(indexPath.c_str(), &indexStat) == 0 && S_ISREG(indexStat.st_mode)) {
-				Request req;
+				Request req(this);
 				req.setPath(indexPath);
 				if (buildBody(*this, req, indexPath) == 1)
 					return 1;
@@ -592,7 +592,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 				_output = getTimeStamp(_fd) + GREEN  + "Successfully served index file: " + RESET + indexPath;
 				return 0;
 			} else {
-				req.statusCode() = 403;
+				req.setStatusCode(403);
 				_output = getTimeStamp(_fd) + RED  + "Autoindex off and no index.html: " + RESET + fullPath;
 				sendErrorResponse(*this, req);
 				return 1;
@@ -600,7 +600,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 		}
 	}
 	else {
-		req.statusCode() = 403;
+		req.setStatusCode(403);
 		_output = getTimeStamp(_fd) + RED + "No matching location for: " + RESET + req.getPath();
 		sendErrorResponse(*this, req);
 		return 1;
@@ -611,7 +611,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 int Client::createDirList(std::string fullPath, Request& req) {
 	std::string dirListing = showDir(fullPath, req.getPath());
 	if (dirListing.empty()) {
-		req.statusCode() = 404;
+		req.setStatusCode(404);
 		sendErrorResponse(*this, req);
 		return 1;
 	}
@@ -696,24 +696,24 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
 bool Client::saveFile(Request& req, const std::string& filename, const std::string& content) {
 	std::string fullPath = matchAndAppendPath(_server->getUploadDir(*this, req), filename);
 	if (fullPath.empty()) {
-		req.statusCode() = 404;
+		req.setStatusCode(404);
 		return false;
 	}
 	if (!ensureUploadDirectory(*this, req)) {
-		req.statusCode() = 500;
+		req.setStatusCode(500);
 		_output = getTimeStamp(_fd) + RED + "Error: Failed to ensure upload directory exists" + RESET;
 		return false;
 	}
 	
 	if (!tryLockFile(*this, fullPath, _fd, _fileIsNew)) {
-		req.statusCode() = 423;
+		req.setStatusCode(423);
 		sendErrorResponse(*this, req);
 		return false;
 	}
 
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {
-		req.statusCode() = 500;
+		req.setStatusCode(500);
 		_output = getTimeStamp(_fd) + RED + "Error: Failed to open file for writing: " + RESET + fullPath;
 		return false;
 	}
@@ -721,7 +721,7 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 	ssize_t bytesWritten = write(fd, content.c_str(), content.length());
 	if (!checkReturn(*this, _fd, bytesWritten, "write()")) {
 		releaseLockFile(fullPath);
-		req.statusCode() = 500;
+		req.setStatusCode(500);
 		sendErrorResponse(*this, req);
 		close(fd);
 		return false;

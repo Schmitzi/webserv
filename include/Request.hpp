@@ -18,7 +18,7 @@ struct	locationLevel;
 
 class Request {
 	public:
-		Request();
+		Request(Client* client = NULL);
 		Request(const std::string& rawRequest, Client& client, int clientFd);
 		Request(const Request& copy);
 		Request &operator=(const Request& copy);
@@ -36,7 +36,9 @@ class Request {
 		serverLevel							&getConf();
 		std::map<std::string, std::string>	&getHeaders();
 		bool								&hasLengthOrIsChunked();
-		int									&statusCode();
+		// int									&statusCode();
+		void								setStatusCode(int x);
+		int									&getStatusCode();
 		std::string							&check();
 		std::string							getMimeType(std::string const &path);
 		void								setPath(std::string const path);

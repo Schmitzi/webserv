@@ -119,6 +119,6 @@ void				sendRedirect(Client& c, const std::string& location, Request& req);
 ssize_t				sendResponse(Client& c, Request& req, std::string body);
 void				sendErrorResponse(Client& c, Request& req);
 bool				shouldCloseConnection(Request& req);
-void				translateErrorCode(int errnoCode, int& statusCode);
+void				translateErrorCode(int errnoCode, int statusCode);
 
 #endif

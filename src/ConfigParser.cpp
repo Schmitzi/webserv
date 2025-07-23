@@ -190,13 +190,6 @@ void ConfigParser::setIpPortToServers() {
 	for (size_t i = 0; i < _allConfigs.size(); ++i) {
 		for (size_t j = 0; j < _allConfigs[i].port.size(); ++j) {
 			std::pair<std::pair<std::string, int>, bool> ipPort = _allConfigs[i].port[j];
-			int port = ipPort.first.second;
-			IPPortToServersMap::iterator it = _ipPortToServers.begin();
-			while (it != _ipPortToServers.end() && it->first.first.second != port) ++it;
-			if (it == _ipPortToServers.end()) {
-				std::vector<serverLevel> servers;
-				_ipPortToServers.insert(std::pair<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel> >(ipPort, servers));
-			}
 			_ipPortToServers[ipPort].push_back(_allConfigs[i]);
 		}
 	}
