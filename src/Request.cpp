@@ -307,41 +307,41 @@ int Request::parseHeaders(const std::string& headerSection) {
 	return host;
 }
 
-void Request::checkContentLength(std::string buffer) {
+void Request::checkContentLength(std::string buffer) {//TODO: maybe return after bad status code and also look up which status codes are bad (generally)
 	size_t pos = iFind(buffer, "Content-Length:");
 	if (pos != std::string::npos) {
+		pos += 15;
 		size_t eol = buffer.find("\r\n", pos);
 		if (eol == std::string::npos)
 			eol = buffer.find("\n", pos);
 		if (eol != std::string::npos) {
 			std::string line = buffer.substr(pos, eol - pos);
-			std::vector<std::string> values = splitBy(line, ':');
-			if (values.size() == 1) {
-				std::vector<std::string> elements = split(values[1]);
-				if (elements.size() > 1)
-					_statusCode = 400;
-				else {
-					_contentLength = strtoul(elements[0].c_str(), NULL, 10);
-					_hasLengthOrIsChunked = true;
-				}
-			} else
+			std::vector<std::string> values = split(line);
+			if (values.size() > 1)
 				_statusCode = 400;
-
+			else {
+				_contentLength = strtoul(values[0].c_str(), NULL, 10);
+				_hasLengthOrIsChunked = true;
+			}
+		} else {
+			_statusCode = 400;
 		}
 	}
 
 	pos = iFind(buffer, "Transfer-Encoding:");
 	if (pos != std::string::npos) {
+		pos += 18;
 		size_t eol = buffer.find("\r\n", pos);
 		if (eol == std::string::npos)
 			eol = buffer.find("\n", pos);
-		
 		if (eol != std::string::npos) {
-			std::string transferEncoding = buffer.substr(pos + 18, eol - pos - 18);
+			std::string transferEncoding = buffer.substr(pos, eol - pos);
 			if (iFind(transferEncoding, "chunked") != std::string::npos) {
 				_contentLength = 0;
 				_hasLengthOrIsChunked = true;
 				std::cout << getTimeStamp(_clientFd) << BLUE << "Transfer-Encoding: chunked detected" << RESET << std::endl;
+			} else {
+				_statusCode = 501;
 			}
 		}
 	}
