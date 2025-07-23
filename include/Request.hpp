@@ -50,7 +50,7 @@ class Request {
 		int									parseHeaders(const std::string& headerSection);
 		void								checkContentLength(std::string buffer);
 		void								parseContentType();
-		bool								isChunkedTransfer() const;
+		bool								isChunkedTransfer();
 
 	private:
 		std::string							_host; 

@@ -19,7 +19,8 @@ bool Multipart::parse() {
 	if (headersEnd == std::string::npos)
 		return false;
 	
-	if (!parseHeaders(partStart, headersEnd))
+	std::string partHeaders = _data.substr(partStart, headersEnd - partStart);
+	if (!extractFilename(partHeaders))
 		return false;
 	
 	return parseContent(headersEnd, fullBoundary);
@@ -53,11 +54,6 @@ size_t Multipart::findHeadersEnd(size_t partStart) {
 	} else
 		headersEnd += 4;
 	return headersEnd;
-}
-
-bool Multipart::parseHeaders(size_t partStart, size_t headersEnd) {
-	std::string partHeaders = _data.substr(partStart, headersEnd - partStart);
-	return extractFilename(partHeaders);
 }
 
 bool Multipart::extractFilename(const std::string& headers) {

@@ -282,6 +282,7 @@ void Request::parse(const std::string& rawRequest) {
 	}
 	_path = decode(_path);
 }
+
 int Request::parseHeaders(const std::string& headerSection) {
 	std::istringstream iss(headerSection);
 	std::string line;
@@ -299,6 +300,8 @@ int Request::parseHeaders(const std::string& headerSection) {
 			key.erase(key.find_last_not_of(" \t\r\n") + 1);
 			value.erase(0, value.find_first_not_of(" \t"));
 			value.erase(value.find_last_not_of(" \t\r\n") + 1);
+			// if (split(value).size() > 1)
+			// 	return false;
 			if (iEqual(key, "Host"))
 				host = true;
 			_headers[key] = value;
@@ -410,9 +413,15 @@ std::string Request::getMimeType(std::string const &path) {
 	return "application/octet-stream";
 }
 
-bool Request::isChunkedTransfer() const {
+bool Request::isChunkedTransfer() {
 	std::map<std::string, std::string>::const_iterator it = _headers.find("Transfer-Encoding");
-	if (it != _headers.end() && iFind(it->second, "chunked") != std::string::npos)
-		return true;
+	if (it != _headers.end()) {
+		if (iFind(it->second, "chunked") != std::string::npos)
+			return true;
+		else {
+			_statusCode = 501;
+			return false;
+		}
+	}
 	return false;
 }

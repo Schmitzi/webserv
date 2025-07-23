@@ -16,7 +16,6 @@ class Multipart {
 	private:
 		size_t					findPartStart(size_t boundaryPos, const std::string& fullBoundary);
 		size_t					findHeadersEnd(size_t partStart);
-		bool					parseHeaders(size_t partStart, size_t headersEnd);
 		bool					extractFilename(const std::string& headers);
 		size_t					findLineEnd(const std::string& text, size_t start);
 		bool					parseContent(size_t contentStart, const std::string& fullBoundary);
