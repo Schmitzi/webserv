@@ -324,11 +324,11 @@ int CGIHandler::processScriptOutput() {
 				std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
 				cleanupResources();
 				if (_req.isChunkedTransfer())
-					handleChunkedOutput(_req.getHeaders(), headerAndBody.second);
+					handleChunkedOutput(headerAndBody.second);
 				else {
 					if (_req.statusCode() == 501)
 						return 1;
-					handleStandardOutput(_req.getHeaders(), headerAndBody.second);
+					handleStandardOutput(headerAndBody.second);
 				}
 				return 1;
 			}
@@ -350,19 +350,13 @@ int CGIHandler::processScriptOutput() {
 	return 0;
 }
 
-int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
+int CGIHandler::handleStandardOutput(const std::string& initialBody) {
 	std::string response = "HTTP/1.1 200 OK\r\n";
 	
-	std::map<std::string, std::string>::const_iterator typeIt = headerMap.find("Content-Type");
-	if (typeIt != headerMap.end())
-		response += "Content-Type: " + typeIt->second + "\r\n";
+	if (!_req.getContentType().empty())
+		response += "Content-Type: " + _req.getContentType() + "\r\n";
 	else
 		response += "Content-Type: text/html\r\n";
-	
-	for (std::map<std::string, std::string>::const_iterator it = headerMap.begin(); it != headerMap.end(); ++it) {
-		if (it->first != "Content-Type")
-			response += it->first + ": " + it->second + "\r\n";
-	}
 	
 	response += "Content-Length: " + tostring(initialBody.length()) + "\r\n";
 	response += "Server: WebServ/1.0\r\n";
@@ -377,22 +371,17 @@ int CGIHandler::handleStandardOutput(const std::map<std::string, std::string>& h
 	return 0;
 }
 
-int CGIHandler::handleChunkedOutput(const std::map<std::string, std::string>& headerMap, const std::string& initialBody) {
+int CGIHandler::handleChunkedOutput(const std::string& initialBody) {
 	std::string response = "HTTP/1.1 200 OK\r\n";
 	
-	for (std::map<std::string, std::string>::const_iterator it = headerMap.begin(); it != headerMap.end(); ++it) {
-		if (iFind(it->first, "Content-Length") == std::string::npos)
-			response += it->first + ": " + it->second + "\r\n";
-	}
-	
-	if (headerMap.find("Transfer-Encoding") == headerMap.end())
+	if (_req.isChunkedTransfer())
 		response += "Transfer-Encoding: chunked\r\n";
 	
 	if (shouldCloseConnection(_req))
 		response += "Connection: close\r\n";
 	response += "\r\n";
 	response += formatChunkedResponse(initialBody);
-	response += "\n"; //added for better netcat output
+	response += "\n";
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
 	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
 	return 0;
