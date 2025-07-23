@@ -179,6 +179,10 @@ void Request::parse(const std::string& rawRequest) {
 	}
 
 	checkContentLength(rawRequest);
+	if (_statusCode >= 400) {
+		_check = "BAD";
+		return;
+	}
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
 	size_t headerSeparatorLength = 4;
@@ -197,9 +201,8 @@ void Request::parse(const std::string& rawRequest) {
 		_body = rawRequest.substr(headerEnd + headerSeparatorLength);
 	}
 	
-	if (!parseHeaders(headerSection))
-		_statusCode = 400;
-	if (_statusCode == 400) {
+	parseHeaders(headerSection);
+	if (_statusCode >= 400) {
 		_check = "BAD";
 		return;
 	}
@@ -270,7 +273,6 @@ void Request::parse(const std::string& rawRequest) {
 	if (isChunkedTransfer()) {
 		if (_statusCode == 501)
 			return;
-		_hasLengthOrIsChunked = true;
 		if (_method == "POST") {
 			std::cout << getTimeStamp(_clientFd) << BLUE << "POST request with chunked body: " << RESET << _body.length() 
 					<< " bytes of chunked data" << std::endl;
@@ -279,7 +281,7 @@ void Request::parse(const std::string& rawRequest) {
 	_path = decode(_path);
 }
 
-int Request::parseHeaders(const std::string& headerSection) {
+void Request::parseHeaders(const std::string& headerSection) {
 	std::istringstream iss(headerSection);
 	std::string line;
 	bool host = false;
@@ -304,10 +306,11 @@ int Request::parseHeaders(const std::string& headerSection) {
 			_headers[key] = value;
 		}
 	}
-	return host;
+	if (host == false)
+		_statusCode = 400;
 }
 
-void Request::checkContentLength(std::string buffer) {//TODO: maybe return after bad status code and also look up which status codes are bad (generally)
+void Request::checkContentLength(std::string buffer) {
 	size_t pos = iFind(buffer, "Content-Length:");
 	if (pos != std::string::npos) {
 		pos += 15;
@@ -317,14 +320,16 @@ void Request::checkContentLength(std::string buffer) {//TODO: maybe return after
 		if (eol != std::string::npos) {
 			std::string line = buffer.substr(pos, eol - pos);
 			std::vector<std::string> values = split(line);
-			if (values.size() > 1)
+			if (values.size() > 1) {
 				_statusCode = 400;
-			else {
+				return;
+			} else {
 				_contentLength = strtoul(values[0].c_str(), NULL, 10);
 				_hasLengthOrIsChunked = true;
 			}
 		} else {
 			_statusCode = 400;
+			return;
 		}
 	}
 
@@ -417,9 +422,10 @@ std::string Request::getMimeType(std::string const &path) {
 bool Request::isChunkedTransfer() {
 	std::map<std::string, std::string>::const_iterator it = _headers.find("Transfer-Encoding");
 	if (it != _headers.end()) {
-		if (iFind(it->second, "chunked") != std::string::npos)
+		if (iFind(it->second, "chunked") != std::string::npos) {
+			_hasLengthOrIsChunked = true;
 			return true;
-		else {
+		} else {
 			_statusCode = 501;
 			return false;
 		}

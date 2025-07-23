@@ -46,7 +46,7 @@ class Request {
 		bool								hasServerName(std::string& servName);
 		bool								matchHostServerName();
 		void								parse(const std::string& rawRequest);
-		int									parseHeaders(const std::string& headerSection);
+		void								parseHeaders(const std::string& headerSection);
 		void								checkContentLength(std::string buffer);
 		void								parseContentType();
 		bool								isChunkedTransfer();
