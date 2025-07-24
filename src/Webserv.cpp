@@ -326,12 +326,6 @@ void Webserv::handleEpollOut(int fd) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: Client not found" << RESET << std::endl;
 		return;
 	}
-	if (!c->output().empty()) {
-		if (c->getRequest().statusCode() < 400)
-			std::cout << c->output() << std::endl;
-		else
-			std::cerr << c->output() << std::endl;
-	}
 	const std::string& toSend = getSendBuf(fd);
 	if (toSend.empty()) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: _sendBuf is empty" << RESET << std::endl;
@@ -355,12 +349,10 @@ void Webserv::handleEpollOut(int fd) {
 		offset = 0;
 		clearSendBuf(*this, fd);
 		c->lastUsed() = time(NULL);
-		// if (!c->output().empty()) {
-		// 	if (c->getRequest().statusCode() < 400)
-		// 		std::cout << c->output() << std::endl;
-		// 	else
-		// 		std::cerr << c->output() << std::endl;
-		// }
+		if (c->getRequest().statusCode() < 400)
+			std::cout << c->output() << std::endl;
+		else
+			std::cerr << c->output() << std::endl;
 		c->output().clear();
 		if (c->shouldClose() == true)
 			c->exitErr() = true;
