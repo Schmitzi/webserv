@@ -351,7 +351,7 @@ void Request::checkContentLength(std::string buffer) {
 }
 
 void Request::parseContentType() {
-	std::map<std::string, std::string>::iterator it = _headers.find("Content-Type");
+	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Content-Type");
 	if (it != _headers.end()) {
 		_contentType = it->second;
 

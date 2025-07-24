@@ -58,7 +58,7 @@ bool matchUploadLocation(const std::string& path, const serverLevel& serv, locat
 					}
 				}
 			} else {
-				if (iFind(path, loc->locName) == 0 && loc->locName.size() > longestMatch) {
+				if (iFind(path, loc->locName) != std::string::npos && loc->locName.size() > longestMatch) {
 					bestMatch = loc;
 					found = true;
 					longestMatch = loc->locName.size();
@@ -185,7 +185,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	
 	std::map<std::string, std::string> headers = req.getHeaders();
 	bool isChunked = false;
-	std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
+	std::map<std::string, std::string>::iterator it = iMapFind(headers, "Transfer-Encoding");
 	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)
 		isChunked = true;
 	
