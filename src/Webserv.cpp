@@ -24,7 +24,7 @@ Webserv::Webserv(std::string config) : _epollFd(-1) {
 				}
 			}
 		}
-		if (toAdd)
+		if (toAdd) 
 			_servers.push_back(Server(_confParser, i, *this));
 	}
 	_state = true;
@@ -356,7 +356,7 @@ void Webserv::handleEpollOut(int fd) {
 		offset = 0;
 		clearSendBuf(*this, fd);
 		c->lastUsed() = time(NULL);//TODO: lra
-		if (c->getRequest().statusCode() == 200 || c->getRequest().statusCode() == 201)
+		if (c->getRequest().statusCode() == 200 || c->getRequest().statusCode() == 201) //TODO: getRequest causes invalid read when browsing local dir
 			std::cout << c->output() << std::endl;
 		else
 			std::cerr << c->output() << std::endl;

@@ -121,11 +121,7 @@ void    Request::setContentType(std::string const content) {
 	_contentType = content;
 }
 
-bool Request::hasServerName() {
-	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Host");
-	std::string servName;
-	if (it != _headers.end())
-		servName = it->second;
+bool Request::hasServerName(const std::string servName) {
 	if (iFind(servName, "localhost") != std::string::npos) {
 		std::string portPart = servName.substr(servName.find(":") + 1);
 		if (onlyDigits(portPart)) {
@@ -175,7 +171,7 @@ bool Request::matchHostServerName() {
 }
 
 void Request::parse(const std::string& rawRequest) {
-	std:: cout << CYAN << rawRequest + "\n" << RESET;
+	// std:: cout << CYAN << rawRequest + "\n" << RESET;
 	if (rawRequest.empty()) {
 		_client->output() = getTimeStamp(_clientFd) + RED + "Empty request!" + RESET;
 		_statusCode = 400;
