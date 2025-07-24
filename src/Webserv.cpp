@@ -247,7 +247,7 @@ void Webserv::handleClientDisconnect(int fd) {
 	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
-void Webserv::kickLeastRecentlyUsedClient() {//TODO: lra
+void Webserv::kickLeastRecentlyUsedClient() {
 	if (_clients.empty())
 		return;
 	double maxDiff = 0.0;
@@ -270,7 +270,7 @@ void Webserv::kickLeastRecentlyUsedClient() {//TODO: lra
 }
 
 void Webserv::handleNewConnection(Server &server) {
-	if (_clients.size() >= 1000) {//TODO: lra: tested with max 2 clients and seems to work well, but please check again!
+	if (_clients.size() >= 1000) {//TODO: tested with max 2 clients and seems to work well, but please check again!
 		kickLeastRecentlyUsedClient();
 		// std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
 		
@@ -355,8 +355,8 @@ void Webserv::handleEpollOut(int fd) {
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
-		c->lastUsed() = time(NULL);//TODO: lra
-		if (c->getRequest().statusCode() == 200 || c->getRequest().statusCode() == 201) //TODO: getRequest causes invalid read when browsing local dir
+		c->lastUsed() = time(NULL);
+		if (c->getRequest().statusCode() < 400)
 			std::cout << c->output() << std::endl;
 		else
 			std::cerr << c->output() << std::endl;

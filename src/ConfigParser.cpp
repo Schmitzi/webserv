@@ -36,11 +36,6 @@ ConfigParser::ConfigParser() {
 	_storedConfigs.push_back(temp);
 	serverLevel serv = serverLevel();
 	_allConfigs.push_back(serv);
-	std::pair<std::pair<std::string, int>, bool> second;
-	second.first = std::pair<std::string, int>("", -1);
-	second.second = false;	
-	std::vector<serverLevel> third;
-	third.push_back(serv);
 }
 
 ConfigParser::ConfigParser(const std::string& filepath) {

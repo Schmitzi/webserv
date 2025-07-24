@@ -9,6 +9,7 @@
 #include "../include/ConfigParser.hpp"
 #include "../include/EpollHelper.hpp"
 #include "../include/ClientHelper.hpp"
+#include "../include/ConfigValidator.hpp"
 
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
@@ -21,7 +22,8 @@ Client::Client(Server& serv) {
 	_exitErr = false;
 	_fileIsNew = false;
 	_shouldClose = false;
-	_lastUsed = time(NULL);//TODO: lra
+	_lastUsed = time(NULL);
+	_output = "";
 }
 
 Client::Client(const Client& client) {
@@ -42,13 +44,14 @@ Client& Client::operator=(const Client& other) {
 		_exitErr = other._exitErr;
 		_fileIsNew = other._fileIsNew;
 		_shouldClose = other._shouldClose;
-		_lastUsed = other._lastUsed; //TODO: lra
+		_lastUsed = other._lastUsed; 
 		_output = other._output;
 	}
 	return *this;
 }
 
 Client::~Client() {
+	// delete _req;
 }
 
 int	&Client::getFd() {
@@ -87,7 +90,7 @@ bool &Client::shouldClose() {
 	return _shouldClose;
 }
 
-time_t &Client::lastUsed() {//TODO: lra
+time_t &Client::lastUsed() {
 	return _lastUsed;
 }
 
@@ -166,7 +169,7 @@ void Client::recieveData() {
 	
 	Request req(_requestBuffer, *this, _fd);
 	_req = &req;
-	//_req = new Request(_requestBuffer, *this, _fd);
+	// _req = new Request(_requestBuffer, *this, _fd);
 	_exitErr = processRequest();
 	if (_exitErr != 1)
 		_requestBuffer.clear();
@@ -241,9 +244,8 @@ int Client::handleGetRequest() {
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
-	if (loc->autoindex == true && isFileBrowserRequest(_req->getPath())) {
+	if (loc->autoindex == true && isFileBrowserRequest(_req->getPath()))
 		return handleFileBrowserRequest();
-	}
 	else
 		return handleRegularRequest();
 }
@@ -259,11 +261,6 @@ int Client::handlePostRequest() {
 	std::string fullPath = getLocationPath(*this, *_req, "POST");
 	if (fullPath.empty()) {
 		_req->statusCode() = 404;
-		sendErrorResponse(*this, *_req);
-		return 1;
-	}
-	if (isDir(fullPath)) {
-		_req->statusCode() = 405;
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -306,6 +303,11 @@ int Client::handlePostRequest() {
 		else
 			doQueryStuff(_req->getBody(), fileName, contentToWrite);
 		fullPath = matchAndAppendPath(fullPath, fileName);
+		if (isValidDir(fullPath)) {
+			_req->statusCode() = 405;
+			sendErrorResponse(*this, *_req);
+			return 1;
+		}
 	}
 	if (!tryLockFile(*this, fullPath, _fd, _fileIsNew)) {
 		_req->statusCode() = 423;
@@ -314,9 +316,7 @@ int Client::handlePostRequest() {
 	}
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {
-		std::cout << RED << fullPath << "\n" << RESET;
 		releaseLockFile(fullPath);
-		std::cout << RED << "Here\n" << RESET;
 		_req->statusCode() = 418;
 		_output = getTimeStamp(_fd) + RED + "Failed to open file for writing: " + RESET + fullPath;
 		sendErrorResponse(*this, *_req);
@@ -419,7 +419,7 @@ int Client::handleFileBrowserRequest() {
         std::string fullPath = loc->rootLoc.empty() ? "/" : loc->rootLoc;
         return createDirList(fullPath, *_req);
     }
-    else if (requestPath.find("/root/") == 0) {
+    else {
         actualPath = requestPath.substr(5);
         if (actualPath.empty()) actualPath = "/";
         
@@ -458,9 +458,6 @@ int Client::handleFileBrowserRequest() {
             return 1;
         }
     }
-    _req->statusCode() = 404;
-    sendErrorResponse(*this, *_req);
-    return 1;
 }
 
 int Client::handleRegularRequest() {
@@ -516,7 +513,7 @@ int Client::handleRegularRequest() {
 
 	if (S_ISDIR(fileStat.st_mode))
 		return viewDirectory(fullPath, *_req);
-	else if (!S_ISREG(fileStat.st_mode)) {
+	if (!S_ISREG(fileStat.st_mode)) {
 		_req->statusCode() = 403;
 		_output = getTimeStamp(_fd) + RED + "Not a regular file: " + RESET + fullPath;
 		sendErrorResponse(*this, *_req);

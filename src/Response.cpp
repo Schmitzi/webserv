@@ -205,7 +205,6 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	
 	if (shouldCloseConnection(req))
 		response += "Connection: close\r\n";
-
 	response += "Access-Control-Allow-Origin: *\r\n";
 	response += "\r\n";
 	
@@ -286,7 +285,7 @@ bool shouldCloseConnection(Request& req) {
 		return true;
 	if (req.statusCode() == 413)
 		return false;
-	if (!req.hasLengthOrIsChunked())
+	if (req.hasLengthOrIsChunked())
 		return true;
 	return false;
 }

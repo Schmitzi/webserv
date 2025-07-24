@@ -433,32 +433,6 @@ std::pair<std::string, std::string> CGIHandler::splitHeaderAndBody(const std::st
 	}
 }
 
-// std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& headerSection) {
-// 	std::map<std::string, std::string> headers;
-// 	std::istringstream iss(headerSection);
-// 	std::string line;
-	
-// 	while (std::getline(iss, line) && !line.empty() && line != "\r") {
-// 		if (!line.empty() && line[line.length() - 1] == '\r') {
-// 			line.erase(line.length() - 1);
-// 		}
-		
-// 		size_t colonPos = line.find(':');
-// 		if (colonPos != std::string::npos) {
-// 			std::string key = line.substr(0, colonPos);
-// 			std::string value = line.substr(colonPos + 1);
-			
-// 			key.erase(0, key.find_first_not_of(" \t"));
-// 			key.erase(key.find_last_not_of(" \t") + 1);
-// 			value.erase(0, value.find_first_not_of(" \t"));
-// 			value.erase(value.find_last_not_of(" \t") + 1);
-			
-// 			headers[key] = value;
-// 		}
-// 	}
-// 	return headers;
-// }
-
 void CGIHandler::cleanupResources() {
 	if (!_client)
 		return;

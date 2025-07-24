@@ -105,12 +105,25 @@ Using @- to read from STDIN does not seem to work, closing the FD and sending da
 However, this works:
 yes | curl -v -X POST -H "Host: abc.com\n\nContent-Type: plain/text" --data "BODY IS HERE write something shorter or longer than body limit" http://localhost:8080/hello.txt
 
+
+
+
+
+
+
+
+
+
+
+
+
 single POST: content was not uploaded, file was not removed on interupt
 Double POST: no 407 confict response
 
 If multipart supportet extract filename from there?
 
 Support POST with no filename
+
 
 <!-- -> add newlines -->
 
@@ -137,9 +150,9 @@ Support POST with no filename
 	- we (the server) decide to do so because we have encountered an error or smth thats not implemented
 	- the response has no (valid) content length included and no chunked encoding was used -->
 
-<!-- -> tried to upload a file (in browser) and check along with what the terminal says:
+-> tried to upload a file (in browser) and check along with what the terminal says:
 	after deleting the file it creates another request to get the same file and tells me its not found
-	(deleted the default GET method from the request constructor..?) -->
+	(deleted the default GET method from the request constructor..?)
 
 <!-- -> host names and header fields must be case insensitive -->
 
