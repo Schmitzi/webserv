@@ -418,7 +418,7 @@ std::string Request::getMimeType(std::string const &path) {
 }
 
 bool Request::isChunkedTransfer() {
-	std::map<std::string, std::string>::const_iterator it = _headers.find("Transfer-Encoding");
+	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Transfer-Encoding");
 	if (it != _headers.end()) {
 		if (iFind(it->second, "chunked") != std::string::npos)
 			return true;

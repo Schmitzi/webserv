@@ -145,7 +145,7 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 
 bool isChunkedRequest(Request& req) {
 	std::map<std::string, std::string> headers = req.getHeaders();
-	std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
+	std::map<std::string, std::string>::iterator it = iMapFind(headers, "Transfer-Encoding");
 	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)
 		return true;
 	return false;

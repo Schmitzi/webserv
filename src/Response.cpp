@@ -17,7 +17,7 @@ bool matchLocation(const std::string& path, const serverLevel& serv, locationLev
 			size_t end = path.find_last_of(".");
 			if (end != std::string::npos) {
 				std::string ext = path.substr(end);
-				if (ext == it->first) {
+				if (iEqual(ext, it->first)) {
 					bestMatch = const_cast<locationLevel*>(&(it->second));
 					return true;
 				}
@@ -52,13 +52,13 @@ bool matchUploadLocation(const std::string& path, const serverLevel& serv, locat
 				size_t end = path.find_last_of(".");
 				if (end != std::string::npos) {
 					std::string ext = path.substr(end);
-					if (ext == it->first) {
+					if (iEqual(ext, it->first)) {
 						bestMatch = loc;
 						return true;
 					}
 				}
 			} else {
-				if (path.find(loc->locName) == 0 && loc->locName.size() > longestMatch) {
+				if (iFind(path, loc->locName) == 0 && loc->locName.size() > longestMatch) {
 					bestMatch = loc;
 					found = true;
 					longestMatch = loc->locName.size();
@@ -279,7 +279,7 @@ void sendErrorResponse(Client& c, Request& req) {
 }
 
 bool shouldCloseConnection(Request& req) {
-	std::map<std::string, std::string>::iterator it = req.getHeaders().find("Connection");
+	std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
 	if (it != req.getHeaders().end() && iEqual(it->second, "close"))
 		return true;
 	if (req.statusCode() == 400 || req.statusCode() == 411 || (req.statusCode() >= 500 && req.statusCode() != 501))
