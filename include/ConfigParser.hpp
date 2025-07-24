@@ -42,14 +42,12 @@ struct serverLevel {
 	std::map<std::string, locationLevel>						locations;//location
 };
 
-typedef std::map<std::pair<std::pair<std::string, int>, bool>, std::vector<serverLevel> > IPPortToServersMap;
 
 class ConfigParser {
 	private:
 		std::string												_filepath;
 		std::vector<std::vector<std::string> >					_storedConfigs;//stores raw config file lines
 		std::vector<serverLevel>								_allConfigs;//stores actual server configs!
-		IPPortToServersMap										_ipPortToServers;
 
 	public:
 		ConfigParser();
@@ -63,19 +61,16 @@ class ConfigParser {
 		void													setLocationLevel(size_t& i, std::vector<std::string>& s, serverLevel& serv, std::vector<std::string>& conf);
 		void													setServerLevel(size_t& i, std::vector<std::string>& s, serverLevel& serv, std::vector<std::string>& conf);
 		void													setConfigLevels(serverLevel& serv, std::vector<std::string>& conf);
-		void													setIpPortToServers();
 		void													parseAndSetConfigs();
 
 		//getters
 		std::vector<serverLevel>								getAllConfigs();
-		IPPortToServersMap										getIpPortToServers();
 		int														getPort(serverLevel& conf);
 		std::pair<std::pair<std::string, int>, bool>			getDefaultPortPair(serverLevel& conf);
 		serverLevel&											getConfigByIndex(size_t nbr);
 
 		//extras..temporary
 		void													printAllConfigs();
-		void													printIpPortToServers();
 };
 
 class configException : public std::exception {

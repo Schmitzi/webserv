@@ -240,7 +240,7 @@ void Webserv::handleClientDisconnect(int fd) {
 	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
-void Webserv::kickLeastRecentlyUsedClient() {//TODO: lra
+void Webserv::kickLeastRecentlyUsedClient() {
 	if (_clients.empty())
 		return;
 	double maxDiff = 0.0;
@@ -263,7 +263,7 @@ void Webserv::kickLeastRecentlyUsedClient() {//TODO: lra
 }
 
 void Webserv::handleNewConnection(Server &server) {
-	if (_clients.size() >= 1000) {//TODO: lra: tested with max 2 clients and seems to work well, but please check again!
+	if (_clients.size() >= 1000) {//TODO: tested with max 2 clients and seems to work well, but please check again!
 		kickLeastRecentlyUsedClient();
 		// std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
 		
@@ -326,6 +326,12 @@ void Webserv::handleEpollOut(int fd) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: Client not found" << RESET << std::endl;
 		return;
 	}
+	if (!c->output().empty()) {
+		if (c->getRequest().statusCode() < 400)
+			std::cout << c->output() << std::endl;
+		else
+			std::cerr << c->output() << std::endl;
+	}
 	const std::string& toSend = getSendBuf(fd);
 	if (toSend.empty()) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: _sendBuf is empty" << RESET << std::endl;
@@ -348,11 +354,13 @@ void Webserv::handleEpollOut(int fd) {
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
-		c->lastUsed() = time(NULL);//TODO: lra
-		if (c->getRequest().statusCode() == 200 || c->getRequest().statusCode() == 201)
-			std::cout << c->output() << std::endl;
-		else
-			std::cerr << c->output() << std::endl;
+		c->lastUsed() = time(NULL);
+		// if (!c->output().empty()) {
+		// 	if (c->getRequest().statusCode() < 400)
+		// 		std::cout << c->output() << std::endl;
+		// 	else
+		// 		std::cerr << c->output() << std::endl;
+		// }
 		c->output().clear();
 		if (c->shouldClose() == true)
 			c->exitErr() = true;

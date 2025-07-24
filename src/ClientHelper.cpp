@@ -127,12 +127,6 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	}
 	std::string fileContent(buffer.data(), bytesRead);
 	req.setBody(fileContent);
-	// if (req.getBody().size() != req.getContentLength()) {
-	// 	req.statusCode() = 400;
-	// 	req.check() = "BAD";
-	// 	sendErrorResponse(c, req);
-	// 	return 1;
-	// }
 	return 0;
 }
 

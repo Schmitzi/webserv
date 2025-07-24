@@ -9,6 +9,7 @@
 #include "../include/ConfigParser.hpp"
 #include "../include/EpollHelper.hpp"
 #include "../include/ClientHelper.hpp"
+#include "../include/ConfigValidator.hpp"
 
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
@@ -21,7 +22,8 @@ Client::Client(Server& serv) {
 	_exitErr = false;
 	_fileIsNew = false;
 	_shouldClose = false;
-	_lastUsed = time(NULL);//TODO: lra
+	_lastUsed = time(NULL);
+	_output = "";
 }
 
 Client::Client(const Client& client) {
@@ -42,13 +44,15 @@ Client& Client::operator=(const Client& other) {
 		_exitErr = other._exitErr;
 		_fileIsNew = other._fileIsNew;
 		_shouldClose = other._shouldClose;
-		_lastUsed = other._lastUsed; //TODO: lra
+		_lastUsed = other._lastUsed; 
 		_output = other._output;
 	}
 	return *this;
 }
 
-Client::~Client() {}
+Client::~Client() {
+	// delete _req;
+}
 
 int	&Client::getFd() {
 	return _fd;
@@ -86,7 +90,7 @@ bool &Client::shouldClose() {
 	return _shouldClose;
 }
 
-time_t &Client::lastUsed() {//TODO: lra
+time_t &Client::lastUsed() {
 	return _lastUsed;
 }
 
@@ -165,6 +169,7 @@ void Client::recieveData() {
 	
 	Request req(_requestBuffer, *this, _fd);
 	_req = &req;
+	// _req = new Request(_requestBuffer, *this, _fd);
 	_exitErr = processRequest();
 	if (_exitErr != 1)
 		_requestBuffer.clear();
@@ -298,6 +303,11 @@ int Client::handlePostRequest() {
 		else
 			doQueryStuff(_req->getBody(), fileName, contentToWrite);
 		fullPath = matchAndAppendPath(fullPath, fileName);
+		if (isValidDir(fullPath)) {
+			_req->statusCode() = 405;
+			sendErrorResponse(*this, *_req);
+			return 1;
+		}
 	}
 	if (!tryLockFile(*this, fullPath, _fd, _fileIsNew)) {
 		_req->statusCode() = 423;
@@ -381,44 +391,73 @@ int Client::handleDeleteRequest() {
 }
 
 int Client::handleFileBrowserRequest() {
-	std::string requestPath = _req->getPath();
-	std::string actualPath;
-	if (requestPath == "/root" || requestPath == "/root/")
-		actualPath = "/";
-	else if (requestPath.find("/root/") == 0) {
-		actualPath = requestPath.substr(5);
-		if (actualPath.empty()) actualPath = "/";
-	} else {
-		locationLevel* loc = NULL;
-		matchLocation(requestPath, _req->getConf(), loc);
-		actualPath = requestPath.substr(5);
-		std::string actualFullPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), actualPath);
-		
-		struct stat fileStat;
-		if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-			_req->statusCode() = 404;
-			_output = getTimeStamp(_fd) + RED  + "File not found: " + RESET + actualFullPath;
-			sendErrorResponse(*this, *_req);
-			return 1;
-		}
-		if (S_ISDIR(fileStat.st_mode)) {
-			_req->setPath(actualPath);
-			return createDirList(actualFullPath, *_req);
-		} else if (S_ISREG(fileStat.st_mode)) {
-			if (buildBody(*this, *_req, actualFullPath) == 1)
-				return 1;
-			_req->setContentType(_req->getMimeType(actualFullPath));
-			sendResponse(*this, *_req, _req->getBody());
-			_output = getTimeStamp(_fd) + GREEN  + "Successfully served file from browser: " + RESET + actualFullPath;
-			return 0;
-		} else {
-			_req->statusCode() = 403;
-			_output = getTimeStamp(_fd) + RED + "Not a regular file or directory: " + RESET + actualFullPath;
-			sendErrorResponse(*this, *_req);
-			return 1;
-		}
-	}
-	return 0;
+    std::string requestPath = _req->getPath();
+    std::string actualPath;
+    
+    if (requestPath == "/root" || requestPath == "/root/") {
+        actualPath = "/";
+        locationLevel* loc = NULL;
+        if (!matchLocation("/", _req->getConf(), loc)) {
+            std::map<std::string, locationLevel>::iterator it = _req->getConf().locations.find("/");
+            if (it != _req->getConf().locations.end() && it->second.autoindex) {
+                loc = &it->second;
+            } else {
+                _req->statusCode() = 403;
+                _output = getTimeStamp(_fd) + RED + "Directory browsing not enabled for root path" + RESET;
+                sendErrorResponse(*this, *_req);
+                return 1;
+            }
+        }
+        
+        if (!loc || !loc->autoindex) {
+            _req->statusCode() = 403;
+            _output = getTimeStamp(_fd) + RED + "Directory browsing not enabled" + RESET;
+            sendErrorResponse(*this, *_req);
+            return 1;
+        }
+        
+        std::string fullPath = loc->rootLoc.empty() ? "/" : loc->rootLoc;
+        return createDirList(fullPath, *_req);
+    }
+    else {
+        actualPath = requestPath.substr(5);
+        if (actualPath.empty()) actualPath = "/";
+        
+        locationLevel* loc = NULL;
+        if (!matchLocation("/", _req->getConf(), loc)) {
+            _req->statusCode() = 404;
+            _output = getTimeStamp(_fd) + RED + "Location not found: " + RESET + requestPath;
+            sendErrorResponse(*this, *_req);
+            return 1;
+        }
+        
+        std::string actualFullPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), actualPath);
+        
+        struct stat fileStat;
+        if (stat(actualFullPath.c_str(), &fileStat) != 0) {
+            _req->statusCode() = 404;
+            _output = getTimeStamp(_fd) + RED + "File not found: " + RESET + actualFullPath;
+            sendErrorResponse(*this, *_req);
+            return 1;
+        }
+        
+        if (S_ISDIR(fileStat.st_mode)) {
+            _req->setPath(actualPath);
+            return createDirList(actualFullPath, *_req);
+        } else if (S_ISREG(fileStat.st_mode)) {
+            if (buildBody(*this, *_req, actualFullPath) == 1)
+                return 1;
+            _req->setContentType(_req->getMimeType(actualFullPath));
+            sendResponse(*this, *_req, _req->getBody());
+            _output = getTimeStamp(_fd) + GREEN + "Successfully served file from browser: " + RESET + actualFullPath;
+            return 0;
+        } else {
+            _req->statusCode() = 403;
+            _output = getTimeStamp(_fd) + RED + "Not a regular file or directory: " + RESET + actualFullPath;
+            sendErrorResponse(*this, *_req);
+            return 1;
+        }
+    }
 }
 
 int Client::handleRegularRequest() {
@@ -474,7 +513,7 @@ int Client::handleRegularRequest() {
 	
 	if (S_ISDIR(fileStat.st_mode))
 		return viewDirectory(fullPath, *_req);
-	else if (!S_ISREG(fileStat.st_mode)) {
+	if (!S_ISREG(fileStat.st_mode)) {
 		_req->statusCode() = 403;
 		_output = getTimeStamp(_fd) + RED + "Not a regular file: " + RESET + fullPath;
 		sendErrorResponse(*this, *_req);

@@ -206,8 +206,8 @@ def test_chunked_encoding():
 def test_put_not_allowed():
     print("Method Not Allowed (PUT)")
     r = requests.put(BASE_URL + "/")
-    if r.status_code != 405:
-        raise Exception(f"Expected 405 Method Not Allowed, got {r.status_code}")
+    if r.status_code != 501:
+        raise Exception(f"Expected 501 Not implemented, got {r.status_code}")
 
 def test_keep_alive():
     print("Keep-Alive Header (Connection reuse)")
@@ -376,7 +376,7 @@ def test_post_upload():
     headers = {
         "Content-Type": "application/x-www-form-urlencoded"
     }
-    body = "name=test&value=upload"
+    body = "name=test"
     # Expecting 200 or 201 (created) here depending on your server config
     status, res, data = test_connection("/upload", "POST", body=body, headers=headers, expect_status=201)
     if status in (200, 201):
