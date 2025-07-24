@@ -22,8 +22,8 @@ Request::Request(const std::string& rawRequest, Client& client, int clientFd) :
 	_client(&client),
 	_configs(_client->getConfigs()),
 	_clientFd(clientFd),
-	_hasLengthOrIsChunked(false),
-	_statusCode(200)
+	_hasLengthOrIsChunked(false)
+	// _client->statusCode(200)
 {
 	parse(rawRequest);
 }
@@ -50,7 +50,7 @@ Request &Request::operator=(const Request& copy) {
 		_configs = copy._configs;
 		_clientFd = copy._clientFd;
 		_hasLengthOrIsChunked = copy._hasLengthOrIsChunked;
-		_statusCode = copy._statusCode;
+		// _client->statusCode = copy._client->statusCode;
 	}
 	return *this;
 }
@@ -101,12 +101,16 @@ bool &Request::hasLengthOrIsChunked() {
 	return _hasLengthOrIsChunked;
 }
 
-int &Request::statusCode() {
-	return _statusCode;
-}
+// int &Request::statusCode() {
+// 	return _client->statusCode;
+// }
 
 std::string &Request::check() {
 	return _check;
+}
+
+Client &Request::getClient() {
+	return *_client;
 }
 
 void    Request::setPath(std::string const path) {
@@ -173,7 +177,7 @@ bool Request::matchHostServerName() {
 void Request::parse(const std::string& rawRequest) {
 	if (rawRequest.empty()) {
 		_client->output() = getTimeStamp(_clientFd) + RED + "Empty request!" + RESET;
-		_statusCode = 400;
+		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
 	}
@@ -198,14 +202,14 @@ void Request::parse(const std::string& rawRequest) {
 	}
 	
 	parseHeaders(headerSection);
-	if (_statusCode >= 400) {
+	if (_client->statusCode() >= 400) {
 		_check = "BAD";
 		return;
 	}
 
 	if (!matchHostServerName()) {
 		_client->output() = getTimeStamp(_clientFd) + RED + "No Host-ServerName match + no default config specified!" + RESET;
-		_statusCode = 404;
+		_client->statusCode() = 404;
 		_check = "BAD";
 		return;
 	}
@@ -223,13 +227,13 @@ void Request::parse(const std::string& rawRequest) {
 	lineStream >> _method >> target >> _version;
 
 	if (_method.empty() || (_method != "GET" && target.empty())) {
-		_statusCode = 400;
+		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
 	}
 
 	if ( _version.empty() || _version != "HTTP/1.1") {
-		_statusCode = 505;
+		_client->statusCode() = 505;
 		_check = "BAD";
 		return;
 	}
@@ -242,7 +246,7 @@ void Request::parse(const std::string& rawRequest) {
 		_path = target;
 		_query = "";
 	}
-	if ((_path == "/" || _path == "") && _method == "GET") {
+	if ((_path == "/" || _path == "") && iEqual(_method, "GET")) {
 		std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
 		if (it != _curConf.locations.end())
 			_path = matchAndAppendPath(it->second.rootLoc, it->second.indexFile);
@@ -252,24 +256,24 @@ void Request::parse(const std::string& rawRequest) {
 	if (end != std::string::npos)
 		_path = _path.substr(0, end + 1);
 
-	if (_method == "GET" || _method == "POST" || _method == "DELETE"
-		|| _method == "PUT" || _method == "HEAD" || _method == "OPTIONS"
-		|| _method == "PATCH" || _method == "TRACE" || _method == "CONNECT") {
-		if (_method != "GET" && _method != "POST" && _method != "DELETE") {
-			_statusCode = 501;
+	if (iEqual(_method, "GET") || iEqual(_method, "POST") || iEqual(_method, "DELETE")
+		|| iEqual(_method, "PUT") || iEqual(_method, "HEAD") || iEqual(_method, "OPTIONS")
+		|| iEqual(_method, "PATCH") || iEqual(_method, "TRACE") || iEqual(_method, "CONNECT")) {
+		if (!iEqual(_method, "GET") && !iEqual(_method, "POST") && !iEqual(_method, "DELETE")) {
+			_client->statusCode() = 501;
 			_check = "NOTALLOWED";
 			return;
 		}
 	} else {
-		_statusCode = 400;
+		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
 	}
 
 	if (isChunkedTransfer()) {
-		if (_statusCode == 501)
+		if (_client->statusCode() == 501)
 			return;
-		if (_method == "POST") {
+		if (iEqual(_method, "POST")) {
 			std::cout << getTimeStamp(_clientFd) << BLUE << "POST request with chunked body: " << RESET << _body.length() 
 					<< " bytes of chunked data" << std::endl;
 		}
@@ -296,7 +300,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 			if (iFind(key, "Content-Length") != std::string::npos || iFind(key, "Host") != std::string::npos) {
 				std::vector<std::string> values = split(value);
 				if (values.size() > 1)
-					_statusCode = 400;
+					_client->statusCode() = 400;
 			}
 			if (iEqual(key, "Host"))
 				host = true;
@@ -304,7 +308,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 		}
 	}
 	if (host == false)
-		_statusCode = 400;
+		_client->statusCode() = 400;
 }
 
 void Request::checkContentLength(std::string buffer) {
@@ -318,7 +322,7 @@ void Request::checkContentLength(std::string buffer) {
 			std::string line = buffer.substr(pos, eol - pos);
 			std::vector<std::string> values = split(line);
 			if (values.size() > 1) {
-				_statusCode = 400;
+				_client->statusCode() = 400;
 				return;
 			} else {
 				_contentLength = strtoul(values[0].c_str(), NULL, 10);
@@ -326,7 +330,7 @@ void Request::checkContentLength(std::string buffer) {
 				// return;
 			}
 		} else {
-			_statusCode = 400;
+			_client->statusCode() = 400;
 			return;
 		}
 	}
@@ -344,7 +348,7 @@ void Request::checkContentLength(std::string buffer) {
 				_hasLengthOrIsChunked = true;
 				std::cout << getTimeStamp(_clientFd) << BLUE << "Transfer-Encoding: chunked detected" << RESET << std::endl;
 			} else {
-				_statusCode = 501;
+				_client->statusCode() = 501;
 			}
 		}
 	}
@@ -423,7 +427,7 @@ bool Request::isChunkedTransfer() {
 		if (iFind(it->second, "chunked") != std::string::npos)
 			return true;
 		else {
-			_statusCode = 501;
+			_client->statusCode() = 501;
 			return false;
 		}
 	}

@@ -154,13 +154,13 @@ void resolveErrorResponse(int statusCode, std::string& statusText, std::string& 
 }
 
 void sendRedirect(Client& c, const std::string& location, Request& req) {
-	std::string statusText = getStatusMessage(req.statusCode());
+	std::string statusText = getStatusMessage(c.statusCode());
 	
 	std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
 	body += "<body><h1>" + statusText + "</h1>";
 	body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
 	
-	std::string response = "HTTP/1.1 " + tostring(req.statusCode()) + " " + statusText + "\r\n";
+	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + statusText + "\r\n";
 	response += "Location: " + location + "\r\n";
 	response += "Content-Type: text/html\r\n";
 	response += "Content-Length: " + tostring(body.size()) + "\r\n";
@@ -173,7 +173,7 @@ void sendRedirect(Client& c, const std::string& location, Request& req) {
 	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-	c.output() = getTimeStamp(c.getFd()) + BLUE + "Sent redirect response: " + RESET + tostring(req.statusCode()) + " " + statusText + " to " + location;
+	c.output() = getTimeStamp(c.getFd()) + BLUE + "Sent redirect response: " + RESET + tostring(c.statusCode()) + " " + statusText + " to " + location;
 }
 
 ssize_t sendResponse(Client& c, Request& req, std::string body) {
@@ -181,7 +181,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 		c.output() = getTimeStamp(c.getFd()) + RED + "Invalid fd in sendResponse" + RESET;
 		return -1;
 	}
-	std::string response = "HTTP/1.1 " + tostring(req.statusCode()) + " OK\r\n";
+	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " OK\r\n";
 	
 	std::map<std::string, std::string> headers = req.getHeaders();
 	bool isChunked = false;
@@ -258,11 +258,11 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 
 void sendErrorResponse(Client& c, Request& req) {
 	std::string body;
-	std::string statusText = getStatusMessage(req.statusCode());
+	std::string statusText = getStatusMessage(c.statusCode());
 	
-	resolveErrorResponse(req.statusCode(), statusText, body, req);    
+	resolveErrorResponse(c.statusCode(), statusText, body, req);    
 
-	std::string response = "HTTP/1.1 " + tostring(req.statusCode()) + " " + statusText + "\r\n";
+	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + statusText + "\r\n";
 	response += "Content-Type: text/html\r\n";
 	response += "Content-Length: " + tostring(body.size()) + "\r\n";
 	response += "Server: WebServ/1.0\r\n";
@@ -275,16 +275,16 @@ void sendErrorResponse(Client& c, Request& req) {
 	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-	c.output() = getTimeStamp(c.getFd()) + RED  + "Error sent: " + tostring(req.statusCode()) + " " + getStatusMessage(req.statusCode()) + RESET;
+	c.output() = getTimeStamp(c.getFd()) + RED  + "Error sent: " + tostring(c.statusCode()) + " " + getStatusMessage(c.statusCode()) + RESET;
 }
 
 bool shouldCloseConnection(Request& req) {
 	std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
 	if (it != req.getHeaders().end() && iEqual(it->second, "close"))
 		return true;
-	if (req.statusCode() == 400 || req.statusCode() == 411 || (req.statusCode() >= 500 && req.statusCode() != 501))
+	if (req.getClient().statusCode() == 400 || req.getClient().statusCode() == 411 || (req.getClient().statusCode() >= 500 && req.getClient().statusCode() != 501))
 		return true;
-	if (req.statusCode() == 413)
+	if (req.getClient().statusCode() == 413)
 		return false;
 	if (req.hasLengthOrIsChunked())
 		return true;

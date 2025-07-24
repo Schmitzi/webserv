@@ -87,7 +87,7 @@ int CGIHandler::executeCGI(Request &req) {
 		return 1;
 	_pid = fork();
 	if (_pid < 0) {
-		_req.statusCode() = 500;
+		_client->statusCode() = 500;
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: fork() failed" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
@@ -100,21 +100,21 @@ int CGIHandler::executeCGI(Request &req) {
 
 int CGIHandler::doChecks() {
 	if (access(_path.c_str(), F_OK) != 0) {
-		_req.statusCode() = 404;
+		_client->statusCode() = 404;
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path;
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (access(_path.c_str(), X_OK) != 0) {
-		_req.statusCode() = 403;
+		_client->statusCode() = 403;
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script is not executable: " + RESET + _path;
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (pipe(_input) < 0 || pipe(_output) < 0) {
-		_req.statusCode() = 500;
+		_client->statusCode() = 500;
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: pipe() failed" + RESET;
 		sendErrorResponse(*_client, _req);
 		return 1;
@@ -217,7 +217,7 @@ int CGIHandler::doChild() {
 	close(_output[0]);
 	
 	if (dup2(_input[0], STDIN_FILENO) < 0 || dup2(_output[1], STDOUT_FILENO) < 0) {
-		_req.statusCode() = 500;
+		_client->statusCode() = 500;
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: dup2() failed" + RESET;
 		cleanupResources();
 		return 1;
@@ -226,7 +226,7 @@ int CGIHandler::doChild() {
 	close(_output[1]);
 	
 	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
-	_req.statusCode() = 500;
+	_client->statusCode() = 500;
 	_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: execve() failed" + RESET;
 	cleanupResources();
 	return 1;
@@ -250,7 +250,7 @@ int CGIHandler::doParent() {
 		if (!checkReturn(*_client, _client->getFd(), w, "write()")) {
 			close(_input[1]);
 			_input[1] = -1;
-			_req.statusCode() = 500;
+			_client->statusCode() = 500;
 			sendErrorResponse(*_client, _req);
 			cleanupResources();
 			return 1;
@@ -260,7 +260,7 @@ int CGIHandler::doParent() {
 	_input[1] = -1;
 
 	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN) != 0) {
-		_req.statusCode() = 500;
+		_client->statusCode() = 500;
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
@@ -285,7 +285,7 @@ int CGIHandler::processScriptOutput() {
 		cleanupResources();
 		if (_pid >= 0)
 			kill(_pid, SIGKILL);
-		_req.statusCode() = 504;
+		_client->statusCode() = 504;
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
@@ -296,7 +296,7 @@ int CGIHandler::processScriptOutput() {
 			cleanupResources();
 			if (_pid >= 0)
 				kill(_pid, SIGKILL);
-			_req.statusCode() = 500;
+			_client->statusCode() = 500;
 			sendErrorResponse(*_client, _req);
 			return 1;
 		} else if (bytesRead > 0){
@@ -326,7 +326,7 @@ int CGIHandler::processScriptOutput() {
 				if (_req.isChunkedTransfer())
 					handleChunkedOutput(headerAndBody.second);
 				else {
-					if (_req.statusCode() == 501)
+					if (_client->statusCode() == 501)
 						return 1;
 					handleStandardOutput(headerAndBody.second);
 				}
@@ -334,14 +334,14 @@ int CGIHandler::processScriptOutput() {
 			}
 		} else {
 			_client->output() = getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status));
-			_req.statusCode() = 500;
+			_client->statusCode() = 500;
 			sendErrorResponse(*_client, _req);
 			cleanupResources();
 			return 1;
 		}
 	} else if (result == -1) {
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: waitpid() failed" + RESET;
-		_req.statusCode() = 500;
+		_client->statusCode() = 500;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;

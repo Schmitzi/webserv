@@ -34,8 +34,9 @@ class Client {
 		bool						&exitErr();
 		bool						&fileIsNew();
 		bool						&shouldClose();
-		time_t						&lastUsed();//TODO: lra
+		time_t						&lastUsed();
 		std::string					&output();
+		int							&statusCode();
 
 		int							acceptConnection(int serverFd);
 		void						displayConnection();
@@ -69,8 +70,9 @@ class Client {
 		bool						_exitErr;
 		bool						_fileIsNew;
 		bool						_shouldClose;
-		time_t						_lastUsed;//TODO: lra
+		time_t						_lastUsed;
 		std::string					_output;
+		int							_statusCode;
 };
 
 #endif
