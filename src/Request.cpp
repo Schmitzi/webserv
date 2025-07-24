@@ -4,23 +4,7 @@
 #include "../include/Helper.hpp"
 #include "../include/Client.hpp"
 
-Request::Request(Client* client) {
-	_host = "";
-	_method = "";
-	_check = "";
-	_path = "";
-	_contentType = "";
-	_version = "";
-	_body = "";
-	_query = "";
-	_boundary = "";
-	_contentLength = 0;
-	_client = client;
-	_configs = _client->getConfigs();
-	_clientFd = _client->getFd();
-	_hasLengthOrIsChunked = false;
-	_statusCode = 200;
-}
+Request::Request() {}
 
 Request::Request(const std::string& rawRequest, Client& client, int clientFd) : 
 	_host(""),
@@ -117,15 +101,7 @@ bool &Request::hasLengthOrIsChunked() {
 	return _hasLengthOrIsChunked;
 }
 
-// int &Request::statusCode() {
-// 	return _statusCode;
-// }
-
-void Request::setStatusCode(int x) {
-	_statusCode = x;
-}
-
-int &Request::getStatusCode() {
+int &Request::statusCode() {
 	return _statusCode;
 }
 
@@ -203,10 +179,10 @@ void Request::parse(const std::string& rawRequest) {
 	}
 
 	checkContentLength(rawRequest);
-	if (_statusCode >= 400) {
-		_check = "BAD";
-		return;
-	}
+	// if (_statusCode >= 400) {
+	// 	_check = "BAD";
+	// 	return;
+	// }
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
 	size_t headerSeparatorLength = 4;
@@ -311,6 +287,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 	bool host = false;
 	
 	std::getline(iss, line);
+	
 	while (std::getline(iss, line) && !line.empty() && line != "\r") {
 		size_t colonPos = line.find(':');
 		if (colonPos != std::string::npos) {
@@ -346,13 +323,11 @@ void Request::checkContentLength(std::string buffer) {
 			std::string line = buffer.substr(pos, eol - pos);
 			std::vector<std::string> values = split(line);
 			if (values.size() > 1) {
-				std::cout << "___\n" << values[1] << std::endl;
 				_statusCode = 400;
 				return;
 			} else {
 				_contentLength = strtoul(values[0].c_str(), NULL, 10);
 				_hasLengthOrIsChunked = true;
-				return;
 			}
 		} else {
 			_statusCode = 400;

@@ -340,16 +340,15 @@ void Webserv::handleEpollOut(int fd) {
 	if (s < 0) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: send() failed" << RESET << std::endl;
 		clearSendBuf(*this, fd);
-		c->getRequest().setStatusCode(500);
+		c->getRequest().statusCode() = 500;
 	}
-
 	offset += static_cast<size_t>(s);
 
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
 		c->lastUsed() = time(NULL);//TODO: lra
-		if (c->getRequest().getStatusCode() < 400)
+		if (c->getRequest().statusCode() < 400)
 			std::cout << c->output() << std::endl;
 		else
 			std::cerr << c->output() << std::endl;
