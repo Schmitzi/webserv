@@ -183,6 +183,15 @@ void ConfigParser::setConfigLevels(serverLevel& serv, std::vector<std::string>& 
 	checkConfig(serv);
 }
 
+void ConfigParser::setIpPortToServers() {
+	for (size_t i = 0; i < _allConfigs.size(); ++i) {
+		for (size_t j = 0; j < _allConfigs[i].port.size(); ++j) {
+			std::pair<std::pair<std::string, int>, bool> ipPort = _allConfigs[i].port[j];
+			_ipPortToServers[ipPort].push_back(_allConfigs[i]);
+		}
+	}
+}
+
 void ConfigParser::parseAndSetConfigs() {
 	std::set<std::string> usedCombinations;
 	for (size_t i = 0; i < _storedConfigs.size(); i++) {

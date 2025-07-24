@@ -20,6 +20,7 @@ CGIHandler::CGIHandler(Client *client) {
 	_path = "";
 	_outputBuffer = "";
 	_pid = -1;
+	_req = client ? client->getRequest() : Request();
 	_startTime = 0;
 }
 
@@ -87,7 +88,7 @@ int CGIHandler::executeCGI(Request &req) {
 		return 1;
 	_pid = fork();
 	if (_pid < 0) {
-		_req.statusCode() = 500;
+		_req.setStatusCode(500);
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: fork() failed" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
@@ -100,21 +101,21 @@ int CGIHandler::executeCGI(Request &req) {
 
 int CGIHandler::doChecks() {
 	if (access(_path.c_str(), F_OK) != 0) {
-		_req.statusCode() = 404;
+		_req.setStatusCode(404);
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path;
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (access(_path.c_str(), X_OK) != 0) {
-		_req.statusCode() = 403;
+		_req.setStatusCode(403);
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script is not executable: " + RESET + _path;
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (pipe(_input) < 0 || pipe(_output) < 0) {
-		_req.statusCode() = 500;
+		_req.setStatusCode(500);
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: pipe() failed" + RESET;
 		sendErrorResponse(*_client, _req);
 		return 1;
@@ -217,7 +218,7 @@ int CGIHandler::doChild() {
 	close(_output[0]);
 	
 	if (dup2(_input[0], STDIN_FILENO) < 0 || dup2(_output[1], STDOUT_FILENO) < 0) {
-		_req.statusCode() = 500;
+		_req.setStatusCode(500);
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: dup2() failed" + RESET;
 		cleanupResources();
 		return 1;
@@ -226,7 +227,7 @@ int CGIHandler::doChild() {
 	close(_output[1]);
 	
 	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
-	_req.statusCode() = 500;
+	_req.setStatusCode(500);
 	_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: execve() failed" + RESET;
 	cleanupResources();
 	return 1;
@@ -250,7 +251,7 @@ int CGIHandler::doParent() {
 		if (!checkReturn(*_client, _client->getFd(), w, "write()")) {
 			close(_input[1]);
 			_input[1] = -1;
-			_req.statusCode() = 500;
+			_req.setStatusCode(500);
 			sendErrorResponse(*_client, _req);
 			cleanupResources();
 			return 1;
@@ -260,7 +261,7 @@ int CGIHandler::doParent() {
 	_input[1] = -1;
 
 	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN) != 0) {
-		_req.statusCode() = 500;
+		_req.setStatusCode(500);
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
@@ -285,7 +286,7 @@ int CGIHandler::processScriptOutput() {
 		cleanupResources();
 		if (_pid >= 0)
 			kill(_pid, SIGKILL);
-		_req.statusCode() = 504;
+		_req.setStatusCode(504);
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
@@ -296,7 +297,7 @@ int CGIHandler::processScriptOutput() {
 			cleanupResources();
 			if (_pid >= 0)
 				kill(_pid, SIGKILL);
-			_req.statusCode() = 500;
+			_req.setStatusCode(500);
 			sendErrorResponse(*_client, _req);
 			return 1;
 		} else if (bytesRead > 0){
@@ -326,7 +327,7 @@ int CGIHandler::processScriptOutput() {
 				if (_req.isChunkedTransfer())
 					handleChunkedOutput(headerAndBody.second);
 				else {
-					if (_req.statusCode() == 501)
+					if (_req.getStatusCode() == 501)
 						return 1;
 					handleStandardOutput(headerAndBody.second);
 				}
@@ -334,14 +335,14 @@ int CGIHandler::processScriptOutput() {
 			}
 		} else {
 			_client->output() = getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status));
-			_req.statusCode() = 500;
+			_req.setStatusCode(500);
 			sendErrorResponse(*_client, _req);
 			cleanupResources();
 			return 1;
 		}
 	} else if (result == -1) {
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: waitpid() failed" + RESET;
-		_req.statusCode() = 500;
+		_req.setStatusCode(500);
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
@@ -432,32 +433,6 @@ std::pair<std::string, std::string> CGIHandler::splitHeaderAndBody(const std::st
 		);
 	}
 }
-
-// std::map<std::string, std::string> CGIHandler::parseHeaders(const std::string& headerSection) {
-// 	std::map<std::string, std::string> headers;
-// 	std::istringstream iss(headerSection);
-// 	std::string line;
-	
-// 	while (std::getline(iss, line) && !line.empty() && line != "\r") {
-// 		if (!line.empty() && line[line.length() - 1] == '\r') {
-// 			line.erase(line.length() - 1);
-// 		}
-		
-// 		size_t colonPos = line.find(':');
-// 		if (colonPos != std::string::npos) {
-// 			std::string key = line.substr(0, colonPos);
-// 			std::string value = line.substr(colonPos + 1);
-			
-// 			key.erase(0, key.find_first_not_of(" \t"));
-// 			key.erase(key.find_last_not_of(" \t") + 1);
-// 			value.erase(0, value.find_first_not_of(" \t"));
-// 			value.erase(value.find_last_not_of(" \t") + 1);
-			
-// 			headers[key] = value;
-// 		}
-// 	}
-// 	return headers;
-// }
 
 void CGIHandler::cleanupResources() {
 	if (!_client)

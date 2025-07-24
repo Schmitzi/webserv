@@ -4,7 +4,23 @@
 #include "../include/Helper.hpp"
 #include "../include/Client.hpp"
 
-Request::Request() {}
+Request::Request(Client* client) {
+	_host = "";
+	_method = "";
+	_check = "";
+	_path = "";
+	_contentType = "";
+	_version = "";
+	_body = "";
+	_query = "";
+	_boundary = "";
+	_contentLength = 0;
+	_client = client;
+	_configs = _client->getConfigs();
+	_clientFd = _client->getFd();
+	_hasLengthOrIsChunked = false;
+	_statusCode = 200;
+}
 
 Request::Request(const std::string& rawRequest, Client& client, int clientFd) : 
 	_host(""),
@@ -101,7 +117,15 @@ bool &Request::hasLengthOrIsChunked() {
 	return _hasLengthOrIsChunked;
 }
 
-int &Request::statusCode() {
+// int &Request::statusCode() {
+// 	return _statusCode;
+// }
+
+void Request::setStatusCode(int x) {
+	_statusCode = x;
+}
+
+int &Request::getStatusCode() {
 	return _statusCode;
 }
 
@@ -121,7 +145,7 @@ void    Request::setContentType(std::string const content) {
 	_contentType = content;
 }
 
-bool Request::hasServerName(const std::string servName) {
+bool Request::hasServerName(std::string& servName) {
 	if (iFind(servName, "localhost") != std::string::npos) {
 		std::string portPart = servName.substr(servName.find(":") + 1);
 		if (onlyDigits(portPart)) {
@@ -180,6 +204,10 @@ void Request::parse(const std::string& rawRequest) {
 	}
 
 	checkContentLength(rawRequest);
+	if (_statusCode >= 400) {
+		_check = "BAD";
+		return;
+	}
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
 	size_t headerSeparatorLength = 4;
@@ -198,8 +226,8 @@ void Request::parse(const std::string& rawRequest) {
 		_body = rawRequest.substr(headerEnd + headerSeparatorLength);
 	}
 	
-	if (!parseHeaders(headerSection)) {
-		_statusCode = 400;
+	parseHeaders(headerSection);
+	if (_statusCode >= 400) {
 		_check = "BAD";
 		return;
 	}
@@ -257,7 +285,7 @@ void Request::parse(const std::string& rawRequest) {
 		|| _method == "PUT" || _method == "HEAD" || _method == "OPTIONS"
 		|| _method == "PATCH" || _method == "TRACE" || _method == "CONNECT") {
 		if (_method != "GET" && _method != "POST" && _method != "DELETE") {
-			_statusCode = 405;
+			_statusCode = 501;
 			_check = "NOTALLOWED";
 			return;
 		}
@@ -270,7 +298,6 @@ void Request::parse(const std::string& rawRequest) {
 	if (isChunkedTransfer()) {
 		if (_statusCode == 501)
 			return;
-		_hasLengthOrIsChunked = true;
 		if (_method == "POST") {
 			std::cout << getTimeStamp(_clientFd) << BLUE << "POST request with chunked body: " << RESET << _body.length() 
 					<< " bytes of chunked data" << std::endl;
@@ -279,13 +306,12 @@ void Request::parse(const std::string& rawRequest) {
 	_path = decode(_path);
 }
 
-int Request::parseHeaders(const std::string& headerSection) {
+void Request::parseHeaders(const std::string& headerSection) {
 	std::istringstream iss(headerSection);
 	std::string line;
 	bool host = false;
 	
 	std::getline(iss, line);
-	
 	while (std::getline(iss, line) && !line.empty() && line != "\r") {
 		size_t colonPos = line.find(':');
 		if (colonPos != std::string::npos) {
@@ -296,47 +322,59 @@ int Request::parseHeaders(const std::string& headerSection) {
 			key.erase(key.find_last_not_of(" \t\r\n") + 1);
 			value.erase(0, value.find_first_not_of(" \t"));
 			value.erase(value.find_last_not_of(" \t\r\n") + 1);
-			// if (split(value).size() > 1)
-			// 	return false;
+			if (iFind(key, "Content-Length") != std::string::npos || iFind(key, "Host") != std::string::npos) {
+				std::vector<std::string> values = split(value);
+				if (values.size() > 1)
+					_statusCode = 400;
+			}
 			if (iEqual(key, "Host"))
 				host = true;
 			_headers[key] = value;
 		}
 	}
-	return host;
+	if (host == false)
+		_statusCode = 400;
 }
 
 void Request::checkContentLength(std::string buffer) {
 	size_t pos = iFind(buffer, "Content-Length:");
 	if (pos != std::string::npos) {
 		pos += 15;
-		while (pos < buffer.size() && (buffer[pos] == ' ' || buffer[pos] == '\t'))
-			pos++;
-		
 		size_t eol = buffer.find("\r\n", pos);
 		if (eol == std::string::npos)
 			eol = buffer.find("\n", pos);
-		
 		if (eol != std::string::npos) {
-			std::string valueStr = buffer.substr(pos, eol - pos);
-			_contentLength = strtoul(valueStr.c_str(), NULL, 10);
-			_hasLengthOrIsChunked = true;
+			std::string line = buffer.substr(pos, eol - pos);
+			std::vector<std::string> values = split(line);
+			if (values.size() > 1) {
+				std::cout << "___\n" << values[1] << std::endl;
+				_statusCode = 400;
+				return;
+			} else {
+				_contentLength = strtoul(values[0].c_str(), NULL, 10);
+				_hasLengthOrIsChunked = true;
+				return;
+			}
+		} else {
+			_statusCode = 400;
 			return;
 		}
 	}
 
 	pos = iFind(buffer, "Transfer-Encoding:");
 	if (pos != std::string::npos) {
+		pos += 18;
 		size_t eol = buffer.find("\r\n", pos);
 		if (eol == std::string::npos)
 			eol = buffer.find("\n", pos);
-		
 		if (eol != std::string::npos) {
-			std::string transferEncoding = buffer.substr(pos + 18, eol - pos - 18);
+			std::string transferEncoding = buffer.substr(pos, eol - pos);
 			if (iFind(transferEncoding, "chunked") != std::string::npos) {
 				_contentLength = 0;
 				_hasLengthOrIsChunked = true;
 				std::cout << getTimeStamp(_clientFd) << BLUE << "Transfer-Encoding: chunked detected" << RESET << std::endl;
+			} else {
+				_statusCode = 501;
 			}
 		}
 	}
@@ -412,9 +450,10 @@ std::string Request::getMimeType(std::string const &path) {
 bool Request::isChunkedTransfer() {
 	std::map<std::string, std::string>::const_iterator it = _headers.find("Transfer-Encoding");
 	if (it != _headers.end()) {
-		if (iFind(it->second, "chunked") != std::string::npos)
+		if (iFind(it->second, "chunked") != std::string::npos) {
+			_hasLengthOrIsChunked = true;
 			return true;
-		else {
+		} else {
 			_statusCode = 501;
 			return false;
 		}

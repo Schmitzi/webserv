@@ -19,7 +19,7 @@ struct	locationLevel;
 
 class Request {
 	public:
-		Request();
+		Request(Client* client = NULL);
 		Request(const std::string& rawRequest, Client& client, int clientFd);
 		Request(const Request& copy);
 		Request &operator=(const Request& copy);
@@ -37,17 +37,19 @@ class Request {
 		serverLevel							&getConf();
 		std::map<std::string, std::string>	&getHeaders();
 		bool								&hasLengthOrIsChunked();
-		int									&statusCode();
+		// int									&statusCode();
+		void								setStatusCode(int x);
+		int									&getStatusCode();
 		std::string							&check();
 		std::string							getMimeType(std::string const &path);
 		void								setPath(std::string const path);
 		void								setBody(std::string const body);
 		void								setContentType(std::string const content);
 
-		bool								hasServerName(const std::string servName);
+		bool								hasServerName(std::string& servName);
 		bool								matchHostServerName();
 		void								parse(const std::string& rawRequest);
-		int									parseHeaders(const std::string& headerSection);
+		void								parseHeaders(const std::string& headerSection);
 		void								checkContentLength(std::string buffer);
 		void								parseContentType();
 		bool								isChunkedTransfer();
