@@ -91,14 +91,14 @@ bool isCGIScript(const std::string& path) {
 
 int buildBody(Client& c, Request &req, std::string fullPath) {
 	if (!tryLockFile(c, fullPath, c.getFd(), c.fileIsNew())) {
-		req.setStatusCode(423);
+		req.statusCode() = 423;
 		sendErrorResponse(c, req);
 		return 1;
 	}
 	int fd = open(fullPath.c_str(), O_RDONLY);
 	if (fd < 0) {
 		releaseLockFile(fullPath);
-		req.setStatusCode(500);
+		req.statusCode() = 500;
 		c.output() = getTimeStamp(c.getFd()) + RED + "Failed to open file: " + RESET + fullPath;
 		sendErrorResponse(c, req);
 		return 1;
@@ -106,7 +106,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	
 	struct stat fileStat;
 	if (fstat(fd, &fileStat) < 0) {
-		translateErrorCode(errno, req.getStatusCode());
+		translateErrorCode(errno, req.statusCode());
 		releaseLockFile(fullPath);
 		sendErrorResponse(c, req);
 		close(fd);
@@ -121,14 +121,14 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 		return 0;
 	else if (bytesRead < 0) {
 		c.output() = getTimeStamp(c.getFd()) + RED + "Error: read() failed on file: " + RESET + fullPath;
-		req.setStatusCode(500);
+		req.statusCode() = 500;
 		sendErrorResponse(c, req);
 		return 1;
 	}
 	std::string fileContent(buffer.data(), bytesRead);
 	req.setBody(fileContent);
 	// if (req.getBody().size() != req.getContentLength()) {
-	// 	req.setStatusCode(400);
+	// 	req.statusCode() = 400;
 	// 	req.check() = "BAD";
 	// 	sendErrorResponse(c, req);
 	// 	return 1;
@@ -140,7 +140,7 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 	struct stat st;
 	std::string uploadDir = c.getServer().getUploadDir(c, req);
 	if (stat(uploadDir.c_str(), &st) != 0) {
-		req.setStatusCode(500);
+		req.statusCode() = 500;
 		if (mkdir(uploadDir.c_str(), 0755) != 0) {
 			c.output() = getTimeStamp(c.getFd()) + RED + "Error: Failed to create upload directory" + RESET;
 			return false;
@@ -160,13 +160,13 @@ bool isChunkedRequest(Request& req) {
 std::string getLocationPath(Client& c, Request& req, const std::string& method) {	
 	locationLevel* loc = NULL;
 	if (req.getPath().empty()) {
-		req.setStatusCode(400);
+		req.statusCode() = 400;
 		c.output() = getTimeStamp(c.getFd()) + RED + "Request path is empty for " + method + " request" + RESET;
 		sendErrorResponse(c, req);
 		return "";
 	}
 	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
-		req.setStatusCode(404);
+		req.statusCode() = 404;
 		c.output() = getTimeStamp(c.getFd()) + RED + "Location not found for " + method + " request: " + RESET + req.getPath();
 		sendErrorResponse(c, req);
 		return "";
@@ -175,14 +175,14 @@ std::string getLocationPath(Client& c, Request& req, const std::string& method) 
 		if (loc->methods[i] == method)
 			break;
 		if (i == loc->methods.size() - 1) {
-			req.setStatusCode(405);
+			req.statusCode() = 405;
 			c.output() = getTimeStamp(c.getFd()) + RED + "Method not allowed for " + method + " request: " + RESET + req.getPath();
 			sendErrorResponse(c, req);
 			return "";
 		}
 	}
 	if (loc->uploadDirPath.empty()) {
-		req.setStatusCode(403);
+		req.statusCode() = 403;
 		c.output() = getTimeStamp(c.getFd()) + RED + "Upload directory not set for " + method + " request: " + RESET + req.getPath();
 		sendErrorResponse(c, req);
 		return "";

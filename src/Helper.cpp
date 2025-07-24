@@ -212,6 +212,18 @@ bool deleteErrorPages() {
 	return true;
 }
 
+bool	isDir(std::string path) {
+	struct stat s;
+	if( stat(path.c_str(), &s) == 0 )
+	{
+		if( s.st_mode & S_IFDIR )
+			return true;
+		return false;
+	}
+	// ELSE ERROR?
+	return false;
+}
+
 void printConfigs(std::vector<serverLevel> configs) {
 	for (size_t i = 0; i < configs.size(); i++) {
 		std::cout << "___config[" << i << "]___\n";

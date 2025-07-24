@@ -206,8 +206,8 @@ def test_chunked_encoding():
 def test_put_not_allowed():
     print("Method Not Allowed (PUT)")
     r = requests.put(BASE_URL + "/")
-    if r.status_code != 501:
-        raise Exception(f"Expected 501 Method Not Allowed, got {r.status_code}")
+    if r.status_code != 405:
+        raise Exception(f"Expected 405 Method Not Allowed, got {r.status_code}")
 
 def test_keep_alive():
     print("Keep-Alive Header (Connection reuse)")

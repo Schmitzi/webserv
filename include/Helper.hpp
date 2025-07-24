@@ -27,6 +27,7 @@ std::string										getTimeStamp(int fd = -1);
 bool 											checkReturn(Client& c, int fd, ssize_t r, const std::string& func, std::string errMsgOnZero = "");
 void											doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent);
 bool											deleteErrorPages();
+bool                                            isDir(std::string path);
 
 //extras
 void											printConfigs(std::vector<serverLevel> configs);
