@@ -205,6 +205,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	
 	if (shouldCloseConnection(req))
 		response += "Connection: close\r\n";
+
 	response += "Access-Control-Allow-Origin: *\r\n";
 	response += "\r\n";
 	
@@ -212,7 +213,6 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 		c.output() = getTimeStamp(c.getFd()) + RED  + "FD became invalid before send" + RESET;
 		return -1;
 	}
-	
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	if (!content.empty()) {
 		if (isChunked) {
@@ -286,7 +286,7 @@ bool shouldCloseConnection(Request& req) {
 		return true;
 	if (req.statusCode() == 413)
 		return false;
-	if (!req.hasLengthOrIsChunked() == true)
+	if (!req.hasLengthOrIsChunked())
 		return true;
 	return false;
 }

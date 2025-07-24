@@ -49,7 +49,6 @@ Client& Client::operator=(const Client& other) {
 }
 
 Client::~Client() {
-	delete _req;
 }
 
 int	&Client::getFd() {
@@ -165,9 +164,9 @@ void Client::recieveData() {
 	std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
 	printNewLine = false;
 	
-	//Request req(_requestBuffer, *this, _fd);
-	//_req = &req;
-	_req = new Request(_requestBuffer, *this, _fd);
+	Request req(_requestBuffer, *this, _fd);
+	_req = &req;
+	//_req = new Request(_requestBuffer, *this, _fd);
 	_exitErr = processRequest();
 	if (_exitErr != 1)
 		_requestBuffer.clear();
@@ -514,7 +513,7 @@ int Client::handleRegularRequest() {
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
-	
+
 	if (S_ISDIR(fileStat.st_mode))
 		return viewDirectory(fullPath, *_req);
 	else if (!S_ISREG(fileStat.st_mode)) {

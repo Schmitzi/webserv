@@ -378,7 +378,7 @@ def test_post_upload():
     }
     body = "name=test&value=upload"
     # Expecting 200 or 201 (created) here depending on your server config
-    status, res, data = test_connection("/upload", "POST", body=body, headers=headers, expect_status=201)
+    status, res, data = test_connection("/upload/test.txt?message=hello", "POST", body=body, headers=headers, expect_status=201)
     if status in (200, 201):
         PASS += 1
 

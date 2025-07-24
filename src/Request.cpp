@@ -171,7 +171,6 @@ bool Request::matchHostServerName() {
 }
 
 void Request::parse(const std::string& rawRequest) {
-	// std:: cout << CYAN << rawRequest + "\n" << RESET;
 	if (rawRequest.empty()) {
 		_client->output() = getTimeStamp(_clientFd) + RED + "Empty request!" + RESET;
 		_statusCode = 400;
