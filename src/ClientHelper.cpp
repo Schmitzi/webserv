@@ -91,14 +91,14 @@ bool isCGIScript(const std::string& path) {
 
 int buildBody(Client& c, Request &req, std::string fullPath) {
 	if (!tryLockFile(c, fullPath, c.getFd(), c.fileIsNew())) {
-		req.statusCode() = 423;
+		c.statusCode() = 423;
 		sendErrorResponse(c, req);
 		return 1;
 	}
 	int fd = open(fullPath.c_str(), O_RDONLY);
 	if (fd < 0) {
 		releaseLockFile(fullPath);
-		req.statusCode() = 500;
+		c.statusCode() = 500;
 		c.output() = getTimeStamp(c.getFd()) + RED + "Failed to open file: " + RESET + fullPath;
 		sendErrorResponse(c, req);
 		return 1;
@@ -106,7 +106,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	
 	struct stat fileStat;
 	if (fstat(fd, &fileStat) < 0) {
-		translateErrorCode(errno, req.statusCode());
+		translateErrorCode(errno, c.statusCode());
 		releaseLockFile(fullPath);
 		sendErrorResponse(c, req);
 		close(fd);
@@ -121,7 +121,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 		return 0;
 	else if (bytesRead < 0) {
 		c.output() = getTimeStamp(c.getFd()) + RED + "Error: read() failed on file: " + RESET + fullPath;
-		req.statusCode() = 500;
+		c.statusCode() = 500;
 		sendErrorResponse(c, req);
 		return 1;
 	}
@@ -134,7 +134,7 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 	struct stat st;
 	std::string uploadDir = c.getServer().getUploadDir(c, req);
 	if (stat(uploadDir.c_str(), &st) != 0) {
-		req.statusCode() = 500;
+		c.statusCode() = 500;
 		if (mkdir(uploadDir.c_str(), 0755) != 0) {
 			c.output() = getTimeStamp(c.getFd()) + RED + "Error: Failed to create upload directory" + RESET;
 			return false;
@@ -145,7 +145,7 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 
 bool isChunkedRequest(Request& req) {
 	std::map<std::string, std::string> headers = req.getHeaders();
-	std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
+	std::map<std::string, std::string>::iterator it = iMapFind(headers, "Transfer-Encoding");
 	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)
 		return true;
 	return false;
@@ -154,29 +154,29 @@ bool isChunkedRequest(Request& req) {
 std::string getLocationPath(Client& c, Request& req, const std::string& method) {	
 	locationLevel* loc = NULL;
 	if (req.getPath().empty()) {
-		req.statusCode() = 400;
+		c.statusCode() = 400;
 		c.output() = getTimeStamp(c.getFd()) + RED + "Request path is empty for " + method + " request" + RESET;
 		sendErrorResponse(c, req);
 		return "";
 	}
 	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
-		req.statusCode() = 404;
+		c.statusCode() = 404;
 		c.output() = getTimeStamp(c.getFd()) + RED + "Location not found for " + method + " request: " + RESET + req.getPath();
 		sendErrorResponse(c, req);
 		return "";
 	}
 	for (size_t i = 0; i < loc->methods.size(); i++) {
-		if (loc->methods[i] == method)
+		if (iEqual(loc->methods[i], method))
 			break;
 		if (i == loc->methods.size() - 1) {
-			req.statusCode() = 405;
+			c.statusCode() = 405;
 			c.output() = getTimeStamp(c.getFd()) + RED + "Method not allowed for " + method + " request: " + RESET + req.getPath();
 			sendErrorResponse(c, req);
 			return "";
 		}
 	}
 	if (loc->uploadDirPath.empty()) {
-		req.statusCode() = 403;
+		c.statusCode() = 403;
 		c.output() = getTimeStamp(c.getFd()) + RED + "Upload directory not set for " + method + " request: " + RESET + req.getPath();
 		sendErrorResponse(c, req);
 		return "";
