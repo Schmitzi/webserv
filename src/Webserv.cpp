@@ -175,7 +175,7 @@ int Webserv::run() {
 			std::cerr << getTimeStamp() << RED << "Error: epoll_wait() failed" << RESET << std::endl;
 			continue;
 		}
-		for (int i = 0; i < nfds; i++) {
+		for (int i = 0; i < nfds; i++) { //TODO: maybe too many nfds-> loops too long maybe for receiving data?
 			int fd = _events[i].data.fd;
 			uint32_t eventMask = _events[i].events;
 			
@@ -317,7 +317,10 @@ void Webserv::handleClientActivity(int clientFd) {
 		close(clientFd);
 		return;
 	}
-	client->recieveData();
+	if (client->state() == UNTRACKED)
+		client->state() = RECEIVING;
+	if (client->state() < DONE)
+		client->receiveData();
 }
 
 void Webserv::handleEpollOut(int fd) {
@@ -357,6 +360,7 @@ void Webserv::handleEpollOut(int fd) {
 		if (c->shouldClose() == true)
 			c->exitErr() = true;
 		else {
+			c->state() = UNTRACKED;
 			c->exitErr() = false;
 			setEpollEvents(*this, fd, EPOLLIN);
 		}

@@ -30,20 +30,27 @@ std::vector<std::string> splitBy(const std::string& str, char div) {
 	return ret;
 }
 
+std::string toLower(std::string& s) {
+	std::string ret;
+	for (size_t i = 0; i < s.size(); i++)
+		ret += static_cast<char>(std::tolower(s[i]));
+	return ret;
+}
+
 size_t iFind(const std::string& haystack, const std::string& needle) {
 	if (needle.empty())
-		return 0;
+		return std::string::npos;
 	if (needle.size() > haystack.size())
 		return std::string::npos;
 	for (size_t i = 0; i <= haystack.size() - needle.size(); i++) {
-		bool match = true;
-		for (size_t j = 0; j < needle.size(); j++) {
-			if (std::tolower(haystack[i + j]) != std::tolower(needle[j])) {
-				match = false;
+		size_t j = 0;
+		while(j < needle.size()) {
+			if (std::tolower(haystack[i + j]) == std::tolower(needle[j]))
+				j++;
+			else
 				break;
-			}
 		}
-		if (match)
+		if (j == needle.size())
 			return i;
 	}
 	return std::string::npos;
