@@ -87,44 +87,6 @@ std::map<std::string, std::string>::iterator iMapFind(std::map<std::string, std:
 	return map.end();
 }
 
-size_t iFind(const std::string& haystack, const std::string& needle) {
-	if (needle.empty())
-		return 0;
-	if (needle.size() > haystack.size())
-		return std::string::npos;
-	for (size_t i = 0; i <= haystack.size() - needle.size(); i++) {
-		bool match = true;
-		for (size_t j = 0; j < needle.size(); j++) {
-			if (std::tolower(haystack[i + j]) != std::tolower(needle[j])) {
-				match = false;
-				break;
-			}
-		}
-		if (match)
-			return i;
-	}
-	return std::string::npos;
-}
-
-bool iEqual(const std::string& a, const std::string& b) {
-	if (a.size() != b.size())
-		return false;
-	for (size_t i = 0; i < a.size(); i++) {
-		if (std::tolower(a[i]) != std::tolower(b[i]))
-			return false;
-	}
-	return true;
-}
-
-std::map<std::string, std::string>::iterator iMapFind(std::map<std::string, std::string>& map, const std::string& s) {
-	std::map<std::string, std::string>::iterator it = map.begin();
-	for (; it != map.end(); ++it) {
-		if (iEqual(it->first, s))
-			return it;
-	}
-	return map.end();
-}
-
 std::string matchAndAppendPath(const std::string& base, const std::string& add) {
 	std::vector<std::string> baseParts = splitBy(base, '/');
 	std::vector<std::string> addParts = splitBy(add, '/');
