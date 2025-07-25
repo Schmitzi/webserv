@@ -51,7 +51,7 @@ Client& Client::operator=(const Client& other) {
 }
 
 Client::~Client() {
-	// delete _req;
+	//delete _req;
 }
 
 int	&Client::getFd() {
@@ -145,19 +145,33 @@ void Client::recieveData() {
 		return;
 	}
 
-	bool isComplete = false;
-	bool isChunked = (iFind(_requestBuffer, "Transfer-Encoding:") != std::string::npos &&
-					iFind(_requestBuffer, "chunked") != std::string::npos);
-	bool hasContentLength = (iFind(_requestBuffer, "Content-Length:") != std::string::npos);
+	// bool isComplete = false;
+	// bool isChunked = (iFind(_requestBuffer, "Transfer-Encoding:") != std::string::npos &&
+	// 				iFind(_requestBuffer, "chunked") != std::string::npos);
+	// bool hasContentLength = (iFind(_requestBuffer, "Content-Length:") != std::string::npos);
+	// std::cout << CYAN << _requestBuffer << "\n" << RESET;
+	// if (isChunked)
+	// 	isComplete = isChunkedBodyComplete(_requestBuffer);
+	// else if (hasContentLength)
+	// 	isComplete = (checkLength(_requestBuffer, _fd, printNewLine) == 1);
+	// else
+	// 	isComplete = true;  # TODO: this is mega slow.... even after "optimising the function"
 
-	if (isChunked)
-		isComplete = isChunkedBodyComplete(_requestBuffer);
-	else if (hasContentLength)
-		isComplete = (checkLength(_requestBuffer, _fd, printNewLine) == 1);
-	else
-		isComplete = true;
+	bool isComplete = false;
+    bool isChunked = (_requestBuffer.find("Transfer-Encoding:") != std::string::npos &&
+                      _requestBuffer.find("chunked") != std::string::npos);
+    bool hasContentLength = (_requestBuffer.find("Content-Length:") != std::string::npos);
+    
+    if (isChunked) {
+        isComplete = isChunkedBodyComplete(_requestBuffer);
+    } else if (hasContentLength) {
+        isComplete = (checkLength(_requestBuffer, _fd, printNewLine) == 1);
+    } else {
+        isComplete = true;
+    }
 	
 	if (!isComplete) {
+		std::cout << "!\n";
 		_exitErr = false;
 		return;
 	}
@@ -169,7 +183,7 @@ void Client::recieveData() {
 	
 	Request req(_requestBuffer, *this, _fd);
 	_req = &req;
-	// _req = new Request(_requestBuffer, *this, _fd);
+	//_req = new Request(_requestBuffer, *this, _fd);
 	_exitErr = processRequest();
 	if (_exitErr != 1)
 		_requestBuffer.clear();
