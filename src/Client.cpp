@@ -136,14 +136,14 @@ void Client::receiveData() {
 	
 	ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
 	if (bytesRead < 0) {
-		// _exitErr = true;
+		_exitErr = true;
 		_statusCode = 500;
 		_output = getTimeStamp(_fd) + RED + "Error: recv() failed" + RESET;
 		return;
 	}
 	
 	if (bytesRead == 0) {
-		// _exitErr = false;
+		_exitErr = false;
 		return;
 	}
 
@@ -153,7 +153,7 @@ void Client::receiveData() {
 		_requestBuffer.find("\n\n") == std::string::npos) {
 		std::cout << getTimeStamp(_fd) << BLUE 
 				<< "Headers incomplete, waiting for more data" << RESET << std::endl;
-		// _exitErr = false;
+		_exitErr = false;
 		return;
 	} else
 		_state = CHECKING;
@@ -170,7 +170,7 @@ void Client::receiveData() {
 			int x = checkLength(tmp, _fd, printNewLine);
 			if (x == -1) {
 				_statusCode = 400;
-				// _exitErr = true;
+				_exitErr = true;
 				return;
 			} else if (x == 0)
 				return;

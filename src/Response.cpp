@@ -176,27 +176,28 @@ void sendRedirect(Client& c, const std::string& location, Request& req) {
 	c.output() = getTimeStamp(c.getFd()) + BLUE + "Sent redirect response: " + RESET + tostring(c.statusCode()) + " " + statusText + " to " + location;
 }
 
+bool isChunkedRequest(Request& req) {
+	std::map<std::string, std::string> headers = req.getHeaders();
+	std::map<std::string, std::string>::iterator it = iMapFind(headers, "Transfer-Encoding");
+	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)
+		return true;
+	return false;
+}
+
 ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	if (c.getFd() <= 0) {
 		c.output() = getTimeStamp(c.getFd()) + RED + "Invalid fd in sendResponse" + RESET;
 		return -1;
 	}
 	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " OK\r\n";
-	
-	std::map<std::string, std::string> headers = req.getHeaders();
-	bool isChunked = false;
-	std::map<std::string, std::string>::iterator it = iMapFind(headers, "Transfer-Encoding");
-	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)
-		isChunked = true;
-	
 	response += "Content-Type: " + req.getContentType() + "\r\n";
 	
 	std::string content = body;
 	
-	if (req.getMethod() == "POST" && content.empty())
+	if (iEqual(req.getMethod(), "POST") && content.empty())
 		content = "Upload successful";
 	
-	if (!isChunked)
+	if (!isChunkedRequest(req))
 		response += "Content-Length: " + tostring(content.size()) + "\r\n";
 	else
 		response += "Transfer-Encoding: chunked\r\n";
@@ -215,7 +216,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	if (!content.empty()) {
-		if (isChunked) {
+		if (isChunkedRequest(req)) {
 			const size_t chunkSize = 4096;
 			size_t remaining = content.length();
 			size_t offset = 0;

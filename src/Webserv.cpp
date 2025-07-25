@@ -175,10 +175,9 @@ int Webserv::run() {
 			std::cerr << getTimeStamp() << RED << "Error: epoll_wait() failed" << RESET << std::endl;
 			continue;
 		}
-		for (int i = 0; i < nfds; i++) { //TODO: maybe too many nfds-> loops too long maybe for receiving data?
+		for (int i = 0; i < nfds; i++) {
 			int fd = _events[i].data.fd;
 			uint32_t eventMask = _events[i].events;
-			
 			if (!checkEventMaskErrors(eventMask, fd))
 				continue;
 			Server *activeServer = getServerByFd(fd);

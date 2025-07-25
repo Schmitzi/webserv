@@ -8,7 +8,6 @@
 int checkLength(std::string& reqBuf, int fd, bool &printNewLine) {
 	size_t expectedLen;
 	size_t pos = reqBuf.find("content-length:");
-	// size_t pos = iFind(reqBuf, "Content-Length:");
 	if (pos != std::string::npos) {
 		pos += 15;
 		size_t eol = reqBuf.find("\r\n", pos);
@@ -140,14 +139,6 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 		}
 	}
 	return true;
-}
-
-bool isChunkedRequest(Request& req) {
-	std::map<std::string, std::string> headers = req.getHeaders();
-	std::map<std::string, std::string>::iterator it = iMapFind(headers, "Transfer-Encoding");
-	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)
-		return true;
-	return false;
 }
 
 std::string getLocationPath(Client& c, Request& req, const std::string& method) {	
