@@ -162,8 +162,8 @@ Support POST with no filename
 
 <!-- -> GET request with body-> should ignore body -->
 
--> If a request contains a message-body and a Content-Length is not given,
-   the server SHOULD respond with 400 (bad request) if it cannot determine the length of the message
+<!-- -> If a request contains a message-body and a Content-Length is not given,
+   the server SHOULD respond with 400 (bad request) if it cannot determine the length of the message -->
 
 <!-- -> Messages MUST NOT include both a Content-Length header field and a
    non-identity transfer-coding. If the message does include a non-

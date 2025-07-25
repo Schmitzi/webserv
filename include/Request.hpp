@@ -37,7 +37,8 @@ class Request {
 
 		serverLevel							&getConf();
 		std::map<std::string, std::string>	&getHeaders();
-		bool								&hasLengthOrIsChunked();
+		bool								&hasValidLength();
+		bool								&isChunked();
 		std::string							&check();
 		Client								&getClient();
 		std::string							getMimeType(std::string const &path);
@@ -74,7 +75,8 @@ class Request {
 		Client								*_client;
 		std::vector<serverLevel>			_configs;
 		int									_clientFd;
-		bool								_hasLengthOrIsChunked;
+		bool								_hasValidLength;
+		bool								_isChunked;
 };
 
 #endif

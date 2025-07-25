@@ -305,7 +305,7 @@ int Client::handlePostRequest() {
 	
 	std::string contentToWrite;
 	
-	if (isChunkedRequest(*_req)) {
+	if (_req->isChunked()) {
 		std::cout << getTimeStamp(_fd) << BLUE << "Processing chunked request" << RESET << std::endl;
 		contentToWrite = decodeChunkedBody(*this, _fd, _req->getBody());
 		

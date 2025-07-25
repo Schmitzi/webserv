@@ -22,7 +22,8 @@ Request::Request(const std::string& rawRequest, Client& client, int clientFd) :
 	_client(&client),
 	_configs(_client->getConfigs()),
 	_clientFd(clientFd),
-	_hasLengthOrIsChunked(false)
+	_hasValidLength(false),
+	_isChunked(false)
 {
 	parse(rawRequest);
 }
@@ -48,7 +49,8 @@ Request &Request::operator=(const Request& copy) {
 		_client = copy._client;
 		_configs = copy._configs;
 		_clientFd = copy._clientFd;
-		_hasLengthOrIsChunked = copy._hasLengthOrIsChunked;
+		_hasValidLength = copy._hasValidLength;
+		_isChunked = copy._isChunked;
 	}
 	return *this;
 }
@@ -99,8 +101,12 @@ std::map<std::string, std::string> &Request::getHeaders() {
 	return _headers;
 }
 
-bool &Request::hasLengthOrIsChunked() {
-	return _hasLengthOrIsChunked;
+bool &Request::hasValidLength() {
+	return _hasValidLength;
+}
+
+bool &Request::isChunked() {
+	return _isChunked;
 }
 
 std::string &Request::check() {
@@ -353,29 +359,11 @@ void Request::checkContentLength(std::string buffer) {
 				return;
 			} else {
 				_contentLength = strtoul(values[0].c_str(), NULL, 10);
-				_hasLengthOrIsChunked = true;
+				_hasValidLength = true;//TODO: what does valid mean?
 			}
 		} else {
 			_client->statusCode() = 400;
 			return;
-		}
-	}
-
-	pos = iFind(buffer, "Transfer-Encoding:");
-	if (pos != std::string::npos) {
-		pos += 18;
-		size_t eol = buffer.find("\r\n", pos);
-		if (eol == std::string::npos)
-			eol = buffer.find("\n", pos);
-		if (eol != std::string::npos) {
-			std::string transferEncoding = buffer.substr(pos, eol - pos);
-			if (iFind(transferEncoding, "chunked") != std::string::npos) {
-				_contentLength = 0;
-				_hasLengthOrIsChunked = true;
-				std::cout << getTimeStamp(_clientFd) << BLUE << "Transfer-Encoding: chunked detected" << RESET << std::endl;
-			} else {
-				_client->statusCode() = 501;
-			}
 		}
 	}
 }
@@ -444,8 +432,10 @@ std::string Request::getMimeType(std::string const &path) {
 bool Request::isChunkedTransfer() {
 	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Transfer-Encoding");
 	if (it != _headers.end()) {
-		if (iFind(it->second, "chunked") != std::string::npos)
+		if (iFind(it->second, "chunked") != std::string::npos) {
+			_isChunked = true;
 			return true;
+		}
 		else {
 			_client->statusCode() = 501;
 			return false;
