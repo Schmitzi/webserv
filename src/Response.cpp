@@ -156,9 +156,14 @@ void resolveErrorResponse(int statusCode, std::string& statusText, std::string& 
 void sendRedirect(Client& c, const std::string& location, Request& req) {
 	std::string statusText = getStatusMessage(c.statusCode());
 	
-	std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
-	body += "<body><h1>" + statusText + "</h1>";
-	body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
+	std::string body = "<!DOCTYPE html>\n"
+		"<html>\n"
+		"<head>\n"
+		"    <title>" + statusText + "</title></head>\n"
+	    "    <body><h1>" + statusText + "</h1>\n"
+	    "    <p>The document has moved <a href=\"" + location + "\">here</a>.</p>\n"
+		"    </body>\n"
+		"</html>\n";	
 	
 	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + statusText + "\r\n";
 	response += "Location: " + location + "\r\n";
