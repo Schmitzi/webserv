@@ -13,17 +13,16 @@ Request::Request(const std::string& rawRequest, Client& client, int clientFd) :
 	_path(""),
 	_contentType(""),
 	_version(""),
-	_headers(),
 	_body(""),
 	_query(""),
 	_boundary(""),
 	_contentLength(0),
+	_headers(),
 	_curConf(),
 	_client(&client),
 	_configs(_client->getConfigs()),
 	_clientFd(clientFd),
 	_hasLengthOrIsChunked(false)
-	// _client->statusCode(200)
 {
 	parse(rawRequest);
 }
@@ -50,12 +49,15 @@ Request &Request::operator=(const Request& copy) {
 		_configs = copy._configs;
 		_clientFd = copy._clientFd;
 		_hasLengthOrIsChunked = copy._hasLengthOrIsChunked;
-		// _client->statusCode = copy._client->statusCode;
 	}
 	return *this;
 }
 
 Request::~Request() {}
+
+std::string &Request::getHost() {
+	return _host;
+}
 
 std::string &Request::getPath() {
 	return _path;
@@ -101,10 +103,6 @@ bool &Request::hasLengthOrIsChunked() {
 	return _hasLengthOrIsChunked;
 }
 
-// int &Request::statusCode() {
-// 	return _client->statusCode;
-// }
-
 std::string &Request::check() {
 	return _check;
 }
@@ -125,12 +123,12 @@ void    Request::setContentType(std::string const content) {
 	_contentType = content;
 }
 
-bool Request::hasServerName(const std::string& servName) {
-	if (iFind(servName, "localhost") != std::string::npos) {
-		std::string portPart = servName.substr(servName.find(":") + 1);
+bool Request::hasServerName() {
+	if (iFind(_host, "localhost") != std::string::npos) {
+		std::string portPart = _host.substr(_host.find(":") + 1);
 		if (onlyDigits(portPart)) {
 			std::string sum = "localhost:" + portPart;
-			if (iEqual(sum, servName))
+			if (iEqual(sum, _host))
 				return false;
 		}
 	}
@@ -138,14 +136,10 @@ bool Request::hasServerName(const std::string& servName) {
 }
 
 bool Request::matchHostServerName() {
-	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Host");
-	std::string servName;
-	if (it != _headers.end())
-		servName = it->second;
-	if (hasServerName(servName)) {
+	if (hasServerName()) {
 		for (size_t i = 0; i < _configs.size(); i++) {
 			for (size_t j = 0; j < _configs[i].servName.size(); j++) {
-				if (iEqual(servName, _configs[i].servName[j])) {
+				if (iEqual(_host, _configs[i].servName[j])) {
 					_curConf = _configs[i];
 					return true;
 				}
@@ -161,7 +155,7 @@ bool Request::matchHostServerName() {
 		}
 	}
 	else {
-		int portPart = std::atoi(servName.substr(servName.find(":") + 1).c_str());
+		int portPart = std::atoi(_host.substr(_host.find(":") + 1).c_str());
 		for (size_t i = 0; i < _configs.size(); i++) {
 			for (size_t j = 0; j < _configs[i].port.size(); j++) {
 				if (_configs[i].port[j].first.second == portPart) {
@@ -232,12 +226,69 @@ void Request::parse(const std::string& rawRequest) {
 		return;
 	}
 
+	if (!checkVersion())
+		return;
+
+	checkQueryAndPath(target);
+
+	if (!checkMethod())
+		return;
+
+	if (isChunkedTransfer()) {
+		if (_client->statusCode() == 501)
+			return;
+		if (iEqual(_method, "POST")) {
+			std::cout << getTimeStamp(_clientFd) << BLUE << "POST request with chunked body: " << RESET << _body.length() 
+					<< " bytes of chunked data" << std::endl;
+		}
+	}
+	_path = decode(_path);
+}
+
+void Request::setHeader(std::string& key, std::string& value) {
+	if (iEqual(key, "Host")) {
+		// if (_host.empty()) {
+		_host = value;
+		// }
+		// else
+			// _client->statusCode() = 400;
+	}
+	else if (iEqual(key, "Content-Type")) {
+		// if (_contentType.empty()) {
+		_contentType = value;
+		// }
+		// else
+			// _client->statusCode() = 400;
+	}
+}
+
+bool Request::checkMethod() {
+	if (iEqual(_method, "GET") || iEqual(_method, "POST") || iEqual(_method, "DELETE")
+		|| iEqual(_method, "PUT") || iEqual(_method, "HEAD") || iEqual(_method, "OPTIONS")
+		|| iEqual(_method, "PATCH") || iEqual(_method, "TRACE") || iEqual(_method, "CONNECT")) {
+		if (!iEqual(_method, "GET") && !iEqual(_method, "POST") && !iEqual(_method, "DELETE")) {
+			_client->statusCode() = 501;
+			_check = "NOTALLOWED";
+			return false;
+		}
+	} else {
+		_client->statusCode() = 400;
+		_check = "BAD";
+		return false;
+	}
+	return true;
+}
+
+bool Request::checkVersion() {
 	if ( _version.empty() || _version != "HTTP/1.1") {
 		_client->statusCode() = 505;
 		_check = "BAD";
-		return;
+		return false;
 	}
+	return true;
+}
 
+void Request::checkQueryAndPath(std::string& target) {
 	size_t queryPos = target.find('?');
 	if (queryPos != std::string::npos) {
 		_path = target.substr(0, queryPos);
@@ -252,39 +303,14 @@ void Request::parse(const std::string& rawRequest) {
 			_path = matchAndAppendPath(it->second.rootLoc, it->second.indexFile);
 	}
 
-	end = _path.find_last_not_of(" \t\r\n");
+	size_t end = _path.find_last_not_of(" \t\r\n");
 	if (end != std::string::npos)
 		_path = _path.substr(0, end + 1);
-
-	if (iEqual(_method, "GET") || iEqual(_method, "POST") || iEqual(_method, "DELETE")
-		|| iEqual(_method, "PUT") || iEqual(_method, "HEAD") || iEqual(_method, "OPTIONS")
-		|| iEqual(_method, "PATCH") || iEqual(_method, "TRACE") || iEqual(_method, "CONNECT")) {
-		if (!iEqual(_method, "GET") && !iEqual(_method, "POST") && !iEqual(_method, "DELETE")) {
-			_client->statusCode() = 501;
-			_check = "NOTALLOWED";
-			return;
-		}
-	} else {
-		_client->statusCode() = 400;
-		_check = "BAD";
-		return;
-	}
-
-	if (isChunkedTransfer()) {
-		if (_client->statusCode() == 501)
-			return;
-		if (iEqual(_method, "POST")) {
-			std::cout << getTimeStamp(_clientFd) << BLUE << "POST request with chunked body: " << RESET << _body.length() 
-					<< " bytes of chunked data" << std::endl;
-		}
-	}
-	_path = decode(_path);
 }
 
 void Request::parseHeaders(const std::string& headerSection) {
 	std::istringstream iss(headerSection);
 	std::string line;
-	bool host = false;
 	
 	std::getline(iss, line);
 	while (std::getline(iss, line) && !line.empty() && line != "\r") {
@@ -297,17 +323,18 @@ void Request::parseHeaders(const std::string& headerSection) {
 			key.erase(key.find_last_not_of(" \t\r\n") + 1);
 			value.erase(0, value.find_first_not_of(" \t"));
 			value.erase(value.find_last_not_of(" \t\r\n") + 1);
-			if (iFind(key, "Content-Length") != std::string::npos || iFind(key, "Host") != std::string::npos) {
+			if (iEqual(key, "Host")) {
 				std::vector<std::string> values = split(value);
-				if (values.size() > 1)
+				if (values.size() > 1) {
 					_client->statusCode() = 400;
+					continue;
+				}
 			}
-			if (iEqual(key, "Host"))
-				host = true;
 			_headers[key] = value;
+			setHeader(key, value);
 		}
 	}
-	if (host == false)
+	if (_host.empty())
 		_client->statusCode() = 400;
 }
 
@@ -327,7 +354,6 @@ void Request::checkContentLength(std::string buffer) {
 			} else {
 				_contentLength = strtoul(values[0].c_str(), NULL, 10);
 				_hasLengthOrIsChunked = true;
-				// return;
 			}
 		} else {
 			_client->statusCode() = 400;
@@ -355,26 +381,20 @@ void Request::checkContentLength(std::string buffer) {
 }
 
 void Request::parseContentType() {
-	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Content-Type");
-	if (it != _headers.end()) {
-		_contentType = it->second;
-
-		if (iFind(_contentType, "multipart/form-data") != std::string::npos) {
-			size_t boundaryPos = iFind(_contentType, "boundary=");
-			if (boundaryPos != std::string::npos) {
-				std::string boundary = _contentType.substr(boundaryPos + 9);
-				
-				if (!boundary.empty() && boundary[0] == '"') {
-					size_t endQuote = boundary.find('"', 1);
-					if (endQuote != std::string::npos) {
-						boundary = boundary.substr(1, endQuote - 1);
-					}
+	if (iFind(_contentType, "multipart/form-data") != std::string::npos) {
+		size_t boundaryPos = iFind(_contentType, "boundary=");
+		if (boundaryPos != std::string::npos) {
+			std::string boundary = _contentType.substr(boundaryPos + 9);
+			
+			if (!boundary.empty() && boundary[0] == '"') {
+				size_t endQuote = boundary.find('"', 1);
+				if (endQuote != std::string::npos) {
+					boundary = boundary.substr(1, endQuote - 1);
 				}
-				_boundary = boundary;
 			}
+			_boundary = boundary;
 		}
-	} else if (_method == "POST")
-		_contentType = "application/octet-stream";
+	}
 }
 
 std::string Request::getMimeType(std::string const &path) {

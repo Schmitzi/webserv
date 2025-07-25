@@ -30,52 +30,23 @@ std::vector<std::string> splitBy(const std::string& str, char div) {
 	return ret;
 }
 
-size_t iFind(const std::string& haystack, const std::string& needle) {
-    if (needle.empty())
-        return 0;
-    if (needle.size() > haystack.size())
-        return std::string::npos;
-    
-    std::string lower_haystack = haystack;
-    std::string lower_needle = needle;
-    
-    for (size_t i = 0; i < lower_haystack.size(); ++i) {
-        lower_haystack[i] = static_cast<char>(::tolower(static_cast<unsigned char>(lower_haystack[i])));
-    }
-    for (size_t i = 0; i < lower_needle.size(); ++i) {
-        lower_needle[i] = static_cast<char>(::tolower(static_cast<unsigned char>(lower_needle[i])));
-    }
-    
-    return lower_haystack.find(lower_needle);
+std::string toLower(const std::string& s) {
+	std::string ret = "";
+	for (size_t i = 0; i < s.size(); i++)
+		ret += static_cast<char>(std::tolower(s[i]));
+	return ret;
 }
 
-// size_t iFind(const std::string& haystack, const std::string& needle) {
-// 	if (needle.empty())
-// 		return 0;
-// 	if (needle.size() > haystack.size())
-// 		return std::string::npos;
-// 	for (size_t i = 0; i <= haystack.size() - needle.size(); i++) {
-// 		bool match = true;
-// 		for (size_t j = 0; j < needle.size(); j++) {
-// 			if (std::tolower(haystack[i + j]) != std::tolower(needle[j])) {
-// 				match = false;
-// 				break;
-// 			}
-// 		}
-// 		if (match)
-// 			return i;
-// 	}
-// 	return std::string::npos;
-// }
+size_t iFind(const std::string& haystack, const std::string& needle) {
+	if (haystack.empty() || needle.empty())
+		return std::string::npos;
+	return toLower(haystack).find(toLower(needle));
+}
 
 bool iEqual(const std::string& a, const std::string& b) {
-	if (a.size() != b.size())
-		return false;
-	for (size_t i = 0; i < a.size(); i++) {
-		if (std::tolower(a[i]) != std::tolower(b[i]))
-			return false;
-	}
-	return true;
+	if (toLower(a) == toLower(b))
+		return true;
+	return false;
 }
 
 std::map<std::string, std::string>::iterator iMapFind(std::map<std::string, std::string>& map, const std::string& s) {

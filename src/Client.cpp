@@ -25,6 +25,7 @@ Client::Client(Server& serv) {
 	_lastUsed = time(NULL);
 	_output = "";
 	_statusCode = 200;
+	_state = UNTRACKED;
 }
 
 Client::Client(const Client& client) {
@@ -48,6 +49,7 @@ Client& Client::operator=(const Client& other) {
 		_lastUsed = other._lastUsed; 
 		_output = other._output;
 		_statusCode = other._statusCode;
+		_state = other._state;
 	}
 	return *this;
 }
@@ -104,6 +106,10 @@ int &Client::statusCode() {
 	return _statusCode;
 }
 
+int &Client::state() {
+	return _state;
+}
+
 int Client::acceptConnection(int serverFd) {
 	std::cout << GREY << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << RESET << std::endl;
 	_addrLen = sizeof(_addr);
@@ -124,23 +130,25 @@ void Client::displayConnection() {
 			<< (int)ip[3] << ":" << ntohs(_addr.sin_port) << RESET << std::endl;
 }
 
-void Client::recieveData() {
+void Client::receiveData() {
 	static bool printNewLine = false;
 	char buffer[1000000];
 	memset(buffer, 0, sizeof(buffer));
 	
+	
 	ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
 	if (bytesRead < 0) {
 		_exitErr = true;
+		_statusCode = 500;
 		_output = getTimeStamp(_fd) + RED + "Error: recv() failed" + RESET;
 		return;
 	}
 	
 	if (bytesRead == 0) {
-		_exitErr = true;
+		_exitErr = false;
 		return;
 	}
-	
+
 	_requestBuffer.append(buffer, bytesRead);
 
 	if (_requestBuffer.find("\r\n\r\n") == std::string::npos && 
@@ -149,38 +157,47 @@ void Client::recieveData() {
 				<< "Headers incomplete, waiting for more data" << RESET << std::endl;
 		_exitErr = false;
 		return;
+	} else
+		_state = CHECKING;
+
+	if (_state == CHECKING) {
+		std::string tmp = toLower(_requestBuffer);
+		if (tmp.find("transfer-encoding:") != std::string::npos && tmp.find("chunked") != std::string::npos) {
+		// if (iFind(_requestBuffer, "Transfer-Encoding:") != std::string::npos && iFind(_requestBuffer, "chunked") != std::string::npos) {
+			if (!isChunkedBodyComplete(_requestBuffer))
+				return;
+			else
+				_state = COMPLETE;
+		} else {
+			int x = checkLength(tmp, _fd, printNewLine);
+			if (x == -1) {
+				_statusCode = 400;
+				_exitErr = true;
+				return;
+			} else if (x == 0)
+				return;
+			else
+				_state = COMPLETE;
+		}
 	}
-
-	bool isComplete = false;
-	bool isChunked = (iFind(_requestBuffer, "Transfer-Encoding:") != std::string::npos &&
-					iFind(_requestBuffer, "chunked") != std::string::npos);
-	bool hasContentLength = (iFind(_requestBuffer, "Content-Length:") != std::string::npos);
-
-	if (isChunked)
-		isComplete = isChunkedBodyComplete(_requestBuffer);
-	else if (hasContentLength)
-		isComplete = (checkLength(_requestBuffer, _fd, printNewLine) == 1);
-	else
-		isComplete = true;
-	
-	if (!isComplete) {
-		_exitErr = false;
-		return;
+	if (_state == COMPLETE) {
+		if (printNewLine == true)
+			std::cout << std::endl;
+		std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
+		printNewLine = false;
+		_state = PROCESSING;
 	}
-
-	if (printNewLine == true)
-		std::cout << std::endl;
-	std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
-	printNewLine = false;
 	
-	Request req(_requestBuffer, *this, _fd);
-	_req = &req;
-	_exitErr = processRequest();
-	if (_exitErr != 1)
-		_requestBuffer.clear();
-	_shouldClose = false;
-	if (shouldCloseConnection(*_req))
-		_shouldClose = true;		
+	if (_state == PROCESSING) {
+		Request req(_requestBuffer, *this, _fd);
+		_req = &req;
+		_exitErr = processRequest();
+		if (_exitErr != 1)
+			_requestBuffer.clear();
+		if (shouldCloseConnection(*_req))
+			_shouldClose = true;
+		_state = DONE;
+	}
 }
 
 int Client::processRequest() {

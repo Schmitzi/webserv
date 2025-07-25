@@ -17,13 +17,14 @@ class	Request;
 struct	serverLevel;
 struct	locationLevel;
 
-// enum {
-// 	UNTRACKED,
-// 	RECEIVING,
-// 	CHECKING,
-// 	PROCESSING,
-// 	DONE
-// };
+enum {
+	UNTRACKED,
+	RECEIVING,
+	CHECKING,
+	COMPLETE,
+	PROCESSING,
+	DONE
+};
 
 class Client {
 	public:
@@ -45,10 +46,11 @@ class Client {
 		time_t						&lastUsed();
 		std::string					&output();
 		int							&statusCode();
+		int							&state();
 
 		int							acceptConnection(int serverFd);
 		void						displayConnection();
-		void						recieveData();
+		void						receiveData();
 		int							processRequest();
 
 		int							handleGetRequest();
@@ -81,6 +83,7 @@ class Client {
 		time_t						_lastUsed;
 		std::string					_output;
 		int							_statusCode;
+		int							_state;
 };
 
 #endif

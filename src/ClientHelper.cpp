@@ -6,22 +6,20 @@
 #include "../include/Request.hpp"
 
 int checkLength(std::string& reqBuf, int fd, bool &printNewLine) {
-	size_t contentLengthPos = iFind(reqBuf, "Content-Length:");
-	if (contentLengthPos != std::string::npos) {
-		size_t valueStart = contentLengthPos + 15;
-		while (valueStart < reqBuf.length() && 
-				(reqBuf[valueStart] == ' ' || reqBuf[valueStart] == '\t')) {
-			valueStart++;
-		}
-		
-		size_t valueEnd = reqBuf.find("\r\n", valueStart);
-		if (valueEnd == std::string::npos) {
-			valueEnd = reqBuf.find("\n", valueStart);
-		}
-		
-		if (valueEnd != std::string::npos) {
-			std::string lengthStr = reqBuf.substr(valueStart, valueEnd - valueStart);
-			size_t expectedLength = strtoul(lengthStr.c_str(), NULL, 10);
+	size_t expectedLen;
+	size_t pos = reqBuf.find("content-length:");
+	if (pos != std::string::npos) {
+		pos += 15;
+		size_t eol = reqBuf.find("\r\n", pos);
+		if (eol == std::string::npos)
+			eol = reqBuf.find("\n", pos);
+		if (eol != std::string::npos) {
+			std::string line = reqBuf.substr(pos, eol - pos);
+			std::vector<std::string> values = split(line);
+			if (values.size() > 1) {
+				return -1;
+			} else
+				expectedLen = strtoul(line.c_str(), NULL, 10);
 			
 			size_t bodyStart = reqBuf.find("\r\n\r\n");
 			if (bodyStart != std::string::npos) {
@@ -34,11 +32,11 @@ int checkLength(std::string& reqBuf, int fd, bool &printNewLine) {
 			}
 			
 			if (bodyStart != std::string::npos) {
-				size_t actualBodyLength = reqBuf.length() - bodyStart;
-				if (actualBodyLength < expectedLength) {
+				size_t len = reqBuf.size() - bodyStart;
+				if (len < expectedLen) {
 					if (printNewLine == false)
 						std::cout << getTimeStamp(fd) << BLUE << "Receiving bytes..." << RESET << std::endl;
-					std::cout << "[~]";
+					std::cout << "[~]" << std::flush;
 					printNewLine = true;
 					return 0;
 				}
@@ -141,14 +139,6 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 		}
 	}
 	return true;
-}
-
-bool isChunkedRequest(Request& req) {
-	std::map<std::string, std::string> headers = req.getHeaders();
-	std::map<std::string, std::string>::iterator it = iMapFind(headers, "Transfer-Encoding");
-	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)
-		return true;
-	return false;
 }
 
 std::string getLocationPath(Client& c, Request& req, const std::string& method) {	

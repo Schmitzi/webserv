@@ -180,7 +180,6 @@ int Webserv::run() {
 			// 	std::cout << GREEN << one << RESET << std::endl;
 			int fd = _events[i].data.fd;
 			uint32_t eventMask = _events[i].events;
-			
 			if (!checkEventMaskErrors(eventMask, fd))
 				continue;
 			Server *activeServer = getServerByFd(fd);
@@ -324,7 +323,10 @@ void Webserv::handleClientActivity(int clientFd) {
 		close(clientFd);
 		return;
 	}
-	client->recieveData();
+	if (client->state() == UNTRACKED)
+		client->state() = RECEIVING;
+	if (client->state() < DONE)
+		client->receiveData();
 }
 
 void Webserv::handleEpollOut(int fd) {
@@ -364,6 +366,7 @@ void Webserv::handleEpollOut(int fd) {
 		if (c->shouldClose() == true)
 			c->exitErr() = true;
 		else {
+			c->state() = UNTRACKED;
 			c->exitErr() = false;
 			setEpollEvents(*this, fd, EPOLLIN);
 		}

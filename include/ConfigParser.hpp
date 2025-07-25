@@ -43,6 +43,7 @@ struct serverLevel {
 	std::map<std::string, locationLevel>						locations;//location
 };
 
+
 class ConfigParser {
 	private:
 		std::string												_filepath;

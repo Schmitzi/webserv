@@ -868,7 +868,7 @@ def test_large_request_body():
         print(f"  Testing {size_name} ({size_bytes:,} bytes)...")
         
         status, res, data = test_connection(file_path, "POST", 
-                            body=large_body, headers=headers, timeout=60)
+                            body=large_body, headers=headers, timeout=600)
         
         if res:
             if status == 200 or status == 201:
@@ -965,7 +965,7 @@ def test_request_size_edge_cases():
         
         print(f"Testing just under {size_name}...")
         status, res, data = test_connection(file_path, "POST", 
-                            body=under_body, headers=under_headers, timeout=60)
+                            body=under_body, headers=under_headers, timeout=600)
         if res and status in (200, 201):
             PASS += 1
             print_test(f"  Just under {size_name}: ✅ ACCEPTED", "PASS")

@@ -26,6 +26,7 @@ class Request {
 		~Request();
 
 		//getters & setters
+		std::string							&getHost();
 		std::string							&getPath();
 		std::string const					&getMethod();
 		std::string const					&getVersion();
@@ -34,13 +35,14 @@ class Request {
 		std::string const					&getQuery();
 		std::string const					&getBoundary();
 		unsigned long						&getContentLength();
+
 		serverLevel							&getConf();
 		std::map<std::string, std::string>	&getHeaders();
 		bool								&hasLengthOrIsChunked();
-		// int									&statusCode();
 		std::string							&check();
 		Client								&getClient();
 		std::string							getMimeType(std::string const &path);
+		
 		void								setPath(std::string const path);
 		void								setBody(std::string const body);
 		void								setContentType(std::string const content);
@@ -48,6 +50,10 @@ class Request {
 		bool								hasServerName(const std::string& servName);
 		bool								matchHostServerName();
 		void								parse(const std::string& rawRequest);
+		void								setHeader(std::string& key, std::string& value);
+		bool								checkMethod();
+		bool								checkVersion();
+		void								checkQueryAndPath(std::string& target);
 		void								parseHeaders(const std::string& headerSection);
 		void								checkContentLength(std::string buffer);
 		void								parseContentType();
@@ -60,17 +66,16 @@ class Request {
 		std::string							_path;
 		std::string							_contentType;
 		std::string							_version;
-		std::map<std::string, std::string>	_headers;
 		std::string							_body;
 		std::string							_query;
 		std::string							_boundary;
 		unsigned long						_contentLength;
+		std::map<std::string, std::string>	_headers;
 		serverLevel							_curConf;
 		Client								*_client;
 		std::vector<serverLevel>			_configs;
 		int									_clientFd;
 		bool								_hasLengthOrIsChunked;
-		// int									_statusCode;
 };
 
 #endif

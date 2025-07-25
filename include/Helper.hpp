@@ -17,6 +17,7 @@ class	Client;
 std::string										tostring(int nbr);
 std::vector<std::string>						split(const std::string& s);
 std::vector<std::string>						splitBy(const std::string& str, char div);
+std::string										toLower(const std::string& s);
 size_t											iFind(const std::string& haystack, const std::string& needle);
 bool											iEqual(const std::string& a, const std::string& b);
 std::map<std::string, std::string>::iterator	iMapFind(std::map<std::string, std::string>& map, const std::string& s);
