@@ -291,7 +291,7 @@ bool shouldCloseConnection(Request& req) {
 		return true;
 	if (req.getClient().statusCode() == 413)
 		return false;
-	if (req.hasLengthOrIsChunked())
+	if (req.hasLength() == false && req.isChunkedTransfer() == false)
 		return true;
 	return false;
 }
