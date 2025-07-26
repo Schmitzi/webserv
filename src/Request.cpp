@@ -89,7 +89,7 @@ std::string const &Request::getBoundary() {
 	return _boundary;
 }
 
-size_t	&Request::getContentLength() {
+unsigned long	&Request::getContentLength() {
 	return _contentLength;
 }
 
@@ -358,8 +358,13 @@ void Request::checkContentLength(std::string buffer) {
 				_client->statusCode() = 400;
 				return;
 			} else {
-				_contentLength = strtoul(values[0].c_str(), NULL, 10);
-				_hasValidLength = true;//TODO: what does valid mean?
+				long convert = strtol(values[0].c_str(), NULL, 10);
+				if (convert < 0) {
+					_client->statusCode() = 400;
+					return;
+				}
+				_contentLength = static_cast<unsigned long>(convert);
+				_hasValidLength = true;
 			}
 		} else {
 			_client->statusCode() = 400;

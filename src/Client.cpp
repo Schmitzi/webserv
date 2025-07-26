@@ -161,7 +161,6 @@ void Client::receiveData() {
 	if (_state == CHECKING) {
 		std::string tmp = toLower(_requestBuffer);
 		if (tmp.find("transfer-encoding:") != std::string::npos && tmp.find("chunked") != std::string::npos) {
-		// if (iFind(_requestBuffer, "Transfer-Encoding:") != std::string::npos && iFind(_requestBuffer, "chunked") != std::string::npos) {
 			if (!isChunkedBodyComplete(_requestBuffer))
 				return;
 			else
@@ -317,6 +316,13 @@ int Client::handlePostRequest() {
 		}
 	} else {
 		contentToWrite = _req->getBody();
+		if ((contentToWrite.empty() && _req->getContentLength() > 0) || (contentToWrite.size() != _req->getContentLength())) {
+			statusCode() = 400;
+			_req->hasValidLength() = false;
+			_output = getTimeStamp(_fd) + RED  + "Content length mismatch: expected " + tostring(_req->getContentLength()) + ", got " + tostring(contentToWrite.size()) + RESET;
+			sendErrorResponse(*this, *_req);
+			return 1;
+		}
 		std::string fileName;
 		if (contentToWrite.empty() && !_req->getQuery().empty())
 			doQueryStuff(_req->getQuery(), fileName, contentToWrite);

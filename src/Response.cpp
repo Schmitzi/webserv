@@ -279,7 +279,7 @@ bool shouldCloseConnection(Request& req) {
 		return true;
 	if (req.getClient().statusCode() == 413)
 		return false;
-	if (!req.isChunked() || !req.hasValidLength())//TODO: fuckup
+	if (!req.isChunked() && !req.hasValidLength())
 		return true;
 	return false;
 }
