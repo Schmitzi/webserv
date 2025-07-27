@@ -154,6 +154,8 @@ Support POST with no filename
 	after deleting the file it creates another request to get the same file and tells me its not found
 	(deleted the default GET method from the request constructor..?)
 
+-> new connections of clients every few seconds (or on hover) while not doing anything (mostly in browser)
+
 <!-- -> host names and header fields must be case insensitive -->
 
 <!-- -> A server which receives an entity-body with a transfer-coding it does
