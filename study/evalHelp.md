@@ -110,8 +110,12 @@ Pay attention to the following:
 
 - The server is working fine using a CGI.
 - The CGI should be run in the correct directory for relative path file access.
-- With the help of the students you should check that everything is working properly. You have to test the CGI with the "GET" and "POST" methods.
-- You need to test with files containing errors to see if the error handling works properly. You can use a script containing an infinite loop or an error; you are free to do whatever tests you want within the limits of acceptability that remain at your discretion. The group being evaluated should help you with this.
+- With the help of the students you should check that everything is working properly. You have 
+    to test the CGI with the "GET" and "POST" methods.
+- You need to test with files containing errors to see if the error handling works properly.
+    You can use a script containing an infinite loop or an error; you are free to do whatever 
+    tests you want within the limits of acceptability that remain at your discretion. The group 
+    being evaluated should help you with this.
 
 The server should never crash and an error should be visible in case of a problem.
 
@@ -119,7 +123,8 @@ The server should never crash and an error should be visible in case of a proble
 
 ## Check with a browser
 
-- Use the reference browser of the team. Open the network part of it, and try to connect to the server using it.
+- Use the reference browser of the team. Open the network part of it, and try to connect to the 
+    server using it.
 - Look at the request header and response header.
 - It should be compatible to serve a fully static website.
 - Try a wrong URL on the server.
@@ -131,9 +136,12 @@ The server should never crash and an error should be visible in case of a proble
 
 ## Port issues
 
-- In the configuration file setup multiple ports and use different websites. Use the browser to ensure that the configuration works as expected and shows the right website.
+- In the configuration file setup multiple ports and use different websites.
+    Use the browser to ensure that the configuration works as expected and shows the right website.
 - In the configuration, try to setup the same port multiple times. It should not work.
-- Launch multiple servers at the same time with different configurations but with common ports. Does it work? If it does, ask why the server should work if one of the configurations isn't functional. Keep going.
+- Launch multiple servers at the same time with different configurations but with common ports.
+    Does it work? If it does, ask why the server should work if one of the configurations isn't 
+    functional. Keep going.
 
 **☐ Yes** **☐ No**
 

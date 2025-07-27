@@ -8,6 +8,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <vector>
+#include <cstdio>
 #include "Colors.hpp"
 
 class	Webserv;
@@ -15,6 +16,15 @@ class	Server;
 class	Request;
 struct	serverLevel;
 struct	locationLevel;
+
+enum {
+	UNTRACKED,
+	RECEIVING,
+	CHECKING,
+	COMPLETE,
+	PROCESSING,
+	DONE
+};
 
 class Client {
 	public:
@@ -27,30 +37,30 @@ class Client {
 		int							&getFd();
 		Server						&getServer();
 		Webserv						&getWebserv();
+		Request						&getRequest();
 		size_t						&getOffset();
-		std::string					getConnect();
-		int							getExitCode();
 		std::vector<serverLevel>	getConfigs();
-		std::string					&getRequestBuffer();
-		void						setWebserv(Webserv &webserv);
-		void						setServer(Server &server);
-		void						setConfigs(const std::vector<serverLevel> &configs);
-		void						setConnect(std::string connect);
-		void						setExitCode(int i);
+		bool						&exitErr();
+		bool						&fileIsNew();
+		bool						&shouldClose();
+		time_t						&lastUsed();
+		std::string					&output();
+		int							&statusCode();
+		int							&state();
 
 		int							acceptConnection(int serverFd);
 		void						displayConnection();
-		void						recieveData();
-		int							processRequest(Request& req);
+		void						receiveData();
+		int							processRequest();
 
-		int							handleGetRequest(Request& req);
-		int							handlePostRequest(Request& req);
-		int							handleDeleteRequest(Request& req);
+		int							handleGetRequest();
+		int							handlePostRequest();
+		int							handleDeleteRequest();
 
-		int							handleFileBrowserRequest(Request& req);
-		int							handleRegularRequest(Request& req);
-		int							handleMultipartPost(Request& req);
-		int							handleRedirect(Request eq);
+		int							handleFileBrowserRequest();
+		int							handleRegularRequest();
+		int							handleMultipartPost();
+		int							handleRedirect();
 
 		int							viewDirectory(std::string fullPath, Request& req);
 		int							createDirList(std::string fullPath, Request& req);
@@ -62,12 +72,18 @@ class Client {
 		socklen_t           		_addrLen;
 		int                 		_fd;
 		std::string         		_requestBuffer;
-		Webserv             		*_webserv;
 		Server              		*_server;
+		Webserv             		*_webserv;
+		Request						*_req;
 		std::vector<serverLevel>	_configs;
 		size_t						_sendOffset;
-		std::string					_connect;
-		int							_exitCode;
+		bool						_exitErr;
+		bool						_fileIsNew;
+		bool						_shouldClose;
+		time_t						_lastUsed;
+		std::string					_output;
+		int							_statusCode;
+		int							_state;
 };
 
 #endif

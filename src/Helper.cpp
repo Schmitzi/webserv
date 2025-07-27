@@ -1,6 +1,7 @@
 #include "../include/Helper.hpp"
 #include "../include/ConfigHelper.hpp"
 #include "../include/ConfigParser.hpp"
+#include "../include/Client.hpp"
 
 std::string tostring(int nbr) {
 	std::ostringstream oss;
@@ -18,12 +19,6 @@ std::vector<std::string> split(const std::string& s) {
 	return ret;
 }
 
-void printVector(std::vector<std::string> &s, std::string sep) {
-	for (size_t i = 0; i < s.size(); i++)
-		std::cout << s[i] << sep;
-	std::cout << std::endl;
-}
-
 std::vector<std::string> splitBy(const std::string& str, char div) {
 	std::vector<std::string> ret;
 	std::istringstream ss(str);
@@ -33,6 +28,34 @@ std::vector<std::string> splitBy(const std::string& str, char div) {
 			ret.push_back(item);
 	}
 	return ret;
+}
+
+std::string toLower(const std::string& s) {
+	std::string ret = "";
+	for (size_t i = 0; i < s.size(); i++)
+		ret += static_cast<char>(std::tolower(s[i]));
+	return ret;
+}
+
+size_t iFind(const std::string& haystack, const std::string& needle) {
+	if (haystack.empty() || needle.empty())
+		return std::string::npos;
+	return toLower(haystack).find(toLower(needle));
+}
+
+bool iEqual(const std::string& a, const std::string& b) {
+	if (toLower(a) == toLower(b))
+		return true;
+	return false;
+}
+
+std::map<std::string, std::string>::iterator iMapFind(std::map<std::string, std::string>& map, const std::string& s) {
+	std::map<std::string, std::string>::iterator it = map.begin();
+	for (; it != map.end(); ++it) {
+		if (iEqual(it->first, s))
+			return it;
+	}
+	return map.end();
 }
 
 std::string matchAndAppendPath(const std::string& base, const std::string& add) {
@@ -64,15 +87,15 @@ std::string matchAndAppendPath(const std::string& base, const std::string& add) 
 
 std::string decode(const std::string& encoded) {
     std::string decoded;
-    char hex_buf[3] = {0};
+    char hexBuf[3] = {0};
 
     for (std::string::size_type i = 0; i < encoded.length(); ++i) {
         if (encoded[i] == '%' && i + 2 < encoded.length()) {
-            hex_buf[0] = encoded[i + 1];
-            hex_buf[1] = encoded[i + 2];
+            hexBuf[0] = encoded[i + 1];
+            hexBuf[1] = encoded[i + 2];
 
-            char decoded_char = static_cast<char>(strtol(hex_buf, NULL, 16));
-            decoded += decoded_char;
+            char decodedChar = static_cast<char>(strtol(hexBuf, NULL, 16));
+            decoded += decodedChar;
             i += 2;
         } else if (encoded[i] == '+')
             decoded += ' ';
@@ -120,15 +143,15 @@ std::string getTimeStamp(int fd) {
     return oss.str();
 }
 
-bool checkReturn(int fd, ssize_t r, const std::string& func, const std::string& isZero) {
-	if (r <= 0) {
-		if (r < 0)
-			std::cerr << getTimeStamp(fd) << RED << "Error: " << func << " failed" << RESET << std::endl;
-		else
-			std::cerr << getTimeStamp(fd) << RED << isZero << RESET << std::endl;
+bool checkReturn(Client& c, int fd, ssize_t r, const std::string& func, std::string errMsgOnZero) {
+	if (r < 0) {
+		c.output() = getTimeStamp(fd) + RED + "Error: " + func + " failed" + RESET;
 		return false;
-	}
-	return true;
+	} else if (r == 0 && errMsgOnZero != "") {
+		c.output() = getTimeStamp(fd) + RED + errMsgOnZero + RESET;
+		return false;
+	} else
+		return true;
 }
 
 void doQueryStuff(const std::string text, std::string& fileName, std::string& fileContent) {
@@ -143,7 +166,7 @@ void doQueryStuff(const std::string text, std::string& fileName, std::string& fi
 			std::string key = pair.substr(0, pos);
 			std::string value = pair.substr(pos + 1);
 
-			if (key == "file" || key == "name" || key == "test")
+			if (iEqual(key, "file") || iEqual(key, "name") || iEqual(key, "test"))
 				fileName = value;
 			else
 				fileContent = value;
@@ -167,7 +190,7 @@ bool deleteErrorPages() {
 		if (entryName == "." || entryName == "..")
 			continue;
 		std::string fullPath = path + "/" + entryName;
-		if (unlink(fullPath.c_str()) != 0) {
+		if (remove(fullPath.c_str()) != 0) {
 			closedir(dir);
 			return false;
 		}

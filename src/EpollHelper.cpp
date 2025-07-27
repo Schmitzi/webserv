@@ -30,7 +30,6 @@ void removeFromEpoll(Webserv& web, int fd) {
 		if (errno != EBADF && errno != ENOENT)
 		std::cerr << getTimeStamp(fd) << RED << "Warning: epoll_ctl DEL failed" << RESET << std::endl;
 	}
-	std::cout << getTimeStamp(fd) << "Client disconnected\n";
 }
 
 void addSendBuf(Webserv& web, int fd, const std::string& s) {

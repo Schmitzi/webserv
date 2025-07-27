@@ -17,13 +17,13 @@ bool matchLocation(const std::string& path, const serverLevel& serv, locationLev
 			size_t end = path.find_last_of(".");
 			if (end != std::string::npos) {
 				std::string ext = path.substr(end);
-				if (ext == it->first) {
+				if (iEqual(ext, it->first)) {
 					bestMatch = const_cast<locationLevel*>(&(it->second));
 					return true;
 				}
 			}
 		} else {
-			if (path.find(it->second.locName) != std::string::npos && it->second.locName.size() > longestMatch) {
+			if (iFind(path, it->second.locName) != std::string::npos && it->second.locName.size() > longestMatch) {
 				bestMatch = const_cast<locationLevel*>(&(it->second));
 				found = true;
 				longestMatch = it->second.locName.size();
@@ -52,13 +52,13 @@ bool matchUploadLocation(const std::string& path, const serverLevel& serv, locat
 				size_t end = path.find_last_of(".");
 				if (end != std::string::npos) {
 					std::string ext = path.substr(end);
-					if (ext == it->first) {
+					if (iEqual(ext, it->first)) {
 						bestMatch = loc;
 						return true;
 					}
 				}
 			} else {
-				if (path.find(loc->locName) == 0 && loc->locName.size() > longestMatch) {
+				if (iFind(path, loc->locName) != std::string::npos && loc->locName.size() > longestMatch) {
 					bestMatch = loc;
 					found = true;
 					longestMatch = loc->locName.size();
@@ -92,7 +92,7 @@ void generateErrorPage(std::string& body, int statusCode, const std::string& sta
 			"<div class=\"container\">\n"
 			"  <h1>Error " + tostring(statusCode) + " - " + statusText + "</h1>\n"
 			"  <p>The server cannot process your request.</p>\n"
-			"  <p><a href = \"/\">Return to homepage</a></p>\n" // TODO: This returns to index, but only from one level up (i.e cgi-bin) 
+			"  <p><a href = \"/\">Return to homepage</a></p>\n"
 			"  <div class=\"server-info\">\n"
 			"    <p>WebServ/1.0</p>\n"
 			"  </div>\n"
@@ -153,69 +153,62 @@ void resolveErrorResponse(int statusCode, std::string& statusText, std::string& 
 	}
 }
 
-void sendRedirect(Client& c, int statusCode, const std::string& location) {
-	std::string statusText = getStatusMessage(statusCode);
+void sendRedirect(Client& c, const std::string& location, Request& req) {
+	std::string statusText = getStatusMessage(c.statusCode());
 	
 	std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
 	body += "<body><h1>" + statusText + "</h1>";
 	body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
 	
-	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + statusText + "\r\n";
 	response += "Location: " + location + "\r\n";
 	response += "Content-Type: text/html\r\n";
-	response += "Content-Length: " + tostring(body.length()) + "\r\n";
+	response += "Content-Length: " + tostring(body.size()) + "\r\n";
 	response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
 	response += "Pragma: no-cache\r\n";
-	response += "Connection: close\r\n";
+	if (shouldCloseConnection(req))
+		response += "Connection: close\r\n";
 	response += "\r\n";
 	response += body;
-	c.setConnect("close");
+	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-	std::cout << getTimeStamp(c.getFd()) << BLUE << "Sent redirect response: " << RESET
-			<< statusCode << " " << statusText << " to " << location << std::endl;
+	c.output() = getTimeStamp(c.getFd()) + BLUE + "Sent redirect response: " + RESET + tostring(c.statusCode()) + " " + statusText + " to " + location;
 }
 
-ssize_t sendResponse(Client& c, Request req, std::string connect, std::string body) {
-	c.setConnect(connect);
+ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	if (c.getFd() <= 0) {
-		std::cerr << getTimeStamp(c.getFd()) << RED << "Invalid fd in sendResponse" << RESET << std::endl;
+		c.output() = getTimeStamp(c.getFd()) + RED + "Invalid fd in sendResponse" + RESET;
 		return -1;
 	}
-	std::string response = "HTTP/1.1 200 OK\r\n";
-	
-	std::map<std::string, std::string> headers = req.getHeaders();
-	bool isChunked = false;
-	std::map<std::string, std::string>::iterator it = headers.find("Transfer-Encoding");
-	if (it != headers.end() && it->second.find("chunked") != std::string::npos)
-		isChunked = true;
-	
+	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " OK\r\n";
 	response += "Content-Type: " + req.getContentType() + "\r\n";
 	
 	std::string content = body;
 	
-	if (req.getMethod() == "POST" && content.empty())
+	if (iEqual(req.getMethod(), "POST") && content.empty())
 		content = "Upload successful";
 	
-	if (!isChunked)
-		response += "Content-Length: " + tostring(content.length()) + "\r\n";
+	if (!req.isChunked())
+		response += "Content-Length: " + tostring(content.size()) + "\r\n";
 	else
 		response += "Transfer-Encoding: chunked\r\n";
 	
 	response += "Server: WebServ/1.0\r\n";
-	response += "Connection: " + connect + "\r\n";
+	
+	if (shouldCloseConnection(req))
+		response += "Connection: close\r\n";
 	response += "Access-Control-Allow-Origin: *\r\n";
 	response += "\r\n";
 	
 	if (c.getFd() < 0) {
-		std::cerr << getTimeStamp(c.getFd()) << RED  << "FD became invalid before send" << RESET << std::endl;
+		c.output() = getTimeStamp(c.getFd()) + RED  + "FD became invalid before send" + RESET;
 		return -1;
 	}
 	
 	addSendBuf(c.getWebserv(), c.getFd(), response);
-	
 	if (!content.empty()) {
-		if (isChunked) {
+		if (req.isChunked()) {
 			const size_t chunkSize = 4096;
 			size_t remaining = content.length();
 			size_t offset = 0;
@@ -240,42 +233,91 @@ ssize_t sendResponse(Client& c, Request req, std::string connect, std::string bo
 			std::string s2 = "0\r\n\r\n";
 			addSendBuf(c.getWebserv(), c.getFd(), s2);
 			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-			std::cout << getTimeStamp(c.getFd()) << GREEN  << "Sent chunked body " << RESET << "(" << content.length() << " bytes)\n";
-			return content.length();
+			c.output() = getTimeStamp(c.getFd()) + GREEN  + "Sent chunked body " + RESET + "(" + tostring(content.length()) + " bytes)";
+			return 0;
 		} else {
+			content += "\n";
 			addSendBuf(c.getWebserv(), c.getFd(), content);
 			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-			return content.length();
+			return 0;
 		}
 	} else {
+		addSendBuf(c.getWebserv(), c.getFd(), "\n");
 		setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-		std::cout << getTimeStamp(c.getFd()) << GREEN  << "Response sent (headers only)" << RESET << std::endl;
+		c.output() = getTimeStamp(c.getFd()) + GREEN  + "Response sent (headers only)" + RESET;
 		return 0;
 	}
 }
 
-void sendErrorResponse(Client& c, int statusCode, Request& req) {
+void sendErrorResponse(Client& c, Request& req) {
 	std::string body;
-	std::string statusText = getStatusMessage(statusCode);
+	std::string statusText = getStatusMessage(c.statusCode());
 	
-	resolveErrorResponse(statusCode, statusText, body, req);    
+	resolveErrorResponse(c.statusCode(), statusText, body, req);    
 
-	std::string response = "HTTP/1.1 " + tostring(statusCode) + " " + statusText + "\r\n";
+	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + statusText + "\r\n";
 	response += "Content-Type: text/html\r\n";
 	response += "Content-Length: " + tostring(body.size()) + "\r\n";
 	response += "Server: WebServ/1.0\r\n";
 	response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
 	response += "Pragma: no-cache\r\n";
-	if (statusCode == 413) {
-		c.setConnect("keep-alive");
-		response += "Connection: keep-alive\r\n";
-	} else {
-		c.setConnect("close");
+	if (shouldCloseConnection(req))
 		response += "Connection: close\r\n";
-	}
 	response += "\r\n";
 	response += body;
+	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-	std::cerr << getTimeStamp(c.getFd()) << RED  << "Error sent: " << statusCode << RESET << std::endl;
+	c.output() = getTimeStamp(c.getFd()) + RED  + "Error sent: " + tostring(c.statusCode()) + " " + getStatusMessage(c.statusCode()) + RESET;
+}
+
+bool shouldCloseConnection(Request& req) {
+	std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
+	if (it != req.getHeaders().end() && iEqual(it->second, "close"))
+		return true;
+	if (req.getClient().statusCode() == 400 || req.getClient().statusCode() == 411 || (req.getClient().statusCode() >= 500 && req.getClient().statusCode() != 501))
+		return true;
+	if (req.getClient().statusCode() == 413)
+		return false;
+	if (!req.isChunked() && !req.hasValidLength())
+		return true;
+	return false;
+}
+
+void translateErrorCode(int errnoCode, int& statusCode) {
+	switch (errnoCode) {
+		case ENOENT:
+			statusCode = 404;
+			return;
+		case EACCES:
+			statusCode = 403;
+			return;
+		case ENOTDIR:
+			statusCode = 404;
+			return;
+		case EISDIR:
+			statusCode = 403;
+			return;
+		case ENOSPC:
+			statusCode = 507;
+			return;
+		case ENAMETOOLONG:
+			statusCode = 414;
+			return;
+		case EINVAL:
+			statusCode = 400;
+			return;
+		case EIO:
+			statusCode = 500;
+			return;
+		case EPERM:
+			statusCode = 403;
+			return;
+		case EFAULT:
+			statusCode = 500;
+			return;
+		default:
+			statusCode = 500;
+			return;
+	}
 }

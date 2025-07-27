@@ -1,4 +1,5 @@
 #include "../include/Multipart.hpp"
+#include "../include/Helper.hpp"
 
 Multipart::Multipart(const std::string& data, const std::string& boundary) 
 			: _data(data), _boundary(boundary), _isComplete(false) {}
@@ -18,7 +19,8 @@ bool Multipart::parse() {
 	if (headersEnd == std::string::npos)
 		return false;
 	
-	if (!parseHeaders(partStart, headersEnd))
+	std::string partHeaders = _data.substr(partStart, headersEnd - partStart);
+	if (!extractFilename(partHeaders))
 		return false;
 	
 	return parseContent(headersEnd, fullBoundary);
@@ -54,20 +56,15 @@ size_t Multipart::findHeadersEnd(size_t partStart) {
 	return headersEnd;
 }
 
-bool Multipart::parseHeaders(size_t partStart, size_t headersEnd) {
-	std::string partHeaders = _data.substr(partStart, headersEnd - partStart);
-	return extractFilename(partHeaders);
-}
-
 bool Multipart::extractFilename(const std::string& headers) {
-	size_t cdPos = headers.find("Content-Disposition:");
+	size_t cdPos = iFind(headers, "Content-Disposition:");
 	if (cdPos == std::string::npos)
 		return false;
 	
 	size_t cdEnd = findLineEnd(headers, cdPos);
 	std::string contentDisposition = headers.substr(cdPos, cdEnd - cdPos);
-	
-	size_t filenamePos = contentDisposition.find("filename=\"");
+
+	size_t filenamePos = iFind(contentDisposition, "filename=\"");
 	if (filenamePos == std::string::npos)
 		return false;
 	

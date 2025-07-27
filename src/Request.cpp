@@ -8,20 +8,22 @@ Request::Request() {}
 
 Request::Request(const std::string& rawRequest, Client& client, int clientFd) : 
 	_host(""),
-	_method("GET"),
+	_method(""),
 	_check(""),
 	_path(""),
 	_contentType(""),
 	_version(""),
-	_headers(),
 	_body(""),
 	_query(""),
 	_boundary(""),
 	_contentLength(0),
+	_headers(),
 	_curConf(),
 	_client(&client),
 	_configs(_client->getConfigs()),
-	_clientFd(clientFd)
+	_clientFd(clientFd),
+	_hasValidLength(false),
+	_isChunked(false)
 {
 	parse(rawRequest);
 }
@@ -47,11 +49,17 @@ Request &Request::operator=(const Request& copy) {
 		_client = copy._client;
 		_configs = copy._configs;
 		_clientFd = copy._clientFd;
+		_hasValidLength = copy._hasValidLength;
+		_isChunked = copy._isChunked;
 	}
 	return *this;
 }
 
 Request::~Request() {}
+
+std::string &Request::getHost() {
+	return _host;
+}
 
 std::string &Request::getPath() {
 	return _path;
@@ -59,10 +67,6 @@ std::string &Request::getPath() {
 
 std::string const &Request::getMethod() {
 	return _method;
-}
-
-std::string const &Request::getCheck() {
-	return _check;
 }
 
 std::string const &Request::getVersion() {
@@ -85,7 +89,7 @@ std::string const &Request::getBoundary() {
 	return _boundary;
 }
 
-size_t	&Request::getContentLength() {
+unsigned long	&Request::getContentLength() {
 	return _contentLength;
 }
 
@@ -95,6 +99,22 @@ serverLevel& Request::getConf() {
 
 std::map<std::string, std::string> &Request::getHeaders() {
 	return _headers;
+}
+
+bool &Request::hasValidLength() {
+	return _hasValidLength;
+}
+
+bool &Request::isChunked() {
+	return _isChunked;
+}
+
+std::string &Request::check() {
+	return _check;
+}
+
+Client &Request::getClient() {
+	return *_client;
 }
 
 void    Request::setPath(std::string const path) {
@@ -110,15 +130,11 @@ void    Request::setContentType(std::string const content) {
 }
 
 bool Request::hasServerName() {
-	std::map<std::string, std::string>::iterator it = _headers.find("Host");
-	std::string servName;
-	if (it != _headers.end())
-		servName = it->second;
-	if (servName.find("localhost") != std::string::npos) {
-		std::string portPart = servName.substr(servName.find(":") + 1);
+	if (iFind(_host, "localhost") != std::string::npos) {
+		std::string portPart = _host.substr(_host.find(":") + 1);
 		if (onlyDigits(portPart)) {
 			std::string sum = "localhost:" + portPart;
-			if (sum == servName)
+			if (iEqual(sum, _host))
 				return false;
 		}
 	}
@@ -126,14 +142,10 @@ bool Request::hasServerName() {
 }
 
 bool Request::matchHostServerName() {
-	std::map<std::string, std::string>::iterator it = _headers.find("Host");
-	std::string servName;
-	if (it != _headers.end())
-		servName = it->second;
 	if (hasServerName()) {
 		for (size_t i = 0; i < _configs.size(); i++) {
 			for (size_t j = 0; j < _configs[i].servName.size(); j++) {
-				if (servName == _configs[i].servName[j]) {
+				if (iEqual(_host, _configs[i].servName[j])) {
 					_curConf = _configs[i];
 					return true;
 				}
@@ -149,7 +161,7 @@ bool Request::matchHostServerName() {
 		}
 	}
 	else {
-		int portPart = std::atoi(servName.substr(servName.find(":") + 1).c_str());
+		int portPart = std::atoi(_host.substr(_host.find(":") + 1).c_str());
 		for (size_t i = 0; i < _configs.size(); i++) {
 			for (size_t j = 0; j < _configs[i].port.size(); j++) {
 				if (_configs[i].port[j].first.second == portPart) {
@@ -164,7 +176,8 @@ bool Request::matchHostServerName() {
 
 void Request::parse(const std::string& rawRequest) {
 	if (rawRequest.empty()) {
-		std::cerr << getTimeStamp(_clientFd) << RED << "Empty request!" << RESET << std::endl;
+		_client->output() = getTimeStamp(_clientFd) + RED + "Empty request!" + RESET;
+		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
 	}
@@ -188,12 +201,15 @@ void Request::parse(const std::string& rawRequest) {
 		_body = rawRequest.substr(headerEnd + headerSeparatorLength);
 	}
 	
-	if (!parseHeaders(headerSection)) {
+	parseHeaders(headerSection);
+	if (_client->statusCode() >= 400) {
 		_check = "BAD";
 		return;
 	}
+
 	if (!matchHostServerName()) {
-		std::cerr << getTimeStamp(_clientFd) << RED << "No Host-ServerName match + no default config specified!" << RESET << std::endl;
+		_client->output() = getTimeStamp(_clientFd) + RED + "No Host-ServerName match + no default config specified!" + RESET;
+		_client->statusCode() = 404;
 		_check = "BAD";
 		return;
 	}
@@ -210,11 +226,75 @@ void Request::parse(const std::string& rawRequest) {
 	std::string target;
 	lineStream >> _method >> target >> _version;
 
-	if (_method.empty() || (_method != "GET" && target.empty()) || _version.empty() || _version != "HTTP/1.1") {
+	if (_method.empty() || (_method != "GET" && target.empty())) {
+		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
 	}
 
+	if (!checkVersion())
+		return;
+
+	checkQueryAndPath(target);
+
+	if (!checkMethod())
+		return;
+
+	if (isChunkedTransfer()) {
+		if (_client->statusCode() == 501)
+			return;
+		if (iEqual(_method, "POST")) {
+			std::cout << getTimeStamp(_clientFd) << BLUE << "POST request with chunked body: " << RESET << _body.length() 
+					<< " bytes of chunked data" << std::endl;
+		}
+	}
+	_path = decode(_path);
+}
+
+void Request::setHeader(std::string& key, std::string& value) {
+	if (iEqual(key, "Host")) {
+		// if (_host.empty()) {
+		_host = value;
+		// }
+		// else
+			// _client->statusCode() = 400;
+	}
+	else if (iEqual(key, "Content-Type")) {
+		// if (_contentType.empty()) {
+		_contentType = value;
+		// }
+		// else
+			// _client->statusCode() = 400;
+	}
+}
+
+bool Request::checkMethod() {
+	if (iEqual(_method, "GET") || iEqual(_method, "POST") || iEqual(_method, "DELETE")
+		|| iEqual(_method, "PUT") || iEqual(_method, "HEAD") || iEqual(_method, "OPTIONS")
+		|| iEqual(_method, "PATCH") || iEqual(_method, "TRACE") || iEqual(_method, "CONNECT")) {
+		if (!iEqual(_method, "GET") && !iEqual(_method, "POST") && !iEqual(_method, "DELETE")) {
+			_client->statusCode() = 501;
+			_check = "NOTALLOWED";
+			return false;
+		}
+	} else {
+		_client->statusCode() = 400;
+		_check = "BAD";
+		return false;
+	}
+	return true;
+}
+
+bool Request::checkVersion() {
+	if ( _version.empty() || _version != "HTTP/1.1") {
+		_client->statusCode() = 505;
+		_check = "BAD";
+		return false;
+	}
+	return true;
+}
+
+void Request::checkQueryAndPath(std::string& target) {
 	size_t queryPos = target.find('?');
 	if (queryPos != std::string::npos) {
 		_path = target.substr(0, queryPos);
@@ -223,43 +303,22 @@ void Request::parse(const std::string& rawRequest) {
 		_path = target;
 		_query = "";
 	}
-	if ((_path == "/" || _path == "") && _method == "GET") {
+	if ((_path == "/" || _path == "") && iEqual(_method, "GET")) {
 		std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
 		if (it != _curConf.locations.end())
 			_path = matchAndAppendPath(it->second.rootLoc, it->second.indexFile);
 	}
 
-	end = _path.find_last_not_of(" \t\r\n");
+	size_t end = _path.find_last_not_of(" \t\r\n");
 	if (end != std::string::npos)
 		_path = _path.substr(0, end + 1);
-
-	if (_method == "GET" || _method == "POST" || _method == "DELETE"
-		|| _method == "PUT" || _method == "HEAD" || _method == "OPTIONS"
-		|| _method == "PATCH" || _method == "TRACE" || _method == "CONNECT") {
-		if (_method != "GET" && _method != "POST" && _method != "DELETE") {
-			_check = "NOTALLOWED";
-			return;
-		}
-	} else {
-		_check = "BAD";;
-		return;
-	}
-
-	if (isChunkedTransfer()) {
-		if (_method == "POST") {
-			std::cout << getTimeStamp(_clientFd) << BLUE << "POST request with chunked body: " << RESET << _body.length() 
-					<< " bytes of chunked data" << std::endl;
-		}
-	}
-	_path = decode(_path);
 }
-int Request::parseHeaders(const std::string& headerSection) {
+
+void Request::parseHeaders(const std::string& headerSection) {
 	std::istringstream iss(headerSection);
 	std::string line;
-	bool host = false;
 	
 	std::getline(iss, line);
-	
 	while (std::getline(iss, line) && !line.empty() && line != "\r") {
 		size_t colonPos = line.find(':');
 		if (colonPos != std::string::npos) {
@@ -270,69 +329,65 @@ int Request::parseHeaders(const std::string& headerSection) {
 			key.erase(key.find_last_not_of(" \t\r\n") + 1);
 			value.erase(0, value.find_first_not_of(" \t"));
 			value.erase(value.find_last_not_of(" \t\r\n") + 1);
-			if (key == "Host")
-				host = true;
+			if (iEqual(key, "Host")) {
+				std::vector<std::string> values = split(value);
+				if (values.size() > 1) {
+					_client->statusCode() = 400;
+					continue;
+				}
+			}
 			_headers[key] = value;
+			setHeader(key, value);
 		}
 	}
-	return host;
+	if (_host.empty())
+		_client->statusCode() = 400;
 }
 
 void Request::checkContentLength(std::string buffer) {
-	size_t pos = buffer.find("Content-Length:");
+	size_t pos = iFind(buffer, "Content-Length:");
 	if (pos != std::string::npos) {
 		pos += 15;
-		while (pos < buffer.size() && (buffer[pos] == ' ' || buffer[pos] == '\t'))
-			pos++;
-		
 		size_t eol = buffer.find("\r\n", pos);
 		if (eol == std::string::npos)
 			eol = buffer.find("\n", pos);
-		
 		if (eol != std::string::npos) {
-			std::string valueStr = buffer.substr(pos, eol - pos);
-			_contentLength = strtoul(valueStr.c_str(), NULL, 10);
-			return;
-		}
-	}
-	
-	pos = buffer.find("Transfer-Encoding:");
-	if (pos != std::string::npos) {
-		size_t eol = buffer.find("\r\n", pos);
-		if (eol == std::string::npos)
-			eol = buffer.find("\n", pos);
-		
-		if (eol != std::string::npos) {
-			std::string transferEncoding = buffer.substr(pos + 18, eol - pos - 18);
-			if (transferEncoding.find("chunked") != std::string::npos) {
-				_contentLength = 0;
-				std::cout << getTimeStamp(_clientFd) << BLUE << "Transfer-Encoding: chunked detected" << RESET << std::endl;
+			std::string line = buffer.substr(pos, eol - pos);
+			std::vector<std::string> values = split(line);
+			if (values.size() > 1) {
+				_client->statusCode() = 400;
+				return;
+			} else {
+				long convert = strtol(values[0].c_str(), NULL, 10);
+				if (convert < 0) {
+					_client->statusCode() = 400;
+					return;
+				}
+				_contentLength = static_cast<unsigned long>(convert);
+				_hasValidLength = true;
 			}
+		} else {
+			_client->statusCode() = 400;
+			return;
 		}
 	}
 }
 
 void Request::parseContentType() {
-	std::map<std::string, std::string>::iterator it = _headers.find("Content-Type");
-	if (it != _headers.end()) {
-		_contentType = it->second;
-		
-		if (_contentType.find("multipart/form-data") != std::string::npos) {
-			size_t boundaryPos = _contentType.find("boundary=");
-			if (boundaryPos != std::string::npos) {
-				std::string boundary = _contentType.substr(boundaryPos + 9);
-				
-				if (!boundary.empty() && boundary[0] == '"') {
-					size_t endQuote = boundary.find('"', 1);
-					if (endQuote != std::string::npos) {
-						boundary = boundary.substr(1, endQuote - 1);
-					}
+	if (iFind(_contentType, "multipart/form-data") != std::string::npos) {
+		size_t boundaryPos = iFind(_contentType, "boundary=");
+		if (boundaryPos != std::string::npos) {
+			std::string boundary = _contentType.substr(boundaryPos + 9);
+			
+			if (!boundary.empty() && boundary[0] == '"') {
+				size_t endQuote = boundary.find('"', 1);
+				if (endQuote != std::string::npos) {
+					boundary = boundary.substr(1, endQuote - 1);
 				}
-				_boundary = boundary;
 			}
+			_boundary = boundary;
 		}
-	} else if (_method == "POST")
-		_contentType = "application/octet-stream";
+	}
 }
 
 std::string Request::getMimeType(std::string const &path) {
@@ -379,9 +434,17 @@ std::string Request::getMimeType(std::string const &path) {
 	return "application/octet-stream";
 }
 
-bool Request::isChunkedTransfer() const {
-	std::map<std::string, std::string>::const_iterator it = _headers.find("Transfer-Encoding");
-	if (it != _headers.end() && it->second.find("chunked") != std::string::npos)
-		return true;
+bool Request::isChunkedTransfer() {
+	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Transfer-Encoding");
+	if (it != _headers.end()) {
+		if (iFind(it->second, "chunked") != std::string::npos) {
+			_isChunked = true;
+			return true;
+		}
+		else {
+			_client->statusCode() = 501;
+			return false;
+		}
+	}
 	return false;
 }

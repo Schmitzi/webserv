@@ -84,13 +84,13 @@ void setPort(std::vector<std::string>& s, serverLevel& serv) {
 	size_t colon = s[1].find(':');
 	if (colon != std::string::npos) {
 		std::string tmp = s[1].substr(0, colon);
-		if (tmp != "localhost")
+		if (!iEqual(tmp, "localhost"))
 			ip = s[1].substr(0, colon);
-		if (s.size() == 3 && s[2] == "default_server")
+		if (s.size() == 3 && iEqual(s[2], "default_server"))
 			isDefault = true;
 		port = std::atoi(s[1].substr(colon + 1).c_str());
 	} else {
-		if (s.size() == 3 && s[2] == "default_server")
+		if (s.size() == 3 && iEqual(s[2], "default_server"))
 			isDefault = true;
 		port = std::atoi(s[1].c_str());
 	}
@@ -131,7 +131,7 @@ void setErrorPages(std::vector<std::string>& s, serverLevel &serv) {
 /* ____________________________set Config Levels____________________________ */
 
 bool foundServer(std::vector<std::string>& s) {
-	if (s[0] == "server") {
+	if (iEqual(s[0], "server")) {
 		if (s.size() != 2)
 			throw configException("Error: invalid server declaration.");
 		if (s.back() != "{")
@@ -142,7 +142,7 @@ bool foundServer(std::vector<std::string>& s) {
 }
 
 bool foundLocation(std::vector<std::string>& s) {
-	if (s[0] == "location") {
+	if (iEqual(s[0], "location")) {
 		if (s.back() != "{")
 			throw configException("Error: No opening bracket found for location.");
 		return true;
@@ -174,17 +174,21 @@ void setLocIndexFile(locationLevel& loc, std::vector<std::string>& s) {
 
 void setMethods(locationLevel& loc, std::vector<std::string>& s) {
 	for (size_t i = 1; i < s.size(); i++) {
-		if (s[i] == "GET" || s[i] == "POST" || s[i] == "DELETE")
-			loc.methods.push_back(s[i]);
+		if (iEqual(s[i], "GET") || iEqual(s[i], "POST") || iEqual(s[i], "DELETE")) {
+			std::string m;
+			for (size_t j = 0; j < s[i].size(); j++)
+				m += std::toupper(s[i][j]);
+			loc.methods.push_back(m);
+		}
 		else
 			throw configException("Error: invalid method -> " + s[i]);
 	}
 }
 
 void setAutoindex(locationLevel& loc, std::vector<std::string>& s) {
-	if (s[1] == "on")
+	if (iEqual(s[1], "on"))
 		loc.autoindex = true;
-	else if (s[1] == "off")
+	else if (iEqual(s[1], "off"))
 		loc.autoindex = false;
 	else
 		throw configException("Error: invalid autoindex value -> " + s[1]);

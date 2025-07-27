@@ -4,6 +4,8 @@
 #include "../include/CGIHandler.hpp"
 #include "../include/Helper.hpp"
 #include "../include/EpollHelper.hpp"
+#include "../include/ClientHelper.hpp"
+#include "../include/Response.hpp"
 
 Webserv::Webserv(std::string config) : _epollFd(-1) {
 	_state = false;
@@ -173,14 +175,11 @@ int Webserv::run() {
 			std::cerr << getTimeStamp() << RED << "Error: epoll_wait() failed" << RESET << std::endl;
 			continue;
 		}
-		
 		for (int i = 0; i < nfds; i++) {
 			int fd = _events[i].data.fd;
 			uint32_t eventMask = _events[i].events;
-			
 			if (!checkEventMaskErrors(eventMask, fd))
 				continue;
-			
 			Server *activeServer = getServerByFd(fd);
 			if (activeServer) {
 				if (eventMask & EPOLLIN)
@@ -201,8 +200,7 @@ void Webserv::handleErrorEvent(int fd) {
 	removeFromEpoll(*this, fd);
 	for (size_t i = 0; i < _clients.size(); i++) {
 		if (_clients[i].getFd() == fd) {
-			std::cerr << getTimeStamp(fd) << RED << "Removing client due to error " << RESET << std::endl;
-			
+			std::cerr << getTimeStamp(fd) << RED << "Removing client due to error" << RESET << std::endl;
 			close(_clients[i].getFd());
 			_clients.erase(_clients.begin() + i);
 			return;
@@ -232,26 +230,50 @@ void Webserv::handleClientDisconnect(int fd) {
 
 	for (size_t i = 0; i < _clients.size(); i++) {
 		if (_clients[i].getFd() == fd) {
-			std::cout << getTimeStamp(fd) << GREEN << "Cleaned up client connection" << RESET << std::endl;
+			std::cout << getTimeStamp(fd) << "Cleaned up and disconnected client" << std::endl;
 			close(_clients[i].getFd());
 			_clients.erase(_clients.begin() + i);
 			return;
 		}
 	}
-	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd: " << fd << RESET << std::endl;
+	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
+}
+
+void Webserv::kickLeastRecentlyUsedClient() {
+	if (_clients.empty())
+		return;
+	double maxDiff = 0.0;
+	Client* lraClient = NULL;
+	time_t now = time(NULL);
+
+	for (size_t i = 0; i < _clients.size(); i++) {
+		double diff = now - _clients[i].lastUsed();
+		if (diff > maxDiff) {
+			maxDiff = diff;
+			lraClient = &_clients[i];
+		}
+	}
+	if (lraClient) {
+		std::cout << getTimeStamp(lraClient->getFd()) << RED << "Kicking least recently used client" << RESET << std::endl;
+		handleClientDisconnect(lraClient->getFd());
+	} else {
+		std::cerr << getTimeStamp() << RED << "Error: No clients to kick" << RESET << std::endl;
+	}
 }
 
 void Webserv::handleNewConnection(Server &server) {
-	if (_clients.size() >= 1000) {
-		std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
+	if (_clients.size() >= 1000) {//TODO: tested with max 2 clients and seems to work well, but please check again!
+		kickLeastRecentlyUsedClient();
+		// std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
 		
-		struct sockaddr_in addr;
-		socklen_t addrLen = sizeof(addr);
-		int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);
-		if (newFd >= 0)
-			close(newFd);
-		return;
+		// struct sockaddr_in addr;
+		// socklen_t addrLen = sizeof(addr);
+		// int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);//TODO: we could send 503 OR implement a timeout (+disconnect) based on least recent activity of the clients (lra)
+		// if (newFd >= 0)
+		// 	close(newFd);
+		// return;
 	}
+
 	Client newClient(server);
 	
 	if (newClient.acceptConnection(server.getFd()) == 0) {
@@ -294,16 +316,18 @@ void Webserv::handleClientActivity(int clientFd) {
 		close(clientFd);
 		return;
 	}
-	client->recieveData();
+	if (client->state() == UNTRACKED)
+		client->state() = RECEIVING;
+	if (client->state() < DONE)
+		client->receiveData();
 }
 
 void Webserv::handleEpollOut(int fd) {
 	Client *c = getClientByFd(fd);
 	if (!c) {
-		std::cerr << getTimeStamp(fd) << RED << "Error: no client was found" << RESET << std::endl;
+		std::cerr << getTimeStamp(fd) << RED << "Error: Client not found" << RESET << std::endl;
 		return;
 	}
-
 	const std::string& toSend = getSendBuf(fd);
 	if (toSend.empty()) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: _sendBuf is empty" << RESET << std::endl;
@@ -318,7 +342,7 @@ void Webserv::handleEpollOut(int fd) {
 	if (s < 0) {
 		std::cerr << getTimeStamp(fd) << RED << "Error: send() failed" << RESET << std::endl;
 		clearSendBuf(*this, fd);
-		c->setExitCode(1);
+		c->statusCode() = 500;
 	}
 
 	offset += static_cast<size_t>(s);
@@ -326,9 +350,21 @@ void Webserv::handleEpollOut(int fd) {
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
-		c->setExitCode(1);
+		c->lastUsed() = time(NULL);
+		if (c->statusCode() < 400)
+			std::cout << c->output() << std::endl;
+		else
+			std::cerr << c->output() << std::endl;
+		c->output().clear();
+		if (c->shouldClose() == true)
+			c->exitErr() = true;
+		else {
+			c->state() = UNTRACKED;
+			c->exitErr() = false;
+			setEpollEvents(*this, fd, EPOLLIN);
+		}
 	}
-	if (c->getExitCode() != 0)
+	if (c->exitErr() == true)
 		handleClientDisconnect(fd);
 }
 
@@ -343,7 +379,11 @@ void    Webserv::cleanup() {
 	
 	for (size_t i = 0; i < _clients.size(); ++i) {
 		if (_clients[i].getFd() >= 0) {
-			removeFromEpoll(*this, _clients[i].getFd());
+			if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, _clients[i].getFd(), NULL) == -1) {
+				if (errno != EBADF && errno != ENOENT)
+					std::cerr << getTimeStamp(_clients[i].getFd()) << RED << "Warning: epoll_ctl DEL failed" << RESET << std::endl;
+			}
+			std::cout << getTimeStamp(_clients[i].getFd()) << "Client disconnected" << std::endl;
 			close(_clients[i].getFd());
 		}
 	}
@@ -351,7 +391,11 @@ void    Webserv::cleanup() {
 
 	for (size_t i = 0; i < _servers.size(); i++) {
 		if (_servers[i].getFd() >= 0) {
-			removeFromEpoll(*this, _servers[i].getFd());
+			if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, _servers[i].getFd(), NULL) == -1) {
+				if (errno != EBADF && errno != ENOENT)
+					std::cerr << getTimeStamp(_servers[i].getFd()) << RED << "Warning: epoll_ctl DEL failed" << RESET << std::endl;
+			}
+			std::cout << getTimeStamp(_servers[i].getFd()) << "Server disconnected" << std::endl;
 			close(_servers[i].getFd());
 		}
 	}

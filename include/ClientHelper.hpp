@@ -13,8 +13,9 @@ bool			isFileBrowserRequest(const std::string& path);
 bool			isCGIScript(const std::string& path);
 int				buildBody(Client& c, Request &req, std::string fullPath);
 bool			ensureUploadDirectory(Client& c, Request& req);
-bool			isChunkedRequest(Request& req);
 std::string		getLocationPath(Client& c, Request& req, const std::string& method);
-std::string		decodeChunkedBody(int fd, const std::string& chunkedData);
+std::string		decodeChunkedBody(Client& c, int fd, const std::string& chunkedData);
+bool			tryLockFile(Client& c, const std::string& path, int timeStampFd, bool& isNew);
+void			releaseLockFile(const std::string& path);
 
 #endif
