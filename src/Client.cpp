@@ -278,11 +278,8 @@ int Client::handlePostRequest() {
 		return 1;
 	}
 	std::string fullPath = getLocationPath(*this, *_req, "POST");
-	if (fullPath.empty()) {
-		statusCode() = 404;
-		sendErrorResponse(*this, *_req);
+	if (fullPath.empty())
 		return 1;
-	}
 	if (isCGIScript(_req->getPath())) {
 		CGIHandler* cgi = new CGIHandler(this);
 		std::string cgiPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), _req->getPath());
@@ -378,11 +375,8 @@ int Client::handlePostRequest() {
 
 int Client::handleDeleteRequest() {
 	std::string fullPath = getLocationPath(*this, *_req, "DELETE");
-	if (fullPath.empty()) {
-		statusCode() = 404;
-		sendErrorResponse(*this, *_req);
+	if (fullPath.empty())
 		return 1;
-	}
 	if (isCGIScript(_req->getPath())) {
 		CGIHandler* cgi = new CGIHandler(this);
 		cgi->setPath(fullPath);        

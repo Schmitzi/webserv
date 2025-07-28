@@ -53,7 +53,8 @@ class Request {
 		void								setHeader(std::string& key, std::string& value);
 		bool								checkMethod();
 		bool								checkVersion();
-		void								checkQueryAndPath(std::string& target);
+		void								checkQueryAndPath();
+		void								getHostAndPath(std::string& target);
 		void								parseHeaders(const std::string& headerSection);
 		void								checkContentLength(std::string buffer);
 		void								parseContentType();
