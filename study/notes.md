@@ -110,8 +110,10 @@ yes | curl -v -X POST -H "Host: abc.com\n\nContent-Type: plain/text" --data "BOD
 
 
 
--> redirect should close?
--> DELETE/ Response sent headers only should close?
+-> redirect should close? ->no
+-> DELETE/ Response sent headers only should close?->no
+
+info: https://httpwg.org/specs/rfc9112.html#compatibility.with.http.1.0.persistent.connections
 
 
 
