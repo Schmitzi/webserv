@@ -181,7 +181,7 @@ void Request::parse(const std::string& rawRequest) {
 		_check = "BAD";
 		return;
 	}
-
+	std::cout << CYAN << rawRequest << RESET << std::endl;
 	checkContentLength(rawRequest);
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
@@ -230,9 +230,12 @@ void Request::parse(const std::string& rawRequest) {
 	_path = decode(_path);
 }
 
-void Request::setHeader(std::string& key, std::string& value) {
-	if (iEqual(key, "Host") && _host.empty()) {
-		_host = value;
+void Request::setHeader(std::string& key, std::string& value, bool ignoreHost) {
+	if (iEqual(key, "Host")) {
+		if (ignoreHost == false && _host.empty())
+			_host = value;
+		else if (ignoreHost == false && !_host.empty())
+			_client->statusCode() = 400;
 	}
 	else if (iEqual(key, "Content-Type")) {
 		_contentType = value;
@@ -265,11 +268,14 @@ bool Request::checkVersion() {
 	return true;
 }
 
-void Request::checkQueryAndPath() {
-	size_t queryPos = _path.find('?');
+void Request::checkQueryAndPath(std::string target) {
+	size_t queryPos = target.find('?');
 	if (queryPos != std::string::npos) {
-		_path = _path.substr(0, queryPos);
-		_query = _path.substr(queryPos + 1);
+		_path = target.substr(0, queryPos);
+		_query = target.substr(queryPos + 1);
+	} else {
+		_path = target;
+		_query = "";
 	}
 	if ((_path == "/" || _path == "") && iEqual(_method, "GET")) {
 		std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
@@ -307,9 +313,11 @@ void Request::parseHeaders(const std::string& headerSection) {
 	std::string target;
 	lineStream >> _method >> target >> _version;
 	if (isAbsPath(target)) {
+		std::cout << MAGENTA << target << RESET << std::endl;
 		ignoreHost = true;
 		getHostAndPath(target);
 	}
+
 	while (std::getline(iss, line) && !line.empty() && line != "\r") {
 		size_t colonPos = line.find(':');
 		if (colonPos != std::string::npos) {
@@ -320,7 +328,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 			key.erase(key.find_last_not_of(" \t\r\n") + 1);
 			value.erase(0, value.find_first_not_of(" \t"));
 			value.erase(value.find_last_not_of(" \t\r\n") + 1);
-			if (iEqual(key, "Host") && ignoreHost == false) {
+			if (iEqual(key, "Host")) {
 				std::vector<std::string> values = split(value);
 				if (values.size() > 1) {
 					_client->statusCode() = 400;
@@ -328,9 +336,10 @@ void Request::parseHeaders(const std::string& headerSection) {
 				}
 			}
 			_headers[key] = value;
-			setHeader(key, value);
+			setHeader(key, value, ignoreHost);
 		}
 	}
+	
 	if (_host.empty()) {
 		_client->statusCode() = 400;
 		return;
@@ -343,9 +352,10 @@ void Request::parseHeaders(const std::string& headerSection) {
 
 	if (!checkVersion())
 		return;
-	if (_path.empty())
-		_path = target;
-	checkQueryAndPath();
+	if (ignoreHost == true)
+		checkQueryAndPath(_path);
+	else
+		checkQueryAndPath(target);
 }
 
 void Request::checkContentLength(std::string buffer) {

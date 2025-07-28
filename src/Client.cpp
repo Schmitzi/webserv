@@ -191,6 +191,7 @@ void Client::receiveData() {
 		_exitErr = processRequest();
 		if (_exitErr != 1)
 			_requestBuffer.clear();
+		std::cout << MAGENTA << tostring(statusCode()) << RESET << std::endl;
 		if (shouldCloseConnection(*_req))
 			_shouldClose = true;
 		_state = DONE;
