@@ -1,6 +1,4 @@
 <!-- # webserv
-<!-- # webserv
-<!-- # webserv
 
 Build a HTTP server
 
@@ -94,8 +92,11 @@ Online Tutorials:
    CS50 Web Development with Python and JavaScript -->
 
 
+netcat: Processing uncomplete Headersection leads to fail -> DONE
+POST: wrong status code -> DONE 
 POST: Bad Request: curl -v -X POST -H "Host: abc.com" localhost:8080/hello.txt "Hello world" leads to 500 
     Fixed: checkReturn() changed to allow zero size requests
+POST: On any error -> delete file     -> DONE?
 
 Long POST: yes | curl -v -X POST -H "Host: abc.com" -H "Content-Type: text/plain" --data @- http://localhost:8080/upload/hello.txt
 
@@ -103,6 +104,15 @@ Using @- to read from STDIN does not seem to work, closing the FD and sending da
 
 However, this works:
 yes | curl -v -X POST -H "Host: abc.com\n\nContent-Type: plain/text" --data "BODY IS HERE write something shorter or longer than body limit" http://localhost:8080/hello.txt
+
+
+
+
+
+
+
+
+
 
 
 
@@ -115,8 +125,107 @@ If multipart supportet extract filename from there?
 Support POST with no filename
 
 
+<!-- -> add newlines -->
+
+<!-- -> check if should be deleted -->
+
+<!-- -> check difference between remove and unlink -> remove can delete empty respositories, unlink can not
+	=> changed all to remove -->
+
+<!-- -> remove clients before goodbye message -->
+
+<!-- -> add "Server disconnected" instead of Client for the actual servers -->
+
+<!-- -> checkReturn only checks for -1 because of the empty post thing, but if we are not using it for 0 as well
+	should i just get rid of it and check for -1 and 0 manually since we have to check anyway?
+	i just changed the checkReturn function to take the last argument as the error message for 0 if it is given, otherwise defaults to empty and returns true -->
+
 -> [started checking] check ALL error codes
 
--> If a request contains a message-body and a Content-Length is not given,
-   the server SHOULD respond with 400 (bad request) if it cannot determine the length of the message
+<!-- -> should stuff like "error sent" etc. keep being printed before we actually do it (in handleEpollOut)? -->
 
+<!-- -> [switched but needs to be tested more] HTTP/1.1 will by default set the connection to "keep-alive"
+	only shows the connection for close if:
+	- it was requested to be closed by the Client
+	- we (the server) decide to do so because we have encountered an error or smth thats not implemented
+	- the response has no (valid) content length included and no chunked encoding was used -->
+
+<!-- -> tried to upload a file (in browser) and check along with what the terminal says:
+	after deleting the file it creates another request to get the same file and tells me its not found
+	(deleted the default GET method from the request constructor..?) -->
+
+-> new connections of clients every few seconds (or on hover) while not doing anything (mostly in browser)
+
+-> connections are being closed even though they shouldn't
+
+<!-- -> nc localhost 8080 -> Host: def.com (shouldnt match!) still gets the 8080-abc.com config+ no errors -->
+
+-> write function to check if absPath (starting with http://) is given (in request line) ->if yes: ignore Host header field
+
+<!-- ->	[2025-07-28 13:27:21] [7] Parsed Request: POST http://localhost:8080/upload/test HTTP/1.1
+	==2171114== Warning: invalid file descriptor -1 in syscall close()
+	[2025-07-28 13:27:21] [7] Error sent: 423 Locked
+	[2025-07-28 13:27:21] [7] Cleaned up and disconnected client
+
+	in terminal:	nc localhost 8080
+					POST http://localhost:8080/upload/test HTTP/1.1
+					Host: abc.com -->
+
+->	[2025-07-28 13:29:24] [7] Parsed Request: GET http://localhost:8080/upload/test HTTP/1.1
+	[2025-07-28 13:29:24] [7] Handling GET request for path: http://localhost:8080/upload/test
+	[2025-07-28 13:29:24] [7] Error sent: 404 Not Found
+	[2025-07-28 13:29:24] [7] Cleaned up and disconnected client
+
+	in terminal:	nc localhost 8080
+					GET http://localhost:8080/upload/test HTTP/1.1 (test existed!)
+					Host: abc.com
+
+
+->	[2025-07-28 13:32:40] [7] Complete request received, processing...
+	[2025-07-28 13:32:40] [7] Error sent: 404 Not Found
+	[2025-07-28 13:32:40] [7] Cleaned up and disconnected client
+
+	in terminal:	nc localhost 8080
+					GET http://localhost:8080/upload/test HTTP/1.1
+					Host: def.com
+	---> Host field should be ignored because http:// indicates absolute path, but doesnt even print parsed request + shows 404?
+
+
+->	[2025-07-28 14:05:05] [7] Parsed Request: GET http://abc:8080/upload/seahorse.jpg HTTP/1.1
+	[2025-07-28 14:05:05] [7] Handling GET request for path: http://abc:8080/upload/seahorse.jpg
+	[2025-07-28 14:05:05] [7] Error sent: 404 Not Found
+
+	in terminal:	nc localhost 8080
+					GET http://abc:8080/upload/seahorse.jpg HTTP/1.1
+					Host: abc.com
+
+<!-- -> host names and header fields must be case insensitive -->
+
+<!-- -> A server which receives an entity-body with a transfer-coding it does
+   not understand SHOULD return 501 (Unimplemented), and close the
+   connection. -->
+
+<!-- -> GET request with body-> should ignore body -->
+
+<!-- -> If a request contains a message-body and a Content-Length is not given,
+   the server SHOULD respond with 400 (bad request) if it cannot determine the length of the message -->
+
+<!-- -> Messages MUST NOT include both a Content-Length header field and a
+   non-identity transfer-coding. If the message does include a non-
+   identity transfer-coding, the Content-Length MUST be ignored.
+   When a Content-Length is given in a message where a message-body is
+   allowed, its field value MUST exactly match the number of OCTETs in
+   the message-body. HTTP/1.1 user agents MUST notify the user when an
+   invalid length is received and detected. -->
+
+<!-- -> Note that the absolute path cannot be empty; if none is present in the original URI,
+	it MUST be given as "/" (the server root). -->
+
+<!-- -> 1. If Request-URI is an absoluteURI, the host is part of the
+     Request-URI. Any Host header field value in the request MUST be
+     ignored.
+   2. If the Request-URI is not an absoluteURI, and the request includes
+     a Host header field, the host is determined by the Host header
+     field value.
+   3. If the host as determined by rule 1 or 2 is not a valid host on
+     the server, the response MUST be a 400 (Bad Request) error message. -->

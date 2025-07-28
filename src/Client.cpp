@@ -337,6 +337,7 @@ int Client::handlePostRequest() {
 			return 1;
 		}
 	}
+	std::cout << CYAN << _fd << RESET << "\n";
 	if (!tryLockFile(*this, fullPath, _fd, _fileIsNew)) {
 		statusCode() = 423;
 		sendErrorResponse(*this, *_req);
