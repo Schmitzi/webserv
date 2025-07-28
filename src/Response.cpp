@@ -181,14 +181,6 @@ void sendRedirect(Client& c, const std::string& location, Request& req) {
 	c.output() = getTimeStamp(c.getFd()) + BLUE + "Sent redirect response: " + RESET + tostring(c.statusCode()) + " " + statusText + " to " + location;
 }
 
-bool isChunkedRequest(Request& req) {
-	std::map<std::string, std::string> headers = req.getHeaders();
-	std::map<std::string, std::string>::iterator it = iMapFind(headers, "Transfer-Encoding");
-	if (it != headers.end() && iFind(it->second, "chunked") != std::string::npos)
-		return true;
-	return false;
-}
-
 ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	if (c.getFd() <= 0) {
 		c.output() = getTimeStamp(c.getFd()) + RED + "Invalid fd in sendResponse" + RESET;
@@ -202,7 +194,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	if (iEqual(req.getMethod(), "POST") && content.empty())
 		content = "Upload successful";
 	
-	if (!isChunkedRequest(req))
+	if (!req.isChunked())
 		response += "Content-Length: " + tostring(content.size()) + "\r\n";
 	else
 		response += "Transfer-Encoding: chunked\r\n";
@@ -220,7 +212,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	}
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	if (!content.empty()) {
-		if (isChunkedRequest(req)) {
+		if (req.isChunked()) {
 			const size_t chunkSize = 4096;
 			size_t remaining = content.length();
 			size_t offset = 0;
@@ -291,7 +283,7 @@ bool shouldCloseConnection(Request& req) {
 		return true;
 	if (req.getClient().statusCode() == 413)
 		return false;
-	if (req.hasLength() == false && req.isChunkedTransfer() == false)
+	if (!req.isChunked() && !req.hasValidLength())
 		return true;
 	return false;
 }

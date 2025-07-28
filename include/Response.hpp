@@ -116,7 +116,6 @@ void				generateErrorPage(std::string& body, int statusCode, const std::string& 
 std::string			findErrorPage(int statusCode, const std::string& dir, Request& req);
 void				resolveErrorResponse(int statusCode, std::string& statusText, std::string& body, Request& req);
 void				sendRedirect(Client& c, const std::string& location, Request& req);
-bool				isChunkedRequest(Request& req);
 ssize_t				sendResponse(Client& c, Request& req, std::string body);
 void				sendErrorResponse(Client& c, Request& req);
 bool				shouldCloseConnection(Request& req);

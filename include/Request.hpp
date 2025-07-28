@@ -35,11 +35,11 @@ class Request {
 		std::string const					&getQuery();
 		std::string const					&getBoundary();
 		unsigned long						&getContentLength();
-		
+
 		serverLevel							&getConf();
 		std::map<std::string, std::string>	&getHeaders();
-		bool								&hasLength();
-		bool								isChunkedTransfer();
+		bool								&hasValidLength();
+		bool								&isChunked();
 		std::string							&check();
 		Client								&getClient();
 		std::string							getMimeType(std::string const &path);
@@ -58,6 +58,7 @@ class Request {
 		void								parseHeaders(const std::string& headerSection);
 		void								checkContentLength(std::string buffer);
 		void								parseContentType();
+		bool								isChunkedTransfer();
 
 	private:
 		std::string							_host; 
@@ -75,7 +76,7 @@ class Request {
 		Client								*_client;
 		std::vector<serverLevel>			_configs;
 		int									_clientFd;
-		bool								_hasLength;
+		bool								_hasValidLength;
 		bool								_isChunked;
 };
 

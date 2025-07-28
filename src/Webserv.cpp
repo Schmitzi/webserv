@@ -275,7 +275,7 @@ void Webserv::handleNewConnection(Server &server) {
 		
 		// struct sockaddr_in addr;
 		// socklen_t addrLen = sizeof(addr);
-		// int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);//TODO: we should send 503 OR implement a timeout (+disconnect) based on least recent activity of the clients (lra)
+		// int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);//TODO: we could send 503 OR implement a timeout (+disconnect) based on least recent activity of the clients (lra)
 		// if (newFd >= 0)
 		// 	close(newFd);
 		// return;
