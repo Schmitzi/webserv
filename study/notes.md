@@ -154,24 +154,24 @@ Support POST with no filename
 	after deleting the file it creates another request to get the same file and tells me its not found
 	(deleted the default GET method from the request constructor..?) -->
 
--> new connections of clients every few seconds (or on hover) while not doing anything (mostly in browser)
+-> new connections of clients every few seconds (or on hover) while not doing anything (mostly in browser) -- Doesn't do this on mine.... - Michael
 
 -> connections are being closed even though they shouldn't
 
 <!-- -> nc localhost 8080 -> Host: def.com (shouldnt match!) still gets the 8080-abc.com config+ no errors -->
 
--> write function to check if absPath (starting with http://) is given (in request line) ->if yes: ignore Host header field
+<!-- -> write function to check if absPath (starting with http://) is given (in request line) ->if yes: ignore Host header field -->
 
-->	[2025-07-28 13:27:21] [7] Parsed Request: POST http://localhost:8080/upload/test HTTP/1.1
+<!-- ->	[2025-07-28 13:27:21] [7] Parsed Request: POST http://localhost:8080/upload/test HTTP/1.1
 	==2171114== Warning: invalid file descriptor -1 in syscall close()
 	[2025-07-28 13:27:21] [7] Error sent: 423 Locked
 	[2025-07-28 13:27:21] [7] Cleaned up and disconnected client
 
 	in terminal:	nc localhost 8080
 					POST http://localhost:8080/upload/test HTTP/1.1
-					Host: abc.com
+					Host: abc.com -->
 
-->	[2025-07-28 13:29:24] [7] Parsed Request: GET http://localhost:8080/upload/test HTTP/1.1
+<!-- ->	[2025-07-28 13:29:24] [7] Parsed Request: GET http://localhost:8080/upload/test HTTP/1.1
 	[2025-07-28 13:29:24] [7] Handling GET request for path: http://localhost:8080/upload/test
 	[2025-07-28 13:29:24] [7] Error sent: 404 Not Found
 	[2025-07-28 13:29:24] [7] Cleaned up and disconnected client
@@ -189,13 +189,13 @@ Support POST with no filename
 					Host: def.com
 	---> Host field should be ignored because http:// indicates absolute path, but doesnt even print parsed request + shows 404?
 
-->	[2025-07-28 14:05:05] [7] Parsed Request: GET http://abc:8080/upload/seahorse.jpg HTTP/1.1
+<!-- ->	[2025-07-28 14:05:05] [7] Parsed Request: GET http://abc:8080/upload/seahorse.jpg HTTP/1.1
 	[2025-07-28 14:05:05] [7] Handling GET request for path: http://abc:8080/upload/seahorse.jpg
 	[2025-07-28 14:05:05] [7] Error sent: 404 Not Found
 
 	in terminal:	nc localhost 8080
 					GET http://abc:8080/upload/seahorse.jpg HTTP/1.1
-					Host: abc.com
+					Host: abc.com --> -->
 
 <!-- -> host names and header fields must be case insensitive -->
 

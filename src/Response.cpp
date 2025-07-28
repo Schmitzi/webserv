@@ -201,7 +201,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	
 	response += "Server: WebServ/1.0\r\n";
 	
-	if (shouldCloseConnection(req))
+	if (shouldCloseConnection(req) == true)
 		response += "Connection: close\r\n";
 	response += "Access-Control-Allow-Origin: *\r\n";
 	response += "\r\n";
