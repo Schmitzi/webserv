@@ -234,13 +234,14 @@ std::string decodeChunkedBody(Client& c, int fd, const std::string& chunkedData)
 bool tryLockFile(Client& c, const std::string& path, int timeStampFd, bool& isNew) {
 	int fd = open(path.c_str(), O_CREAT | O_EXCL, 0644);
 	if (fd == -1) {
-		if (errno == EEXIST) {
+		if (errno == EEXIST)
 			isNew = false;
-			close(fd);
-		} else {
+		else {
+			c.output() = getTimeStamp(timeStampFd) + RED + "Error: opening file failed" + RESET;
 			return false;
 		}
-	} else {
+	}
+	else {
 		isNew = true;
 		close(fd);
 		remove(path.c_str());

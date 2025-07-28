@@ -162,14 +162,14 @@ Support POST with no filename
 
 -> write function to check if absPath (starting with http://) is given (in request line) ->if yes: ignore Host header field
 
-<!-- ->	[2025-07-28 13:27:21] [7] Parsed Request: POST http://localhost:8080/upload/test HTTP/1.1
+->	[2025-07-28 13:27:21] [7] Parsed Request: POST http://localhost:8080/upload/test HTTP/1.1
 	==2171114== Warning: invalid file descriptor -1 in syscall close()
 	[2025-07-28 13:27:21] [7] Error sent: 423 Locked
 	[2025-07-28 13:27:21] [7] Cleaned up and disconnected client
 
 	in terminal:	nc localhost 8080
 					POST http://localhost:8080/upload/test HTTP/1.1
-					Host: abc.com -->
+					Host: abc.com
 
 ->	[2025-07-28 13:29:24] [7] Parsed Request: GET http://localhost:8080/upload/test HTTP/1.1
 	[2025-07-28 13:29:24] [7] Handling GET request for path: http://localhost:8080/upload/test
@@ -180,7 +180,6 @@ Support POST with no filename
 					GET http://localhost:8080/upload/test HTTP/1.1 (test existed!)
 					Host: abc.com
 
-
 ->	[2025-07-28 13:32:40] [7] Complete request received, processing...
 	[2025-07-28 13:32:40] [7] Error sent: 404 Not Found
 	[2025-07-28 13:32:40] [7] Cleaned up and disconnected client
@@ -189,7 +188,6 @@ Support POST with no filename
 					GET http://localhost:8080/upload/test HTTP/1.1
 					Host: def.com
 	---> Host field should be ignored because http:// indicates absolute path, but doesnt even print parsed request + shows 404?
-
 
 ->	[2025-07-28 14:05:05] [7] Parsed Request: GET http://abc:8080/upload/seahorse.jpg HTTP/1.1
 	[2025-07-28 14:05:05] [7] Handling GET request for path: http://abc:8080/upload/seahorse.jpg
@@ -229,3 +227,4 @@ Support POST with no filename
      field value.
    3. If the host as determined by rule 1 or 2 is not a valid host on
      the server, the response MUST be a 400 (Bad Request) error message. -->
+

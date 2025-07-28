@@ -58,6 +58,12 @@ std::map<std::string, std::string>::iterator iMapFind(std::map<std::string, std:
 	return map.end();
 }
 
+bool isAbsPath(std::string& path) {
+	if (!path.empty() && path.find("http://") == 0)
+		return true;
+	return false;
+}
+
 std::string matchAndAppendPath(const std::string& base, const std::string& add) {
 	std::vector<std::string> baseParts = splitBy(base, '/');
 	std::vector<std::string> addParts = splitBy(add, '/');

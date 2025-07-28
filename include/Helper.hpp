@@ -21,6 +21,7 @@ std::string										toLower(const std::string& s);
 size_t											iFind(const std::string& haystack, const std::string& needle);
 bool											iEqual(const std::string& a, const std::string& b);
 std::map<std::string, std::string>::iterator	iMapFind(std::map<std::string, std::string>& map, const std::string& s);
+bool											isAbsPath(std::string& path);
 std::string										matchAndAppendPath(const std::string& fullPath, const std::string& reqPath);
 std::string										decode(const std::string& encoded);
 std::string										encode(const std::string& decoded);
