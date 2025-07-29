@@ -747,7 +747,7 @@ def test_with_manual_socket():
         response = b""
         while True:
             try:
-                chunk = sock.recv(1024)
+                chunk = sock.recv(4096)
                 if not chunk:
                     break
                 response += chunk
@@ -759,10 +759,7 @@ def test_with_manual_socket():
         print(f"\nFull response ({len(response)} bytes):")
         print(response.decode('utf-8', errors='ignore'))
         if DELETE == True:
-            print("Deleting generated file\n")
-            delete_request = "DELETE /upload/test_manual HTTP/1.1"
-            sock.send(delete_request.encode())
-        
+            os.remove(os.getcwd() + "/local/upload/test_manual")
         return len(response) > 0
 
     except Exception as e:

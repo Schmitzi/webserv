@@ -3,6 +3,12 @@
 
 ## ToDo:
 
+- Double POST: no 407 confict response -> Not necessary
+
+## Done
+
+- single POST: content was not uploaded, file was not removed on interupt -> Done?
+
 - Long POST: yes | curl -v -X POST -H "Host: abc.com" -H "Content-Type: text/plain" --data @- http://localhost:8080/upload/hello.txt
 
 - Using @- to read from STDIN does not seem to work, closing the FD and sending data isnt working
@@ -15,15 +21,9 @@
 - DELETE/ Response sent headers only should close?->no 
     - info: https://httpwg.org/specs/rfc9112.html#compatibility.with.http.1.0.persistent.connections
 
-- single POST: content was not uploaded, file was not removed on interupt -> Done?
-
-- Double POST: no 407 confict response
-
 - If multipart supportet extract filename from there?
 
 - Support POST with no filename
-
-## Done
 
 - add newlines
 
