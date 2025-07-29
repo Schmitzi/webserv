@@ -156,9 +156,14 @@ void resolveErrorResponse(int statusCode, std::string& statusText, std::string& 
 void sendRedirect(Client& c, const std::string& location, Request& req) {
 	std::string statusText = getStatusMessage(c.statusCode());
 	
-	std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
-	body += "<body><h1>" + statusText + "</h1>";
-	body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
+	std::string body = "<!DOCTYPE html>\n"
+		"<html>\n"
+		"<head>\n"
+		"    <title>" + statusText + "</title></head>\n"
+	    "    <body><h1>" + statusText + "</h1>\n"
+	    "    <p>The document has moved <a href=\"" + location + "\">here</a>.</p>\n"
+		"    </body>\n"
+		"</html>\n";	
 	
 	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + statusText + "\r\n";
 	response += "Location: " + location + "\r\n";
@@ -205,7 +210,6 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 		c.output() = getTimeStamp(c.getFd()) + RED  + "FD became invalid before send" + RESET;
 		return -1;
 	}
-	
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	if (!content.empty()) {
 		if (req.isChunked()) {
@@ -272,44 +276,44 @@ void sendErrorResponse(Client& c, Request& req) {
 }
 
 bool shouldCloseConnection(Request& req) {
-	std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
-	if (it != req.getHeaders().end() && iEqual(it->second, "close")) {
-		std::cout << CYAN << "HERE 3" << RESET << std::endl;
-		req.getClient().shouldClose() = true;
-		return true;
-	}
+    std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
+    if (it != req.getHeaders().end() && iEqual(it->second, "close")) {
+        req.getClient().shouldClose() = true;
+        return true;
+    }
+    
+    if (req.getVersion() == "HTTP/1.0") {
+        if (it == req.getHeaders().end() || !iEqual(it->second, "keep-alive")) {
+            req.getClient().shouldClose() = true;
+            return true;
+        }
+    }
+    
+    if (iEqual(req.getMethod(), "POST") && !req.isChunked() && !req.hasValidLength()) {
+        req.getClient().shouldClose() = true;
+        return true;
+    }
+    
+    int statusCode = req.getClient().statusCode();
+    if (statusCode >= 400) {
+        if (statusCode == 400 || statusCode == 408 || statusCode == 431 || statusCode == 500 ||
+            statusCode == 502 || statusCode == 503 || statusCode == 505) {
+            req.getClient().shouldClose() = true;
+            return true;
+        }
+        
+        if (statusCode == 413 || statusCode == 414 || statusCode == 501) {
+            return false;
+        }
 
-	if (!req.isChunked() && !req.hasValidLength()) {//TODO: add a better check for hasValidLength!
-		std::cout << CYAN << "HERE 6" << RESET << std::endl;
-		req.getClient().shouldClose() = true;
-		return true;
-	}
+    }
 
-	// if (req.getClient().shouldClose() == true) {
-	// 	std::cout << CYAN << "HERE 1" << RESET << std::endl;
-	// 	return true;
-	// }
+    if (req.getClient().shouldClose()) {
+        return true;
+    }
 
-	if (req.getClient().statusCode() >= 400) {
-		if (req.getClient().statusCode() == 413 || req.getClient().statusCode() == 501) {
-			std::cout << CYAN << "HERE 4" << RESET << std::endl;
-			req.getClient().shouldClose() = false;
-			return false;
-		}
-		std::cout << CYAN << "HERE 5" << RESET << std::endl;
-		req.getClient().shouldClose() = true;
-		return true;
-	}
-
-	if (req.getClient().statusCode() < 400) {
-		std::cout << CYAN << "HERE 2" << RESET << std::endl;
-		req.getClient().shouldClose() = false;
-		return false;
-	}
-
-	std::cout << CYAN << "HERE 7" << RESET << std::endl;
-	req.getClient().shouldClose() = false;
-	return false;
+    req.getClient().shouldClose() = false;
+    return false;
 }
 
 void translateErrorCode(int errnoCode, int& statusCode) {

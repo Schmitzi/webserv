@@ -449,4 +449,5 @@ void CGIHandler::cleanupResources() {
 	_args.clear();
 	_env.clear();
 	_outputBuffer.clear();
+	_startTime = 0;
 }

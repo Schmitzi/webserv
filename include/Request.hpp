@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <string>
 #include <vector>
+#include <cctype>
 #include "ConfigParser.hpp"
 
 class	Server;

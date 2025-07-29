@@ -54,7 +54,8 @@ Client& Client::operator=(const Client& other) {
 	return *this;
 }
 
-Client::~Client() {}
+Client::~Client() {
+}
 
 int	&Client::getFd() {
 	return _fd;
@@ -188,10 +189,10 @@ void Client::receiveData() {
 	if (_state == PROCESSING) {
 		Request req(_requestBuffer, *this, _fd);
 		_req = &req;
+		//_req = new Request(_requestBuffer, *this, _fd);
 		_exitErr = processRequest();
 		if (_exitErr != 1)
 			_requestBuffer.clear();
-		std::cout << MAGENTA << tostring(statusCode()) << RESET << std::endl;
 		if (shouldCloseConnection(*_req))
 			_shouldClose = true;
 		_state = DONE;
@@ -531,7 +532,7 @@ int Client::handleRegularRequest() {
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
-	
+
 	if (S_ISDIR(fileStat.st_mode))
 		return viewDirectory(fullPath, *_req);
 	if (!S_ISREG(fileStat.st_mode)) {
@@ -716,10 +717,22 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
 		"    </div>\n"
 		"    <ul>\n";
 	
-	if (requestUri != "/") {
-		std::string parentUri = encode(requestUri);
-		parentUri = "/" + matchAndAppendPath(parentUri, "/../") + "/";
-		html += "        <li><a href=\"" + parentUri + "\">Parent Directory</a></li>\n";
+	if (requestUri != "/" && requestUri != "/root" && requestUri != "/root/") {
+		std::string parentUri = requestUri;
+		
+		if (parentUri.length() > 1 && parentUri[parentUri.length() - 1] == '/')
+			parentUri = parentUri.substr(0, parentUri.length() - 1);
+		
+		size_t lastSlash = parentUri.find_last_of('/');
+		if (lastSlash != std::string::npos) {
+			parentUri = parentUri.substr(0, lastSlash);
+			
+			if (parentUri.empty() || parentUri == "/root")
+				parentUri = "/root";
+		    else
+				parentUri += "/";
+			html += "        <li><a href=\"" + parentUri + "\">Parent Directory</a></li>\n";
+		}
 	}
 	
 	struct dirent* entry;

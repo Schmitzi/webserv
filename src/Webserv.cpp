@@ -24,7 +24,7 @@ Webserv::Webserv(std::string config) : _epollFd(-1) {
 				}
 			}
 		}
-		if (toAdd)
+		if (toAdd) 
 			_servers.push_back(Server(_confParser, i, *this));
 	}
 	_state = true;
@@ -320,6 +320,7 @@ void Webserv::handleClientActivity(int clientFd) {
 		client->state() = RECEIVING;
 	if (client->state() < DONE)
 		client->receiveData();
+	//std::cout << RED << "Here? " << client->state() << "\n" << RESET;
 }
 
 void Webserv::handleEpollOut(int fd) {
