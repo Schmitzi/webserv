@@ -156,9 +156,14 @@ void resolveErrorResponse(int statusCode, std::string& statusText, std::string& 
 void sendRedirect(Client& c, const std::string& location, Request& req) {
 	std::string statusText = getStatusMessage(c.statusCode());
 	
-	std::string body = "<!DOCTYPE html><html><head><title>" + statusText + "</title></head>";
-	body += "<body><h1>" + statusText + "</h1>";
-	body += "<p>The document has moved <a href=\"" + location + "\">here</a>.</p></body></html>";
+	std::string body = "<!DOCTYPE html>\n"
+		"<html>\n"
+		"<head>\n"
+		"    <title>" + statusText + "</title></head>\n"
+		"    <body><h1>" + statusText + "</h1>\n"
+		"    <p>The document has moved <a href=\"" + location + "\">here</a>.</p>\n"
+		"    </body>\n"
+		"</html>\n";	
 	
 	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + statusText + "\r\n";
 	response += "Location: " + location + "\r\n";
@@ -205,7 +210,6 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 		c.output() = getTimeStamp(c.getFd()) + RED  + "FD became invalid before send" + RESET;
 		return -1;
 	}
-	
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	if (!content.empty()) {
 		if (req.isChunked()) {
@@ -273,14 +277,27 @@ void sendErrorResponse(Client& c, Request& req) {
 
 bool shouldCloseConnection(Request& req) {
 	std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
-	if (it != req.getHeaders().end() && iEqual(it->second, "close"))
+	if (it != req.getHeaders().end() && iEqual(it->second, "close")) {
+		req.getClient().shouldClose() = true;
+		req.getClient().connClose() = true;
 		return true;
-	if (req.getClient().statusCode() == 400 || req.getClient().statusCode() == 411 || (req.getClient().statusCode() >= 500 && req.getClient().statusCode() != 501))
+	}
+	
+	if (iEqual(req.getMethod(), "POST") && !req.isChunked() && !req.hasValidLength()) {
+		req.getClient().shouldClose() = true;
 		return true;
-	if (req.getClient().statusCode() == 413)
-		return false;
-	if (!req.isChunked() && !req.hasValidLength())
+	}
+	
+	int statusCode = req.getClient().statusCode();
+	if (statusCode >= 400 && statusCode != 413 && statusCode != 414 && statusCode != 501) {
+		req.getClient().shouldClose() = true;
 		return true;
+	}
+
+	if (req.getClient().shouldClose()) {
+		return true;
+	}
+	req.getClient().shouldClose() = false;
 	return false;
 }
 

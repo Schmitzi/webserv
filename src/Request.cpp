@@ -57,10 +57,6 @@ Request &Request::operator=(const Request& copy) {
 
 Request::~Request() {}
 
-std::string &Request::getHost() {
-	return _host;
-}
-
 std::string &Request::getPath() {
 	return _path;
 }
@@ -181,7 +177,6 @@ void Request::parse(const std::string& rawRequest) {
 		_check = "BAD";
 		return;
 	}
-
 	checkContentLength(rawRequest);
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
@@ -209,33 +204,12 @@ void Request::parse(const std::string& rawRequest) {
 
 	if (!matchHostServerName()) {
 		_client->output() = getTimeStamp(_clientFd) + RED + "No Host-ServerName match + no default config specified!" + RESET;
-		_client->statusCode() = 404;
-		_check = "BAD";
-		return;
-	}
-	parseContentType();
-
-	std::istringstream iss(headerSection);
-	std::string requestLine;
-	std::getline(iss, requestLine);
-	size_t end = requestLine.find_last_not_of(" \t\r\n");
-	if (end != std::string::npos)
-		requestLine = requestLine.substr(0, end + 1);
-
-	std::istringstream lineStream(requestLine);
-	std::string target;
-	lineStream >> _method >> target >> _version;
-
-	if (_method.empty() || (_method != "GET" && target.empty())) {
 		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
 	}
 
-	if (!checkVersion())
-		return;
-
-	checkQueryAndPath(target);
+	parseContentType();
 
 	if (!checkMethod())
 		return;
@@ -251,20 +225,15 @@ void Request::parse(const std::string& rawRequest) {
 	_path = decode(_path);
 }
 
-void Request::setHeader(std::string& key, std::string& value) {
+void Request::setHeader(std::string& key, std::string& value, bool ignoreHost) {
 	if (iEqual(key, "Host")) {
-		// if (_host.empty()) {
-		_host = value;
-		// }
-		// else
-			// _client->statusCode() = 400;
+		if (ignoreHost == false && _host.empty())
+			_host = value;
+		else if (ignoreHost == false && !_host.empty())
+			_client->statusCode() = 400;
 	}
 	else if (iEqual(key, "Content-Type")) {
-		// if (_contentType.empty()) {
 		_contentType = value;
-		// }
-		// else
-			// _client->statusCode() = 400;
 	}
 }
 
@@ -294,15 +263,15 @@ bool Request::checkVersion() {
 	return true;
 }
 
-void Request::checkQueryAndPath(std::string& target) {
+void Request::checkQueryAndPath(std::string target) {
 	size_t queryPos = target.find('?');
 	if (queryPos != std::string::npos) {
 		_path = target.substr(0, queryPos);
 		_query = target.substr(queryPos + 1);
 	} else {
 		_path = target;
-		_query = "";
 	}
+
 	if ((_path == "/" || _path == "") && iEqual(_method, "GET")) {
 		std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
 		if (it != _curConf.locations.end())
@@ -314,15 +283,43 @@ void Request::checkQueryAndPath(std::string& target) {
 		_path = _path.substr(0, end + 1);
 }
 
+void Request::getHostAndPath(std::string& target) {
+	std::string strip;
+	std::vector<std::string> hostPort;
+
+	strip = target.substr(7);
+	size_t divider = strip.find_first_of('/');
+	hostPort = splitBy(strip.substr(0, divider), ':');
+	_host = hostPort[0];
+	_path = strip.substr(divider);
+}
+
 void Request::parseHeaders(const std::string& headerSection) {
+	bool ignoreHost = false;
 	std::istringstream iss(headerSection);
 	std::string line;
-	
+
 	std::getline(iss, line);
+	size_t end = line.find_last_not_of(" \t\r\n");
+	if (end != std::string::npos)
+	line = line.substr(0, end + 1);
+	
+	std::istringstream lineStream(line);
+	std::string target;
+	lineStream >> _method >> target >> _version;
+	if (isAbsPath(target)) {
+		ignoreHost = true;
+		getHostAndPath(target);
+	}
+
 	while (std::getline(iss, line) && !line.empty() && line != "\r") {
 		size_t colonPos = line.find(':');
 		if (colonPos != std::string::npos) {
 			std::string key = line.substr(0, colonPos);
+			if (key[key.size() - 1] == ' ') {
+				_client->statusCode() = 400;
+				return;
+			}
 			std::string value = line.substr(colonPos + 1);
 			
 			key.erase(0, key.find_first_not_of(" \t"));
@@ -337,11 +334,26 @@ void Request::parseHeaders(const std::string& headerSection) {
 				}
 			}
 			_headers[key] = value;
-			setHeader(key, value);
+			setHeader(key, value, ignoreHost);
 		}
 	}
-	if (_host.empty())
+	
+	if (_host.empty()) {
 		_client->statusCode() = 400;
+		return;
+	}
+	if (_method.empty() || (_method != "GET" && target.empty())) {
+		_client->statusCode() = 400;
+		_check = "BAD";
+		return;
+	}
+
+	if (!checkVersion())
+		return;
+	if (ignoreHost == true)
+		checkQueryAndPath(_path);
+	else
+		checkQueryAndPath(target);
 }
 
 void Request::checkContentLength(std::string buffer) {

@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <string>
 #include <vector>
+#include <cctype>
 #include "ConfigParser.hpp"
 
 class	Server;
@@ -25,7 +26,6 @@ class Request {
 		~Request();
 
 		//getters & setters
-		std::string							&getHost();
 		std::string							&getPath();
 		std::string const					&getMethod();
 		std::string const					&getVersion();
@@ -50,10 +50,11 @@ class Request {
 		bool								hasServerName();
 		bool								matchHostServerName();
 		void								parse(const std::string& rawRequest);
-		void								setHeader(std::string& key, std::string& value);
+		void								setHeader(std::string& key, std::string& value, bool ignoreHost);
 		bool								checkMethod();
 		bool								checkVersion();
-		void								checkQueryAndPath(std::string& target);
+		void								checkQueryAndPath(std::string target);
+		void								getHostAndPath(std::string& target);
 		void								parseHeaders(const std::string& headerSection);
 		void								checkContentLength(std::string buffer);
 		void								parseContentType();

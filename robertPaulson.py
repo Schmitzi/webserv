@@ -759,9 +759,8 @@ def test_with_manual_socket():
         print(f"\nFull response ({len(response)} bytes):")
         print(response.decode('utf-8', errors='ignore'))
         if DELETE == True:
+            os.remove(os.getcwd()+"/local/upload/test_manual")
             print("Deleting generated file\n")
-            delete_request = "DELETE /upload/test_manual HTTP/1.1"
-            sock.send(delete_request.encode())
         
         return len(response) > 0
 
@@ -769,6 +768,7 @@ def test_with_manual_socket():
         print(f"❌ Socket error: {e}")
         return False
     finally:
+        print("")
         sock.close()
 
 def webChunk():
@@ -1089,7 +1089,7 @@ def test_concurrent_connections():
     TOTAL += 1
     results = []
     def make_request(i):
-        status, res, data = test_connection(f"/test_{i}", "GET")
+        status, res, data = test_connection(f"/upload/keep/test", "GET")
         results.append(res is not None)
     
     threads = []
@@ -1115,13 +1115,14 @@ def test_keep_alive():
     conn = http.client.HTTPConnection(HOST, PORT)
     try:
         # Make multiple requests on same connection
-        for i in range(3):
-            conn.request("GET", f"/test_{i}")
+        for i in range(4):
+            conn.request("GET", f"/upload/keep/keepalive")
             res = conn.getresponse()
             data = res.read()
             if res.status != 200 and res.status != 404:
                 print_test(f"Keep-alive request {i} failed", "FAIL")
                 return
+            #time.sleep(2)
         PASS += 1
         print_test("Keep-alive connections working", "PASS")
     except Exception as e:

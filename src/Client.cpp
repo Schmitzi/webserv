@@ -22,6 +22,7 @@ Client::Client(Server& serv) {
 	_exitErr = false;
 	_fileIsNew = false;
 	_shouldClose = false;
+	_connClose = false;
 	_lastUsed = time(NULL);
 	_output = "";
 	_statusCode = 200;
@@ -46,6 +47,7 @@ Client& Client::operator=(const Client& other) {
 		_exitErr = other._exitErr;
 		_fileIsNew = other._fileIsNew;
 		_shouldClose = other._shouldClose;
+		_connClose = other._connClose;
 		_lastUsed = other._lastUsed; 
 		_output = other._output;
 		_statusCode = other._statusCode;
@@ -54,7 +56,8 @@ Client& Client::operator=(const Client& other) {
 	return *this;
 }
 
-Client::~Client() {}
+Client::~Client() {
+}
 
 int	&Client::getFd() {
 	return _fd;
@@ -66,10 +69,6 @@ Server &Client::getServer() {
 
 Webserv& Client::getWebserv() {
 	return *_webserv;
-}
-
-Request& Client::getRequest() {
-	return *_req;
 }
 
 size_t& Client::getOffset() {
@@ -90,6 +89,10 @@ bool &Client::fileIsNew() {
 
 bool &Client::shouldClose() {
 	return _shouldClose;
+}
+
+bool &Client::connClose() {
+	return _connClose;
 }
 
 time_t &Client::lastUsed() {
@@ -236,18 +239,14 @@ int Client::processRequest() {
 	std::cout << getTimeStamp(_fd) << BLUE << "Parsed Request: " << RESET << 
 		_req->getMethod() << " " << _req->getPath() << " " << _req->getVersion() << std::endl;
 
-	int ret = 1;
 	if (iEqual(_req->getMethod(), "GET"))
-		ret = handleGetRequest();
+		return handleGetRequest();
 	else if (iEqual(_req->getMethod(), "POST"))
-		ret = handlePostRequest();
+		return handlePostRequest();
 	else if (iEqual(_req->getMethod(), "DELETE"))
-		ret = handleDeleteRequest();
-	else {
-		sendErrorResponse(*this, *_req);
-		ret = 1;
-	}
-	return ret;
+		return handleDeleteRequest();
+	sendErrorResponse(*this, *_req);
+	return 1;
 }
 
 int Client::handleGetRequest() {
@@ -278,11 +277,8 @@ int Client::handlePostRequest() {
 		return 1;
 	}
 	std::string fullPath = getLocationPath(*this, *_req, "POST");
-	if (fullPath.empty()) {
-		statusCode() = 404;
-		sendErrorResponse(*this, *_req);
+	if (fullPath.empty())
 		return 1;
-	}
 	if (isCGIScript(_req->getPath())) {
 		CGIHandler* cgi = new CGIHandler(this);
 		std::string cgiPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), _req->getPath());
@@ -368,9 +364,9 @@ int Client::handlePostRequest() {
 		close(fd);
 		return 1;
 	}
-	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";//TODO: why one too many bytes here?
+	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
 	statusCode() = 201;
-	sendResponse(*this, *_req, responseBody);//TODO: we are adding a new line in here
+	sendResponse(*this, *_req, responseBody);
 	_output = getTimeStamp(_fd) + GREEN  + "Uploaded file: " + RESET + fullPath + " (" + tostring(bytesWritten) + " bytes written)";
 	close(fd);
 	return 0;
@@ -378,11 +374,8 @@ int Client::handlePostRequest() {
 
 int Client::handleDeleteRequest() {
 	std::string fullPath = getLocationPath(*this, *_req, "DELETE");
-	if (fullPath.empty()) {
-		statusCode() = 404;
-		sendErrorResponse(*this, *_req);
+	if (fullPath.empty())
 		return 1;
-	}
 	if (isCGIScript(_req->getPath())) {
 		CGIHandler* cgi = new CGIHandler(this);
 		cgi->setPath(fullPath);        
@@ -417,73 +410,73 @@ int Client::handleDeleteRequest() {
 }
 
 int Client::handleFileBrowserRequest() {
-    std::string requestPath = _req->getPath();
-    std::string actualPath;
-    
-    if (requestPath == "/root" || requestPath == "/root/") {
-        actualPath = "/";
-        locationLevel* loc = NULL;
-        if (!matchLocation("/", _req->getConf(), loc)) {
-            std::map<std::string, locationLevel>::iterator it = _req->getConf().locations.find("/");
-            if (it != _req->getConf().locations.end() && it->second.autoindex) {
-                loc = &it->second;
-            } else {
-                statusCode() = 403;
-                _output = getTimeStamp(_fd) + RED + "Directory browsing not enabled for root path" + RESET;
-                sendErrorResponse(*this, *_req);
-                return 1;
-            }
-        }
-        
-        if (!loc || !loc->autoindex) {
-            statusCode() = 403;
-            _output = getTimeStamp(_fd) + RED + "Directory browsing not enabled" + RESET;
-            sendErrorResponse(*this, *_req);
-            return 1;
-        }
-        
-        std::string fullPath = loc->rootLoc.empty() ? "/" : loc->rootLoc;
-        return createDirList(fullPath, *_req);
-    }
-    else {
-        actualPath = requestPath.substr(5);
-        if (actualPath.empty()) actualPath = "/";
-        
-        locationLevel* loc = NULL;
-        if (!matchLocation("/", _req->getConf(), loc)) {
-            statusCode() = 404;
-            _output = getTimeStamp(_fd) + RED + "Location not found: " + RESET + requestPath;
-            sendErrorResponse(*this, *_req);
-            return 1;
-        }
-        
-        std::string actualFullPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), actualPath);
-        
-        struct stat fileStat;
-        if (stat(actualFullPath.c_str(), &fileStat) != 0) {
-            statusCode() = 404;
-            _output = getTimeStamp(_fd) + RED + "File not found: " + RESET + actualFullPath;
-            sendErrorResponse(*this, *_req);
-            return 1;
-        }
-        
-        if (S_ISDIR(fileStat.st_mode)) {
-            _req->setPath(actualPath);
-            return createDirList(actualFullPath, *_req);
-        } else if (S_ISREG(fileStat.st_mode)) {
-            if (buildBody(*this, *_req, actualFullPath) == 1)
-                return 1;
-            _req->setContentType(_req->getMimeType(actualFullPath));
-            sendResponse(*this, *_req, _req->getBody());
-            _output = getTimeStamp(_fd) + GREEN + "Successfully served file from browser: " + RESET + actualFullPath;
-            return 0;
-        } else {
-            statusCode() = 403;
-            _output = getTimeStamp(_fd) + RED + "Not a regular file or directory: " + RESET + actualFullPath;
-            sendErrorResponse(*this, *_req);
-            return 1;
-        }
-    }
+	std::string requestPath = _req->getPath();
+	std::string actualPath;
+	
+	if (requestPath == "/root" || requestPath == "/root/") {
+		actualPath = "/";
+		locationLevel* loc = NULL;
+		if (!matchLocation("/", _req->getConf(), loc)) {
+			std::map<std::string, locationLevel>::iterator it = _req->getConf().locations.find("/");
+			if (it != _req->getConf().locations.end() && it->second.autoindex) {
+				loc = &it->second;
+			} else {
+				statusCode() = 403;
+				_output = getTimeStamp(_fd) + RED + "Directory browsing not enabled for root path" + RESET;
+				sendErrorResponse(*this, *_req);
+				return 1;
+			}
+		}
+		
+		if (!loc || !loc->autoindex) {
+			statusCode() = 403;
+			_output = getTimeStamp(_fd) + RED + "Directory browsing not enabled" + RESET;
+			sendErrorResponse(*this, *_req);
+			return 1;
+		}
+		
+		std::string fullPath = loc->rootLoc.empty() ? "/" : loc->rootLoc;
+		return createDirList(fullPath, *_req);
+	}
+	else {
+		actualPath = requestPath.substr(5);
+		if (actualPath.empty()) actualPath = "/";
+		
+		locationLevel* loc = NULL;
+		if (!matchLocation("/", _req->getConf(), loc)) {
+			statusCode() = 404;
+			_output = getTimeStamp(_fd) + RED + "Location not found: " + RESET + requestPath;
+			sendErrorResponse(*this, *_req);
+			return 1;
+		}
+		
+		std::string actualFullPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), actualPath);
+		
+		struct stat fileStat;
+		if (stat(actualFullPath.c_str(), &fileStat) != 0) {
+			statusCode() = 404;
+			_output = getTimeStamp(_fd) + RED + "File not found: " + RESET + actualFullPath;
+			sendErrorResponse(*this, *_req);
+			return 1;
+		}
+		
+		if (S_ISDIR(fileStat.st_mode)) {
+			_req->setPath(actualPath);
+			return createDirList(actualFullPath, *_req);
+		} else if (S_ISREG(fileStat.st_mode)) {
+			if (buildBody(*this, *_req, actualFullPath) == 1)
+				return 1;
+			_req->setContentType(_req->getMimeType(actualFullPath));
+			sendResponse(*this, *_req, _req->getBody());
+			_output = getTimeStamp(_fd) + GREEN + "Successfully served file from browser: " + RESET + actualFullPath;
+			return 0;
+		} else {
+			statusCode() = 403;
+			_output = getTimeStamp(_fd) + RED + "Not a regular file or directory: " + RESET + actualFullPath;
+			sendErrorResponse(*this, *_req);
+			return 1;
+		}
+	}
 }
 
 int Client::handleRegularRequest() {
@@ -536,7 +529,7 @@ int Client::handleRegularRequest() {
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
-	
+
 	if (S_ISDIR(fileStat.st_mode))
 		return viewDirectory(fullPath, *_req);
 	if (!S_ISREG(fileStat.st_mode)) {
@@ -721,10 +714,22 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
 		"    </div>\n"
 		"    <ul>\n";
 	
-	if (requestUri != "/") {
-		std::string parentUri = encode(requestUri);
-		parentUri = "/" + matchAndAppendPath(parentUri, "/../") + "/";
-		html += "        <li><a href=\"" + parentUri + "\">Parent Directory</a></li>\n";
+	if (requestUri != "/" && requestUri != "/root" && requestUri != "/root/") {
+		std::string parentUri = requestUri;
+		
+		if (parentUri.length() > 1 && parentUri[parentUri.length() - 1] == '/')
+			parentUri = parentUri.substr(0, parentUri.length() - 1);
+		
+		size_t lastSlash = parentUri.find_last_of('/');
+		if (lastSlash != std::string::npos) {
+			parentUri = parentUri.substr(0, lastSlash);
+			
+			if (parentUri.empty() || parentUri == "/root")
+				parentUri = "/root";
+			else
+				parentUri += "/";
+			html += "        <li><a href=\"" + parentUri + "\">Parent Directory</a></li>\n";
+		}
 	}
 	
 	struct dirent* entry;
