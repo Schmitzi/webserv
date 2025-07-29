@@ -230,7 +230,10 @@ void Webserv::handleClientDisconnect(int fd) {
 
 	for (size_t i = 0; i < _clients.size(); i++) {
 		if (_clients[i].getFd() == fd) {
-			std::cout << getTimeStamp(fd) << "Cleaned up and disconnected client" << std::endl;
+			if (_clients[i].connClose() == true)
+				std::cout << getTimeStamp(fd) << YELLOW << "Cleaned up and disconnected client (\"Connection: close\" in Request)" << RESET << std::endl;
+			else
+				std::cout << getTimeStamp(fd) << YELLOW << "Cleaned up and disconnected client" << RESET << std::endl;
 			close(_clients[i].getFd());
 			_clients.erase(_clients.begin() + i);
 			return;

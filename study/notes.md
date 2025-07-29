@@ -198,26 +198,26 @@ Online Tutorials:
    CS50 Web Development with Python and JavaScript -->
 
 
-netcat: Processing uncomplete Headersection leads to fail -> DONE
-POST: wrong status code -> DONE 
-POST: Bad Request: curl -v -X POST -H "Host: abc.com" localhost:8080/hello.txt "Hello world" leads to 500 
-    Fixed: checkReturn() changed to allow zero size requests
-POST: On any error -> delete file     -> DONE?
+<!-- netcat: Processing uncomplete Headersection leads to fail -> DONE -->
+<!-- POST: wrong status code -> DONE  -->
+<!-- POST: Bad Request: curl -v -X POST -H "Host: abc.com" localhost:8080/hello.txt "Hello world" leads to 500 
+    Fixed: checkReturn() changed to allow zero size requests -->
+<!-- POST: On any error -> delete file     -> DONE? -->
 
-Long POST: yes | curl -v -X POST -H "Host: abc.com" -H "Content-Type: text/plain" --data @- http://localhost:8080/upload/hello.txt
+<!-- Long POST: yes | curl -v -X POST -H "Host: abc.com" -H "Content-Type: text/plain" --data @- http://localhost:8080/upload/hello.txt -->
 
-Using @- to read from STDIN does not seem to work, closing the FD and sending data isnt working
+<!-- Using @- to read from STDIN does not seem to work, closing the FD and sending data isnt working -->
 
-However, this works:
-yes | curl -v -X POST -H "Host: abc.com\n\nContent-Type: plain/text" --data "BODY IS HERE write something shorter or longer than body limit" http://localhost:8080/hello.txt
-
-
+<!-- However, this works:
+yes | curl -v -X POST -H "Host: abc.com\n\nContent-Type: plain/text" --data "BODY IS HERE write something shorter or longer than body limit" http://localhost:8080/hello.txt -->
 
 
 
 
--> redirect should close? ->no
--> DELETE/ Response sent headers only should close?->no
+
+
+<!-- -> redirect should close? ->no -->
+<!-- -> DELETE/ Response sent headers only should close?->no -->
 
 info: https://httpwg.org/specs/rfc9112.html#compatibility.with.http.1.0.persistent.connections
 
@@ -226,12 +226,12 @@ info: https://httpwg.org/specs/rfc9112.html#compatibility.with.http.1.0.persiste
 
 
 
-single POST: content was not uploaded, file was not removed on interupt
-Double POST: no 407 confict response
+<!-- single POST: content was not uploaded, file was not removed on interupt -->
+<!-- Double POST: no 407 confict response -->
 
-If multipart supportet extract filename from there?
+<!-- If multipart supportet extract filename from there? -->
 
-Support POST with no filename
+<!-- Support POST with no filename -->
 
 
 <!-- -> add newlines -->
@@ -262,10 +262,10 @@ Support POST with no filename
 <!-- -> tried to upload a file (in browser) and check along with what the terminal says:
 	after deleting the file it creates another request to get the same file and tells me its not found
 	(deleted the default GET method from the request constructor..?) -->
-
+<!-- 
 -> new connections of clients every few seconds (or on hover) while not doing anything (mostly in browser)
 
--> connections are being closed even though they shouldn't
+-> connections are being closed even though they shouldn't -->
 
 <!-- -> nc localhost 8080 -> Host: def.com (shouldnt match!) still gets the 8080-abc.com config+ no errors -->
 
@@ -302,3 +302,6 @@ Support POST with no filename
    3. If the host as determined by rule 1 or 2 is not a valid host on
      the server, the response MUST be a 400 (Bad Request) error message. -->
 
+A server MAY reject a request that contains both Content-Length and Transfer-Encoding or process
+such a request in accordance with the Transfer-Encoding alone. Regardless, the server MUST close
+the connection after responding to such a request to avoid the potential attacks.

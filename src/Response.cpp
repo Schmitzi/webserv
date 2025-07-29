@@ -279,14 +279,8 @@ bool shouldCloseConnection(Request& req) {
     std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
     if (it != req.getHeaders().end() && iEqual(it->second, "close")) {
         req.getClient().shouldClose() = true;
+		req.getClient().connClose() = true;
         return true;
-    }
-    
-    if (req.getVersion() == "HTTP/1.0") {
-        if (it == req.getHeaders().end() || !iEqual(it->second, "keep-alive")) {
-            req.getClient().shouldClose() = true;
-            return true;
-        }
     }
     
     if (iEqual(req.getMethod(), "POST") && !req.isChunked() && !req.hasValidLength()) {
@@ -295,23 +289,14 @@ bool shouldCloseConnection(Request& req) {
     }
     
     int statusCode = req.getClient().statusCode();
-    if (statusCode >= 400) {
-        if (statusCode == 400 || statusCode == 408 || statusCode == 431 || statusCode == 500 ||
-            statusCode == 502 || statusCode == 503 || statusCode == 505) {
-            req.getClient().shouldClose() = true;
-            return true;
-        }
-        
-        if (statusCode == 413 || statusCode == 414 || statusCode == 501) {
-            return false;
-        }
-
+    if (statusCode >= 400 && statusCode != 413 && statusCode != 414 && statusCode != 501) {
+		req.getClient().shouldClose() = true;
+		return true;
     }
 
     if (req.getClient().shouldClose()) {
         return true;
     }
-
     req.getClient().shouldClose() = false;
     return false;
 }

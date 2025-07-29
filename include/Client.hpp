@@ -43,6 +43,7 @@ class Client {
 		bool						&exitErr();
 		bool						&fileIsNew();
 		bool						&shouldClose();
+		bool						&connClose();
 		time_t						&lastUsed();
 		std::string					&output();
 		int							&statusCode();
@@ -80,6 +81,7 @@ class Client {
 		bool						_exitErr;
 		bool						_fileIsNew;
 		bool						_shouldClose;
+		bool						_connClose;
 		time_t						_lastUsed;
 		std::string					_output;
 		int							_statusCode;

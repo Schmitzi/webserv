@@ -22,6 +22,7 @@ Client::Client(Server& serv) {
 	_exitErr = false;
 	_fileIsNew = false;
 	_shouldClose = false;
+	_connClose = false;
 	_lastUsed = time(NULL);
 	_output = "";
 	_statusCode = 200;
@@ -46,6 +47,7 @@ Client& Client::operator=(const Client& other) {
 		_exitErr = other._exitErr;
 		_fileIsNew = other._fileIsNew;
 		_shouldClose = other._shouldClose;
+		_connClose = other._connClose;
 		_lastUsed = other._lastUsed; 
 		_output = other._output;
 		_statusCode = other._statusCode;
@@ -91,6 +93,10 @@ bool &Client::fileIsNew() {
 
 bool &Client::shouldClose() {
 	return _shouldClose;
+}
+
+bool &Client::connClose() {
+	return _connClose;
 }
 
 time_t &Client::lastUsed() {

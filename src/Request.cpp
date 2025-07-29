@@ -202,7 +202,6 @@ void Request::parse(const std::string& rawRequest) {
 	
 	parseHeaders(headerSection);
 	if (_client->statusCode() >= 400) {
-		std::cout << RED << "here\n" << RESET;
 		_check = "BAD";
 		return;
 	}
