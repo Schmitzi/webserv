@@ -17,7 +17,6 @@ bool		isValidIndexFile(const std::string& indexFile);
 void		parseClientMaxBodySize(serverLevel& serv);
 
 void		checkRoot(serverLevel& serv);
-void		checkIndex(serverLevel& serv);
 void		checkConfig(serverLevel& serv);
 void		checkMethods(locationLevel& loc);
 void		initLocLevel(std::vector<std::string>& s, locationLevel& loc);

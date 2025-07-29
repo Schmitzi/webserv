@@ -23,7 +23,6 @@ class CGIHandler {
 
 		//getters & setters
 		Client*									getClient() const;
-		void									setServer(Server &server);
 		void									setPath(const std::string& path);
 		void									setCGIBin(serverLevel *config);
 

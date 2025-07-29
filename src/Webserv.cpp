@@ -265,17 +265,8 @@ void Webserv::kickLeastRecentlyUsedClient() {
 }
 
 void Webserv::handleNewConnection(Server &server) {
-	if (_clients.size() >= 1000) {//TODO: tested with max 2 clients and seems to work well, but please check again!
+	if (_clients.size() >= 1000)
 		kickLeastRecentlyUsedClient();
-		// std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
-		
-		// struct sockaddr_in addr;
-		// socklen_t addrLen = sizeof(addr);
-		// int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);//TODO: we could send 503 OR implement a timeout (+disconnect) based on least recent activity of the clients (lra)
-		// if (newFd >= 0)
-		// 	close(newFd);
-		// return;
-	}
 
 	Client newClient(server);
 	
@@ -323,7 +314,6 @@ void Webserv::handleClientActivity(int clientFd) {
 		client->state() = RECEIVING;
 	if (client->state() < DONE)
 		client->receiveData();
-	//std::cout << RED << "Here? " << client->state() << "\n" << RESET;
 }
 
 void Webserv::handleEpollOut(int fd) {

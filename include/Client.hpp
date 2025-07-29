@@ -37,7 +37,6 @@ class Client {
 		int							&getFd();
 		Server						&getServer();
 		Webserv						&getWebserv();
-		Request						&getRequest();
 		size_t						&getOffset();
 		std::vector<serverLevel>	getConfigs();
 		bool						&exitErr();
@@ -69,12 +68,12 @@ class Client {
 		bool						saveFile(Request& req, const std::string& filename, const std::string& content);
 
 	private:
-		struct sockaddr_in  		_addr;
-		socklen_t           		_addrLen;
-		int                 		_fd;
-		std::string         		_requestBuffer;
-		Server              		*_server;
-		Webserv             		*_webserv;
+		struct sockaddr_in			_addr;
+		socklen_t					_addrLen;
+		int							_fd;
+		std::string					_requestBuffer;
+		Server						*_server;
+		Webserv						*_webserv;
 		Request						*_req;
 		std::vector<serverLevel>	_configs;
 		size_t						_sendOffset;
