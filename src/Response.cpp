@@ -201,7 +201,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	
 	response += "Server: WebServ/1.0\r\n";
 	
-	if (shouldCloseConnection(req) == true)
+	if (shouldCloseConnection(req))
 		response += "Connection: close\r\n";
 	response += "Access-Control-Allow-Origin: *\r\n";
 	response += "\r\n";
@@ -277,14 +277,42 @@ void sendErrorResponse(Client& c, Request& req) {
 
 bool shouldCloseConnection(Request& req) {
 	std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
-	if (it != req.getHeaders().end() && iEqual(it->second, "close"))
+	if (it != req.getHeaders().end() && iEqual(it->second, "close")) {
+		std::cout << CYAN << "HERE 3" << RESET << std::endl;
+		req.getClient().shouldClose() = true;
 		return true;
-	if (req.getClient().statusCode() == 400 || req.getClient().statusCode() == 411 || (req.getClient().statusCode() >= 500 && req.getClient().statusCode() != 501))
+	}
+
+	if (!req.isChunked() && !req.hasValidLength()) {//TODO: add a better check for hasValidLength!
+		std::cout << CYAN << "HERE 6" << RESET << std::endl;
+		req.getClient().shouldClose() = true;
 		return true;
-	if (req.getClient().statusCode() == 413)
+	}
+
+	// if (req.getClient().shouldClose() == true) {
+	// 	std::cout << CYAN << "HERE 1" << RESET << std::endl;
+	// 	return true;
+	// }
+
+	if (req.getClient().statusCode() >= 400) {
+		if (req.getClient().statusCode() == 413 || req.getClient().statusCode() == 501) {
+			std::cout << CYAN << "HERE 4" << RESET << std::endl;
+			req.getClient().shouldClose() = false;
+			return false;
+		}
+		std::cout << CYAN << "HERE 5" << RESET << std::endl;
+		req.getClient().shouldClose() = true;
+		return true;
+	}
+
+	if (req.getClient().statusCode() < 400) {
+		std::cout << CYAN << "HERE 2" << RESET << std::endl;
+		req.getClient().shouldClose() = false;
 		return false;
-	if (!req.isChunked() && !req.hasValidLength())
-		return true;
+	}
+
+	std::cout << CYAN << "HERE 7" << RESET << std::endl;
+	req.getClient().shouldClose() = false;
 	return false;
 }
 
