@@ -320,6 +320,10 @@ void Request::parseHeaders(const std::string& headerSection) {
 		size_t colonPos = line.find(':');
 		if (colonPos != std::string::npos) {
 			std::string key = line.substr(0, colonPos);
+			if (key[key.size() - 1] == ' ') {
+				_client->statusCode() = 400;
+				return;
+			}
 			std::string value = line.substr(colonPos + 1);
 			
 			key.erase(0, key.find_first_not_of(" \t"));
