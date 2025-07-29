@@ -176,8 +176,6 @@ int Webserv::run() {
 			continue;
 		}
 		for (int i = 0; i < nfds; i++) {
-			// if (one < 15)
-			// 	std::cout << GREEN << one << RESET << std::endl;
 			int fd = _events[i].data.fd;
 			uint32_t eventMask = _events[i].events;
 			if (!checkEventMaskErrors(eventMask, fd))
@@ -193,11 +191,6 @@ int Webserv::run() {
 				if (eventMask & EPOLLOUT)
 					handleEpollOut(fd);
 			}
-			// if (one == 10) {
-			// 	releaseLockFile("local/upload/hello.txt");
-			// 	std::cout << GREEN << "------------------UNLOCKED------------------" << RESET << std::endl;
-			// }
-			// one++;
 		}
 	}
 	return 0;
@@ -327,6 +320,7 @@ void Webserv::handleClientActivity(int clientFd) {
 		client->state() = RECEIVING;
 	if (client->state() < DONE)
 		client->receiveData();
+	//std::cout << RED << "Here? " << client->state() << "\n" << RESET;
 }
 
 void Webserv::handleEpollOut(int fd) {

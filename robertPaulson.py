@@ -1115,13 +1115,14 @@ def test_keep_alive():
     conn = http.client.HTTPConnection(HOST, PORT)
     try:
         # Make multiple requests on same connection
-        for i in range(3):
-            conn.request("GET", f"/test_{i}")
+        for i in range(4):
+            conn.request("GET", f"/test")
             res = conn.getresponse()
             data = res.read()
             if res.status != 200 and res.status != 404:
                 print_test(f"Keep-alive request {i} failed", "FAIL")
                 return
+            #time.sleep(2)
         PASS += 1
         print_test("Keep-alive connections working", "PASS")
     except Exception as e:

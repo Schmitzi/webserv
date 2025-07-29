@@ -276,44 +276,44 @@ void sendErrorResponse(Client& c, Request& req) {
 }
 
 bool shouldCloseConnection(Request& req) {
-	std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
-	if (it != req.getHeaders().end() && iEqual(it->second, "close")) {
-		std::cout << CYAN << "HERE 3" << RESET << std::endl;
-		req.getClient().shouldClose() = true;
-		return true;
-	}
+    std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
+    if (it != req.getHeaders().end() && iEqual(it->second, "close")) {
+        req.getClient().shouldClose() = true;
+        return true;
+    }
+    
+    if (req.getVersion() == "HTTP/1.0") {
+        if (it == req.getHeaders().end() || !iEqual(it->second, "keep-alive")) {
+            req.getClient().shouldClose() = true;
+            return true;
+        }
+    }
+    
+    if (iEqual(req.getMethod(), "POST") && !req.isChunked() && !req.hasValidLength()) {
+        req.getClient().shouldClose() = true;
+        return true;
+    }
+    
+    int statusCode = req.getClient().statusCode();
+    if (statusCode >= 400) {
+        if (statusCode == 400 || statusCode == 408 || statusCode == 431 || statusCode == 500 ||
+            statusCode == 502 || statusCode == 503 || statusCode == 505) {
+            req.getClient().shouldClose() = true;
+            return true;
+        }
+        
+        if (statusCode == 413 || statusCode == 414 || statusCode == 501) {
+            return false;
+        }
 
-	if (!req.isChunked() && !req.hasValidLength()) {//TODO: add a better check for hasValidLength!
-		std::cout << CYAN << "HERE 6" << RESET << std::endl;
-		req.getClient().shouldClose() = true;
-		return true;
-	}
+    }
 
-	// if (req.getClient().shouldClose() == true) {
-	// 	std::cout << CYAN << "HERE 1" << RESET << std::endl;
-	// 	return true;
-	// }
+    if (req.getClient().shouldClose()) {
+        return true;
+    }
 
-	if (req.getClient().statusCode() >= 400) {
-		if (req.getClient().statusCode() == 413 || req.getClient().statusCode() == 501) {
-			std::cout << CYAN << "HERE 4" << RESET << std::endl;
-			req.getClient().shouldClose() = false;
-			return false;
-		}
-		std::cout << CYAN << "HERE 5" << RESET << std::endl;
-		req.getClient().shouldClose() = true;
-		return true;
-	}
-
-	if (req.getClient().statusCode() < 400) {
-		std::cout << CYAN << "HERE 2" << RESET << std::endl;
-		req.getClient().shouldClose() = false;
-		return false;
-	}
-
-	std::cout << CYAN << "HERE 7" << RESET << std::endl;
-	req.getClient().shouldClose() = false;
-	return false;
+    req.getClient().shouldClose() = false;
+    return false;
 }
 
 void translateErrorCode(int errnoCode, int& statusCode) {

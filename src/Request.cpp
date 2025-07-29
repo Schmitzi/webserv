@@ -181,7 +181,6 @@ void Request::parse(const std::string& rawRequest) {
 		_check = "BAD";
 		return;
 	}
-	std::cout << CYAN << rawRequest << RESET << std::endl;
 	checkContentLength(rawRequest);
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
@@ -203,6 +202,7 @@ void Request::parse(const std::string& rawRequest) {
 	
 	parseHeaders(headerSection);
 	if (_client->statusCode() >= 400) {
+		std::cout << RED << "here\n" << RESET;
 		_check = "BAD";
 		return;
 	}
@@ -269,20 +269,23 @@ bool Request::checkVersion() {
 }
 
 void Request::checkQueryAndPath(std::string target) {
-	size_t queryPos = target.find('?');
-	if (queryPos != std::string::npos) {
-		_path = _path.substr(0, queryPos);
-		_query = _path.substr(queryPos + 1);
-	}
-	if ((_path == "/" || _path == "") && iEqual(_method, "GET")) {
-		std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
-		if (it != _curConf.locations.end())
-			_path = matchAndAppendPath(it->second.rootLoc, it->second.indexFile);
-	}
+    size_t queryPos = target.find('?');
+    if (queryPos != std::string::npos) {
+        _path = target.substr(0, queryPos);
+        _query = target.substr(queryPos + 1);
+    } else {
+        _path = target;
+    }
 
-	size_t end = _path.find_last_not_of(" \t\r\n");
-	if (end != std::string::npos)
-		_path = _path.substr(0, end + 1);
+    if ((_path == "/" || _path == "") && iEqual(_method, "GET")) {
+        std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
+        if (it != _curConf.locations.end())
+            _path = matchAndAppendPath(it->second.rootLoc, it->second.indexFile);
+    }
+
+    size_t end = _path.find_last_not_of(" \t\r\n");
+    if (end != std::string::npos)
+        _path = _path.substr(0, end + 1);
 }
 
 void Request::getHostAndPath(std::string& target) {
@@ -291,7 +294,7 @@ void Request::getHostAndPath(std::string& target) {
 
 	strip = target.substr(7);
 	size_t divider = strip.find_first_of('/');
-	hostPort = splitBy(strip.substr(0, divider - 1), ':');
+	hostPort = splitBy(strip.substr(0, divider), ':');
 	_host = hostPort[0];
 	_path = strip.substr(divider);
 }
@@ -304,13 +307,12 @@ void Request::parseHeaders(const std::string& headerSection) {
 	std::getline(iss, line);
 	size_t end = line.find_last_not_of(" \t\r\n");
 	if (end != std::string::npos)
-		line = line.substr(0, end + 1);
-
+	line = line.substr(0, end + 1);
+	
 	std::istringstream lineStream(line);
 	std::string target;
 	lineStream >> _method >> target >> _version;
 	if (isAbsPath(target)) {
-		std::cout << MAGENTA << target << RESET << std::endl;
 		ignoreHost = true;
 		getHostAndPath(target);
 	}
