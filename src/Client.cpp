@@ -189,7 +189,6 @@ void Client::receiveData() {
 	if (_state == PROCESSING) {
 		Request req(_requestBuffer, *this, _fd);
 		_req = &req;
-		//_req = new Request(_requestBuffer, *this, _fd);
 		_exitErr = processRequest();
 		if (_exitErr != 1)
 			_requestBuffer.clear();
