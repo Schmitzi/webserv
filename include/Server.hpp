@@ -31,7 +31,7 @@ class Server {
 		int							&getFd();
 		std::vector<serverLevel>	&getConfigs();
 		ConfigParser				&getConfParser();
-		std::string					getUploadDir(Client& client, Request& req);
+		std::string					getUploadDir(Client& client, Request& req, std::string dir = "");
 		std::string					getWebRoot(Request& req, locationLevel& loc);
 		int							setOptional();
 		int							setServerAddr();
