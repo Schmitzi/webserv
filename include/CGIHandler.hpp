@@ -12,6 +12,8 @@ class	Client;
 class	Server;
 struct	serverLevel;
 
+#define	TIMEOUT_SECONDS 14;
+
 #define NIX false
 
 class CGIHandler {
@@ -23,6 +25,7 @@ class CGIHandler {
 
 		//getters & setters
 		Client*									getClient() const;
+		Request& 								getRequest();
 		void									setPath(const std::string& path);
 		void									setCGIBin(serverLevel *config);
 
@@ -38,6 +41,9 @@ class CGIHandler {
 		int										handleChunkedOutput(const std::string& initialBody);
 		std::string								formatChunkedResponse(const std::string& body);
 		std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
+		void									startClock();
+		bool    								isTimedOut(time_t now) const;
+		void    								killProcess();
 		void									cleanupResources();
 
 	private:
@@ -54,6 +60,7 @@ class CGIHandler {
 		pid_t									_pid;
 		Request									_req;
 		time_t									_startTime;
+		time_t									_timeout;
 };
 
 #endif

@@ -52,6 +52,7 @@ class Webserv {
 		void						handleNewConnection(Server& server);
 		void						handleClientActivity(int clientFd);
 		void						handleEpollOut(int fd);
+		void    					checkCgiTimeouts();
 		void						cleanup();
 
 	private:

@@ -25,7 +25,7 @@ Client::Client(Server& serv) {
 	_connClose = false;
 	_lastUsed = time(NULL);
 	_output = "";
-	_statusCode = 200;
+	_statusCode = 0; // Maybe not 200?
 	_state = UNTRACKED;
 }
 
@@ -140,7 +140,6 @@ void Client::receiveData() {
 	char buffer[1000000];
 	memset(buffer, 0, sizeof(buffer));
 	
-	
 	ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
 	if (bytesRead < 0) {
 		_exitErr = true;
@@ -164,7 +163,6 @@ void Client::receiveData() {
 		return;
 	} else
 		_state = CHECKING;
-
 	if (_state == CHECKING) {
 		std::string tmp = toLower(_requestBuffer);
 		if (tmp.find("transfer-encoding:") != std::string::npos && tmp.find("chunked") != std::string::npos) {
@@ -191,7 +189,6 @@ void Client::receiveData() {
 		printNewLine = false;
 		_state = PROCESSING;
 	}
-	
 	if (_state == PROCESSING) {
 		Request req(_requestBuffer, *this, _fd);
 		_req = &req;
@@ -519,12 +516,12 @@ int Client::handleRegularRequest() {
 		cgi->setCGIBin(&_req->getConf());
 		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), reqPath);
 		cgi->setPath(fullCgiPath);
+		cgi->startClock();
 		int result = cgi->executeCGI(*_req);
 		if (result != 0)
 			delete cgi;
 		return result;
 	}
-
 	std::cout << getTimeStamp(_fd) << BLUE << "Handling GET request for path: " << RESET << _req->getPath() << std::endl;
 
 	struct stat fileStat;
