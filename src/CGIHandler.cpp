@@ -55,10 +55,6 @@ Client*  CGIHandler::getClient() const {
 	return _client;
 }
 
-Request& CGIHandler::getRequest() {
-    return _req;
-}
-
 void CGIHandler::setPath(const std::string& path) {
 	_path = path;
 }
@@ -425,19 +421,19 @@ void	CGIHandler::startClock() {
 }
 
 bool CGIHandler::isTimedOut(time_t now) const {
-    if (_startTime == 0)
+	if (_startTime == 0)
 		return false;
-    return (now - _startTime) > _timeout;
+	return (now - _startTime) > _timeout;
 }
 
 void CGIHandler::killProcess() {
-    if (_pid > 0) {
-        std::cout << getTimeStamp(_client->getFd()) << RED << "Killing CGI process " << _pid << RESET << std::endl;
-        kill(_pid, SIGKILL);
-        int status;
-        waitpid(_pid, &status, WNOHANG);
-        _pid = -1;
-    }
+	if (_pid > 0) {
+		std::cout << getTimeStamp(_client->getFd()) << RED << "Killing CGI process " << _pid << RESET << std::endl;
+		kill(_pid, SIGKILL);
+		int status;
+		waitpid(_pid, &status, WNOHANG);
+		_pid = -1;
+	}
 }
 
 void CGIHandler::cleanupResources() {
