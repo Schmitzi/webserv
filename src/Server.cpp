@@ -4,6 +4,7 @@
 #include "../include/Request.hpp"
 #include "../include/Response.hpp"
 #include "../include/Helper.hpp"
+#include "../include/ConfigValidator.hpp"
 
 Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 	_fd = -1;
@@ -13,7 +14,22 @@ Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 	std::string targetIp = portPair.first.first;
 	int targetPort = portPair.first.second;
 	
+	
 	_configs.clear();
+	
+	std::vector<serverLevel> allConfigs = confs.getAllConfigs();
+	for (size_t i = 0; i < allConfigs.size(); i++) {
+		for (size_t j = 0; j < allConfigs[i].port.size(); j++) {
+			std::string configIp = allConfigs[i].port[j].first.first;
+			int configPort = allConfigs[i].port[j].first.second;
+			
+			if (configIp == targetIp && configPort == targetPort) {
+				_configs.push_back(allConfigs[i]);
+				break;
+			}
+		}
+	}
+	
 	
 	std::vector<serverLevel> allConfigs = confs.getAllConfigs();
 	for (size_t i = 0; i < allConfigs.size(); i++) {
@@ -70,21 +86,26 @@ ConfigParser &Server::getConfParser() {
 	return _confParser;
 }
 
-std::string Server::getUploadDir(Client& client, Request& req) {
+std::string Server::getUploadDir(Client& client, Request& req, std::string dir) {
 	locationLevel* loc = NULL;
-	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
+	std::string path;
+	if (dir.empty())
+		path = req.getPath();
+	else
+		path = dir;
+	if (!matchUploadLocation(path, req.getConf(), loc)) {
 		client.statusCode() = 404;
-		client.output() = getTimeStamp(client.getFd()) + RED + "Location not found: " + RESET + req.getPath();
+		client.output() = getTimeStamp(client.getFd()) + RED + "Location not found: " + RESET + path + "\n";
 		sendErrorResponse(client, req);
 		return "";
 	}
 	if (loc->uploadDirPath.empty()) {
 		client.statusCode() = 403;
-		client.output() = getTimeStamp(client.getFd()) + RED + "Upload directory not set: " + RESET + req.getPath();
+		client.output() = getTimeStamp(client.getFd()) + RED + "Upload directory not set: " + RESET + path + "\n";
 		sendErrorResponse(client, req);
 		return "";
 	}
-	std::string fullPath = matchAndAppendPath(getWebRoot(req, *loc), req.getPath());
+	std::string fullPath = matchAndAppendPath(getWebRoot(req, *loc), path);
 	return fullPath;
 }
 

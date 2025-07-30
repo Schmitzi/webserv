@@ -104,21 +104,21 @@ int CGIHandler::executeCGI(Request &req) {
 int CGIHandler::doChecks() {
 	if (access(_path.c_str(), F_OK) != 0) {
 		_client->statusCode() = 404;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (access(_path.c_str(), X_OK) != 0) {
 		_client->statusCode() = 403;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script is not executable: " + RESET + _path;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script is not executable: " + RESET + _path + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (pipe(_input) < 0 || pipe(_output) < 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: pipe() failed" + RESET;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: pipe() failed" + RESET + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
@@ -141,12 +141,12 @@ int CGIHandler::prepareEnv() {
 			ext = "." + _path.substr(dotPos + 1); 
 			
 			if (!matchLocation(ext, _req.getConf(), loc)) {
-				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext;
+				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
 				return 1;
 			}
 			
 			if (loc->uploadDirPath.empty()) {
-				_client->output() = getTimeStamp(_client->getFd()) + RED + "Upload directory not set for extension: " + RESET + ext;
+				_client->output() = getTimeStamp(_client->getFd()) + RED + "Upload directory not set for extension: " + RESET + ext + "\n";
 				return 1;
 			}
 			filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
@@ -158,7 +158,7 @@ int CGIHandler::prepareEnv() {
 			ext = "." + _path.substr(dotPos + 1);
 			
 			if (!matchLocation(ext, _req.getConf(), loc)) {
-				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext;
+				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
 				return 1;
 			}
 			makeArgs(loc->cgiProcessorPath, filePath);
@@ -221,7 +221,7 @@ int CGIHandler::doChild() {
 	
 	if (dup2(_input[0], STDIN_FILENO) < 0 || dup2(_output[1], STDOUT_FILENO) < 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: dup2() failed" + RESET;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: dup2() failed\n" + RESET;
 		cleanupResources();
 		return 1;
 	}
@@ -230,7 +230,7 @@ int CGIHandler::doChild() {
 	
 	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
 	_client->statusCode() = 500;
-	_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: execve() failed" + RESET;
+	_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: execve() failed\n" + RESET;
 	cleanupResources();
 	return 1;
 }
@@ -263,7 +263,7 @@ int CGIHandler::doParent() {
 	_input[1] = -1;
 	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN) != 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll" + RESET;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll\n" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
@@ -453,7 +453,7 @@ void CGIHandler::cleanupResources() {
 			unregisterCgiPipe(_server->getWebServ(), _output[0]);
 		close(_output[0]);
 		_output[0] = -1;
-		_client->output() = getTimeStamp(_client->getFd()) + "Cleaned up and disconnected CGI";
+		_client->output() = getTimeStamp(_client->getFd()) + "Cleaned up and disconnected CGI\n";
 	}
 	_path.clear();
 	_args.clear();

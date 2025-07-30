@@ -168,7 +168,7 @@ int Webserv::run() {
 	initialize();
 	
 	while (_state == true) {
-		int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, 200); // Increased time between polls, to allow time checking
+		int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, 200); // TODO: Increased time between polls, to allow time checking
 		if (nfds == -1) {
 			if (errno == EINTR)
 				continue;
@@ -316,9 +316,8 @@ void Webserv::handleClientActivity(int clientFd) {
 	}
 	if (client->state() == UNTRACKED)
 		client->state() = RECEIVING;
-	if (client->state() < DONE) {
+	if (client->state() < DONE)
 		client->receiveData();
-	}
 }
 
 void Webserv::handleEpollOut(int fd) {
@@ -345,15 +344,14 @@ void Webserv::handleEpollOut(int fd) {
 	}
 
 	offset += static_cast<size_t>(s);
-
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
 		c->lastUsed() = time(NULL);
 		if (c->statusCode() < 400)
-			std::cout << c->output() << std::endl;
+			std::cout << c->output() << std::flush;
 		else
-			std::cerr << c->output() << std::endl;
+			std::cerr << c->output() << std::flush;
 		c->output().clear();
 		if (c->shouldClose() == true)
 			c->exitErr() = true;
