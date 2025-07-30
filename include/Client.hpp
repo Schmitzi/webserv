@@ -76,8 +76,6 @@ class Client {
 
 		int							handleGetRequest();
 		int							handlePostRequest();
-		int							createDirectory(std::string& fullPath);
-		int							createFile(std::string& fullPath, std::string& contentToWrite);
 		int							handleDeleteRequest();
 
 		int							handleFileBrowserRequest();

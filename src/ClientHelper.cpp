@@ -119,7 +119,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	if (fd < 0) {
 		releaseLockFile(fullPath);
 		c.statusCode() = 500;
-		c.output() = getTimeStamp(c.getFd()) + RED + "Failed to open file: " + RESET + fullPath + "\n";
+		c.output() = getTimeStamp(c.getFd()) + RED + "Failed to open file: " + RESET + fullPath;
 		sendErrorResponse(c, req);
 		return 1;
 	}
@@ -146,7 +146,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	if (bytesRead == 0)
 		return 0;
 	else if (bytesRead < 0) {
-		c.output() = getTimeStamp(c.getFd()) + RED + "Error: read() failed on file: " + RESET + fullPath + "\n";
+		c.output() = getTimeStamp(c.getFd()) + RED + "Error: read() failed on file: " + RESET + fullPath;
 		c.statusCode() = 500;
 		sendErrorResponse(c, req);
 		return 1;
@@ -163,7 +163,7 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 		c.statusCode() = 500;
 		c.statusCode() = 500;
 		if (mkdir(uploadDir.c_str(), 0755) != 0) {
-			c.output() = getTimeStamp(c.getFd()) + RED + "Error: Failed to create upload directory\n" + RESET;
+			c.output() = getTimeStamp(c.getFd()) + RED + "Error: Failed to create upload directory" + RESET;
 			return false;
 		}
 	}
@@ -172,16 +172,15 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 
 std::string getLocationPath(Client& c, Request& req, const std::string& method) {	
 	locationLevel* loc = NULL;
-	std::string path = req.getPath();
 	if (req.getPath().empty()) {
 		c.statusCode() = 400;
-		c.output() = getTimeStamp(c.getFd()) + RED + "Request path is empty for " + method + " request\n" + RESET;
+		c.output() = getTimeStamp(c.getFd()) + RED + "Request path is empty for " + method + " request" + RESET;
 		sendErrorResponse(c, req);
 		return "";
 	}
-	if (!matchUploadLocation(path, req.getConf(), loc)) {
+	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
 		c.statusCode() = 404;
-		c.output() = getTimeStamp(c.getFd()) + RED + "Location not found for " + method + " request: " + RESET + req.getPath() + "\n";
+		c.output() = getTimeStamp(c.getFd()) + RED + "Location not found for " + method + " request: " + RESET + req.getPath();
 		sendErrorResponse(c, req);
 		return "";
 	}
@@ -191,14 +190,14 @@ std::string getLocationPath(Client& c, Request& req, const std::string& method) 
 			break;
 		if (i == loc->methods.size() - 1) {
 			c.statusCode() = 405;
-			c.output() = getTimeStamp(c.getFd()) + RED + "Method not allowed for " + method + " request: " + RESET + req.getPath() + "\n";
+			c.output() = getTimeStamp(c.getFd()) + RED + "Method not allowed for " + method + " request: " + RESET + req.getPath();
 			sendErrorResponse(c, req);
 			return "";
 		}
 	}
 	if (loc->uploadDirPath.empty()) {
 		c.statusCode() = 403;
-		c.output() = getTimeStamp(c.getFd()) + RED + "Upload directory not set for " + method + " request: " + RESET + req.getPath() + "\n";
+		c.output() = getTimeStamp(c.getFd()) + RED + "Upload directory not set for " + method + " request: " + RESET + req.getPath();
 		sendErrorResponse(c, req);
 		return "";
 	}
@@ -220,7 +219,7 @@ std::string decodeChunkedBody(Client& c, int fd, const std::string& chunkedData)
 			crlfPos = chunkedData.find("\n", pos);
 			lineEndLength = 1;
 			if (crlfPos == std::string::npos) {
-				c.output() = getTimeStamp(fd) + RED  + "Malformed chunked data: no CRLF after chunk size\n" + RESET;
+				c.output() = getTimeStamp(fd) + RED  + "Malformed chunked data: no CRLF after chunk size" + RESET;
 				break;
 			}
 		}
@@ -269,7 +268,7 @@ bool tryLockFile(Client& c, const std::string& path, int timeStampFd, bool& isNe
 		if (errno == EEXIST)
 			isNew = false;
 		else {
-			c.output() = getTimeStamp(timeStampFd) + RED + "Error: opening file failed\n" + RESET;
+			c.output() = getTimeStamp(timeStampFd) + RED + "Error: opening file failed" + RESET;
 			return false;
 		}
 	}
@@ -283,10 +282,10 @@ bool tryLockFile(Client& c, const std::string& path, int timeStampFd, bool& isNe
 	fd = open(lockPath.c_str(), O_CREAT | O_EXCL, 0644);
 	if (fd == -1) {
 		if (errno == EEXIST) {
-			c.output() = getTimeStamp(timeStampFd) + RED + "Error: File is being used at the moment: " + RESET + path + "\n";
+			c.output() = getTimeStamp(timeStampFd) + RED + "Error: File is being used at the moment: " + RESET + path;
 			return false;
 		} else {
-			c.output() = getTimeStamp(timeStampFd) + RED + "Error: creating lock file failed\n" + RESET;
+			c.output() = getTimeStamp(timeStampFd) + RED + "Error: creating lock file failed" + RESET;
 			return false;
 		}
 	}
