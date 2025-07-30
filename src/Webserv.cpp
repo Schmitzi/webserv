@@ -230,7 +230,10 @@ void Webserv::handleClientDisconnect(int fd) {
 
 	for (size_t i = 0; i < _clients.size(); i++) {
 		if (_clients[i].getFd() == fd) {
-			std::cout << getTimeStamp(fd) << "Cleaned up and disconnected client" << std::endl;
+			if (_clients[i].connClose() == true)
+				std::cout << getTimeStamp(fd) << YELLOW << "Cleaned up and disconnected client (\"Connection: close\" in Request)" << RESET << std::endl;
+			else
+				std::cout << getTimeStamp(fd) << YELLOW << "Cleaned up and disconnected client" << RESET << std::endl;
 			close(_clients[i].getFd());
 			_clients.erase(_clients.begin() + i);
 			return;
@@ -262,17 +265,8 @@ void Webserv::kickLeastRecentlyUsedClient() {
 }
 
 void Webserv::handleNewConnection(Server &server) {
-	if (_clients.size() >= 1000) {//TODO: tested with max 2 clients and seems to work well, but please check again!
+	if (_clients.size() >= 1000)
 		kickLeastRecentlyUsedClient();
-		// std::cerr << getTimeStamp() << RED << "Connection limit reached, refusing new connection" << RESET << std::endl;
-		
-		// struct sockaddr_in addr;
-		// socklen_t addrLen = sizeof(addr);
-		// int newFd = accept(server.getFd(), (struct sockaddr *)&addr, &addrLen);//TODO: we could send 503 OR implement a timeout (+disconnect) based on least recent activity of the clients (lra)
-		// if (newFd >= 0)
-		// 	close(newFd);
-		// return;
-	}
 
 	Client newClient(server);
 	
@@ -320,7 +314,6 @@ void Webserv::handleClientActivity(int clientFd) {
 		client->state() = RECEIVING;
 	if (client->state() < DONE)
 		client->receiveData();
-	//std::cout << RED << "Here? " << client->state() << "\n" << RESET;
 }
 
 void Webserv::handleEpollOut(int fd) {

@@ -160,8 +160,8 @@ void sendRedirect(Client& c, const std::string& location, Request& req) {
 		"<html>\n"
 		"<head>\n"
 		"    <title>" + statusText + "</title></head>\n"
-	    "    <body><h1>" + statusText + "</h1>\n"
-	    "    <p>The document has moved <a href=\"" + location + "\">here</a>.</p>\n"
+		"    <body><h1>" + statusText + "</h1>\n"
+		"    <p>The document has moved <a href=\"" + location + "\">here</a>.</p>\n"
 		"    </body>\n"
 		"</html>\n";	
 	
@@ -276,32 +276,29 @@ void sendErrorResponse(Client& c, Request& req) {
 }
 
 bool shouldCloseConnection(Request& req) {
-    std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
-    if (it != req.getHeaders().end() && iEqual(it->second, "close")) {
-        req.getClient().shouldClose() = true;
-        return true;
-    }
-
-    if (iEqual(req.getMethod(), "POST") && !req.isChunked() && !req.hasValidLength()) {
-        req.getClient().shouldClose() = true;
-        return true;
-    }
-    
-    int statusCode = req.getClient().statusCode();
-    if (statusCode >= 400) {
-		if (statusCode == 413 || statusCode == 414 || statusCode == 501) {
-            return false;
-        }
+	std::map<std::string, std::string>::iterator it = iMapFind(req.getHeaders(), "Connection");
+	if (it != req.getHeaders().end() && iEqual(it->second, "close")) {
+		req.getClient().shouldClose() = true;
+		req.getClient().connClose() = true;
+		return true;
+	}
+	
+	if (iEqual(req.getMethod(), "POST") && !req.isChunked() && !req.hasValidLength()) {
 		req.getClient().shouldClose() = true;
 		return true;
-    }
+	}
+	
+	int statusCode = req.getClient().statusCode();
+	if (statusCode >= 400 && statusCode != 413 && statusCode != 414 && statusCode != 501) {
+		req.getClient().shouldClose() = true;
+		return true;
+	}
 
-    if (req.getClient().shouldClose()) {
-        return true;
-    }
-
-    req.getClient().shouldClose() = false;
-    return false;
+	if (req.getClient().shouldClose()) {
+		return true;
+	}
+	req.getClient().shouldClose() = false;
+	return false;
 }
 
 void translateErrorCode(int errnoCode, int& statusCode) {

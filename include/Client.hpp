@@ -43,6 +43,7 @@ class Client {
 		bool						&exitErr();
 		bool						&fileIsNew();
 		bool						&shouldClose();
+		bool						&connClose();
 		time_t						&lastUsed();
 		std::string					&output();
 		int							&statusCode();
@@ -68,18 +69,19 @@ class Client {
 		bool						saveFile(Request& req, const std::string& filename, const std::string& content);
 
 	private:
-		struct sockaddr_in  		_addr;
-		socklen_t           		_addrLen;
-		int                 		_fd;
-		std::string         		_requestBuffer;
-		Server              		*_server;
-		Webserv             		*_webserv;
+		struct sockaddr_in			_addr;
+		socklen_t					_addrLen;
+		int							_fd;
+		std::string					_requestBuffer;
+		Server						*_server;
+		Webserv						*_webserv;
 		Request						*_req;
 		std::vector<serverLevel>	_configs;
 		size_t						_sendOffset;
 		bool						_exitErr;
 		bool						_fileIsNew;
 		bool						_shouldClose;
+		bool						_connClose;
 		time_t						_lastUsed;
 		std::string					_output;
 		int							_statusCode;

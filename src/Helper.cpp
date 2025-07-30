@@ -92,61 +92,61 @@ std::string matchAndAppendPath(const std::string& base, const std::string& add) 
 }
 
 std::string decode(const std::string& encoded) {
-    std::string decoded;
-    char hexBuf[3] = {0};
+	std::string decoded;
+	char hexBuf[3] = {0};
 
-    for (std::string::size_type i = 0; i < encoded.length(); ++i) {
-        if (encoded[i] == '%' && i + 2 < encoded.length()) {
-            hexBuf[0] = encoded[i + 1];
-            hexBuf[1] = encoded[i + 2];
+	for (std::string::size_type i = 0; i < encoded.length(); ++i) {
+		if (encoded[i] == '%' && i + 2 < encoded.length()) {
+			hexBuf[0] = encoded[i + 1];
+			hexBuf[1] = encoded[i + 2];
 
-            char decodedChar = static_cast<char>(strtol(hexBuf, NULL, 16));
-            decoded += decodedChar;
-            i += 2;
-        } else if (encoded[i] == '+')
-            decoded += ' ';
-        else
-            decoded += encoded[i];
-    }
-    return decoded;
+			char decodedChar = static_cast<char>(strtol(hexBuf, NULL, 16));
+			decoded += decodedChar;
+			i += 2;
+		} else if (encoded[i] == '+')
+			decoded += ' ';
+		else
+			decoded += encoded[i];
+	}
+	return decoded;
 }
 
 std::string encode(const std::string& decoded) {
-    std::ostringstream encoded;
+	std::ostringstream encoded;
 
-    for (std::string::size_type i = 0; i < decoded.length(); ++i) {
-        unsigned char c = decoded[i];
-        if (c == '/')
-            encoded << '/';
-        else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+	for (std::string::size_type i = 0; i < decoded.length(); ++i) {
+		unsigned char c = decoded[i];
+		if (c == '/')
+			encoded << '/';
+		else if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
 				|| c == '-' || c == '_' || c == '.' || c == '~') {
-            encoded << c;
-        }
-        else {
-            encoded << '%' << std::uppercase << std::hex
-                    << std::setw(2) << std::setfill('0') << int(c);
-        }
-    }
+			encoded << c;
+		}
+		else {
+			encoded << '%' << std::uppercase << std::hex
+					<< std::setw(2) << std::setfill('0') << int(c);
+		}
+	}
 
-    return encoded.str();
+	return encoded.str();
 }
 
 std::string getTimeStamp(int fd) {
-    time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    
-    std::ostringstream oss;
-    oss << GREY << "[" 
-        << (tm_info->tm_year + 1900) << "-"
-        << std::setw(2) << std::setfill('0') << (tm_info->tm_mon + 1) << "-"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_mday << " "
-        << std::setw(2) << std::setfill('0') << tm_info->tm_hour << ":"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_min << ":"
-        << std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
+	time_t now = time(NULL);
+	struct tm* tm_info = localtime(&now);
+	
+	std::ostringstream oss;
+	oss << GREY << "[" 
+		<< (tm_info->tm_year + 1900) << "-"
+		<< std::setw(2) << std::setfill('0') << (tm_info->tm_mon + 1) << "-"
+		<< std::setw(2) << std::setfill('0') << tm_info->tm_mday << " "
+		<< std::setw(2) << std::setfill('0') << tm_info->tm_hour << ":"
+		<< std::setw(2) << std::setfill('0') << tm_info->tm_min << ":"
+		<< std::setw(2) << std::setfill('0') << tm_info->tm_sec << "] ";
 	if (fd >= 0)
 		oss << "[" << fd << "] " << RESET;
-    
-    return oss.str();
+	
+	return oss.str();
 }
 
 bool checkReturn(Client& c, int fd, ssize_t r, const std::string& func, std::string errMsgOnZero) {

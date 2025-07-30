@@ -1,7 +1,7 @@
 NAME	=	webserv
 
 CXX		=	c++
-CXXFLAGS	=	-Wall -Werror -Wextra -std=c++98 -g
+CXXFLAGS	=	-Wall -Werror -Wextra -std=c++98
 RM		=	rm -f
 
 RED     =   $(shell tput setaf 1)

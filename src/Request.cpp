@@ -268,23 +268,23 @@ bool Request::checkVersion() {
 }
 
 void Request::checkQueryAndPath(std::string target) {
-    size_t queryPos = target.find('?');
-    if (queryPos != std::string::npos) {
-        _path = target.substr(0, queryPos);
-        _query = target.substr(queryPos + 1);
-    } else {
-        _path = target;
-    }
+	size_t queryPos = target.find('?');
+	if (queryPos != std::string::npos) {
+		_path = target.substr(0, queryPos);
+		_query = target.substr(queryPos + 1);
+	} else {
+		_path = target;
+	}
 
-    if ((_path == "/" || _path == "") && iEqual(_method, "GET")) {
-        std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
-        if (it != _curConf.locations.end())
-            _path = matchAndAppendPath(it->second.rootLoc, it->second.indexFile);
-    }
+	if ((_path == "/" || _path == "") && iEqual(_method, "GET")) {
+		std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
+		if (it != _curConf.locations.end())
+			_path = matchAndAppendPath(it->second.rootLoc, it->second.indexFile);
+	}
 
-    size_t end = _path.find_last_not_of(" \t\r\n");
-    if (end != std::string::npos)
-        _path = _path.substr(0, end + 1);
+	size_t end = _path.find_last_not_of(" \t\r\n");
+	if (end != std::string::npos)
+		_path = _path.substr(0, end + 1);
 }
 
 void Request::getHostAndPath(std::string& target) {
@@ -341,7 +341,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 			setHeader(key, value, ignoreHost);
 		}
 	}
-
+	
 	if (_host.empty()) {
 		_client->statusCode() = 400;
 		return;

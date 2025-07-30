@@ -109,27 +109,6 @@ void checkRoot(serverLevel &serv) {
 	}
 }
 
-void checkIndex(serverLevel &serv) {
-	if (serv.indexFile.empty()) {
-		std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
-		while (it != serv.locations.end()) {
-			if (it->second.indexFile.empty())
-				throw configException("Error: No default index found.");
-			it->second.indexFile = matchAndAppendPath(it->second.rootLoc, it->second.indexFile);
-			++it;
-		}
-	}
-	else if (!serv.indexFile.empty()) {
-		serv.indexFile = matchAndAppendPath(serv.rootServ, serv.indexFile);
-		std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
-		while (it != serv.locations.end()) {
-			if (it->second.indexFile.empty())
-				it->second.indexFile = serv.indexFile;
-			++it;
-		}
-	}
-}
-
 void checkConfig(serverLevel &serv) {
 	if (serv.servName.empty())
 		serv.servName.push_back("");
