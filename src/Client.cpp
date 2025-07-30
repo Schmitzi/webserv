@@ -10,15 +10,12 @@
 #include "../include/EpollHelper.hpp"
 #include "../include/ClientHelper.hpp"
 #include "../include/ConfigValidator.hpp"
-#include "../include/ConfigValidator.hpp"
 
 Client::Client(Server& serv) {
 	_addr = serv.getAddr();
 	_fd = serv.getFd();
 	_server = &serv;
-	_server = &serv;
 	_webserv = &serv.getWebServ();
-	_req = NULL;
 	_req = NULL;
 	_configs = serv.getConfigs();
 	_sendOffset = 0;
@@ -43,20 +40,10 @@ Client& Client::operator=(const Client& other) {
 		_addrLen = other._addrLen;
 		_requestBuffer = other._requestBuffer;
 		_server = other._server;
-		_server = other._server;
 		_webserv = other._webserv;
-		_req = other._req;
 		_req = other._req;
 		_configs = other._configs;
 		_sendOffset = other._sendOffset;
-		_exitErr = other._exitErr;
-		_fileIsNew = other._fileIsNew;
-		_shouldClose = other._shouldClose;
-		_connClose = other._connClose;
-		_lastUsed = other._lastUsed; 
-		_output = other._output;
-		_statusCode = other._statusCode;
-		_state = other._state;
 		_exitErr = other._exitErr;
 		_fileIsNew = other._fileIsNew;
 		_shouldClose = other._shouldClose;
@@ -69,8 +56,6 @@ Client& Client::operator=(const Client& other) {
 	return *this;
 }
 
-Client::~Client() {
-}
 Client::~Client() {
 }
 
@@ -86,16 +71,10 @@ Webserv& Client::getWebserv() {
 	return *_webserv;
 }
 
-Request& Client::getRequest() {
-	return *_req;
-}
-
 size_t& Client::getOffset() {
 	return _sendOffset;
 }
 
-bool &Client::exitErr() {
-	return _exitErr;
 bool &Client::exitErr() {
 	return _exitErr;
 }
@@ -106,18 +85,12 @@ std::vector<serverLevel> Client::getConfigs() {
 
 bool &Client::fileIsNew() {
 	return _fileIsNew;
-bool &Client::fileIsNew() {
-	return _fileIsNew;
 }
 
 bool &Client::shouldClose() {
 	return _shouldClose;
-bool &Client::shouldClose() {
-	return _shouldClose;
 }
 
-bool &Client::connClose() {
-	return _connClose;
 bool &Client::connClose() {
 	return _connClose;
 }
@@ -128,28 +101,17 @@ time_t &Client::lastUsed() {
 
 std::string &Client::output() {
 	return _output;
-time_t &Client::lastUsed() {
-	return _lastUsed;
-}
-
-std::string &Client::output() {
-	return _output;
 }
 
 int &Client::statusCode() {
 	return _statusCode;
-int &Client::statusCode() {
-	return _statusCode;
 }
 
-int &Client::state() {
-	return _state;
 int &Client::state() {
 	return _state;
 }
 
 int Client::acceptConnection(int serverFd) {
-	std::cout << GREY << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << RESET << std::endl;
 	std::cout << GREY << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << RESET << std::endl;
 	_addrLen = sizeof(_addr);
 	_fd  = accept(serverFd, (struct sockaddr *)&_addr, &_addrLen);
@@ -170,7 +132,6 @@ void Client::displayConnection() {
 }
 
 void Client::receiveData() {
-void Client::receiveData() {
 	static bool printNewLine = false;
 	char buffer[1000000];
 	memset(buffer, 0, sizeof(buffer));
@@ -186,10 +147,8 @@ void Client::receiveData() {
 	
 	if (bytesRead == 0) {
 		_exitErr = false;
-		_exitErr = false;
 		return;
 	}
-
 
 	_requestBuffer.append(buffer, bytesRead);
 
@@ -246,17 +205,10 @@ int Client::processRequest() {
 	if (_req->getContentLength() > conf.requestLimit) {
 		statusCode() = 413;
 		sendErrorResponse(*this, *_req);
-int Client::processRequest() {
-	serverLevel &conf = _req->getConf();
-	if (_req->getContentLength() > conf.requestLimit) {
-		statusCode() = 413;
-		sendErrorResponse(*this, *_req);
 		_requestBuffer.clear();
 		return 1;
 	}
 
-	if (_req->check() == "BAD") {
-		sendErrorResponse(*this, *_req);
 	if (_req->check() == "BAD") {
 		sendErrorResponse(*this, *_req);
 		_requestBuffer.clear();
@@ -272,17 +224,12 @@ int Client::processRequest() {
 
 	locationLevel* loc = NULL;
 	if (matchLocation(_req->getPath(), conf, loc)) {
-	if (matchLocation(_req->getPath(), conf, loc)) {
 		if (loc->hasRedirect == true) {
-			statusCode() = loc->redirectionHTTP.first;
-			sendRedirect(*this, loc->redirectionHTTP.second, *_req);
 			statusCode() = loc->redirectionHTTP.first;
 			sendRedirect(*this, loc->redirectionHTTP.second, *_req);
 			return 0;
 		}
 	}
-	if (iFind(_req->getContentType(), "multipart/form-data") != std::string::npos) {
-		int result = handleMultipartPost();
 	if (iFind(_req->getContentType(), "multipart/form-data") != std::string::npos) {
 		int result = handleMultipartPost();
 		if (result != -1)
@@ -291,16 +238,7 @@ int Client::processRequest() {
 	}
 	std::cout << getTimeStamp(_fd) << BLUE << "Parsed Request: " << RESET << 
 		_req->getMethod() << " " << _req->getPath() << " " << _req->getVersion() << std::endl;
-		_req->getMethod() << " " << _req->getPath() << " " << _req->getVersion() << std::endl;
 
-	if (iEqual(_req->getMethod(), "GET"))
-		return handleGetRequest();
-	else if (iEqual(_req->getMethod(), "POST"))
-		return handlePostRequest();
-	else if (iEqual(_req->getMethod(), "DELETE"))
-		return handleDeleteRequest();
-	sendErrorResponse(*this, *_req);
-	return 1;
 	if (iEqual(_req->getMethod(), "GET"))
 		return handleGetRequest();
 	else if (iEqual(_req->getMethod(), "POST"))
@@ -311,7 +249,6 @@ int Client::processRequest() {
 	return 1;
 }
 
-int Client::handleGetRequest() {
 int Client::handleGetRequest() {
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
@@ -323,21 +260,14 @@ int Client::handleGetRequest() {
 	if (_req->getPath().find("../") != std::string::npos) {
 		statusCode() = 403;
 		sendErrorResponse(*this, *_req);
-	if (_req->getPath().find("../") != std::string::npos) {
-		statusCode() = 403;
-		sendErrorResponse(*this, *_req);
 		return 1;
 	}
 	if (loc->autoindex == true && isFileBrowserRequest(_req->getPath()))
 		return handleFileBrowserRequest();
-	if (loc->autoindex == true && isFileBrowserRequest(_req->getPath()))
-		return handleFileBrowserRequest();
 	else
-		return handleRegularRequest();
 		return handleRegularRequest();
 }
 
-int Client::handlePostRequest() {
 int Client::handlePostRequest() {
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
@@ -347,16 +277,12 @@ int Client::handlePostRequest() {
 		return 1;
 	}
 	std::string fullPath = getLocationPath(*this, *_req, "POST");
-	std::string fullPath = getLocationPath(*this, *_req, "POST");
 	if (fullPath.empty())
 		return 1;
 	if (isCGIScript(_req->getPath())) {
-	if (isCGIScript(_req->getPath())) {
 		CGIHandler* cgi = new CGIHandler(this);
 		std::string cgiPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), _req->getPath());
-		std::string cgiPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), _req->getPath());
 		cgi->setPath(cgiPath);
-		int result = cgi->executeCGI(*_req);
 		int result = cgi->executeCGI(*_req);
 		if (result != 0)
 			delete cgi;
@@ -365,13 +291,7 @@ int Client::handlePostRequest() {
 
 	if (iFind(_req->getContentType(), "multipart/form-data") != std::string::npos)
 		return handleMultipartPost();
-
-	if (iFind(_req->getContentType(), "multipart/form-data") != std::string::npos)
-		return handleMultipartPost();
 	
-	if (_req->getPath().find("../") != std::string::npos) {
-		statusCode() = 403;
-		sendErrorResponse(*this, *_req);
 	if (_req->getPath().find("../") != std::string::npos) {
 		statusCode() = 403;
 		sendErrorResponse(*this, *_req);
@@ -381,9 +301,7 @@ int Client::handlePostRequest() {
 	std::string contentToWrite;
 	
 	if (_req->isChunked()) {
-	if (_req->isChunked()) {
 		std::cout << getTimeStamp(_fd) << BLUE << "Processing chunked request" << RESET << std::endl;
-		contentToWrite = decodeChunkedBody(*this, _fd, _req->getBody());
 		contentToWrite = decodeChunkedBody(*this, _fd, _req->getBody());
 		
 		if (contentToWrite.empty()) {
@@ -404,10 +322,7 @@ int Client::handlePostRequest() {
 		std::string fileName;
 		if (contentToWrite.empty() && !_req->getQuery().empty())
 			doQueryStuff(_req->getQuery(), fileName, contentToWrite);
-		if (contentToWrite.empty() && !_req->getQuery().empty())
-			doQueryStuff(_req->getQuery(), fileName, contentToWrite);
 		else
-			doQueryStuff(_req->getBody(), fileName, contentToWrite);
 			doQueryStuff(_req->getBody(), fileName, contentToWrite);
 		fullPath = matchAndAppendPath(fullPath, fileName);
 	}
@@ -502,15 +417,11 @@ int Client::createFile(std::string& fullPath, std::string& contentToWrite) {
 
 int Client::handleDeleteRequest() {
 	std::string fullPath = getLocationPath(*this, *_req, "DELETE");
-int Client::handleDeleteRequest() {
-	std::string fullPath = getLocationPath(*this, *_req, "DELETE");
 	if (fullPath.empty())
 		return 1;
 	if (isCGIScript(_req->getPath())) {
-	if (isCGIScript(_req->getPath())) {
 		CGIHandler* cgi = new CGIHandler(this);
 		cgi->setPath(fullPath);        
-		int result = cgi->executeCGI(*_req);
 		int result = cgi->executeCGI(*_req);
 		if (result != 0)
 			delete cgi;
@@ -522,16 +433,11 @@ int Client::handleDeleteRequest() {
 		fullPath = fullPath.substr(0, end + 1);
 
 	if (remove(fullPath.c_str()) != 0) {
-	if (remove(fullPath.c_str()) != 0) {
 		if (errno == ENOENT) {
-			statusCode() = 404;
-			sendErrorResponse(*this, *_req);
 			statusCode() = 404;
 			sendErrorResponse(*this, *_req);
 			return 1;
 		} else if (errno == EACCES || errno == EPERM) {
-			statusCode() = 403;
-			sendErrorResponse(*this, *_req);
 			statusCode() = 403;
 			sendErrorResponse(*this, *_req);
 			return 1;
@@ -543,17 +449,12 @@ int Client::handleDeleteRequest() {
 		}
 	}
 	sendResponse(*this, *_req, "");
-	sendResponse(*this, *_req, "");
 	return 0;
 }
 
 int Client::handleFileBrowserRequest() {
 	std::string requestPath = _req->getPath();
-int Client::handleFileBrowserRequest() {
-	std::string requestPath = _req->getPath();
 	std::string actualPath;
-	
-	if (requestPath == "/root" || requestPath == "/root/") {
 	
 	if (requestPath == "/root" || requestPath == "/root/") {
 		actualPath = "/";
@@ -584,7 +485,6 @@ int Client::handleFileBrowserRequest() {
 		actualPath = requestPath.substr(5);
 		if (actualPath.empty()) actualPath = "/";
 		
-		
 		locationLevel* loc = NULL;
 		if (!matchLocation("/", _req->getConf(), loc)) {
 			statusCode() = 404;
@@ -603,14 +503,10 @@ int Client::handleFileBrowserRequest() {
 			return 1;
 		}
 		
-		
 		if (S_ISDIR(fileStat.st_mode)) {
 			_req->setPath(actualPath);
 			return createDirList(actualFullPath, *_req);
-			_req->setPath(actualPath);
-			return createDirList(actualFullPath, *_req);
 		} else if (S_ISREG(fileStat.st_mode)) {
-			if (buildBody(*this, *_req, actualFullPath) == 1)
 			if (buildBody(*this, *_req, actualFullPath) == 1)
 				return 1;
 			_req->setContentType(_req->getMimeType(actualFullPath));
@@ -627,7 +523,6 @@ int Client::handleFileBrowserRequest() {
 }
 
 int Client::handleRegularRequest() {
-int Client::handleRegularRequest() {
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
 		statusCode() = 404;
@@ -635,7 +530,6 @@ int Client::handleRegularRequest() {
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
-	std::string reqPath = _req->getPath();
 	std::string reqPath = _req->getPath();
 	if (reqPath == "/" || reqPath.empty())
 		reqPath = loc->indexFile;
@@ -645,7 +539,6 @@ int Client::handleRegularRequest() {
 		reqPath = reqPath.substr(0, end + 1);
 	std::string fullPath;
 	if (reqPath.find("/home") == std::string::npos)
-		fullPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), reqPath);
 		fullPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), reqPath);
 	else
 		fullPath = reqPath;
@@ -658,13 +551,10 @@ int Client::handleRegularRequest() {
 	}
 
 	if (handleRedirect() == 0)
-	if (handleRedirect() == 0)
 		return 1;
 		
 	if (isCGIScript(reqPath)) {      
 		CGIHandler* cgi = new CGIHandler(this);
-		cgi->setCGIBin(&_req->getConf());
-		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), reqPath);
 		cgi->setCGIBin(&_req->getConf());
 		std::string fullCgiPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), reqPath);
 		cgi->setPath(fullCgiPath);
@@ -680,11 +570,8 @@ int Client::handleRegularRequest() {
 	if (stat(fullPath.c_str(), &fileStat) != 0) {
 		translateErrorCode(errno, statusCode());
 		sendErrorResponse(*this, *_req);
-		translateErrorCode(errno, statusCode());
-		sendErrorResponse(*this, *_req);
 		return 1;
 	}
-
 
 	if (S_ISDIR(fileStat.st_mode))
 		return viewDirectory(fullPath, *_req);
@@ -696,10 +583,8 @@ int Client::handleRegularRequest() {
 	}
 	
 	if (buildBody(*this, *_req, fullPath) == 1)
-	if (buildBody(*this, *_req, fullPath) == 1)
 		return 1;
 
-	std::string contentType = _req->getMimeType(fullPath);
 	std::string contentType = _req->getMimeType(fullPath);
 	if (fullPath.find(".html") != std::string::npos || reqPath == "/" || reqPath == loc->indexFile)
 		contentType = "text/html";
@@ -712,12 +597,8 @@ int Client::handleRegularRequest() {
 
 int Client::handleMultipartPost() {
 	std::string boundary = _req->getBoundary();
-int Client::handleMultipartPost() {
-	std::string boundary = _req->getBoundary();
 	
 	if (boundary.empty()) {
-		statusCode() = 400;
-		sendErrorResponse(*this, *_req);
 		statusCode() = 400;
 		sendErrorResponse(*this, *_req);
 		return 1;
@@ -728,15 +609,11 @@ int Client::handleMultipartPost() {
 	if (!parser.parse()) {
 		statusCode() = 400;
 		sendErrorResponse(*this, *_req);
-		statusCode() = 400;
-		sendErrorResponse(*this, *_req);
 		return 1;
 	}
 	
 	std::string filename = parser.getFilename();
 	if (filename.empty()) {
-		statusCode() = 400;
-		sendErrorResponse(*this, *_req);
 		statusCode() = 400;
 		sendErrorResponse(*this, *_req);
 		return 1;
@@ -746,14 +623,9 @@ int Client::handleMultipartPost() {
 	if (fileContent.empty() && !parser.isComplete()) {
 		statusCode() = 400;
 		sendErrorResponse(*this, *_req);
-		statusCode() = 400;
-		sendErrorResponse(*this, *_req);
 		return 1;
 	}
 	
-	if (!saveFile(*_req, filename, fileContent)) {
-		statusCode() = 500;
-		sendErrorResponse(*this, *_req);
 	if (!saveFile(*_req, filename, fileContent)) {
 		statusCode() = 500;
 		sendErrorResponse(*this, *_req);
@@ -771,13 +643,7 @@ int    Client::handleRedirect() {
 	std::string path = _req->getPath().substr(1);
 	std::map<std::string, locationLevel>::iterator it = _req->getConf().locations.begin();
 	for ( ; it != _req->getConf().locations.end() ; it++) {
-int    Client::handleRedirect() {
-	std::string path = _req->getPath().substr(1);
-	std::map<std::string, locationLevel>::iterator it = _req->getConf().locations.begin();
-	for ( ; it != _req->getConf().locations.end() ; it++) {
 		if (it->first == path) {
-			statusCode() = it->second.redirectionHTTP.first;
-			sendRedirect(*this, it->second.redirectionHTTP.second, *_req);
 			statusCode() = it->second.redirectionHTTP.first;
 			sendRedirect(*this, it->second.redirectionHTTP.second, *_req);
 			return 0;
@@ -848,8 +714,6 @@ int Client::createDirList(std::string fullPath, Request& req) {
 	if (dirListing.empty()) {
 		statusCode() = 404;
 		sendErrorResponse(*this, req);
-		statusCode() = 404;
-		sendErrorResponse(*this, req);
 		return 1;
 	}
 	std::string response = "HTTP/1.1 200 OK\r\n";
@@ -857,11 +721,8 @@ int Client::createDirList(std::string fullPath, Request& req) {
 	response += "Content-Length: " + tostring(dirListing.length()) + "\r\n";
 	if (shouldCloseConnection(req))
 		response += "Connection: close\r\n";
-	if (shouldCloseConnection(req))
-		response += "Connection: close\r\n";
 	response += "\r\n";
 	response += dirListing;
-	response += "\n";
 	response += "\n";
 	addSendBuf(*_webserv, _fd, response);
 	setEpollEvents(*_webserv, _fd, EPOLLOUT);
@@ -896,22 +757,6 @@ std::string Client::showDir(const std::string& dirPath, const std::string& reque
 		"    </div>\n"
 		"    <ul>\n";
 	
-	if (requestUri != "/" && requestUri != "/root" && requestUri != "/root/") {
-		std::string parentUri = requestUri;
-		
-		if (parentUri.length() > 1 && parentUri[parentUri.length() - 1] == '/')
-			parentUri = parentUri.substr(0, parentUri.length() - 1);
-		
-		size_t lastSlash = parentUri.find_last_of('/');
-		if (lastSlash != std::string::npos) {
-			parentUri = parentUri.substr(0, lastSlash);
-			
-			if (parentUri.empty() || parentUri == "/root")
-				parentUri = "/root";
-			else
-				parentUri += "/";
-			html += "        <li><a href=\"" + parentUri + "\">Parent Directory</a></li>\n";
-		}
 	if (requestUri != "/" && requestUri != "/root" && requestUri != "/root/") {
 		std::string parentUri = requestUri;
 		
@@ -965,10 +810,7 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 	std::string fullPath = matchAndAppendPath(_server->getUploadDir(*this, req), filename);
 	if (fullPath.empty()) {
 		statusCode() = 404;
-	if (fullPath.empty()) {
-		statusCode() = 404;
 		return false;
-	}
 	}
 	if (!ensureUploadDirectory(*this, req)) {
 		statusCode() = 500;
@@ -982,7 +824,6 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 		return false;
 	}
 
-
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {
 		statusCode() = 500;
@@ -995,15 +836,10 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 		releaseLockFile(fullPath);
 		statusCode() = 500;
 		sendErrorResponse(*this, req);
-	if (!checkReturn(*this, _fd, bytesWritten, "write()")) {
-		releaseLockFile(fullPath);
-		statusCode() = 500;
-		sendErrorResponse(*this, req);
 		close(fd);
 		return false;
 	}
 	close(fd);
-	releaseLockFile(fullPath);
 	releaseLockFile(fullPath);
 	return true;
 }

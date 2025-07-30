@@ -21,7 +21,6 @@ CGIHandler::CGIHandler(Client *client) {
 	_outputBuffer = "";
 	_pid = -1;
 	_startTime = 0;
-	_timeout = TIMEOUT_SECONDS;
 }
 
 CGIHandler::CGIHandler(const CGIHandler& copy) {
@@ -45,7 +44,6 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 		_pid = copy._pid;
 		_req = copy._req;
 		_startTime = copy._startTime;
-		_timeout = copy._timeout;
 	}
 	return *this;
 }
@@ -87,11 +85,10 @@ int CGIHandler::executeCGI(Request &req) {
 	_req = Request(req);
 	if (doChecks() || prepareEnv())
 		return 1;
-	startClock();
 	_pid = fork();
 	if (_pid < 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: fork() failed" + RESET;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: fork() failed\n" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
@@ -261,6 +258,7 @@ int CGIHandler::doParent() {
 	}
 	close(_input[1]);
 	_input[1] = -1;
+
 	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN) != 0) {
 		_client->statusCode() = 500;
 		_client->output() = getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll\n" + RESET;
@@ -313,22 +311,21 @@ int CGIHandler::processScriptOutput() {
 				if (_req.isChunkedTransfer())
 					handleChunkedOutput(headerAndBody.second);
 				else {
-					if (_client->statusCode() == 501) {
+					if (_client->statusCode() == 501)
 						return 1;
-					}
 					handleStandardOutput(headerAndBody.second);
 				}
 				return 1;
 			}
 		} else {
-			_client->output() = getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status));
+			_client->output() = getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status)) + "\n";
 			_client->statusCode() = 500;
 			sendErrorResponse(*_client, _req);
 			cleanupResources();
 			return 1;
 		}
 	} else if (result == -1) {
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: waitpid() failed" + RESET;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: waitpid() failed\n" + RESET;
 		_client->statusCode() = 500;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();

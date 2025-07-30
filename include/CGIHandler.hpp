@@ -12,7 +12,7 @@ class	Client;
 class	Server;
 struct	serverLevel;
 
-#define	TIMEOUT_SECONDS 14;
+#define TIMEOUT_SECONDS 14;
 
 #define NIX false
 
