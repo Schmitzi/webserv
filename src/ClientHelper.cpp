@@ -20,6 +20,20 @@ int checkLength(std::string& reqBuf, int fd, bool &printNewLine) {
 				return -1;
 			} else
 				expectedLen = strtoul(line.c_str(), NULL, 10);
+	size_t expectedLen;
+	size_t pos = reqBuf.find("content-length:");
+	if (pos != std::string::npos) {
+		pos += 15;
+		size_t eol = reqBuf.find("\r\n", pos);
+		if (eol == std::string::npos)
+			eol = reqBuf.find("\n", pos);
+		if (eol != std::string::npos) {
+			std::string line = reqBuf.substr(pos, eol - pos);
+			std::vector<std::string> values = split(line);
+			if (values.size() > 1) {
+				return -1;
+			} else
+				expectedLen = strtoul(line.c_str(), NULL, 10);
 			
 			size_t bodyStart = reqBuf.find("\r\n\r\n");
 			if (bodyStart != std::string::npos) {
@@ -34,8 +48,11 @@ int checkLength(std::string& reqBuf, int fd, bool &printNewLine) {
 			if (bodyStart != std::string::npos) {
 				size_t len = reqBuf.size() - bodyStart;
 				if (len < expectedLen) {
+				size_t len = reqBuf.size() - bodyStart;
+				if (len < expectedLen) {
 					if (printNewLine == false)
 						std::cout << getTimeStamp(fd) << BLUE << "Receiving bytes..." << RESET << std::endl;
+					std::cout << "[~]" << std::flush;
 					std::cout << "[~]" << std::flush;
 					printNewLine = true;
 					return 0;
@@ -93,6 +110,11 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 		sendErrorResponse(c, req);
 		return 1;
 	}
+	if (!tryLockFile(c, fullPath, c.getFd(), c.fileIsNew())) {
+		c.statusCode() = 423;
+		sendErrorResponse(c, req);
+		return 1;
+	}
 	int fd = open(fullPath.c_str(), O_RDONLY);
 	if (fd < 0) {
 		releaseLockFile(fullPath);
@@ -107,12 +129,18 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 		translateErrorCode(errno, c.statusCode());
 		releaseLockFile(fullPath);
 		sendErrorResponse(c, req);
+		translateErrorCode(errno, c.statusCode());
+		releaseLockFile(fullPath);
+		sendErrorResponse(c, req);
 		close(fd);
 		return 1;
 	}
 	
 	std::vector<char> buffer(fileStat.st_size);
 	ssize_t bytesRead = read(fd, buffer.data(), fileStat.st_size);
+	close(fd);
+	releaseLockFile(fullPath);
+	if (bytesRead == 0)
 	close(fd);
 	releaseLockFile(fullPath);
 	if (bytesRead == 0)
@@ -132,6 +160,7 @@ bool ensureUploadDirectory(Client& c, Request& req) {
 	struct stat st;
 	std::string uploadDir = c.getServer().getUploadDir(c, req);
 	if (stat(uploadDir.c_str(), &st) != 0) {
+		c.statusCode() = 500;
 		c.statusCode() = 500;
 		if (mkdir(uploadDir.c_str(), 0755) != 0) {
 			c.output() = getTimeStamp(c.getFd()) + RED + "Error: Failed to create upload directory\n" + RESET;
@@ -158,6 +187,7 @@ std::string getLocationPath(Client& c, Request& req, const std::string& method) 
 	}
 	for (size_t i = 0; i < loc->methods.size(); i++) {
 		if (iEqual(loc->methods[i], method))
+		if (iEqual(loc->methods[i], method))
 			break;
 		if (i == loc->methods.size() - 1) {
 			c.statusCode() = 405;
@@ -177,6 +207,7 @@ std::string getLocationPath(Client& c, Request& req, const std::string& method) 
 	return fullPath;
 }
 
+std::string decodeChunkedBody(Client& c, int fd, const std::string& chunkedData) {
 std::string decodeChunkedBody(Client& c, int fd, const std::string& chunkedData) {
 	std::string decodedBody;
 	size_t pos = 0;

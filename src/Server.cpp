@@ -14,7 +14,22 @@ Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 	std::string targetIp = portPair.first.first;
 	int targetPort = portPair.first.second;
 	
+	
 	_configs.clear();
+	
+	std::vector<serverLevel> allConfigs = confs.getAllConfigs();
+	for (size_t i = 0; i < allConfigs.size(); i++) {
+		for (size_t j = 0; j < allConfigs[i].port.size(); j++) {
+			std::string configIp = allConfigs[i].port[j].first.first;
+			int configPort = allConfigs[i].port[j].first.second;
+			
+			if (configIp == targetIp && configPort == targetPort) {
+				_configs.push_back(allConfigs[i]);
+				break;
+			}
+		}
+	}
+	
 	
 	std::vector<serverLevel> allConfigs = confs.getAllConfigs();
 	for (size_t i = 0; i < allConfigs.size(); i++) {
