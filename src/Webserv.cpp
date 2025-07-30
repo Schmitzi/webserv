@@ -168,7 +168,7 @@ int Webserv::run() {
 	initialize();
 	
 	while (_state == true) {
-		int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, 200); // Increased time between polls, to allow time checking
+		int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, 200); // TODO: Increased time between polls, to allow time checking
 		if (nfds == -1) {
 			if (errno == EINTR)
 				continue;

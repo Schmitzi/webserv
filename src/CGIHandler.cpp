@@ -272,7 +272,6 @@ int CGIHandler::doParent() {
 }
 
 int CGIHandler::processScriptOutput() {
-	static const int TIMEOUT_SECONDS = 14;
 	char buffer[4096];
 	int status;
 	size_t maxSize = _outputBuffer.max_size();
