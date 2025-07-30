@@ -324,6 +324,8 @@ int Client::handlePostRequest() {
 			doQueryStuff(_req->getQuery(), fileName, contentToWrite);
 		else
 			doQueryStuff(_req->getBody(), fileName, contentToWrite);
+		if (contentToWrite.empty() && _req->getContentLength() == 0)
+			_req->hasValidLength() = true;
 		fullPath = matchAndAppendPath(fullPath, fileName);
 	}
 
