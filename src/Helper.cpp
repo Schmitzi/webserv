@@ -65,6 +65,11 @@ bool isAbsPath(std::string& path) {
 }
 
 std::string matchAndAppendPath(const std::string& base, const std::string& add) {
+	bool slash = false;
+	if (add.empty() && base[base.size() - 1] == '/')
+		slash = true;
+	else if (add[add.size() - 1] == '/')
+		slash = true;
 	std::vector<std::string> baseParts = splitBy(base, '/');
 	std::vector<std::string> addParts = splitBy(add, '/');
 
@@ -88,6 +93,8 @@ std::string matchAndAppendPath(const std::string& base, const std::string& add) 
 	std::string result;
 	for (size_t i = 0; i < preResult.size(); ++i)
 		result = combinePath(result, preResult[i]);
+	if (slash)
+		result += "/";
 	return result;
 }
 
@@ -151,10 +158,10 @@ std::string getTimeStamp(int fd) {
 
 bool checkReturn(Client& c, int fd, ssize_t r, const std::string& func, std::string errMsgOnZero) {
 	if (r < 0) {
-		c.output() = getTimeStamp(fd) + RED + "Error: " + func + " failed" + RESET;
+		c.output() = getTimeStamp(fd) + RED + "Error: " + func + " failed\n" + RESET;
 		return false;
 	} else if (r == 0 && errMsgOnZero != "") {
-		c.output() = getTimeStamp(fd) + RED + errMsgOnZero + RESET;
+		c.output() = getTimeStamp(fd) + RED + errMsgOnZero + RESET + "\n";
 		return false;
 	} else
 		return true;

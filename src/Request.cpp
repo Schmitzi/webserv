@@ -170,13 +170,24 @@ bool Request::matchHostServerName() {
 	return false;
 }
 
+bool Request::checkRaw(const std::string& raw) {
+	size_t i = 0;
+	if (raw.find("http://") != std::string::npos)
+		i += 7;
+	std::string r = raw.substr(i);
+	if (r.find("//") == std::string::npos)
+		return true;
+	return false;
+}
+
 void Request::parse(const std::string& rawRequest) {
 	if (rawRequest.empty()) {
-		_client->output() = getTimeStamp(_clientFd) + RED + "Empty request!" + RESET;
+		_client->output() = getTimeStamp(_clientFd) + RED + "Empty request!\n" + RESET;
 		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
 	}
+	
 	checkContentLength(rawRequest);
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
@@ -196,6 +207,13 @@ void Request::parse(const std::string& rawRequest) {
 		_body = rawRequest.substr(headerEnd + headerSeparatorLength);
 	}
 	
+	if (!checkRaw(headerSection)) {
+		_client->output() = getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
+		_client->statusCode() = 400;
+		_check = "BAD";
+		return;
+	}
+
 	parseHeaders(headerSection);
 	if (_client->statusCode() >= 400) {
 		_check = "BAD";
@@ -203,7 +221,7 @@ void Request::parse(const std::string& rawRequest) {
 	}
 
 	if (!matchHostServerName()) {
-		_client->output() = getTimeStamp(_clientFd) + RED + "No Host-ServerName match + no default config specified!" + RESET;
+		_client->output() = getTimeStamp(_clientFd) + RED + "No Host-ServerName match + no default config specified!\n" + RESET;
 		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
