@@ -10,7 +10,7 @@ echo "<link rel="icon" href="/images/favicon.ico" type="image/x-icon">"
 echo "</head>"
 echo "<body>"
 echo "<h1>Hello from Bash CGI!</h1>"
-echo "<div><a href=\"../cgi.html\">Back</a></div>"
+echo "<div><a href=\"../html/cgi.html\">Back</a></div>"
 
 # Print request method
 echo "<p><strong>Request Method:</strong> $REQUEST_METHOD</p>"

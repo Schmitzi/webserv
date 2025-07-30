@@ -49,6 +49,7 @@ class Request {
 
 		bool								hasServerName();
 		bool								matchHostServerName();
+		bool								checkRaw(const std::string& raw);
 		void								parse(const std::string& rawRequest);
 		void								setHeader(std::string& key, std::string& value, bool ignoreHost);
 		bool								checkMethod();

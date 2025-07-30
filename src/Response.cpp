@@ -33,7 +33,7 @@ bool matchLocation(const std::string& path, const serverLevel& serv, locationLev
 	return found;
 }
 
-bool matchUploadLocation(const std::string& path, const serverLevel& serv, locationLevel*& bestMatch) {
+bool matchUploadLocation(std::string& path, const serverLevel& serv, locationLevel*& bestMatch) {
 	size_t longestMatch = 0;
 	bool found = false;
 	std::map<std::string, locationLevel>::const_iterator it = serv.locations.begin();
@@ -46,24 +46,32 @@ bool matchUploadLocation(const std::string& path, const serverLevel& serv, locat
 			}
 		}
 	} else {
-		for (; it != serv.locations.end(); ++it) {
-			locationLevel* loc = const_cast<locationLevel*>(&(it->second));
-			if (loc->isRegex) {
-				size_t end = path.find_last_of(".");
-				if (end != std::string::npos) {
-					std::string ext = path.substr(end);
-					if (iEqual(ext, it->first)) {
+		std::string part = path;
+		while (!part.empty() && !found) {
+			it = serv.locations.begin();
+			for (; it != serv.locations.end(); ++it) {
+				locationLevel* loc = const_cast<locationLevel*>(&(it->second));
+				if (loc->isRegex) {
+					size_t end = part.find_last_of(".");
+					if (end != std::string::npos) {
+						std::string ext = part.substr(end);
+						if (iEqual(ext, it->first)) {
+							bestMatch = loc;
+							return true;
+						}
+					}
+				} else {
+					if (iEqual(part, loc->locName) && loc->locName.size() > longestMatch) {
 						bestMatch = loc;
-						return true;
+						found = true;
+						longestMatch = loc->locName.size();
 					}
 				}
-			} else {
-				if (iFind(path, loc->locName) != std::string::npos && loc->locName.size() > longestMatch) {
-					bestMatch = loc;
-					found = true;
-					longestMatch = loc->locName.size();
-				}
 			}
+			if (!found)
+				part = part.substr(0, part.find_last_of('/'));
+			else
+				path = part;
 		}
 	}
 	return found;
@@ -178,12 +186,12 @@ void sendRedirect(Client& c, const std::string& location, Request& req) {
 	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-	c.output() = getTimeStamp(c.getFd()) + BLUE + "Sent redirect response: " + RESET + tostring(c.statusCode()) + " " + statusText + " to " + location;
+	c.output() = getTimeStamp(c.getFd()) + BLUE + "Sent redirect response: " + RESET + tostring(c.statusCode()) + " " + statusText + " to " + location + "\n";
 }
 
 ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	if (c.getFd() <= 0) {
-		c.output() = getTimeStamp(c.getFd()) + RED + "Invalid fd in sendResponse" + RESET;
+		c.output() = getTimeStamp(c.getFd()) + RED + "Invalid fd in sendResponse\n" + RESET;
 		return -1;
 	}
 	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " OK\r\n";
@@ -207,7 +215,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	response += "\r\n";
 	
 	if (c.getFd() < 0) {
-		c.output() = getTimeStamp(c.getFd()) + RED  + "FD became invalid before send" + RESET;
+		c.output() = getTimeStamp(c.getFd()) + RED  + "FD became invalid before send\n" + RESET;
 		return -1;
 	}
 	addSendBuf(c.getWebserv(), c.getFd(), response);
@@ -237,7 +245,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 			std::string s2 = "0\r\n\r\n";
 			addSendBuf(c.getWebserv(), c.getFd(), s2);
 			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-			c.output() = getTimeStamp(c.getFd()) + GREEN  + "Sent chunked body " + RESET + "(" + tostring(content.length()) + " bytes)";
+			c.output() = getTimeStamp(c.getFd()) + GREEN  + "Sent chunked body " + RESET + "(" + tostring(content.length()) + " bytes)\n";
 			return 0;
 		} else {
 			content += "\n";
@@ -248,7 +256,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	} else {
 		addSendBuf(c.getWebserv(), c.getFd(), "\n");
 		setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-		c.output() = getTimeStamp(c.getFd()) + GREEN  + "Response sent (headers only)" + RESET;
+		c.output() = getTimeStamp(c.getFd()) + GREEN  + "Response sent (headers only)\n" + RESET;
 		return 0;
 	}
 }
@@ -272,7 +280,7 @@ void sendErrorResponse(Client& c, Request& req) {
 	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-	c.output() = getTimeStamp(c.getFd()) + RED  + "Error sent: " + tostring(c.statusCode()) + " " + getStatusMessage(c.statusCode()) + RESET;
+	c.output() += getTimeStamp(c.getFd()) + RED  + "Error sent: " + tostring(c.statusCode()) + " " + getStatusMessage(c.statusCode()) + RESET + "\n";
 }
 
 bool shouldCloseConnection(Request& req) {

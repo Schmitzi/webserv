@@ -21,6 +21,7 @@ CGIHandler::CGIHandler(Client *client) {
 	_outputBuffer = "";
 	_pid = -1;
 	_startTime = 0;
+	_timeout = TIMEOUT_SECONDS;
 }
 
 CGIHandler::CGIHandler(const CGIHandler& copy) {
@@ -44,9 +45,11 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 		_pid = copy._pid;
 		_req = copy._req;
 		_startTime = copy._startTime;
+		_timeout = copy._timeout;
 	}
 	return *this;
 }
+
 
 CGIHandler::~CGIHandler() {}
 
@@ -81,10 +84,11 @@ int CGIHandler::executeCGI(Request &req) {
 	_req = Request(req);
 	if (doChecks() || prepareEnv())
 		return 1;
+	startClock();
 	_pid = fork();
 	if (_pid < 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: fork() failed" + RESET;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: fork() failed\n" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
@@ -97,21 +101,21 @@ int CGIHandler::executeCGI(Request &req) {
 int CGIHandler::doChecks() {
 	if (access(_path.c_str(), F_OK) != 0) {
 		_client->statusCode() = 404;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (access(_path.c_str(), X_OK) != 0) {
 		_client->statusCode() = 403;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script is not executable: " + RESET + _path;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script is not executable: " + RESET + _path + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (pipe(_input) < 0 || pipe(_output) < 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: pipe() failed" + RESET;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: pipe() failed" + RESET + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
@@ -134,12 +138,12 @@ int CGIHandler::prepareEnv() {
 			ext = "." + _path.substr(dotPos + 1); 
 			
 			if (!matchLocation(ext, _req.getConf(), loc)) {
-				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext;
+				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
 				return 1;
 			}
 			
 			if (loc->uploadDirPath.empty()) {
-				_client->output() = getTimeStamp(_client->getFd()) + RED + "Upload directory not set for extension: " + RESET + ext;
+				_client->output() = getTimeStamp(_client->getFd()) + RED + "Upload directory not set for extension: " + RESET + ext + "\n";
 				return 1;
 			}
 			filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
@@ -151,7 +155,7 @@ int CGIHandler::prepareEnv() {
 			ext = "." + _path.substr(dotPos + 1);
 			
 			if (!matchLocation(ext, _req.getConf(), loc)) {
-				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext;
+				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
 				return 1;
 			}
 			makeArgs(loc->cgiProcessorPath, filePath);
@@ -214,7 +218,7 @@ int CGIHandler::doChild() {
 	
 	if (dup2(_input[0], STDIN_FILENO) < 0 || dup2(_output[1], STDOUT_FILENO) < 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: dup2() failed" + RESET;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: dup2() failed\n" + RESET;
 		cleanupResources();
 		return 1;
 	}
@@ -223,7 +227,7 @@ int CGIHandler::doChild() {
 	
 	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
 	_client->statusCode() = 500;
-	_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: execve() failed" + RESET;
+	_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: execve() failed\n" + RESET;
 	cleanupResources();
 	return 1;
 }
@@ -257,7 +261,7 @@ int CGIHandler::doParent() {
 
 	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN) != 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll" + RESET;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll\n" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
@@ -266,25 +270,10 @@ int CGIHandler::doParent() {
 }
 
 int CGIHandler::processScriptOutput() {
-	static const int TIMEOUT_SECONDS = 14;
 	char buffer[4096];
 	int status;
 	size_t maxSize = _outputBuffer.max_size();
 	ssize_t bytesRead = -1;
-	
-	if (_startTime == 0)
-		_startTime = time(NULL);
-	time_t elapsedTime = time(NULL) - _startTime;
-	
-	if (elapsedTime > TIMEOUT_SECONDS) {
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "CGI timeout after " + tostring(elapsedTime) + " seconds, killing process" + RESET;
-		cleanupResources();
-		if (_pid >= 0)
-			kill(_pid, SIGKILL);
-		_client->statusCode() = 504;
-		sendErrorResponse(*_client, _req);
-		return 1;
-	}
 	
 	if (_outputBuffer.size() < maxSize) {
 		bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
@@ -304,7 +293,7 @@ int CGIHandler::processScriptOutput() {
 	pid_t result = waitpid(_pid, &status, WNOHANG);
 	if (result == _pid) {
 		if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-			_client->output() = getTimeStamp(_client->getFd()) + GREEN + "CGI Script completed successfully after " + tostring(elapsedTime) + " seconds" + RESET;
+			_client->output() = getTimeStamp(_client->getFd()) + GREEN + "CGI Script completed successfully\n" + RESET;
 			
 			if (_outputBuffer.empty()) {
 				std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
@@ -329,14 +318,14 @@ int CGIHandler::processScriptOutput() {
 				return 1;
 			}
 		} else {
-			_client->output() = getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status));
+			_client->output() = getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status)) + "\n";
 			_client->statusCode() = 500;
 			sendErrorResponse(*_client, _req);
 			cleanupResources();
 			return 1;
 		}
 	} else if (result == -1) {
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: waitpid() failed" + RESET;
+		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: waitpid() failed\n" + RESET;
 		_client->statusCode() = 500;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
@@ -429,6 +418,27 @@ std::pair<std::string, std::string> CGIHandler::splitHeaderAndBody(const std::st
 	}
 }
 
+void	CGIHandler::startClock() {
+	if (_startTime == 0)
+		_startTime = time(NULL);
+}
+
+bool CGIHandler::isTimedOut(time_t now) const {
+    if (_startTime == 0)
+		return false;
+    return (now - _startTime) > _timeout;
+}
+
+void CGIHandler::killProcess() {
+    if (_pid > 0) {
+        std::cout << getTimeStamp(_client->getFd()) << RED << "Killing CGI process " << _pid << RESET << std::endl;
+        kill(_pid, SIGKILL);
+        int status;
+        waitpid(_pid, &status, WNOHANG);
+        _pid = -1;
+    }
+}
+
 void CGIHandler::cleanupResources() {
 	if (!_client)
 		return;
@@ -439,7 +449,7 @@ void CGIHandler::cleanupResources() {
 			unregisterCgiPipe(_server->getWebServ(), _output[0]);
 		close(_output[0]);
 		_output[0] = -1;
-		_client->output() = getTimeStamp(_client->getFd()) + "Cleaned up and disconnected CGI";
+		_client->output() = getTimeStamp(_client->getFd()) + "Cleaned up and disconnected CGI\n";
 	}
 	_path.clear();
 	_args.clear();

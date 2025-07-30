@@ -16,7 +16,7 @@ print("<link rel=\"icon\" href=\"/images/favicon.ico\" type=\"image/x-icon\">")
 print("</head>")
 print("<body>")
 print("<h1>Hello from Python CGI!</h1>")
-print("<div><a href=\"../cgi.html\">Back</a></div>")
+print("<div><a href=\"../html/cgi.html\">Back</a></div>")
 
 
 # Get request method

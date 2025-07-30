@@ -25,7 +25,7 @@ echo "    <link rel=\icon\" href=\"/images/favicon.ico\" type=\"image/x-icon\">\
 echo "</head>\n";
 echo "<body>\n";
 echo "    <h1>Hello World from PHP!</h1>\n";
-echo "    <div><a href=\"../cgi.html\">Back</a></div>\n";
+echo "    <div><a href=\"../html/cgi.html\">Back</a></div>\n";
 echo "    <p>This is a CGI response from a PHP script.</p>\n";
 echo "    <h2>Request Information:</h2>\n";
 echo "    <ul>\n";

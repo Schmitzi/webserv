@@ -7,7 +7,7 @@ print "<link rel=\"icon\" href=\"/images/favicon.ico\" type=\"image/x-icon\">";
 print "</head>";
 print "<body>";
 print "<h1>Hello from Perl CGI!</h1>";
-print "<div><a href=\"../cgi.html\">Back</a></div>";
+print "<div><a href=\"../html/cgi.html\">Back</a></div>";
 
 # Print request method
 print "<p><strong>Request Method:</strong> $ENV{'REQUEST_METHOD'}</p>";

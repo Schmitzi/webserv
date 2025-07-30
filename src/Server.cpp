@@ -4,6 +4,7 @@
 #include "../include/Request.hpp"
 #include "../include/Response.hpp"
 #include "../include/Helper.hpp"
+#include "../include/ConfigValidator.hpp"
 
 Server::Server(ConfigParser confs, int nbr, Webserv& webserv) {
 	_fd = -1;
@@ -70,21 +71,26 @@ ConfigParser &Server::getConfParser() {
 	return _confParser;
 }
 
-std::string Server::getUploadDir(Client& client, Request& req) {
+std::string Server::getUploadDir(Client& client, Request& req, std::string dir) {
 	locationLevel* loc = NULL;
-	if (!matchUploadLocation(req.getPath(), req.getConf(), loc)) {
+	std::string path;
+	if (dir.empty())
+		path = req.getPath();
+	else
+		path = dir;
+	if (!matchUploadLocation(path, req.getConf(), loc)) {
 		client.statusCode() = 404;
-		client.output() = getTimeStamp(client.getFd()) + RED + "Location not found: " + RESET + req.getPath();
+		client.output() = getTimeStamp(client.getFd()) + RED + "Location not found: " + RESET + path + "\n";
 		sendErrorResponse(client, req);
 		return "";
 	}
 	if (loc->uploadDirPath.empty()) {
 		client.statusCode() = 403;
-		client.output() = getTimeStamp(client.getFd()) + RED + "Upload directory not set: " + RESET + req.getPath();
+		client.output() = getTimeStamp(client.getFd()) + RED + "Upload directory not set: " + RESET + path + "\n";
 		sendErrorResponse(client, req);
 		return "";
 	}
-	std::string fullPath = matchAndAppendPath(getWebRoot(req, *loc), req.getPath());
+	std::string fullPath = matchAndAppendPath(getWebRoot(req, *loc), path);
 	return fullPath;
 }
 
