@@ -48,6 +48,7 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 	return *this;
 }
 
+
 CGIHandler::~CGIHandler() {}
 
 Client*  CGIHandler::getClient() const {
@@ -293,7 +294,7 @@ int CGIHandler::processScriptOutput() {
 	pid_t result = waitpid(_pid, &status, WNOHANG);
 	if (result == _pid) {
 		if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-			_client->output() = getTimeStamp(_client->getFd()) + GREEN + "CGI Script completed successfully" + RESET;
+			_client->output() = getTimeStamp(_client->getFd()) + GREEN + "CGI Script completed successfully\n" + RESET;
 			
 			if (_outputBuffer.empty()) {
 				std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
@@ -433,7 +434,6 @@ void CGIHandler::killProcess() {
     if (_pid > 0) {
         std::cout << getTimeStamp(_client->getFd()) << RED << "Killing CGI process " << _pid << RESET << std::endl;
         kill(_pid, SIGKILL);
-        
         int status;
         waitpid(_pid, &status, WNOHANG);
         _pid = -1;
