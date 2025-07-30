@@ -9,7 +9,6 @@ Request::Request() {}
 Request::Request(const std::string& rawRequest, Client& client, int clientFd) : 
 	_host(""),
 	_method(""),
-	_method(""),
 	_check(""),
 	_path(""),
 	_contentType(""),
@@ -19,13 +18,9 @@ Request::Request(const std::string& rawRequest, Client& client, int clientFd) :
 	_boundary(""),
 	_contentLength(0),
 	_headers(),
-	_headers(),
 	_curConf(),
 	_client(&client),
 	_configs(_client->getConfigs()),
-	_clientFd(clientFd),
-	_hasValidLength(false),
-	_isChunked(false)
 	_clientFd(clientFd),
 	_hasValidLength(false),
 	_isChunked(false)
@@ -56,17 +51,11 @@ Request &Request::operator=(const Request& copy) {
 		_clientFd = copy._clientFd;
 		_hasValidLength = copy._hasValidLength;
 		_isChunked = copy._isChunked;
-		_hasValidLength = copy._hasValidLength;
-		_isChunked = copy._isChunked;
 	}
 	return *this;
 }
 
 Request::~Request() {}
-
-std::string &Request::getHost() {
-	return _host;
-}
 
 std::string &Request::getPath() {
 	return _path;
@@ -97,7 +86,6 @@ std::string const &Request::getBoundary() {
 }
 
 unsigned long	&Request::getContentLength() {
-unsigned long	&Request::getContentLength() {
 	return _contentLength;
 }
 
@@ -107,22 +95,6 @@ serverLevel& Request::getConf() {
 
 std::map<std::string, std::string> &Request::getHeaders() {
 	return _headers;
-}
-
-bool &Request::hasValidLength() {
-	return _hasValidLength;
-}
-
-bool &Request::isChunked() {
-	return _isChunked;
-}
-
-std::string &Request::check() {
-	return _check;
-}
-
-Client &Request::getClient() {
-	return *_client;
 }
 
 bool &Request::hasValidLength() {
@@ -156,11 +128,8 @@ void    Request::setContentType(std::string const content) {
 bool Request::hasServerName() {
 	if (iFind(_host, "localhost") != std::string::npos) {
 		std::string portPart = _host.substr(_host.find(":") + 1);
-	if (iFind(_host, "localhost") != std::string::npos) {
-		std::string portPart = _host.substr(_host.find(":") + 1);
 		if (onlyDigits(portPart)) {
 			std::string sum = "localhost:" + portPart;
-			if (iEqual(sum, _host))
 			if (iEqual(sum, _host))
 				return false;
 		}
@@ -172,7 +141,6 @@ bool Request::matchHostServerName() {
 	if (hasServerName()) {
 		for (size_t i = 0; i < _configs.size(); i++) {
 			for (size_t j = 0; j < _configs[i].servName.size(); j++) {
-				if (iEqual(_host, _configs[i].servName[j])) {
 				if (iEqual(_host, _configs[i].servName[j])) {
 					_curConf = _configs[i];
 					return true;
@@ -189,7 +157,6 @@ bool Request::matchHostServerName() {
 		}
 	}
 	else {
-		int portPart = std::atoi(_host.substr(_host.find(":") + 1).c_str());
 		int portPart = std::atoi(_host.substr(_host.find(":") + 1).c_str());
 		for (size_t i = 0; i < _configs.size(); i++) {
 			for (size_t j = 0; j < _configs[i].port.size(); j++) {
@@ -235,14 +202,12 @@ void Request::parse(const std::string& rawRequest) {
 		return;
 	}
 
-
 	if (!matchHostServerName()) {
 		_client->output() = getTimeStamp(_clientFd) + RED + "No Host-ServerName match + no default config specified!" + RESET;
 		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
 	}
-
 
 	parseContentType();
 
@@ -292,63 +257,12 @@ bool Request::checkMethod() {
 bool Request::checkVersion() {
 	if ( _version.empty() || _version != "HTTP/1.1") {
 		_client->statusCode() = 505;
-	if (!checkMethod())
-		return;
-
-	if (isChunkedTransfer()) {
-		if (_client->statusCode() == 501)
-			return;
-		if (iEqual(_method, "POST")) {
-			std::cout << getTimeStamp(_clientFd) << BLUE << "POST request with chunked body: " << RESET << _body.length() 
-					<< " bytes of chunked data" << std::endl;
-		}
-	}
-	_path = decode(_path);
-}
-
-void Request::setHeader(std::string& key, std::string& value, bool ignoreHost) {
-	if (iEqual(key, "Host")) {
-		if (ignoreHost == false && _host.empty())
-			_host = value;
-		else if (ignoreHost == false && !_host.empty())
-			_client->statusCode() = 400;
-	}
-	else if (iEqual(key, "Content-Type")) {
-		_contentType = value;
-	}
-}
-
-bool Request::checkMethod() {
-	if (iEqual(_method, "GET") || iEqual(_method, "POST") || iEqual(_method, "DELETE")
-		|| iEqual(_method, "PUT") || iEqual(_method, "HEAD") || iEqual(_method, "OPTIONS")
-		|| iEqual(_method, "PATCH") || iEqual(_method, "TRACE") || iEqual(_method, "CONNECT")) {
-		if (!iEqual(_method, "GET") && !iEqual(_method, "POST") && !iEqual(_method, "DELETE")) {
-			_client->statusCode() = 501;
-			_check = "NOTALLOWED";
-			return false;
-		}
-	} else {
-		_client->statusCode() = 400;
 		_check = "BAD";
 		return false;
 	}
 	return true;
 }
 
-bool Request::checkVersion() {
-	if ( _version.empty() || _version != "HTTP/1.1") {
-		_client->statusCode() = 505;
-		_check = "BAD";
-		return false;
-	}
-	return true;
-}
-		return false;
-	}
-	return true;
-}
-
-void Request::checkQueryAndPath(std::string target) {
 void Request::checkQueryAndPath(std::string target) {
 	size_t queryPos = target.find('?');
 	if (queryPos != std::string::npos) {
@@ -359,14 +273,11 @@ void Request::checkQueryAndPath(std::string target) {
 	}
 
 	if ((_path == "/" || _path == "") && iEqual(_method, "GET")) {
-
-	if ((_path == "/" || _path == "") && iEqual(_method, "GET")) {
 		std::map<std::string, locationLevel>::iterator it = _curConf.locations.find("/");
 		if (it != _curConf.locations.end())
 			_path = matchAndAppendPath(it->second.rootLoc, it->second.indexFile);
 	}
 
-	size_t end = _path.find_last_not_of(" \t\r\n");
 	size_t end = _path.find_last_not_of(" \t\r\n");
 	if (end != std::string::npos)
 		_path = _path.substr(0, end + 1);
@@ -383,39 +294,12 @@ void Request::getHostAndPath(std::string& target) {
 	_path = strip.substr(divider);
 }
 
-void Request::getHostAndPath(std::string& target) {
-	std::string strip;
-	std::vector<std::string> hostPort;
-
-	strip = target.substr(7);
-	size_t divider = strip.find_first_of('/');
-	hostPort = splitBy(strip.substr(0, divider), ':');
-	_host = hostPort[0];
-	_path = strip.substr(divider);
-}
-
-void Request::parseHeaders(const std::string& headerSection) {
-	bool ignoreHost = false;
-
 void Request::parseHeaders(const std::string& headerSection) {
 	bool ignoreHost = false;
 	std::istringstream iss(headerSection);
 	std::string line;
 
-
 	std::getline(iss, line);
-	size_t end = line.find_last_not_of(" \t\r\n");
-	if (end != std::string::npos)
-	line = line.substr(0, end + 1);
-	
-	std::istringstream lineStream(line);
-	std::string target;
-	lineStream >> _method >> target >> _version;
-	if (isAbsPath(target)) {
-		ignoreHost = true;
-		getHostAndPath(target);
-	}
-
 	size_t end = line.find_last_not_of(" \t\r\n");
 	if (end != std::string::npos)
 	line = line.substr(0, end + 1);
@@ -436,10 +320,6 @@ void Request::parseHeaders(const std::string& headerSection) {
 				_client->statusCode() = 400;
 				return;
 			}
-			if (key[key.size() - 1] == ' ') {
-				_client->statusCode() = 400;
-				return;
-			}
 			std::string value = line.substr(colonPos + 1);
 			
 			key.erase(0, key.find_first_not_of(" \t"));
@@ -453,15 +333,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 					continue;
 				}
 			}
-			if (iEqual(key, "Host")) {
-				std::vector<std::string> values = split(value);
-				if (values.size() > 1) {
-					_client->statusCode() = 400;
-					continue;
-				}
-			}
 			_headers[key] = value;
-			setHeader(key, value, ignoreHost);
 			setHeader(key, value, ignoreHost);
 		}
 	}
@@ -482,27 +354,9 @@ void Request::parseHeaders(const std::string& headerSection) {
 		checkQueryAndPath(_path);
 	else
 		checkQueryAndPath(target);
-	
-	if (_host.empty()) {
-		_client->statusCode() = 400;
-		return;
-	}
-	if (_method.empty() || (_method != "GET" && target.empty())) {
-		_client->statusCode() = 400;
-		_check = "BAD";
-		return;
-	}
-
-	if (!checkVersion())
-		return;
-	if (ignoreHost == true)
-		checkQueryAndPath(_path);
-	else
-		checkQueryAndPath(target);
 }
 
 void Request::checkContentLength(std::string buffer) {
-	size_t pos = iFind(buffer, "Content-Length:");
 	size_t pos = iFind(buffer, "Content-Length:");
 	if (pos != std::string::npos) {
 		pos += 15;
@@ -527,42 +381,11 @@ void Request::checkContentLength(std::string buffer) {
 		} else {
 			_client->statusCode() = 400;
 			return;
-			std::string line = buffer.substr(pos, eol - pos);
-			std::vector<std::string> values = split(line);
-			if (values.size() > 1) {
-				_client->statusCode() = 400;
-				return;
-			} else {
-				long convert = strtol(values[0].c_str(), NULL, 10);
-				if (convert < 0) {
-					_client->statusCode() = 400;
-					return;
-				}
-				_contentLength = static_cast<unsigned long>(convert);
-				_hasValidLength = true;
-			}
-		} else {
-			_client->statusCode() = 400;
-			return;
 		}
 	}
 }
 
 void Request::parseContentType() {
-	if (iFind(_contentType, "multipart/form-data") != std::string::npos) {
-		size_t boundaryPos = iFind(_contentType, "boundary=");
-		if (boundaryPos != std::string::npos) {
-			std::string boundary = _contentType.substr(boundaryPos + 9);
-			
-			if (!boundary.empty() && boundary[0] == '"') {
-				size_t endQuote = boundary.find('"', 1);
-				if (endQuote != std::string::npos) {
-					boundary = boundary.substr(1, endQuote - 1);
-				}
-			}
-			_boundary = boundary;
-		}
-	}
 	if (iFind(_contentType, "multipart/form-data") != std::string::npos) {
 		size_t boundaryPos = iFind(_contentType, "boundary=");
 		if (boundaryPos != std::string::npos) {
@@ -635,18 +458,5 @@ bool Request::isChunkedTransfer() {
 			return false;
 		}
 	}
-bool Request::isChunkedTransfer() {
-	std::map<std::string, std::string>::iterator it = iMapFind(_headers, "Transfer-Encoding");
-	if (it != _headers.end()) {
-		if (iFind(it->second, "chunked") != std::string::npos) {
-			_isChunked = true;
-			return true;
-		}
-		else {
-			_client->statusCode() = 501;
-			return false;
-		}
-	}
 	return false;
 }
-

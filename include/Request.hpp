@@ -26,7 +26,6 @@ class Request {
 		~Request();
 
 		//getters & setters
-		std::string							&getHost();
 		std::string							&getPath();
 		std::string const					&getMethod();
 		std::string const					&getVersion();
