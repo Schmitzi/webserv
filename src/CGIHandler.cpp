@@ -21,6 +21,7 @@ CGIHandler::CGIHandler(Client *client) {
 	_outputBuffer = "";
 	_pid = -1;
 	_startTime = 0;
+	_timeout = TIMEOUT_SECONDS;
 }
 
 CGIHandler::CGIHandler(const CGIHandler& copy) {
@@ -44,14 +45,20 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 		_pid = copy._pid;
 		_req = copy._req;
 		_startTime = copy._startTime;
+		_timeout = copy._timeout;
 	}
 	return *this;
 }
+
 
 CGIHandler::~CGIHandler() {}
 
 Client*  CGIHandler::getClient() const {
 	return _client;
+}
+
+Request& CGIHandler::getRequest() {
+    return _req;
 }
 
 void CGIHandler::setPath(const std::string& path) {
@@ -81,6 +88,7 @@ int CGIHandler::executeCGI(Request &req) {
 	_req = Request(req);
 	if (doChecks() || prepareEnv())
 		return 1;
+	startClock();
 	_pid = fork();
 	if (_pid < 0) {
 		_client->statusCode() = 500;
@@ -266,25 +274,10 @@ int CGIHandler::doParent() {
 }
 
 int CGIHandler::processScriptOutput() {
-	static const int TIMEOUT_SECONDS = 14;
 	char buffer[4096];
 	int status;
 	size_t maxSize = _outputBuffer.max_size();
 	ssize_t bytesRead = -1;
-	
-	if (_startTime == 0)
-		_startTime = time(NULL);
-	time_t elapsedTime = time(NULL) - _startTime;
-	
-	if (elapsedTime > TIMEOUT_SECONDS) {
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "CGI timeout after " + tostring(elapsedTime) + " seconds, killing process\n" + RESET;
-		cleanupResources();
-		if (_pid >= 0)
-			kill(_pid, SIGKILL);
-		_client->statusCode() = 504;
-		sendErrorResponse(*_client, _req);
-		return 1;
-	}
 	
 	if (_outputBuffer.size() < maxSize) {
 		bytesRead = read(_output[0], buffer, sizeof(buffer) - 1);
@@ -304,7 +297,7 @@ int CGIHandler::processScriptOutput() {
 	pid_t result = waitpid(_pid, &status, WNOHANG);
 	if (result == _pid) {
 		if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-			_client->output() = getTimeStamp(_client->getFd()) + GREEN + "CGI Script completed successfully after " + tostring(elapsedTime) + " seconds\n" + RESET;
+			_client->output() = getTimeStamp(_client->getFd()) + GREEN + "CGI Script completed successfully\n" + RESET;
 			
 			if (_outputBuffer.empty()) {
 				std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
@@ -427,6 +420,27 @@ std::pair<std::string, std::string> CGIHandler::splitHeaderAndBody(const std::st
 			output.substr(headerEnd + 4)
 		);
 	}
+}
+
+void	CGIHandler::startClock() {
+	if (_startTime == 0)
+		_startTime = time(NULL);
+}
+
+bool CGIHandler::isTimedOut(time_t now) const {
+    if (_startTime == 0)
+		return false;
+    return (now - _startTime) > _timeout;
+}
+
+void CGIHandler::killProcess() {
+    if (_pid > 0) {
+        std::cout << getTimeStamp(_client->getFd()) << RED << "Killing CGI process " << _pid << RESET << std::endl;
+        kill(_pid, SIGKILL);
+        int status;
+        waitpid(_pid, &status, WNOHANG);
+        _pid = -1;
+    }
 }
 
 void CGIHandler::cleanupResources() {
