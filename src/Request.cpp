@@ -172,12 +172,18 @@ bool Request::matchHostServerName() {
 
 bool Request::checkRaw(const std::string& raw) {
 	size_t i = 0;
-	if (raw.find("http://") != std::string::npos)
-		i += 7;
-	std::string r = raw.substr(i);
-	if (r.find("//") == std::string::npos)
-		return true;
-	return false;
+	std::string r = raw.substr(0, raw.find("\r\n"));
+	while (!r.empty() && i < r.size()) {
+		if (r.find("http://") == 0)
+			i += 8;
+		else if (r.find("//") != std::string::npos)
+			return false;
+		else
+			i++;
+		r = r.substr(i);
+		i = 0;
+	}
+	return true;
 }
 
 void Request::parse(const std::string& rawRequest) {
