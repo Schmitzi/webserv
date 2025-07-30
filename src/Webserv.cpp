@@ -340,15 +340,14 @@ void Webserv::handleEpollOut(int fd) {
 	}
 
 	offset += static_cast<size_t>(s);
-
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
 		c->lastUsed() = time(NULL);
 		if (c->statusCode() < 400)
-			std::cout << c->output() << std::endl;
+			std::cout << c->output() << std::flush;
 		else
-			std::cerr << c->output() << std::endl;
+			std::cerr << c->output() << std::flush;
 		c->output().clear();
 		if (c->shouldClose() == true)
 			c->exitErr() = true;
