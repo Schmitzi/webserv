@@ -18,7 +18,7 @@ Request::Request(const std::string& rawRequest, Client& client, int clientFd) :
 	_boundary(""),
 	_contentLength(0),
 	_headers(),
-	_curConf(),
+	_curConf(serverLevel()),
 	_client(&client),
 	_configs(_client->getConfigs()),
 	_clientFd(clientFd),
@@ -172,12 +172,18 @@ bool Request::matchHostServerName() {
 
 bool Request::checkRaw(const std::string& raw) {
 	size_t i = 0;
-	if (raw.find("http://") != std::string::npos)
-		i += 7;
-	std::string r = raw.substr(i);
-	if (r.find("//") == std::string::npos)
-		return true;
-	return false;
+	std::string r = raw.substr(0, raw.find("\r\n"));
+	while (!r.empty() && i < r.size()) {
+		if (r.find("http://") == 0)
+			i += 8;
+		else if (r.find("//") != std::string::npos)
+			return false;
+		else
+			i++;
+		r = r.substr(i);
+		i = 0;
+	}
+	return true;
 }
 
 void Request::parse(const std::string& rawRequest) {
@@ -188,6 +194,13 @@ void Request::parse(const std::string& rawRequest) {
 		return;
 	}
 	
+	if (!checkRaw(rawRequest)) {
+		_client->output() = getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
+		_client->statusCode() = 400;
+		_check = "BAD";
+		return;
+	}
+
 	checkContentLength(rawRequest);
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
@@ -205,13 +218,6 @@ void Request::parse(const std::string& rawRequest) {
 	std::string headerSection = rawRequest.substr(0, headerEnd);
 	if (headerEnd + headerSeparatorLength < rawRequest.length()) {
 		_body = rawRequest.substr(headerEnd + headerSeparatorLength);
-	}
-	
-	if (!checkRaw(headerSection)) {
-		_client->output() = getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
-		_client->statusCode() = 400;
-		_check = "BAD";
-		return;
 	}
 
 	parseHeaders(headerSection);

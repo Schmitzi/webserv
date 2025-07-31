@@ -242,31 +242,11 @@ void Webserv::handleClientDisconnect(int fd) {
 	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
-void Webserv::kickLeastRecentlyUsedClient() {
-	if (_clients.empty())
-		return;
-	double maxDiff = 0.0;
-	Client* lraClient = NULL;
-	time_t now = time(NULL);
-
-	for (size_t i = 0; i < _clients.size(); i++) {
-		double diff = now - _clients[i].lastUsed();
-		if (diff > maxDiff) {
-			maxDiff = diff;
-			lraClient = &_clients[i];
-		}
-	}
-	if (lraClient) {
-		std::cout << getTimeStamp(lraClient->getFd()) << RED << "Kicking least recently used client" << RESET << std::endl;
-		handleClientDisconnect(lraClient->getFd());
-	} else {
-		std::cerr << getTimeStamp() << RED << "Error: No clients to kick" << RESET << std::endl;
-	}
-}
-
 void Webserv::handleNewConnection(Server &server) {
-	if (_clients.size() >= 1000)
-		kickLeastRecentlyUsedClient();
+	if (_clients.size() >= 1000) {
+		std::cerr << getTimeStamp() << RED << "Error: 507 (insufficient storage) - can't accept any more clients for now" << RESET << std::endl;
+		return;
+	}
 
 	Client newClient(server);
 	
@@ -343,7 +323,6 @@ void Webserv::handleEpollOut(int fd) {
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
-		c->lastUsed() = time(NULL);
 		if (c->statusCode() < 400)
 			std::cout << c->output() << std::flush;
 		else

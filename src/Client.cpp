@@ -23,7 +23,6 @@ Client::Client(Server& serv) {
 	_fileIsNew = false;
 	_shouldClose = false;
 	_connClose = false;
-	_lastUsed = time(NULL);
 	_output = "";
 	_statusCode = 200;
 	_state = UNTRACKED;
@@ -48,7 +47,6 @@ Client& Client::operator=(const Client& other) {
 		_fileIsNew = other._fileIsNew;
 		_shouldClose = other._shouldClose;
 		_connClose = other._connClose;
-		_lastUsed = other._lastUsed; 
 		_output = other._output;
 		_statusCode = other._statusCode;
 		_state = other._state;
@@ -69,6 +67,10 @@ Server &Client::getServer() {
 
 Webserv& Client::getWebserv() {
 	return *_webserv;
+}
+
+Request& Client::getRequest() {
+	return *_req;
 }
 
 size_t& Client::getOffset() {
@@ -93,10 +95,6 @@ bool &Client::shouldClose() {
 
 bool &Client::connClose() {
 	return _connClose;
-}
-
-time_t &Client::lastUsed() {
-	return _lastUsed;
 }
 
 std::string &Client::output() {
@@ -135,8 +133,7 @@ void Client::receiveData() {
 	static bool printNewLine = false;
 	char buffer[1000000];
 	memset(buffer, 0, sizeof(buffer));
-	
-	
+
 	ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
 	if (bytesRead < 0) {
 		_exitErr = true;
@@ -144,7 +141,7 @@ void Client::receiveData() {
 		_output = getTimeStamp(_fd) + RED + "Error: recv() failed\n" + RESET;
 		return;
 	}
-	
+
 	if (bytesRead == 0) {
 		_exitErr = false;
 		return;

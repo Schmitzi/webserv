@@ -37,13 +37,13 @@ class Client {
 		int							&getFd();
 		Server						&getServer();
 		Webserv						&getWebserv();
+		Request						&getRequest();
 		size_t						&getOffset();
 		std::vector<serverLevel>	getConfigs();
 		bool						&exitErr();
 		bool						&fileIsNew();
 		bool						&shouldClose();
 		bool						&connClose();
-		time_t						&lastUsed();
 		std::string					&output();
 		int							&statusCode();
 		int							&state();
@@ -83,7 +83,6 @@ class Client {
 		bool						_fileIsNew;
 		bool						_shouldClose;
 		bool						_connClose;
-		time_t						_lastUsed;
 		std::string					_output;
 		int							_statusCode;
 		int							_state;

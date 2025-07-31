@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Parse the request text to extract method and path
         const parts = requestText.split(' ');
-        let method = 'GET'; // Default method
+        let method = ''; // Default method
         let path = '/';     // Default path
         let hasQueryParams = false;
         
@@ -250,9 +250,7 @@ ${method === 'POST' ? 'Content-Type: application/x-www-form-urlencoded\n' : ''}
             console.log("Response body:", body);
 			
 			// Render HTML in iframe
-			const iframe = document.getElementById('rendered-output');
-			const blob = new Blob([body], { type: 'text/html' });
-			const blobUrl = URL.createObjectURL(blob);
+			const iframe = document.getElementById('rendered-output');//TODO: this send another get request after deleting something
             iframe.src = path;
             // Display full response
             responseOutput.textContent = responseText + body;
