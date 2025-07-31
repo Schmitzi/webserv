@@ -57,6 +57,10 @@ Client*  CGIHandler::getClient() const {
 	return _client;
 }
 
+Request& CGIHandler::getRequest() {
+    return _req;
+}
+
 void CGIHandler::setPath(const std::string& path) {
 	_path = path;
 }
