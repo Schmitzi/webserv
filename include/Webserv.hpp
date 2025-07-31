@@ -48,7 +48,6 @@ class Webserv {
 		int							run();
 		void						handleErrorEvent(int fd);
 		void						handleClientDisconnect(int fd);
-		void						kickLeastRecentlyUsedClient();
 		void						handleNewConnection(Server& server);
 		void						handleClientActivity(int clientFd);
 		void						handleEpollOut(int fd);

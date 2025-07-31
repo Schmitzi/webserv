@@ -251,8 +251,6 @@ ${method === 'POST' ? 'Content-Type: application/x-www-form-urlencoded\n' : ''}
 			
 			// Render HTML in iframe
 			const iframe = document.getElementById('rendered-output');//TODO: this send another get request after deleting something
-			// const blob = new Blob([body], { type: 'text/html' });//TODO: this doesnt do anything I think??
-			// const blobUrl = URL.createObjectURL(blob);
             iframe.src = path;
             // Display full response
             responseOutput.textContent = responseText + body;

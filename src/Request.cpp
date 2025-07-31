@@ -18,7 +18,7 @@ Request::Request(const std::string& rawRequest, Client& client, int clientFd) :
 	_boundary(""),
 	_contentLength(0),
 	_headers(),
-	_curConf(),
+	_curConf(serverLevel()),
 	_client(&client),
 	_configs(_client->getConfigs()),
 	_clientFd(clientFd),
@@ -194,6 +194,13 @@ void Request::parse(const std::string& rawRequest) {
 		return;
 	}
 	
+	if (!checkRaw(rawRequest)) {
+		_client->output() = getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
+		_client->statusCode() = 400;
+		_check = "BAD";
+		return;
+	}
+
 	checkContentLength(rawRequest);
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
@@ -211,13 +218,6 @@ void Request::parse(const std::string& rawRequest) {
 	std::string headerSection = rawRequest.substr(0, headerEnd);
 	if (headerEnd + headerSeparatorLength < rawRequest.length()) {
 		_body = rawRequest.substr(headerEnd + headerSeparatorLength);
-	}
-	
-	if (!checkRaw(headerSection)) {
-		_client->output() = getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
-		_client->statusCode() = 400;
-		_check = "BAD";
-		return;
 	}
 
 	parseHeaders(headerSection);
