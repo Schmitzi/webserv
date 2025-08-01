@@ -166,15 +166,17 @@ int Webserv::run() {
 		return 1;
 	}
 	initialize();
-	
 	while (_state == true) {
-		int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
+		int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, 1);
 		if (nfds == -1) {
 			if (errno == EINTR)
 				continue;
 			std::cerr << getTimeStamp() << RED << "Error: epoll_wait() failed" << RESET << std::endl;
 			continue;
 		}
+		for (size_t i = 0; i < _clients.size(); i++)
+			checkClientTimeout(time(NULL), _clients[i]);
+		checkCgiTimeouts();
 		for (int i = 0; i < nfds; i++) {
 			int fd = _events[i].data.fd;
 			uint32_t eventMask = _events[i].events;
@@ -194,6 +196,18 @@ int Webserv::run() {
 		}
 	}
 	return 0;
+}
+
+bool Webserv::checkClientTimeout(time_t now, Client &client) {
+	if (now - client.lastActive() > CLIENT_TIMEOUT) {
+		client.statusCode() = 408;
+		client.exitErr() = true;
+		client.shouldClose() = true;
+		Request req = Request();
+		sendErrorResponse(client, req);
+		return false;
+	}
+	return true;
 }
 
 void Webserv::handleErrorEvent(int fd) {
@@ -242,34 +256,13 @@ void Webserv::handleClientDisconnect(int fd) {
 	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
 }
 
-void Webserv::kickLeastRecentlyUsedClient() {
-	if (_clients.empty())
-		return;
-	double maxDiff = 0.0;
-	Client* lraClient = NULL;
-	time_t now = time(NULL);
-
-	for (size_t i = 0; i < _clients.size(); i++) {
-		double diff = now - _clients[i].lastUsed();
-		if (diff > maxDiff) {
-			maxDiff = diff;
-			lraClient = &_clients[i];
-		}
-	}
-	if (lraClient) {
-		std::cout << getTimeStamp(lraClient->getFd()) << RED << "Kicking least recently used client" << RESET << std::endl;
-		handleClientDisconnect(lraClient->getFd());
-	} else {
-		std::cerr << getTimeStamp() << RED << "Error: No clients to kick" << RESET << std::endl;
-	}
-}
-
 void Webserv::handleNewConnection(Server &server) {
-	if (_clients.size() >= 1000)
-		kickLeastRecentlyUsedClient();
+	if (_clients.size() >= 1000) {
+		std::cerr << getTimeStamp() << RED << "Error: 507 (insufficient storage) - can't accept any more clients for now" << RESET << std::endl;
+		return;
+	}
 
 	Client newClient(server);
-	
 	if (newClient.acceptConnection(server.getFd()) == 0) {
 		newClient.displayConnection();
 
@@ -282,7 +275,7 @@ void Webserv::handleNewConnection(Server &server) {
 	}
 }
 
-void Webserv::handleClientActivity(int clientFd) {    
+void Webserv::handleClientActivity(int clientFd) {
 	if (isCgiPipeFd(*this, clientFd)) {
 		CGIHandler* handler = getCgiHandler(clientFd);
 		if (handler) {
@@ -343,7 +336,6 @@ void Webserv::handleEpollOut(int fd) {
 	if (offset >= toSend.size()) {
 		offset = 0;
 		clearSendBuf(*this, fd);
-		c->lastUsed() = time(NULL);
 		if (c->statusCode() < 400)
 			std::cout << c->output() << std::flush;
 		else
@@ -359,6 +351,32 @@ void Webserv::handleEpollOut(int fd) {
 	}
 	if (c->exitErr() == true)
 		handleClientDisconnect(fd);
+}
+
+void Webserv::checkCgiTimeouts() {
+	time_t now = time(NULL);
+	std::vector<int> expiredCgis;
+	
+	for (std::map<int, CGIHandler*>::iterator it = _cgis.begin(); it != _cgis.end(); ++it) {
+		CGIHandler* handler = it->second;
+		if (handler && handler->isTimedOut(now)) {
+			std::cerr << getTimeStamp(it->first) << RED << "CGI timeout detected, killing process" << RESET << std::endl;
+			expiredCgis.push_back(it->first);
+		}
+	}
+	
+	for (size_t i = 0; i < expiredCgis.size(); ++i) {
+		int cgiFd = expiredCgis[i];
+		CGIHandler* handler = getCgiHandler(cgiFd);
+		if (handler) {
+			handler->killProcess();
+			handler->getClient()->statusCode() = 504;
+			sendErrorResponse(*(handler->getClient()), handler->getRequest());
+			handler->cleanupResources();
+			delete handler;
+			unregisterCgiPipe(*this, cgiFd);
+		}
+	}
 }
 
 void    Webserv::cleanup() {

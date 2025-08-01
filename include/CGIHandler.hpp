@@ -24,7 +24,8 @@ class CGIHandler {
 		~CGIHandler();
 
 		//getters & setters
-		Client*									getClient() const;
+		Client									*getClient() const;
+		Request									&getRequest();
 		void									setPath(const std::string& path);
 		void									setCGIBin(serverLevel *config);
 
@@ -41,8 +42,8 @@ class CGIHandler {
 		std::string								formatChunkedResponse(const std::string& body);
 		std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
 		void									startClock();
-		bool    								isTimedOut(time_t now) const;
-		void    								killProcess();
+		bool									isTimedOut(time_t now) const;
+		void									killProcess();
 		void									cleanupResources();
 
 	private:

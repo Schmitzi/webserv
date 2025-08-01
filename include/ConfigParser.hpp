@@ -69,9 +69,6 @@ class ConfigParser {
 		int														getPort(serverLevel& conf);
 		std::pair<std::pair<std::string, int>, bool>			getDefaultPortPair(serverLevel& conf);
 		serverLevel&											getConfigByIndex(size_t nbr);
-
-		//extras..temporary
-		void													printAllConfigs();
 };
 
 class configException : public std::exception {
