@@ -110,19 +110,21 @@ void generateErrorPage(std::string& body, int statusCode, const std::string& sta
 }
 
 std::string findErrorPage(int statusCode, const std::string& dir, Request& req) {
-	std::map<std::vector<int>, std::string> errorPages = req.getConf().errPages;
-	std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
 	bool foundCustomPage = false;
 	std::string uri;
-	while (it != errorPages.end() && !foundCustomPage) {
-		for (size_t i = 0; i < it->first.size(); i++) {
-			if (it->first[i] == statusCode) {
-				foundCustomPage = true;
-				uri = it->second;
-				break;
+	if (req.init() == true) {
+		std::map<std::vector<int>, std::string> errorPages = req.getConf().errPages;
+		std::map<std::vector<int>, std::string>::iterator it = errorPages.begin();
+		while (it != errorPages.end() && !foundCustomPage) {
+			for (size_t i = 0; i < it->first.size(); i++) {
+				if (it->first[i] == statusCode) {
+					foundCustomPage = true;
+					uri = it->second;
+					break;
+				}
 			}
+			++it;
 		}
-		++it;
 	}
 	
 	std::string filePath;
@@ -174,6 +176,8 @@ void sendRedirect(Client& c, const std::string& location, Request& req) {
 		"</html>\n";	
 	
 	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + statusText + "\r\n";
+	response += "Server: WebServ/1.0\r\n";
+	response += "Date: " + getCurrentTime() + "\r\n";
 	response += "Location: " + location + "\r\n";
 	response += "Content-Type: text/html\r\n";
 	response += "Content-Length: " + tostring(body.size()) + "\r\n";
@@ -181,20 +185,25 @@ void sendRedirect(Client& c, const std::string& location, Request& req) {
 	response += "Pragma: no-cache\r\n";
 	if (shouldCloseConnection(req))
 		response += "Connection: close\r\n";
+	else
+		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
 	response += body;
 	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-	c.output() = getTimeStamp(c.getFd()) + BLUE + "Sent redirect response: " + RESET + tostring(c.statusCode()) + " " + statusText + " to " + location + "\n";
+	c.lastActive() = time(NULL);
+	c.output() += getTimeStamp(c.getFd()) + BLUE + "Sent redirect response: " + RESET + tostring(c.statusCode()) + " " + statusText + " to " + location + "\n";
 }
 
 ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	if (c.getFd() <= 0) {
-		c.output() = getTimeStamp(c.getFd()) + RED + "Invalid fd in sendResponse\n" + RESET;
+		c.output() += getTimeStamp() + RED + "Invalid fd in sendResponse\n" + RESET;
 		return -1;
 	}
-	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " OK\r\n";
+	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + getStatusMessage(c.statusCode()) + "\r\n";
+	response += "Server: WebServ/1.0\r\n";
+	response += "Date: " + getCurrentTime() + "\r\n";
 	response += "Content-Type: " + req.getContentType() + "\r\n";
 	
 	std::string content = body;
@@ -207,15 +216,13 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	else
 		response += "Transfer-Encoding: chunked\r\n";
 	
-	response += "Server: WebServ/1.0\r\n";
-	
 	if (shouldCloseConnection(req))
 		response += "Connection: close\r\n";
 	response += "Access-Control-Allow-Origin: *\r\n";
 	response += "\r\n";
 	
 	if (c.getFd() < 0) {
-		c.output() = getTimeStamp(c.getFd()) + RED  + "FD became invalid before send\n" + RESET;
+		c.output() += getTimeStamp(c.getFd()) + RED  + "FD became invalid before send\n" + RESET;
 		return -1;
 	}
 	addSendBuf(c.getWebserv(), c.getFd(), response);
@@ -245,18 +252,21 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 			std::string s2 = "0\r\n\r\n";
 			addSendBuf(c.getWebserv(), c.getFd(), s2);
 			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-			c.output() = getTimeStamp(c.getFd()) + GREEN  + "Sent chunked body " + RESET + "(" + tostring(content.length()) + " bytes)\n";
+			c.lastActive() = time(NULL);
+			c.output() += getTimeStamp(c.getFd()) + GREEN  + "Sent chunked body " + RESET + "(" + tostring(content.length()) + " bytes)\n";
 			return 0;
 		} else {
 			content += "\n";
 			addSendBuf(c.getWebserv(), c.getFd(), content);
 			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
+			c.lastActive() = time(NULL);
 			return 0;
 		}
 	} else {
 		addSendBuf(c.getWebserv(), c.getFd(), "\n");
 		setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
-		c.output() = getTimeStamp(c.getFd()) + GREEN  + "Response sent (headers only)\n" + RESET;
+		c.lastActive() = time(NULL);
+		c.output() += getTimeStamp(c.getFd()) + GREEN  + "Response sent (headers only)\n" + RESET;
 		return 0;
 	}
 }
@@ -264,22 +274,26 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 void sendErrorResponse(Client& c, Request& req) {
 	std::string body;
 	std::string statusText = getStatusMessage(c.statusCode());
-	
+
 	resolveErrorResponse(c.statusCode(), statusText, body, req);    
 
 	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + statusText + "\r\n";
+	response += "Server: WebServ/1.0\r\n";
+	response += "Date: " + getCurrentTime() + "\r\n";
 	response += "Content-Type: text/html\r\n";
 	response += "Content-Length: " + tostring(body.size()) + "\r\n";
-	response += "Server: WebServ/1.0\r\n";
 	response += "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n";
 	response += "Pragma: no-cache\r\n";
-	if (shouldCloseConnection(req))
+	if (req.init() == false || shouldCloseConnection(req))
 		response += "Connection: close\r\n";
+	else
+		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
 	response += body;
 	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
+	c.lastActive() = time(NULL);
 	c.output() += getTimeStamp(c.getFd()) + RED  + "Error sent: " + tostring(c.statusCode()) + " " + getStatusMessage(c.statusCode()) + RESET + "\n";
 }
 
@@ -296,8 +310,8 @@ bool shouldCloseConnection(Request& req) {
 		return true;
 	}
 	
-	int statusCode = req.getClient().statusCode();
-	if (statusCode >= 400 && statusCode != 413 && statusCode != 414 && statusCode != 501) {
+	int code = req.getClient().statusCode();
+	if (code == 400 || code == 408 || code == 413 || code == 414 || code == 418 || code == 429 || (code >= 500 && code != 501)) {
 		req.getClient().shouldClose() = true;
 		return true;
 	}

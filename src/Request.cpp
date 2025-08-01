@@ -4,9 +4,12 @@
 #include "../include/Helper.hpp"
 #include "../include/Client.hpp"
 
-Request::Request() {}
+Request::Request() {
+	_init = false;
+}
 
 Request::Request(const std::string& rawRequest, Client& client, int clientFd) : 
+	_init(true),
 	_host(""),
 	_method(""),
 	_check(""),
@@ -34,6 +37,7 @@ Request::Request(const Request& copy) {
 
 Request &Request::operator=(const Request& copy) {
 	if (this != &copy) {
+		_init = copy._init;
 		_host = copy._host;
 		_method = copy._method;
 		_check = copy._check;
@@ -56,6 +60,10 @@ Request &Request::operator=(const Request& copy) {
 }
 
 Request::~Request() {}
+
+bool& Request::init() {
+	return _init;
+}
 
 std::string &Request::getPath() {
 	return _path;
@@ -173,11 +181,20 @@ bool Request::matchHostServerName() {
 bool Request::checkRaw(const std::string& raw) {
 	size_t i = 0;
 	std::string r = raw.substr(0, raw.find("\r\n"));
+	if (r.size() > 8192) {
+		_client->statusCode() = 414;
+		_check = "BAD";
+		return false;
+	}
 	while (!r.empty() && i < r.size()) {
 		if (r.find("http://") == 0)
 			i += 8;
-		else if (r.find("//") != std::string::npos)
+		else if (r.find("//") != std::string::npos) {
+			_client->statusCode() = 400;
+			_client->output() += getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
+			_check = "BAD";
 			return false;
+		}
 		else
 			i++;
 		r = r.substr(i);
@@ -188,18 +205,14 @@ bool Request::checkRaw(const std::string& raw) {
 
 void Request::parse(const std::string& rawRequest) {
 	if (rawRequest.empty()) {
-		_client->output() = getTimeStamp(_clientFd) + RED + "Empty request!\n" + RESET;
+		_client->output() += getTimeStamp(_clientFd) + RED + "Empty request!\n" + RESET;
 		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
 	}
 	
-	if (!checkRaw(rawRequest)) {
-		_client->output() = getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
-		_client->statusCode() = 400;
-		_check = "BAD";
+	if (!checkRaw(rawRequest))
 		return;
-	}
 
 	checkContentLength(rawRequest);
 
@@ -227,7 +240,7 @@ void Request::parse(const std::string& rawRequest) {
 	}
 
 	if (!matchHostServerName()) {
-		_client->output() = getTimeStamp(_clientFd) + RED + "No Host-ServerName match + no default config specified!\n" + RESET;
+		_client->output() += getTimeStamp(_clientFd) + RED + "No Host-ServerName match + no default config specified!\n" + RESET;
 		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
@@ -327,7 +340,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 	size_t end = line.find_last_not_of(" \t\r\n");
 	if (end != std::string::npos)
 	line = line.substr(0, end + 1);
-	
+
 	std::istringstream lineStream(line);
 	std::string target;
 	lineStream >> _method >> target >> _version;
@@ -368,7 +381,6 @@ void Request::parseHeaders(const std::string& headerSection) {
 	}
 	if (_method.empty() || (_method != "GET" && target.empty())) {
 		_client->statusCode() = 400;
-		_check = "BAD";
 		return;
 	}
 
@@ -476,8 +488,7 @@ bool Request::isChunkedTransfer() {
 		if (iFind(it->second, "chunked") != std::string::npos) {
 			_isChunked = true;
 			return true;
-		}
-		else {
+		} else {
 			_client->statusCode() = 501;
 			return false;
 		}
