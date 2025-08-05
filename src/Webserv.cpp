@@ -100,6 +100,7 @@ Client* Webserv::getClientByFd(int fd) {
 }
 
 void Webserv::initialize() {
+	int open = 0;
 	for (size_t i = 0; i < _servers.size(); i++) {
 		if (_servers[i].getFd() > 0) {
 			std::cout << getTimeStamp() << BLUE << "Host:Port already opened: " << RESET << 
@@ -132,6 +133,11 @@ void Webserv::initialize() {
 				std::cout << "]";
 		}
 		std::cout << " is listening on port " << _confParser.getPort(_servers[i].getConfigs()[0]) << RESET << std::endl << std::endl;
+		open++;
+	}
+	if (open == 0) {
+		_state = false;
+		std::cerr << "\n" << getTimeStamp() << RED << "No available servers - closing\n" << RESET;
 	}
 }
 

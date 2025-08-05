@@ -69,6 +69,8 @@ class Client {
 		std::string					showDir(const std::string& dirPath, const std::string& requestUri);
 		bool						saveFile(Request& req, const std::string& filename, const std::string& content);
 
+		void						earlyLengthDetection();
+
 	private:
 		struct sockaddr_in			_addr;
 		socklen_t					_addrLen;

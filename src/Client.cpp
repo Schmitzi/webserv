@@ -132,72 +132,78 @@ void Client::displayConnection() {
 }
 
 void Client::receiveData() {
-	static bool printNewLine = false;
-	char buffer[1000000];
-	memset(buffer, 0, sizeof(buffer));
-	
-	
-	ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
-	if (bytesRead < 0) {
-		_exitErr = true;
-		_statusCode = 500;
-		_output = getTimeStamp(_fd) + RED + "Error: recv() failed\n" + RESET;
-		return;
-	}
-	
-	if (bytesRead == 0) {
-		_exitErr = false;
-		return;
-	}
+    static bool printNewLine = false;
+    char buffer[1000000];
+    memset(buffer, 0, sizeof(buffer));
+    
+    ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+    if (bytesRead < 0) {
+        _exitErr = true;
+        _statusCode = 500;
+        _output = getTimeStamp(_fd) + RED + "Error: recv() failed" + RESET;
+        return;
+    }
+    
+    if (bytesRead == 0) {
+        _exitErr = false;
+        return;
+    }
 
-	_requestBuffer.append(buffer, bytesRead);
+    _requestBuffer.append(buffer, bytesRead);
 
-	if (_requestBuffer.find("\r\n\r\n") == std::string::npos && 
-		_requestBuffer.find("\n\n") == std::string::npos) {
-		std::cout << getTimeStamp(_fd) << BLUE 
-				<< "Headers incomplete, waiting for more data" << RESET << std::endl;
-		_exitErr = false;
-		return;
-	} else
-		_state = CHECKING;
-
-	if (_state == CHECKING) {
-		std::string tmp = toLower(_requestBuffer);
-		if (tmp.find("transfer-encoding:") != std::string::npos && tmp.find("chunked") != std::string::npos) {
-			if (!isChunkedBodyComplete(_requestBuffer))
-				return;
-			else
-				_state = COMPLETE;
-		} else {
-			int x = checkLength(tmp, _fd, printNewLine);
-			if (x == -1) {
-				_statusCode = 400;
-				_exitErr = true;
-				return;
-			} else if (x == 0)
-				return;
-			else
-				_state = COMPLETE;
-		}
-	}
-	if (_state == COMPLETE) {
-		if (printNewLine == true)
-			std::cout << std::endl;
-		std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
-		printNewLine = false;
-		_state = PROCESSING;
-	}
-	
-	if (_state == PROCESSING) {
-		Request req(_requestBuffer, *this, _fd);
-		_req = &req;
-		_exitErr = processRequest();
-		if (_exitErr != 1)
-			_requestBuffer.clear();
-		if (shouldCloseConnection(*_req))
-			_shouldClose = true;
-		_state = DONE;
-	}
+    if (_requestBuffer.find("\r\n\r\n") == std::string::npos && 
+        _requestBuffer.find("\n\n") == std::string::npos) {
+        std::cout << getTimeStamp(_fd) << BLUE 
+                << "Headers incomplete, waiting for more data" << RESET << std::endl;
+        _exitErr = false;
+        return;
+    } else {
+        earlyLengthDetection();
+        _state = CHECKING;
+    }
+    
+    if (_state == CHECKING) {
+        if (_statusCode == 413) {
+            _state = COMPLETE;
+        } else {
+            std::string tmp = toLower(_requestBuffer);
+            if (tmp.find("transfer-encoding:") != std::string::npos && tmp.find("chunked") != std::string::npos) {
+                if (!isChunkedBodyComplete(_requestBuffer))
+                    return;
+                else
+                    _state = COMPLETE;
+            } else {
+                int x = checkLength(tmp, _fd, printNewLine);
+                if (x == -1) {
+                    _statusCode = 400;
+                    _exitErr = true;
+                    return;
+                } else if (x == 0)
+                    return;
+                else
+                    _state = COMPLETE;
+            }
+        }
+    }
+    
+    if (_state == COMPLETE) {
+        if (printNewLine == true)
+            std::cout << std::endl;
+        std::cout << getTimeStamp(_fd) << GREEN << "Complete request received, processing..." << RESET << std::endl;
+        printNewLine = false;
+        _state = PROCESSING;
+    }
+    
+    if (_state == PROCESSING) {
+        Request req(_requestBuffer, *this, _fd);
+        _req = &req;
+        _exitErr = processRequest();
+        if (_exitErr != 1)
+            _requestBuffer.clear();
+        if (shouldCloseConnection(*_req))
+            _shouldClose = true;
+        _state = DONE;
+    }
 }
 
 int Client::processRequest() {
@@ -844,4 +850,43 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 	close(fd);
 	releaseLockFile(fullPath);
 	return true;
+}
+
+void Client::earlyLengthDetection() {
+	size_t contentLengthPos = _requestBuffer.find("Content-Length:");
+	if (contentLengthPos == std::string::npos) {
+		std::string lowerBuffer = toLower(_requestBuffer);
+		contentLengthPos = lowerBuffer.find("content-length:");
+	}
+	
+	if (contentLengthPos != std::string::npos) {
+		size_t valueStart = _requestBuffer.find(":", contentLengthPos) + 1;
+		size_t lineEnd = _requestBuffer.find("\r\n", valueStart);
+		if (lineEnd == std::string::npos) {
+			lineEnd = _requestBuffer.find("\n", valueStart);
+		}
+		
+		if (lineEnd != std::string::npos) {
+			std::string lengthStr = _requestBuffer.substr(valueStart, lineEnd - valueStart);
+			
+			lengthStr.erase(0, lengthStr.find_first_not_of(" \t"));
+			lengthStr.erase(lengthStr.find_last_not_of(" \t\r\n") + 1);
+			
+			unsigned long contentLength = strtoul(lengthStr.c_str(), NULL, 10);
+			
+			size_t requestLimit = 0;
+			if (!_configs.empty()) {
+				requestLimit = _configs[0].requestLimit; // TODO: match servername?
+			
+				if (contentLength > requestLimit) {
+					_statusCode = 413;
+					_output = getTimeStamp(_fd) + RED + "Request body too large: " + 
+								tostring(contentLength) + " bytes exceeds limit of " + 
+								tostring(requestLimit) + " bytes\n" + RESET;
+					
+					_state = COMPLETE;
+				}
+			}
+		}
+	}
 }
