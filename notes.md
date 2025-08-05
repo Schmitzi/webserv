@@ -37,8 +37,20 @@ diff <(curl -v http://localhost:8080/ > webservOut.txt) <(curl -v http://localho
 <!-- -> add check for index in config to only take 1 file or change it to be abale to use more than one (just dont ignore) -->
 
 -> open fails because of 403 but sends 500 because it wasnt checked properly
-	maybe because of adding to output string instead of setting once and returning (dont continue?)
+	maybe because of adding to output string instead of setting once and returning (dont continue?) -> 423 tryLockFile save code and check afterwards
 
 <!-- -> if no default_server specified take first one as default -->
 
 -> check filesize (bytes to be received) before receiving bytes!
+
+CGI:
+
+-> cgi should be run in the correct direcotry (where the script is located)
+
+-> succesful cgi request -> FEHLER -> everything shit
+
+-> path info not working
+
+-> maybe use cgi headers??? would be cool but not a must
+
+-> cgi exit with not 0 should be BAD_GATEWAY and not INTERNAL_SERVER_ERROR
