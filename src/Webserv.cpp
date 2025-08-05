@@ -100,6 +100,7 @@ Client* Webserv::getClientByFd(int fd) {
 }
 
 void Webserv::initialize() {
+	bool atLeastOne = false;
 	for (size_t i = 0; i < _servers.size(); i++) {
 		if (_servers[i].getFd() > 0) {
 			std::cout << getTimeStamp() << BLUE << "Host:Port already opened: " << RESET << 
@@ -118,6 +119,7 @@ void Webserv::initialize() {
 			std::cerr << getTimeStamp() << RED << "Failed to add server to epoll: " << RESET << i + 1 << std::endl;
 			continue;
 		}
+		atLeastOne = true;
 		std::cout << getTimeStamp() << GREEN << "Server " << i + 1;
 		bool smth = false;
 		for (size_t x = 0; x < _servers[i].getConfigs().size(); x++) {
@@ -133,6 +135,8 @@ void Webserv::initialize() {
 		}
 		std::cout << " is listening on port " << _confParser.getPort(_servers[i].getConfigs()[0]) << RESET << std::endl << std::endl;
 	}
+	if (!atLeastOne)
+		_state = false;
 }
 
 bool Webserv::checkEventMaskErrors(uint32_t &eventMask, int fd) {

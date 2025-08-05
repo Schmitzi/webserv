@@ -22,7 +22,7 @@ diff <(curl -v http://localhost:8080/ > webservOut.txt) <(curl -v http://localho
 
 -> can we use epoll_create1? (jakob said we should use 2, subject only specifies epoll_create)
 
--> if all bind() fail: dont start webserv
+<!-- -> if all bind() fail: dont start webserv -->
 
 <!-- -> check error_pages in config (should be >= 400) -->
 
@@ -30,14 +30,15 @@ diff <(curl -v http://localhost:8080/ > webservOut.txt) <(curl -v http://localho
 
 -> GET /for location / without GET in limit_except still returns index.html
 
--> combine upload_store with location name and root
+<!-- -> combine upload_store with location name and root -->
 
--> combine error_pages with root
+<!-- -> combine error_pages with root -->
 
--> add check for index in config to only take 1 file or change it to be abale to use more than one (just dont ignore)
+<!-- -> add check for index in config to only take 1 file or change it to be abale to use more than one (just dont ignore) -->
 
 -> open fails because of 403 but sends 500 because it wasnt checked properly
+	maybe because of adding to output string instead of setting once and returning (dont continue?)
 
--> if no default_server specified take first one as default
+<!-- -> if no default_server specified take first one as default -->
 
 -> check filesize (bytes to be received) before receiving bytes!

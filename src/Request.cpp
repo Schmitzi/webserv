@@ -163,6 +163,10 @@ bool Request::matchHostServerName() {
 				}
 			}
 		}
+		if (_configs.size() > 0) {
+			_curConf = _configs[0];
+			return true;
+		}
 	}
 	else {
 		int portPart = std::atoi(_host.substr(_host.find(":") + 1).c_str());

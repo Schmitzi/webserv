@@ -836,7 +836,7 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {
-		statusCode() = 500;
+		statusCode() = 409;
 		_output += getTimeStamp(_fd) + RED + "Error: Failed to open file for writing: " + RESET + fullPath + "\n";
 		return false;
 	}
