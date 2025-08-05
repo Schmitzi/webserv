@@ -131,6 +131,8 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 bool ensureUploadDirectory(Client& c, Request& req) {
 	struct stat st;
 	std::string uploadDir = c.getServer().getUploadDir(c, req);
+	if (uploadDir.empty())
+		return false;
 	if (stat(uploadDir.c_str(), &st) != 0) {
 		c.statusCode() = 500;
 		if (mkdir(uploadDir.c_str(), 0755) != 0) {
