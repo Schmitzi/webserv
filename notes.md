@@ -18,9 +18,20 @@ diff <(curl -v http://localhost:8080/ > webservOut.txt) <(curl -v http://localho
 
 [nm -u ./webserv]
 
--> change atoi to std::...
+nm -u ./webserv | c++filt | grep "__cxx11" => these should not appear: 'std::__cxx11::'
 
--> can we use epoll_create1? (jakob said we should use 2, subject only specifies epoll_create)
+nm -u ./webserv | grep GLIBCXX_ | sort | uniq =>	C++98 symbols should be from:
+													GLIBCXX_3.4 (for libstdc++)
+													GCC_3.0 (for low-level GCC runtime)
+												
+													these are post-C++98 and likely indicate C++11+ usage:
+													GLIBCXX_3.4.11
+													GLIBCXX_3.4.20
+													etc.
+
+<!-- -> change atoi to std::... -->
+
+<!-- -> can we use epoll_create1? -->
 
 <!-- -> if all bind() fail: dont start webserv -->
 
@@ -28,7 +39,7 @@ diff <(curl -v http://localhost:8080/ > webservOut.txt) <(curl -v http://localho
 
 -> GET /dev/urandom returns 404, should not be 404
 
--> GET /for location / without GET in limit_except still returns index.html
+-> GET / for location / without GET in limit_except still returns index.html
 
 <!-- -> combine upload_store with location name and root -->
 
@@ -37,7 +48,7 @@ diff <(curl -v http://localhost:8080/ > webservOut.txt) <(curl -v http://localho
 <!-- -> add check for index in config to only take 1 file or change it to be abale to use more than one (just dont ignore) -->
 
 -> open fails because of 403 but sends 500 because it wasnt checked properly
-	maybe because of adding to output string instead of setting once and returning (dont continue?) -> 423 tryLockFile save code and check afterwards
+	maybe because of adding to output string instead of setting once and returning (dont continue?) -> 423 tryLockFile save code and check afterwards?
 
 <!-- -> if no default_server specified take first one as default -->
 
@@ -47,10 +58,10 @@ CGI:
 
 -> cgi should be run in the correct direcotry (where the script is located)
 
--> succesful cgi request -> FEHLER -> everything shit
+-> succesful cgi request -> FEHLER -> everything shit [easiest way to handle this would be to set the connection to close if there is an error]
 
--> path info not working
+<!-- -> path info not working -->
 
--> maybe use cgi headers??? would be cool but not a must
+<!-- -> maybe use cgi headers??? would be cool but not a must
 
--> cgi exit with not 0 should be BAD_GATEWAY and not INTERNAL_SERVER_ERROR
+-> cgi exit with not 0 should be BAD_GATEWAY and not INTERNAL_SERVER_ERROR -->

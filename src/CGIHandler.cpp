@@ -135,48 +135,40 @@ int CGIHandler::prepareEnv() {
 	std::string fileContent;
 	locationLevel* loc = NULL;
 	
-	if (!_req.getQuery().empty()) {
+	if (!_req.getQuery().empty())
 		doQueryStuff(_req.getQuery(), fileName, fileContent);
-		size_t dotPos = _path.find_last_of('.');
-		if (dotPos != std::string::npos) {
-			ext = "." + _path.substr(dotPos + 1); 
-			
-			if (!matchLocation(ext, _req.getConf(), loc)) {
-				_client->output() += getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
-				return 1;
-			}
-			
-			if (loc->uploadDirPath.empty()) {
-				_client->output() += getTimeStamp(_client->getFd()) + RED + "Upload directory not set for extension: " + RESET + ext + "\n";
-				return 1;
-			}
-			filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
-			makeArgs(loc->cgiProcessorPath, filePath);
+	size_t dotPos = _path.find_last_of('/');
+	if (dotPos != std::string::npos) {
+		std::string temp = _path.substr(dotPos + 1);
+		size_t slashPos = temp.find_first_of('/');
+		if (slashPos != std::string::npos) {
+			_pathInfo = temp.substr(slashPos);
+			ext = "." + temp.substr(dotPos + 1, temp.find_first_of('/') - 1);
+		} else
+			ext = "." + temp;
+		if (!matchLocation(ext, _req.getConf(), loc)) {
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
+			return 1;
 		}
-	} else {
-		size_t dotPos = _path.find_last_of('.');
-		if (dotPos != std::string::npos) {
-			ext = "." + _path.substr(dotPos + 1);
-			
-			if (!matchLocation(ext, _req.getConf(), loc)) {
-				_client->output() += getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
-				return 1;
-			}
-			makeArgs(loc->cgiProcessorPath, filePath);
+		if (loc->uploadDirPath.empty()) {
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Upload directory not set for extension: " + RESET + ext + "\n";
+			return 1;
 		}
+		filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
+		makeArgs(loc->cgiProcessorPath, filePath);
 	}
 	
 	_env.clear();
 	
 	const std::string abs_path = matchAndAppendPath(loc->rootLoc, _path);
-	_env.push_back("SCRIPT_FILENAME=" + abs_path);
+	_env.push_back("SCRIPT_FILENAME=" + abs_path);//TODO: SCRIPT FILENAME exists twice
 	_env.push_back("REDIRECT_STATUS=200");
 	_env.push_back("SERVER_SOFTWARE=WebServ/1.0");
 	_env.push_back("SERVER_NAME=" + _req.getConf().servName[0]);
 	_env.push_back("GATEWAY_INTERFACE=CGI/1.1");
-	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
+	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");//TODO: SERVER PROTOCOL exists twice
 	_env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(_req.getConf())));
-	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
+	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");//TODO: SERVER PROTOCOL exists twice
 	
 	// Request information
 	_env.push_back("REQUEST_METHOD=" + _req.getMethod());
@@ -186,7 +178,7 @@ int CGIHandler::prepareEnv() {
 	
 	// Script information
 	_env.push_back("SCRIPT_NAME=" + _req.getPath());
-	_env.push_back("SCRIPT_FILENAME=" + _path);
+	_env.push_back("SCRIPT_FILENAME=" + _path);//TODO: SCRIPT FILENAME exists twice
 	
 	// PATH_INFO handling (for URLs like /script.php/extra/path)
 	_env.push_back("PATH_INFO=" + _pathInfo);
@@ -316,17 +308,17 @@ int CGIHandler::processScriptOutput() {
 				std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
 				cleanupResources();
 				if (_req.isChunkedTransfer())
-					handleChunkedOutput(headerAndBody.second);
+					handleChunkedOutput(headerAndBody);
 				else {
 					if (_client->statusCode() == 501)
 						return 1;
-					handleStandardOutput(headerAndBody.second);
+					handleStandardOutput(headerAndBody);
 				}
 				return 1;
 			}
 		} else {
 			_client->output() += getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status)) + "\n";
-			_client->statusCode() = 500;
+			_client->statusCode() = 502;
 			sendErrorResponse(*_client, _req);
 			cleanupResources();
 			return 1;
@@ -342,22 +334,34 @@ int CGIHandler::processScriptOutput() {
 	return 0;
 }
 
-int CGIHandler::handleStandardOutput(const std::string& initialBody) {
-	std::string response = "HTTP/1.1 " + tostring(_client->statusCode()) + " " + getStatusMessage(_client->statusCode()) + "\r\n";
+int CGIHandler::handleStandardOutput(const std::pair<std::string, std::string>& output) {
+	int status = 200;
+	if (output.first.find("Status:") != std::string::npos) {
+		size_t statusPos = output.first.find("Status:") + 7;
+		int statusCode = std::atoi(output.first.substr(statusPos).c_str());
+		if (statusCode >= 100 && statusCode < 600)
+			status = statusCode;
+	}
+	std::string contentType = "text/html";
+	size_t contentTypePos = output.first.find("Content-Type:");
+	if (contentTypePos != std::string::npos) {
+		size_t endPos = output.first.find("\r\n", contentTypePos);
+		if (endPos != std::string::npos) {
+			contentType = output.first.substr(contentTypePos + 14, endPos - contentTypePos - 14);
+			contentType.erase(std::remove(contentType.begin(), contentType.end(), ' '), contentType.end());
+		}
+	}
+	std::string response = "HTTP/1.1 " + tostring(status) + " " + getStatusMessage(status) + "\r\n";
 	response += "Server: WebServ/1.0\r\n";
 	response += "Date: " + getCurrentTime() + "\r\n";
-	if (!_req.getContentType().empty())
-		response += "Content-Type: " + _req.getContentType() + "\r\n";
-	else
-		response += "Content-Type: text/html\r\n";
-	
-	response += "Content-Length: " + tostring(initialBody.length()) + "\r\n";
+	response += "Content-Type: " + contentType + "\r\n";
+	response += "Content-Length: " + tostring(output.second.length()) + "\r\n";
 	if (shouldCloseConnection(_req))
 		response += "Connection: close\r\n";
 	else
 		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
-	response += initialBody;
+	response += output.second;
 	response += "\n";
 	
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
@@ -366,19 +370,25 @@ int CGIHandler::handleStandardOutput(const std::string& initialBody) {
 	return 0;
 }
 
-int CGIHandler::handleChunkedOutput(const std::string& initialBody) {
-	std::string response = "HTTP/1.1 " + tostring(_client->statusCode()) + " " + getStatusMessage(_client->statusCode()) + "\r\n";
+int CGIHandler::handleChunkedOutput(const std::pair<std::string, std::string>& output) {
+	int status = 200;
+	if (output.first.find("Status:") != std::string::npos) {
+		size_t statusPos = output.first.find("Status:") + 7;
+		int statusCode = std::atoi(output.first.substr(statusPos).c_str());
+		if (statusCode >= 100 && statusCode < 600)
+			status = statusCode;
+	}
+	std::string response = "HTTP/1.1 " + tostring(status) + " " + getStatusMessage(status) + "\r\n";
 	response += "Server: WebServ/1.0\r\n";
 	response += "Date: " + getCurrentTime() + "\r\n";
 	if (_req.isChunkedTransfer())
 		response += "Transfer-Encoding: chunked\r\n";
-	
 	if (shouldCloseConnection(_req))
 		response += "Connection: close\r\n";
 	else
 		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
-	response += formatChunkedResponse(initialBody);
+	response += formatChunkedResponse(output.second);
 	response += "\n";
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
 	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);

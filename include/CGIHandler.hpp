@@ -37,8 +37,8 @@ class CGIHandler {
 		void									prepareForExecve(std::vector<char*>& argsPtrs, std::vector<char*>& envPtrs);
 		int										doParent();
 		int										processScriptOutput();
-		int										handleStandardOutput(const std::string& initialBody);
-		int										handleChunkedOutput(const std::string& initialBody);
+		int										handleStandardOutput(const std::pair<std::string, std::string>& output);
+		int										handleChunkedOutput(const std::pair<std::string, std::string>& output);
 		std::string								formatChunkedResponse(const std::string& body);
 		std::pair<std::string, std::string>		splitHeaderAndBody(const std::string& output);
 		void									startClock();

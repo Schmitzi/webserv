@@ -46,7 +46,7 @@ class Webserv {
 		void						initialize();
 		bool						checkEventMaskErrors(uint32_t &eventMask, int fd);
 		int							run();
-		bool						checkClientTimeout(time_t now, Client &client);
+		void						checkClientTimeout(time_t now, Client &client);
 		void						handleErrorEvent(int fd);
 		void						handleClientDisconnect(int fd);
 		void						handleNewConnection(Server& server);
