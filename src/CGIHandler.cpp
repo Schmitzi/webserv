@@ -84,8 +84,10 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
 
 int CGIHandler::executeCGI(Request &req) {
 	_req = Request(req);
-	if (doChecks() || prepareEnv())
+	if (doChecks() || prepareEnv()) {
+		cleanupResources();
 		return 1;
+	}
 	_pid = fork();
 	if (_pid < 0) {
 		_client->statusCode() = 500;
@@ -100,6 +102,7 @@ int CGIHandler::executeCGI(Request &req) {
 }
 
 int CGIHandler::doChecks() {
+	std::cout << _path << "\n";
 	if (access(_path.c_str(), F_OK) != 0) {
 		_client->statusCode() = 404;
 		_client->output() += getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path + "\n";
@@ -203,9 +206,6 @@ void    CGIHandler::makeArgs(std::string const &cgiBin, std::string& filePath) {
 }
 
 int CGIHandler::doChild() {
-	std::vector<char*> argsPtrs;
-	std::vector<char*> envPtrs;
-	prepareForExecve(argsPtrs, envPtrs);
 	close(_input[1]);
 	close(_output[0]);
 	
@@ -217,19 +217,39 @@ int CGIHandler::doChild() {
 	}
 	close(_input[0]);
 	close(_output[1]);
-
-	// Change to the script's directory before executing
-	// std::string scriptDir = _path;
-	// size_t lastSlash = scriptDir.find_last_of('/');
-	// if (lastSlash != std::string::npos) {
-	// 	scriptDir = scriptDir.substr(0, lastSlash);
-	// 	if (chdir(scriptDir.c_str()) != 0) {
-	// 		_client->statusCode() = 500;
-	// 		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: chdir() failed to " + scriptDir + "\n" + RESET;
-	// 		cleanupResources();
-	// 		return 1;
-	// 	}
-	// }
+	
+	// Extract script directory and filename
+	std::string scriptDir = _path;
+	std::string scriptName = _path;
+	size_t lastSlash = scriptDir.find_last_of('/');
+	if (lastSlash != std::string::npos) {
+		scriptDir = scriptDir.substr(0, lastSlash);
+		scriptName = _path.substr(lastSlash + 1); // Just the filename
+		
+		// Change to the script's directory
+		if (chdir(scriptDir.c_str()) != 0) {
+			_client->statusCode() = 500;
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: chdir() failed to " + scriptDir + "\n" + RESET;
+			cleanupResources();
+			return 1;
+		}
+		
+		for (size_t i = 0; i < _args.size(); i++) {
+			if (_args[i] == _path) {
+				_args[i] = scriptName;
+				break;
+			}
+		}
+	}
+	
+	std::vector<char*> argsPtrs;
+	std::vector<char*> envPtrs;
+	for (size_t i = 0; i < _args.size(); i++)
+		argsPtrs.push_back(const_cast<char*>(_args[i].c_str()));
+	argsPtrs.push_back(NULL);
+	for (size_t i = 0; i < _env.size(); i++)
+		envPtrs.push_back(const_cast<char*>(_env[i].c_str()));
+	envPtrs.push_back(NULL);
 	
 	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
 	_client->statusCode() = 500;

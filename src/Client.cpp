@@ -162,11 +162,11 @@ void Client::receiveData() {
 		_exitErr = false;
 		return;
 	} else {
-		if (!earlyLengthDetection()) {
-			_state = COMPLETE;
-			_exitErr = false;
-			return; 
-		}
+		// if (!earlyLengthDetection()) {
+		// 	_state = COMPLETE;
+		// 	_exitErr = false;
+		// 	return; 
+		// }
 		_state = CHECKING;
 	} 
 
