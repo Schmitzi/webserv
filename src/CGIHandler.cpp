@@ -102,7 +102,6 @@ int CGIHandler::executeCGI(Request &req) {
 }
 
 int CGIHandler::doChecks() {
-	std::cout << _path << "\n";
 	if (access(_path.c_str(), F_OK) != 0) {
 		_client->statusCode() = 404;
 		_client->output() += getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path + "\n";
