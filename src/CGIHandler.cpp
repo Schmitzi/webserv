@@ -217,6 +217,19 @@ int CGIHandler::doChild() {
 	}
 	close(_input[0]);
 	close(_output[1]);
+
+	// Change to the script's directory before executing
+	// std::string scriptDir = _path;
+	// size_t lastSlash = scriptDir.find_last_of('/');
+	// if (lastSlash != std::string::npos) {
+	// 	scriptDir = scriptDir.substr(0, lastSlash);
+	// 	if (chdir(scriptDir.c_str()) != 0) {
+	// 		_client->statusCode() = 500;
+	// 		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: chdir() failed to " + scriptDir + "\n" + RESET;
+	// 		cleanupResources();
+	// 		return 1;
+	// 	}
+	// }
 	
 	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
 	_client->statusCode() = 500;
