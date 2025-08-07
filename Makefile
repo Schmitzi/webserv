@@ -57,9 +57,9 @@ re:		fclean all
 	@echo "$(GREEN)Files cleaned and program re-compiled$(RESET)"
 
 start: re
-	@./webserv config/test.conf
+	@./webserv config/default.conf
 
 val: re
-	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all --trace-child=yes ./webserv config/test.conf
+	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all --trace-children=yes ./webserv config/default.conf
 
 .PHONY:		all clean fclean re

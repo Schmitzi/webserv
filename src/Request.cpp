@@ -337,6 +337,7 @@ void Request::getHostAndPath(std::string& target) {
 
 void Request::parseHeaders(const std::string& headerSection) {
 	bool ignoreHost = false;
+	bool mentionHost = false;
 	std::istringstream iss(headerSection);
 	std::string line;
 
@@ -368,6 +369,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 			value.erase(0, value.find_first_not_of(" \t"));
 			value.erase(value.find_last_not_of(" \t\r\n") + 1);
 			if (iEqual(key, "Host")) {
+				mentionHost = true;
 				std::vector<std::string> values = split(value);
 				if (values.size() > 1) {
 					_client->statusCode() = 400;
@@ -379,7 +381,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 		}
 	}
 	
-	if (_host.empty()) {
+	if (_host.empty() && !mentionHost) {
 		_client->statusCode() = 400;
 		return;
 	}
