@@ -261,7 +261,6 @@ int Client::processRequest() {
 
 int Client::handleGetRequest() {
 	locationLevel* loc = NULL;
-	std::cout << "_req->getPath(): " << _req->getPath() << std::endl;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
 		_output += getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath() + "\n";
 		statusCode() = 404;
@@ -560,11 +559,31 @@ int Client::handleRegularRequest() {
 	size_t end = reqPath.find_last_not_of(" \t\r\n");
 	if (end != std::string::npos)
 		reqPath = reqPath.substr(0, end + 1);
+
+	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Original path: " << RESET << _req->getPath() << std::endl;
+	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Processed reqPath: " << RESET << reqPath << std::endl;
+	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Location found: " << RESET << loc->locName << std::endl;
+	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Location root: " << RESET << loc->rootLoc << std::endl;
+
+	std::string webRoot = _server->getWebRoot(*_req, *loc);
+	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - getWebRoot returned: '" << webRoot << "'" << RESET << std::endl;
+
+
 	std::string fullPath;
-	if (reqPath.find("/home") == std::string::npos)
-		fullPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), reqPath);
-	else
+	if (reqPath.find("/home") == std::string::npos) {
+		if (webRoot == "/" && !reqPath.empty() && reqPath[0] == '/') {
+			std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Root filesystem access: using reqPath directly" << RESET << std::endl;
+			fullPath = reqPath;
+		} else {
+			std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Using matchAndAppendPath with webRoot='" << webRoot << "' reqPath='" << reqPath << "'" << RESET << std::endl;
+			fullPath = matchAndAppendPath(webRoot, reqPath);
+		}
+	} else {
+		std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Using reqPath directly" << RESET << std::endl;
 		fullPath = reqPath;
+	}
+
+	std::cout << getTimeStamp(_fd) << BLUE << "Full path constructed: " << RESET << fullPath << std::endl;
 
 	if (fullPath.find("root") != std::string::npos && loc->autoindex == false) {
 		statusCode() = 403;
@@ -598,9 +617,10 @@ int Client::handleRegularRequest() {
 
 	if (S_ISDIR(fileStat.st_mode))
 		return viewDirectory(fullPath, *_req);
-	if (!S_ISREG(fileStat.st_mode)) {
+		
+	if (!S_ISREG(fileStat.st_mode) && !S_ISCHR(fileStat.st_mode)) {
 		statusCode() = 403;
-		_output += getTimeStamp(_fd) + RED + "Not a regular file: " + RESET + fullPath + "\n";
+		_output += getTimeStamp(_fd) + RED + "Not a regular file or character device: " + RESET + fullPath + "\n";
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}

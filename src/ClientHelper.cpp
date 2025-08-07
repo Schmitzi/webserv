@@ -88,33 +88,57 @@ bool isCGIScript(const std::string& path) {
 }
 
 int buildBody(Client& c, Request &req, std::string fullPath) {
-	if (!tryLockFile(c, fullPath, c.getFd(), c.fileIsNew())) {
+	struct stat fileStat;
+	if (stat(fullPath.c_str(), &fileStat) < 0) {
+		translateErrorCode(errno, c.statusCode());
+		sendErrorResponse(c, req);
+		return 1;
+	}
+	
+	bool isCharDevice = S_ISCHR(fileStat.st_mode);
+	
+	if (!isCharDevice && !tryLockFile(c, fullPath, c.getFd(), c.fileIsNew())) {
 		c.statusCode() = 423;
 		sendErrorResponse(c, req);
 		return 1;
 	}
+	
+	if (access(fullPath.c_str(), R_OK) != 0) {
+		c.statusCode() = 403;
+		c.output() += getTimeStamp(c.getFd()) + RED + "No permissions to open file: " + RESET + fullPath + "\n";
+		sendErrorResponse(c, req);
+		return 1;
+	}
+	
 	int fd = open(fullPath.c_str(), O_RDONLY);
 	if (fd < 0) {
-		releaseLockFile(fullPath);
+		if (!isCharDevice) releaseLockFile(fullPath);
 		c.statusCode() = 500;
 		c.output() += getTimeStamp(c.getFd()) + RED + "Failed to open file: " + RESET + fullPath + "\n";
 		sendErrorResponse(c, req);
 		return 1;
 	}
 	
-	struct stat fileStat;
-	if (fstat(fd, &fileStat) < 0) {
-		translateErrorCode(errno, c.statusCode());
-		releaseLockFile(fullPath);
-		sendErrorResponse(c, req);
-		close(fd);
-		return 1;
+	size_t readSize;
+	if (isCharDevice) {
+		readSize = 1024;
+	} else {
+		if (fstat(fd, &fileStat) < 0) {
+			translateErrorCode(errno, c.statusCode());
+			if (!isCharDevice) releaseLockFile(fullPath);
+			sendErrorResponse(c, req);
+			close(fd);
+			return 1;
+		}
+		readSize = fileStat.st_size;
 	}
 	
-	std::vector<char> buffer(fileStat.st_size);
-	ssize_t bytesRead = read(fd, buffer.data(), fileStat.st_size);
+	std::vector<char> buffer(readSize);
+	ssize_t bytesRead = read(fd, buffer.data(), readSize);
 	close(fd);
-	releaseLockFile(fullPath);
+	
+	if (!isCharDevice) releaseLockFile(fullPath);
+	
 	if (bytesRead == 0)
 		return 0;
 	else if (bytesRead < 0) {
@@ -123,6 +147,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 		sendErrorResponse(c, req);
 		return 1;
 	}
+	
 	std::string fileContent(buffer.data(), bytesRead);
 	req.setBody(fileContent);
 	return 0;

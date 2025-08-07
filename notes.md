@@ -47,8 +47,8 @@ nm -u ./webserv | grep GLIBCXX_ | sort | uniq =>	C++98 symbols should be from:
 
 <!-- -> add check for index in config to only take 1 file or change it to be abale to use more than one (just dont ignore) -->
 
--> open fails because of 403 but sends 500 because it wasnt checked properly
-	maybe because of adding to output string instead of setting once and returning (dont continue?) -> 423 tryLockFile save code and check afterwards?
+<!-- -> open fails because of 403 but sends 500 because it wasnt checked properly
+	maybe because of adding to output string instead of setting once and returning (dont continue?) -> 423 tryLockFile save code and check afterwards? -->
 
 <!-- -> if no default_server specified take first one as default -->
 
@@ -56,9 +56,9 @@ nm -u ./webserv | grep GLIBCXX_ | sort | uniq =>	C++98 symbols should be from:
 
 CGI:
 
--> cgi should be run in the correct directory (where the script is located)
+<!-- -> cgi should be run in the correct directory (where the script is located) -->
 
--> successful cgi request -> FEHLER -> everything shit [easiest way to handle this would be to set the connection to close if there is an error]
+<!-- -> successful cgi request -> FEHLER -> everything shit [easiest way to handle this would be to set the connection to close if there is an error] -->
 
 <!-- -> path info not working -->
 
