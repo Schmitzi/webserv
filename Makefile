@@ -1,7 +1,7 @@
 NAME	=	webserv
 
 CXX		=	c++
-CXXFLAGS	=	-std=c++98 -pedantic -Wall -Wextra -Werror
+CXXFLAGS	=	-std=c++98 -pedantic -Wall -Wextra -Werror -MD
 RM		=	rm -f
 
 RED     =   $(shell tput setaf 1)
@@ -62,4 +62,4 @@ start: re
 val: re
 	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all --trace-children=yes ./webserv config/default.conf
 
-.PHONY:		all clean fclean re
+.PHONY:		all clean fclean re val start
