@@ -153,7 +153,7 @@ void Client::receiveData() {
 		return;
 	}
 
-	_requestBuffer.append(buffer, bytesRead);
+    _requestBuffer.append(buffer, bytesRead);
 
 	if (_requestBuffer.find("\r\n\r\n") == std::string::npos && 
 		_requestBuffer.find("\n\n") == std::string::npos) {
@@ -161,8 +161,14 @@ void Client::receiveData() {
 				<< "Headers incomplete, waiting for more data" << RESET << std::endl;
 		_exitErr = false;
 		return;
-	} else
+	} else {
+		// if (!earlyLengthDetection()) {
+		// 	_state = COMPLETE;
+		// 	_exitErr = false;
+		// 	return; 
+		// }
 		_state = CHECKING;
+	} 
 
 	if (_state == CHECKING) {
 		_lastActive = time(NULL);
@@ -266,6 +272,16 @@ int Client::handleGetRequest() {
 		statusCode() = 403;
 		sendErrorResponse(*this, *_req);
 		return 1;
+	}
+	for (size_t i = 0; i < loc->methods.size(); i++) {
+		if (iEqual(loc->methods[i], "GET"))
+			break;
+		if (i == loc->methods.size() - 1) {
+			statusCode() = 405;
+			output() += getTimeStamp(getFd()) + RED + "Method not allowed for GET request: " + RESET + _req->getPath() + "\n";
+			sendErrorResponse(*this, *_req);
+			return 1;
+		}
 	}
 	if (loc->autoindex == true && isFileBrowserRequest(_req->getPath()))
 		return handleFileBrowserRequest();
@@ -853,4 +869,140 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 	close(fd);
 	releaseLockFile(fullPath);
 	return true;
+}
+
+int Client::earlyLengthDetection() {
+	size_t contentLengthPos = _requestBuffer.find("Content-Length:");
+	if (contentLengthPos == std::string::npos) {
+		std::string lowerBuffer = toLower(_requestBuffer);
+		contentLengthPos = lowerBuffer.find("content-length:");
+	}
+	
+	if (contentLengthPos != std::string::npos) {
+		size_t valueStart = _requestBuffer.find(":", contentLengthPos) + 1;
+		size_t lineEnd = _requestBuffer.find("\r\n", valueStart);
+		if (lineEnd == std::string::npos) {
+			lineEnd = _requestBuffer.find("\n", valueStart);
+		}
+		
+		if (lineEnd != std::string::npos) {
+			std::string lengthStr = _requestBuffer.substr(valueStart, lineEnd - valueStart);
+			
+			lengthStr.erase(0, lengthStr.find_first_not_of(" \t"));
+			lengthStr.erase(lengthStr.find_last_not_of(" \t\r\n") + 1);
+			
+			unsigned long contentLength = strtoul(lengthStr.c_str(), NULL, 10);
+			
+			size_t requestLimit = 1048576;
+			
+			if (!_configs.empty()) {
+				std::istringstream iss(_requestBuffer);
+				std::string line;
+
+				std::getline(iss, line);
+				size_t end = line.find_last_not_of(" \t\r\n");
+				if (end != std::string::npos)
+					line = line.substr(0, end + 1);
+				
+				std::string host;
+
+				while (std::getline(iss, line) && !line.empty() && line != "\r") {
+					size_t colonPos = line.find(':');
+					if (colonPos != std::string::npos) {
+						std::string key = line.substr(0, colonPos);
+						if (key[key.size() - 1] == ' ') {
+							statusCode() = 400;
+							return 1;
+						}
+						std::string value = line.substr(colonPos + 1);
+						
+						key.erase(0, key.find_first_not_of(" \t"));
+						key.erase(key.find_last_not_of(" \t\r\n") + 1);
+						value.erase(0, value.find_first_not_of(" \t"));
+						value.erase(value.find_last_not_of(" \t\r\n") + 1);
+						
+						if (iEqual(key, "Host")) {
+							host = value;
+							break;
+						}
+					}
+				}
+				
+				if (!host.empty()) {
+					serverLevel* matchedConfig = NULL;
+					
+					int targetPort = 80;
+					if (host.find(":") != std::string::npos) {
+						std::string portStr = host.substr(host.find(":") + 1);
+						if (onlyDigits(portStr)) {
+							targetPort = std::atoi(portStr.c_str());
+						}
+					}
+					
+					bool hasServerName = true;
+					if (iFind(host, "localhost") != std::string::npos) {
+						std::string portPart = host.substr(host.find(":") + 1);
+						if (onlyDigits(portPart)) {
+							std::string sum = "localhost:" + portPart;
+							if (iEqual(sum, host))
+								hasServerName = false;
+						}
+					}
+					
+					if (hasServerName) {
+						for (size_t i = 0; i < _configs.size(); i++) {
+							for (size_t j = 0; j < _configs[i].servName.size(); j++) {
+								if (iEqual(host, _configs[i].servName[j])) {
+									matchedConfig = &_configs[i];
+									break;
+								}
+							}
+							if (matchedConfig) break;
+						}
+					}
+					
+					if (!matchedConfig) {
+						serverLevel* defaultServerForPort = NULL;
+						serverLevel* firstConfigForPort = NULL;
+						
+						for (size_t i = 0; i < _configs.size(); i++) {
+							for (size_t j = 0; j < _configs[i].port.size(); j++) {
+								if (_configs[i].port[j].first.second == targetPort) {
+									if (!firstConfigForPort)
+										firstConfigForPort = &_configs[i];
+
+									if (_configs[i].port[j].second == true) {
+										defaultServerForPort = &_configs[i];
+										break;
+									}
+								}
+							}
+							if (defaultServerForPort) 
+								break;
+						}
+						
+						if (defaultServerForPort)
+							matchedConfig = defaultServerForPort;
+						else if (firstConfigForPort)
+							matchedConfig = firstConfigForPort;
+					}
+					
+					if (!matchedConfig && !_configs.empty())
+						matchedConfig = &_configs[0];
+					
+					if (matchedConfig)
+						requestLimit = matchedConfig->requestLimit;
+				}
+			
+				if (contentLength > requestLimit) {
+					_statusCode = 413;
+					_output += getTimeStamp(_fd) + RED + "Request body too large: " + 
+								tostring(contentLength) + " bytes exceeds limit of " + 
+								tostring(requestLimit) + " bytes\n" + RESET;
+					return 1;
+				}
+			}
+		}
+	}
+	return 0;
 }

@@ -10,6 +10,7 @@
 #include <vector>
 #include <cstdio>
 #include "Colors.hpp"
+#include "ConfigHelper.hpp"
 
 class	Webserv;
 class	Server;
@@ -71,6 +72,8 @@ class Client {
 		int							createDirList(std::string fullPath, Request& req);
 		std::string					showDir(const std::string& dirPath, const std::string& requestUri);
 		bool						saveFile(Request& req, const std::string& filename, const std::string& content);
+
+		int							earlyLengthDetection();
 
 	private:
 		struct sockaddr_in			_addr;
