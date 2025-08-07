@@ -88,6 +88,7 @@ int CGIHandler::executeCGI(Request &req) {
 		cleanupResources();
 		return 1;
 	}
+	startClock(); // CHECK
 	_pid = fork();
 	if (_pid < 0) {
 		_client->statusCode() = 500;
@@ -102,6 +103,7 @@ int CGIHandler::executeCGI(Request &req) {
 }
 
 int CGIHandler::doChecks() {
+	std::cout << _path << "\n";
 	if (access(_path.c_str(), F_OK) != 0) {
 		_client->statusCode() = 404;
 		_client->output() += getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path + "\n";
@@ -142,7 +144,7 @@ int CGIHandler::prepareEnv() {
 		size_t slashPos = temp.find_first_of('/');
 		if (slashPos != std::string::npos) {
 			_pathInfo = temp.substr(slashPos);
-			ext = "." + temp.substr(dotPos + 1, temp.find_first_of('/') - 1);
+			ext = "." + temp.substr(0, temp.find_first_of('/') - 1);
 		} else
 			ext = "." + temp;
 		if (!matchLocation(ext, _req.getConf(), loc)) {
@@ -159,15 +161,14 @@ int CGIHandler::prepareEnv() {
 	
 	_env.clear();
 	
+	std::cout << "PATH: " << _path << " PATHINFO: " << _pathInfo << std::endl;
 	const std::string abs_path = matchAndAppendPath(loc->rootLoc, _path);
-	_env.push_back("SCRIPT_FILENAME=" + abs_path);//TODO: SCRIPT FILENAME exists twice
 	_env.push_back("REDIRECT_STATUS=200");
 	_env.push_back("SERVER_SOFTWARE=WebServ/1.0");
 	_env.push_back("SERVER_NAME=" + _req.getConf().servName[0]);
 	_env.push_back("GATEWAY_INTERFACE=CGI/1.1");
 	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");//TODO: SERVER PROTOCOL exists twice
 	_env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(_req.getConf())));
-	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");//TODO: SERVER PROTOCOL exists twice
 	
 	// Request information
 	_env.push_back("REQUEST_METHOD=" + _req.getMethod());
@@ -380,6 +381,8 @@ int CGIHandler::handleStandardOutput(const std::pair<std::string, std::string>& 
 			contentType.erase(std::remove(contentType.begin(), contentType.end(), ' '), contentType.end());
 		}
 	}
+	if (status != 200)
+		_client->shouldClose() = true;
 	std::string response = "HTTP/1.1 " + tostring(status) + " " + getStatusMessage(status) + "\r\n";
 	response += "Server: WebServ/1.0\r\n";
 	response += "Date: " + getCurrentTime() + "\r\n";
@@ -392,7 +395,6 @@ int CGIHandler::handleStandardOutput(const std::pair<std::string, std::string>& 
 	response += "\r\n";
 	response += output.second;
 	response += "\n";
-	
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
 	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT); 
 	_client->lastActive() = time(NULL);   
@@ -407,6 +409,8 @@ int CGIHandler::handleChunkedOutput(const std::pair<std::string, std::string>& o
 		if (statusCode >= 100 && statusCode < 600)
 			status = statusCode;
 	}
+	if (status != 200)
+		_client->shouldClose() = true;
 	std::string response = "HTTP/1.1 " + tostring(status) + " " + getStatusMessage(status) + "\r\n";
 	response += "Server: WebServ/1.0\r\n";
 	response += "Date: " + getCurrentTime() + "\r\n";
@@ -509,4 +513,5 @@ void CGIHandler::cleanupResources() {
 	_env.clear();
 	_outputBuffer.clear();
 	_startTime = 0;
+	_client->statusCode() = 200;
 }
