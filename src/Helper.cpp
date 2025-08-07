@@ -65,11 +65,14 @@ bool isAbsPath(std::string& path) {
 }
 
 std::string matchAndAppendPath(const std::string& base, const std::string& add) {
-	bool slash = false;
+	bool startSlash = false;
+	bool endSlash = false;
 	if (add.empty() && base[base.size() - 1] == '/')
-		slash = true;
+		endSlash = true;
 	else if (add[add.size() - 1] == '/')
-		slash = true;
+		endSlash = true;
+	if (base[0] == '/')
+		startSlash = true;
 	std::vector<std::string> baseParts = splitBy(base, '/');
 	std::vector<std::string> addParts = splitBy(add, '/');
 
@@ -93,8 +96,10 @@ std::string matchAndAppendPath(const std::string& base, const std::string& add) 
 	std::string result;
 	for (size_t i = 0; i < preResult.size(); ++i)
 		result = combinePath(result, preResult[i]);
-	if (slash)
+	if (endSlash)
 		result += "/";
+	if (startSlash)
+		result = "/" + result;
 	return result;
 }
 

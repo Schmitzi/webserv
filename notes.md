@@ -52,13 +52,13 @@ nm -u ./webserv | grep GLIBCXX_ | sort | uniq =>	C++98 symbols should be from:
 
 <!-- -> if no default_server specified take first one as default -->
 
--> check filesize (bytes to be received) before receiving bytes!
+<!-- -> check filesize (bytes to be received) before receiving bytes! -->
 
-CGI:
+<!-- CGI: -->
 
--> cgi should be run in the correct direcotry (where the script is located)
+<!-- -> cgi should be run in the correct direcotry (where the script is located) -->
 
--> succesful cgi request -> FEHLER -> everything shit [easiest way to handle this would be to set the connection to close if there is an error]
+<!-- -> succesful cgi request -> FEHLER -> everything shit [easiest way to handle this would be to set the connection to close if there is an error] -->
 
 <!-- -> path info not working -->
 

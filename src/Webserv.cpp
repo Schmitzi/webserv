@@ -359,7 +359,6 @@ void Webserv::handleEpollOut(int fd) {
 void Webserv::checkCgiTimeouts() {
 	time_t now = time(NULL);
 	std::vector<int> expiredCgis;
-	
 	for (std::map<int, CGIHandler*>::iterator it = _cgis.begin(); it != _cgis.end(); ++it) {
 		CGIHandler* handler = it->second;
 		if (handler && handler->isTimedOut(now)) {
@@ -367,7 +366,6 @@ void Webserv::checkCgiTimeouts() {
 			expiredCgis.push_back(it->first);
 		}
 	}
-	
 	for (size_t i = 0; i < expiredCgis.size(); ++i) {
 		int cgiFd = expiredCgis[i];
 		CGIHandler* handler = getCgiHandler(cgiFd);

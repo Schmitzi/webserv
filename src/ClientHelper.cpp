@@ -93,6 +93,15 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 		sendErrorResponse(c, req);
 		return 1;
 	}
+
+	if (access(fullPath.c_str(), R_OK) != 0) {
+		c.statusCode() = 403;
+		releaseLockFile(fullPath);
+		c.output() += getTimeStamp(c.getFd()) + RED + "No permissions to open file: " + RESET + fullPath + "\n";
+		sendErrorResponse(c, req);
+		return 1;
+	}
+
 	int fd = open(fullPath.c_str(), O_RDONLY);
 	if (fd < 0) {
 		releaseLockFile(fullPath);
