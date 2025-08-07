@@ -21,7 +21,6 @@ CGIHandler::CGIHandler(Client *client) {
 	_outputBuffer = "";
 	_pid = -1;
 	_startTime = 0;
-	_timeout = TIMEOUT_SECONDS;
 }
 
 CGIHandler::CGIHandler(const CGIHandler& copy) {
@@ -104,6 +103,7 @@ int CGIHandler::executeCGI(Request &req) {
 }
 
 int CGIHandler::doChecks() {
+	std::cout << _path << "\n";
 	if (access(_path.c_str(), F_OK) != 0) {
 		_client->statusCode() = 404;
 		_client->output() += getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path + "\n";
@@ -161,12 +161,13 @@ int CGIHandler::prepareEnv() {
 	
 	_env.clear();
 	
+	std::cout << "PATH: " << _path << " PATHINFO: " << _pathInfo << std::endl;
 	const std::string abs_path = matchAndAppendPath(loc->rootLoc, _path);
 	_env.push_back("REDIRECT_STATUS=200");
 	_env.push_back("SERVER_SOFTWARE=WebServ/1.0");
 	_env.push_back("SERVER_NAME=" + _req.getConf().servName[0]);
 	_env.push_back("GATEWAY_INTERFACE=CGI/1.1");
-	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
+	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");//TODO: SERVER PROTOCOL exists twice
 	_env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(_req.getConf())));
 	
 	// Request information
@@ -177,7 +178,7 @@ int CGIHandler::prepareEnv() {
 	
 	// Script information
 	_env.push_back("SCRIPT_NAME=" + _req.getPath());
-	_env.push_back("SCRIPT_FILENAME=" + _path);
+	_env.push_back("SCRIPT_FILENAME=" + _path);//TODO: SCRIPT FILENAME exists twice
 	
 	// PATH_INFO handling (for URLs like /script.php/extra/path)
 	_env.push_back("PATH_INFO=" + _pathInfo);
