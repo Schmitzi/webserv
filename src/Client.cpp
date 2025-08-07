@@ -261,7 +261,6 @@ int Client::processRequest() {
 
 int Client::handleGetRequest() {
 	locationLevel* loc = NULL;
-	std::cout << "_req->getPath(): " << _req->getPath() << std::endl;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
 		_output += getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath() + "\n";
 		statusCode() = 404;
@@ -598,7 +597,7 @@ int Client::handleRegularRequest() {
 
 	if (S_ISDIR(fileStat.st_mode))
 		return viewDirectory(fullPath, *_req);
-	if (!S_ISREG(fileStat.st_mode)) {
+	if (!S_ISREG(fileStat.st_mode) && ! S_ISCHR(fileStat.st_mode)) {
 		statusCode() = 403;
 		_output += getTimeStamp(_fd) + RED + "Not a regular file: " + RESET + fullPath + "\n";
 		sendErrorResponse(*this, *_req);
