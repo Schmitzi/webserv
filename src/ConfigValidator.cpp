@@ -1,6 +1,7 @@
 #include "../include/ConfigValidator.hpp"
 #include "../include/Helper.hpp"
 #include "../include/ConfigParser.hpp"
+#include "../include/ConfigHelper.hpp"
 
 bool isValidPath(std::string &path) {
 	struct stat	info;
@@ -61,7 +62,7 @@ bool isValidName(const std::string& name) {
 }
 
 bool isValidIndexFile(const std::string &indexFile) {
-	if (indexFile.empty() || indexFile.find('/') != std::string::npos || indexFile.find("..") != std::string::npos)
+	if (indexFile.empty() || indexFile.find("..") != std::string::npos)
 		return false;
 	std::string::size_type dot = indexFile.rfind('.');
 	if (dot == std::string::npos)
@@ -109,6 +110,26 @@ void checkRoot(serverLevel &serv) {
 	}
 }
 
+void checkErrorPages(serverLevel& serv) {
+	std::map<std::vector<int>, std::string>::iterator it = serv.errPages.begin();
+	for (; it != serv.errPages.end(); ++it) {
+		std::string path = matchAndAppendPath(serv.rootServ, it->second);
+		if (!isValidPath(path))
+				throw configException("Error: Invalid path (error_page) -> " + path);
+		it->second = path;
+	}
+}
+
+void checkUploadDir(serverLevel& serv) {
+	std::map<std::string, locationLevel>::iterator it = serv.locations.begin();
+	for (; it != serv.locations.end(); ++it) {
+		if (!it->second.uploadDirPath.empty()) {
+			std::string path = matchAndAppendPath(it->second.rootLoc, it->second.uploadDirPath);
+			it->second.uploadDirPath = path;
+		}
+	}
+}
+
 void checkConfig(serverLevel &serv) {
 	if (serv.servName.empty())
 		serv.servName.push_back("");
@@ -117,6 +138,8 @@ void checkConfig(serverLevel &serv) {
 		parseClientMaxBodySize(serv);
 	}
 	checkRoot(serv);
+	checkErrorPages(serv);
+	checkUploadDir(serv);
 }
 
 void checkMethods(locationLevel& loc) {

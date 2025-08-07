@@ -80,13 +80,13 @@ std::string Server::getUploadDir(Client& client, Request& req, std::string dir) 
 		path = dir;
 	if (!matchUploadLocation(path, req.getConf(), loc)) {
 		client.statusCode() = 404;
-		client.output() = getTimeStamp(client.getFd()) + RED + "Location not found: " + RESET + path + "\n";
+		client.output() += getTimeStamp(client.getFd()) + RED + "Location not found: " + RESET + path + "\n";
 		sendErrorResponse(client, req);
 		return "";
 	}
 	if (loc->uploadDirPath.empty()) {
 		client.statusCode() = 403;
-		client.output() = getTimeStamp(client.getFd()) + RED + "Upload directory not set: " + RESET + path + "\n";
+		client.output() += getTimeStamp(client.getFd()) + RED + "Upload directory not set: " + RESET + path + "\n";
 		sendErrorResponse(client, req);
 		return "";
 	}

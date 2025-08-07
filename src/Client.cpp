@@ -23,10 +23,10 @@ Client::Client(Server& serv) {
 	_fileIsNew = false;
 	_shouldClose = false;
 	_connClose = false;
-	_lastUsed = time(NULL);
 	_output = "";
 	_statusCode = 200;
 	_state = UNTRACKED;
+	_lastActive = time(NULL);
 }
 
 Client::Client(const Client& client) {
@@ -48,10 +48,10 @@ Client& Client::operator=(const Client& other) {
 		_fileIsNew = other._fileIsNew;
 		_shouldClose = other._shouldClose;
 		_connClose = other._connClose;
-		_lastUsed = other._lastUsed; 
 		_output = other._output;
 		_statusCode = other._statusCode;
 		_state = other._state;
+		_lastActive = other._lastActive;
 	}
 	return *this;
 }
@@ -69,6 +69,10 @@ Server &Client::getServer() {
 
 Webserv& Client::getWebserv() {
 	return *_webserv;
+}
+
+Request& Client::getRequest() {
+	return *_req;
 }
 
 size_t& Client::getOffset() {
@@ -95,10 +99,6 @@ bool &Client::connClose() {
 	return _connClose;
 }
 
-time_t &Client::lastUsed() {
-	return _lastUsed;
-}
-
 std::string &Client::output() {
 	return _output;
 }
@@ -109,6 +109,10 @@ int &Client::statusCode() {
 
 int &Client::state() {
 	return _state;
+}
+
+time_t &Client::lastActive() {
+	return _lastActive;
 }
 
 int Client::acceptConnection(int serverFd) {
@@ -132,78 +136,72 @@ void Client::displayConnection() {
 }
 
 void Client::receiveData() {
-    static bool printNewLine = false;
-    char buffer[1000000];
-    memset(buffer, 0, sizeof(buffer));
-    
-    ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
-    if (bytesRead < 0) {
-        _exitErr = true;
-        _statusCode = 500;
-        _output = getTimeStamp(_fd) + RED + "Error: recv() failed" + RESET;
-        return;
-    }
-    
-    if (bytesRead == 0) {
-        _exitErr = false;
-        return;
-    }
+	static bool printNewLine = false;
+	char buffer[1000000];
+	memset(buffer, 0, sizeof(buffer));
+
+	ssize_t bytesRead = recv(_fd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+	if (bytesRead < 0) {
+		_exitErr = true;
+		_statusCode = 500;
+		_output += getTimeStamp(_fd) + RED + "Error: recv() failed\n" + RESET;
+		return;
+	}
+
+	if (bytesRead == 0) {
+		_exitErr = false;
+		return;
+	}
 
     _requestBuffer.append(buffer, bytesRead);
 
-    if (_requestBuffer.find("\r\n\r\n") == std::string::npos && 
-        _requestBuffer.find("\n\n") == std::string::npos) {
-        std::cout << getTimeStamp(_fd) << BLUE 
-                << "Headers incomplete, waiting for more data" << RESET << std::endl;
-        _exitErr = false;
-        return;
-    } else {
-        earlyLengthDetection();
-        _state = CHECKING;
-    }
-    
-    if (_state == CHECKING) {
-        if (_statusCode == 413) {
-            _state = COMPLETE;
-        } else {
-            std::string tmp = toLower(_requestBuffer);
-            if (tmp.find("transfer-encoding:") != std::string::npos && tmp.find("chunked") != std::string::npos) {
-                if (!isChunkedBodyComplete(_requestBuffer))
-                    return;
-                else
-                    _state = COMPLETE;
-            } else {
-                int x = checkLength(tmp, _fd, printNewLine);
-                if (x == -1) {
-                    _statusCode = 400;
-                    _exitErr = true;
-                    return;
-                } else if (x == 0)
-                    return;
-                else
-                    _state = COMPLETE;
-            }
-        }
-    }
-    
-    if (_state == COMPLETE) {
-        if (printNewLine == true)
-            std::cout << std::endl;
-        std::cout << getTimeStamp(_fd) << GREEN << "Complete request received, processing..." << RESET << std::endl;
-        printNewLine = false;
-        _state = PROCESSING;
-    }
-    
-    if (_state == PROCESSING) {
-        Request req(_requestBuffer, *this, _fd);
-        _req = &req;
-        _exitErr = processRequest();
-        if (_exitErr != 1)
-            _requestBuffer.clear();
-        if (shouldCloseConnection(*_req))
-            _shouldClose = true;
-        _state = DONE;
-    }
+	if (_requestBuffer.find("\r\n\r\n") == std::string::npos && 
+		_requestBuffer.find("\n\n") == std::string::npos) {
+		std::cout << getTimeStamp(_fd) << BLUE 
+				<< "Headers incomplete, waiting for more data" << RESET << std::endl;
+		_exitErr = false;
+		return;
+	} else
+		_state = CHECKING;
+
+	if (_state == CHECKING) {
+		_lastActive = time(NULL);
+		std::string tmp = toLower(_requestBuffer);
+		if (tmp.find("transfer-encoding:") != std::string::npos && tmp.find("chunked") != std::string::npos) {
+			if (!isChunkedBodyComplete(_requestBuffer))
+				return;
+			else
+				_state = COMPLETE;
+		} else {
+			int x = checkLength(tmp, _fd, printNewLine);
+			if (x == -1) {
+				_statusCode = 400;
+				_exitErr = true;
+				return;
+			} else if (x == 0)
+				return;
+			else
+				_state = COMPLETE;
+		}
+	}
+	if (_state == COMPLETE) {
+		if (printNewLine == true)
+			std::cout << std::endl;
+		std::cout << getTimeStamp(_fd) << GREEN  << "Complete request received, processing..." << RESET << std::endl;
+		printNewLine = false;
+		_state = PROCESSING;
+	}
+	
+	if (_state == PROCESSING) {
+		Request req(_requestBuffer, *this, _fd);
+		_req = &req;
+		_exitErr = processRequest();
+		if (_exitErr != 1)
+			_requestBuffer.clear();
+		if (shouldCloseConnection(*_req))
+			_shouldClose = true;
+		_state = DONE;
+	}
 }
 
 int Client::processRequest() {
@@ -222,7 +220,7 @@ int Client::processRequest() {
 	}
 	
 	if (_req->check() == "NOTALLOWED") {
-		_output = getTimeStamp(_fd) + RED  + "Method Not Allowed: " + RESET + _req->getMethod() + "\n";
+		_output += getTimeStamp(_fd) + RED  + "Method Not Allowed: " + RESET + _req->getMethod() + "\n";
 		sendErrorResponse(*this, *_req);
 		_requestBuffer.clear();
 		return 1;
@@ -258,7 +256,7 @@ int Client::processRequest() {
 int Client::handleGetRequest() {
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
-		_output = getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath() + "\n";
+		_output += getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath() + "\n";
 		statusCode() = 404;
 		sendErrorResponse(*this, *_req);
 		return 1;
@@ -277,7 +275,7 @@ int Client::handleGetRequest() {
 int Client::handlePostRequest() {
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
-		_output = getTimeStamp(_fd) + RED  + "Location not found for POST request: " + RESET + _req->getPath() + "\n";
+		_output += getTimeStamp(_fd) + RED  + "Location not found for POST request: " + RESET + _req->getPath() + "\n";
 		statusCode() = 404;
 		sendErrorResponse(*this, *_req);
 		return 1;
@@ -312,7 +310,7 @@ int Client::handlePostRequest() {
 		
 		if (contentToWrite.empty()) {
 			statusCode() = 400;
-			_output = getTimeStamp(_fd) + RED  + "Failed to decode chunked data\n" + RESET;
+			_output += getTimeStamp(_fd) + RED  + "Failed to decode chunked data\n" + RESET;
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -321,7 +319,7 @@ int Client::handlePostRequest() {
 		if ((contentToWrite.empty() && _req->getContentLength() > 0) || (contentToWrite.size() != _req->getContentLength())) {
 			statusCode() = 400;
 			_req->hasValidLength() = false;
-			_output = getTimeStamp(_fd) + RED  + "Content length mismatch: expected " + tostring(_req->getContentLength()) + ", got " + tostring(contentToWrite.size()) + RESET + "\n";
+			_output += getTimeStamp(_fd) + RED  + "Content length mismatch: expected " + tostring(_req->getContentLength()) + ", got " + tostring(contentToWrite.size()) + RESET + "\n";
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -337,7 +335,7 @@ int Client::handlePostRequest() {
 
 	if (!ensureUploadDirectory(*this, *_req)) {
 		statusCode() = 500;
-		_output = getTimeStamp(_fd) + RED + "Error: Failed to ensure upload directory exists\n" + RESET;
+		_output += getTimeStamp(_fd) + RED + "Error: Failed to ensure upload directory exists\n" + RESET;
 		return 1;
 	}
 
@@ -356,23 +354,23 @@ int Client::createDirectory(std::string& fullPath) {
 				tmp = tmp.substr(0, tmp.size() - 1);
 			if (isValidPath(tmp)) {
 				statusCode() = 409;
-				_output = getTimeStamp(_fd) + RED + "Error: File with that name already exists\n" + RESET;
+				_output += getTimeStamp(_fd) + RED + "Error: File with that name already exists\n" + RESET;
 				sendErrorResponse(*this, *_req);
 				return 1;
 			}
 			statusCode() = 500;
-			output() = getTimeStamp(_fd) + RED + "Error: Failed to create directory\n" + RESET;
+			output() += getTimeStamp(_fd) + RED + "Error: Failed to create directory\n" + RESET;
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
 		std::string responseBody = "Directory created successfully.";
 		statusCode() = 201;
 		sendResponse(*this, *_req, responseBody);
-		_output = getTimeStamp(_fd) + GREEN  + "Directory created: " + RESET + fullPath + "\n";
+		_output += getTimeStamp(_fd) + GREEN  + "Directory created: " + RESET + fullPath + "\n";
 		return 0;
 	}
 	statusCode() = 409;
-	output() = getTimeStamp(_fd) + RED + "Error: Directory already exists\n" + RESET;
+	output() += getTimeStamp(_fd) + RED + "Error: Directory already exists\n" + RESET;
 	sendErrorResponse(*this, *_req);
 	return 1;
 }
@@ -380,7 +378,7 @@ int Client::createDirectory(std::string& fullPath) {
 int Client::createFile(std::string& fullPath, std::string& contentToWrite) {
 	if (!tryLockFile(*this, fullPath, _fd, _fileIsNew)) {
 		if (isValidDir(fullPath)) {
-			_output = getTimeStamp(_fd) + RED + "Error: Directory with that name already exists\n" + RESET;
+			_output += getTimeStamp(_fd) + RED + "Error: Directory with that name already exists\n" + RESET;
 			statusCode() = 409;
 			sendErrorResponse(*this, *_req);
 			return 1;
@@ -393,7 +391,7 @@ int Client::createFile(std::string& fullPath, std::string& contentToWrite) {
 	if (fd < 0) {
 		statusCode() = 409;
 		releaseLockFile(fullPath);
-		_output = getTimeStamp(_fd) + RED + "Error: Failed to open file for writing: " + RESET + fullPath + "\n";
+		_output += getTimeStamp(_fd) + RED + "Error: Failed to open file for writing: " + RESET + fullPath + "\n";
 		if (_fileIsNew == true)
 			remove(fullPath.c_str());
 		sendErrorResponse(*this, *_req);
@@ -406,11 +404,11 @@ int Client::createFile(std::string& fullPath, std::string& contentToWrite) {
 	releaseLockFile(fullPath);
 	if (bytesWritten < 0) {
 		statusCode() = 500;
-		_output = getTimeStamp(_fd) + RED + "Error: write() failed\n" + RESET;
+		_output += getTimeStamp(_fd) + RED + "Error: write() failed\n" + RESET;
 		sendErrorResponse(*this, *_req);
 		if (_fileIsNew == true) {
 			remove(fullPath.c_str());
-			_output = getTimeStamp(_fd) + RED + "File removed: " + fullPath + RESET + "\n";
+			_output += getTimeStamp(_fd) + RED + "File removed: " + fullPath + RESET + "\n";
 		}
 		close(fd);
 		return 1;
@@ -418,7 +416,7 @@ int Client::createFile(std::string& fullPath, std::string& contentToWrite) {
 	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
 	statusCode() = 201;
 	sendResponse(*this, *_req, responseBody);
-	_output = getTimeStamp(_fd) + GREEN  + "Uploaded file: " + RESET + fullPath + " (" + tostring(bytesWritten) + " bytes written)\n";
+	_output += getTimeStamp(_fd) + GREEN  + "Uploaded file: " + RESET + fullPath + " (" + tostring(bytesWritten) + " bytes written)\n";
 	close(fd);
 	return 0;
 }
@@ -451,7 +449,7 @@ int Client::handleDeleteRequest() {
 			return 1;
 		} else {
 			statusCode() = 500;
-			_output = getTimeStamp(_fd) + RED  + "Error deleting file: " + RESET + fullPath + " - " + strerror(errno) + "\n";
+			_output += getTimeStamp(_fd) + RED  + "Error deleting file: " + RESET + fullPath + " - " + strerror(errno) + "\n";
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -473,7 +471,7 @@ int Client::handleFileBrowserRequest() {
 				loc = &it->second;
 			} else {
 				statusCode() = 403;
-				_output = getTimeStamp(_fd) + RED + "Directory browsing not enabled for root path\n" + RESET;
+				_output += getTimeStamp(_fd) + RED + "Directory browsing not enabled for root path\n" + RESET;
 				sendErrorResponse(*this, *_req);
 				return 1;
 			}
@@ -481,7 +479,7 @@ int Client::handleFileBrowserRequest() {
 		
 		if (!loc || !loc->autoindex) {
 			statusCode() = 403;
-			_output = getTimeStamp(_fd) + RED + "Directory browsing not enabled\n" + RESET;
+			_output += getTimeStamp(_fd) + RED + "Directory browsing not enabled\n" + RESET;
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -496,7 +494,7 @@ int Client::handleFileBrowserRequest() {
 		locationLevel* loc = NULL;
 		if (!matchLocation("/", _req->getConf(), loc)) {
 			statusCode() = 404;
-			_output = getTimeStamp(_fd) + RED + "Location not found: " + RESET + requestPath + "\n";
+			_output += getTimeStamp(_fd) + RED + "Location not found: " + RESET + requestPath + "\n";
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -506,7 +504,7 @@ int Client::handleFileBrowserRequest() {
 		struct stat fileStat;
 		if (stat(actualFullPath.c_str(), &fileStat) != 0) {
 			statusCode() = 404;
-			_output = getTimeStamp(_fd) + RED + "File not found: " + RESET + actualFullPath + "\n";
+			_output += getTimeStamp(_fd) + RED + "File not found: " + RESET + actualFullPath + "\n";
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -519,11 +517,11 @@ int Client::handleFileBrowserRequest() {
 				return 1;
 			_req->setContentType(_req->getMimeType(actualFullPath));
 			sendResponse(*this, *_req, _req->getBody());
-			_output = getTimeStamp(_fd) + GREEN + "Successfully served file from browser: " + RESET + actualFullPath + "\n";
+			_output += getTimeStamp(_fd) + GREEN + "Successfully served file from browser: " + RESET + actualFullPath + "\n";
 			return 0;
 		} else {
 			statusCode() = 403;
-			_output = getTimeStamp(_fd) + RED + "Not a regular file or directory: " + RESET + actualFullPath + "\n";
+			_output += getTimeStamp(_fd) + RED + "Not a regular file or directory: " + RESET + actualFullPath + "\n";
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -534,7 +532,7 @@ int Client::handleRegularRequest() {
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
 		statusCode() = 404;
-		_output = getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath() + "\n";
+		_output += getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath() + "\n";
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -553,7 +551,7 @@ int Client::handleRegularRequest() {
 
 	if (fullPath.find("root") != std::string::npos && loc->autoindex == false) {
 		statusCode() = 403;
-		_output = getTimeStamp(_fd) + RED + "Access to directory browser is forbidden when autoindex is off\n" + RESET;
+		_output += getTimeStamp(_fd) + RED + "Access to directory browser is forbidden when autoindex is off\n" + RESET;
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -585,7 +583,7 @@ int Client::handleRegularRequest() {
 		return viewDirectory(fullPath, *_req);
 	if (!S_ISREG(fileStat.st_mode)) {
 		statusCode() = 403;
-		_output = getTimeStamp(_fd) + RED + "Not a regular file: " + RESET + fullPath + "\n";
+		_output += getTimeStamp(_fd) + RED + "Not a regular file: " + RESET + fullPath + "\n";
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -599,7 +597,7 @@ int Client::handleRegularRequest() {
 
 	_req->setContentType(contentType);
 	sendResponse(*this, *_req, _req->getBody());
-	_output = getTimeStamp(_fd) + GREEN  + "Sent file: " + RESET + fullPath + "\n";
+	_output += getTimeStamp(_fd) + GREEN  + "Sent file: " + RESET + fullPath + "\n";
 	return 0;
 }
 
@@ -643,7 +641,7 @@ int Client::handleMultipartPost() {
 	std::string successMsg = "Successfully uploaded file:" + filename;
 	statusCode() = 201;
 	sendResponse(*this, *_req, successMsg);
-	_output = getTimeStamp(_fd) + GREEN  + "File transfer ended\n" + RESET;
+	_output += getTimeStamp(_fd) + GREEN  + "File transfer ended\n" + RESET;
 	return 0;
 }
 
@@ -675,11 +673,11 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 					return 1;
 				req.setContentType("text/html");
 				sendResponse(*this, req, req.getBody());
-				_output = getTimeStamp(_fd) + GREEN  + "Successfully served index file: " + RESET + indexPath + "\n";
+				_output += getTimeStamp(_fd) + GREEN  + "Successfully served index file: " + RESET + indexPath + "\n";
 				return 0;
 			} else {
 				statusCode() = 403;
-				_output = getTimeStamp(_fd) + RED  + "Autoindex off and no index.html: " + RESET + fullPath + "\n";
+				_output += getTimeStamp(_fd) + RED  + "Autoindex off and no index.html: " + RESET + fullPath + "\n";
 				sendErrorResponse(*this, req);
 				return 1;
 			}
@@ -698,11 +696,11 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 					return 1;
 				req.setContentType("text/html");
 				sendResponse(*this, req, req.getBody());
-				_output = getTimeStamp(_fd) + GREEN  + "Successfully served index file: " + RESET + indexPath + "\n";
+				_output += getTimeStamp(_fd) + GREEN  + "Successfully served index file: " + RESET + indexPath + "\n";
 				return 0;
 			} else {
 				statusCode() = 403;
-				_output = getTimeStamp(_fd) + RED  + "Autoindex off and no index.html: " + RESET + fullPath + "\n";
+				_output += getTimeStamp(_fd) + RED  + "Autoindex off and no index.html: " + RESET + fullPath + "\n";
 				sendErrorResponse(*this, req);
 				return 1;
 			}
@@ -710,7 +708,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 	}
 	else {
 		statusCode() = 403;
-		_output = getTimeStamp(_fd) + RED + "No matching location for: " + RESET + req.getPath() + "\n";
+		_output += getTimeStamp(_fd) + RED + "No matching location for: " + RESET + req.getPath() + "\n";
 		sendErrorResponse(*this, req);
 		return 1;
 	}
@@ -724,17 +722,21 @@ int Client::createDirList(std::string fullPath, Request& req) {
 		sendErrorResponse(*this, req);
 		return 1;
 	}
-	std::string response = "HTTP/1.1 200 OK\r\n";
+	std::string response = "HTTP/1.1 " + tostring(_statusCode) + " " + getStatusMessage(_statusCode) + "\r\n";
+	response += "Server: WebServ/1.0\r\n";
+	response += "Date: " + getCurrentTime() + "\r\n";
 	response += "Content-Type: text/html\r\n";
 	response += "Content-Length: " + tostring(dirListing.length()) + "\r\n";
 	if (shouldCloseConnection(req))
 		response += "Connection: close\r\n";
+	else
+		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
 	response += dirListing;
 	response += "\n";
 	addSendBuf(*_webserv, _fd, response);
 	setEpollEvents(*_webserv, _fd, EPOLLOUT);
-	_output = getTimeStamp(_fd) + GREEN  + "Sent directory listing: " + RESET + fullPath + "\n";
+	_output += getTimeStamp(_fd) + GREEN  + "Sent directory listing: " + RESET + fullPath + "\n";
 	return 0;
 }
 
@@ -822,7 +824,7 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 	}
 	if (!ensureUploadDirectory(*this, req)) {
 		statusCode() = 500;
-		_output = getTimeStamp(_fd) + RED + "Error: Failed to ensure upload directory exists\n" + RESET;
+		_output += getTimeStamp(_fd) + RED + "Error: Failed to ensure upload directory exists\n" + RESET;
 		return false;
 	}
 	
@@ -834,8 +836,8 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd < 0) {
-		statusCode() = 500;
-		_output = getTimeStamp(_fd) + RED + "Error: Failed to open file for writing: " + RESET + fullPath + "\n";
+		statusCode() = 409;
+		_output += getTimeStamp(_fd) + RED + "Error: Failed to open file for writing: " + RESET + fullPath + "\n";
 		return false;
 	}
 	

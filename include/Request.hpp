@@ -26,6 +26,7 @@ class Request {
 		~Request();
 
 		//getters & setters
+		bool								&init();
 		std::string							&getPath();
 		std::string const					&getMethod();
 		std::string const					&getVersion();
@@ -62,6 +63,7 @@ class Request {
 		bool								isChunkedTransfer();
 
 	private:
+		bool								_init;
 		std::string							_host; 
 		std::string							_method;
 		std::string							_check;
