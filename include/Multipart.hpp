@@ -20,7 +20,7 @@ class Multipart {
 		size_t					findLineEnd(const std::string& text, size_t start);
 		bool					parseContent(size_t contentStart, const std::string& fullBoundary);
 
-		const std::string&		_data;
+		const std::string		&_data;
 		std::string				_boundary;
 		std::string				_filename;
 		std::string				_fileContent;

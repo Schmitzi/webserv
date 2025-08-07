@@ -10,12 +10,15 @@
 #include <vector>
 #include <cstdio>
 #include "Colors.hpp"
+#include "ConfigHelper.hpp"
 
 class	Webserv;
 class	Server;
 class	Request;
 struct	serverLevel;
 struct	locationLevel;
+
+#define CLIENT_TIMEOUT 60
 
 enum {
 	UNTRACKED,
@@ -47,6 +50,7 @@ class Client {
 		std::string					&output();
 		int							&statusCode();
 		int							&state();
+		time_t						&lastActive();
 
 		int							acceptConnection(int serverFd);
 		void						displayConnection();
@@ -69,10 +73,13 @@ class Client {
 		std::string					showDir(const std::string& dirPath, const std::string& requestUri);
 		bool						saveFile(Request& req, const std::string& filename, const std::string& content);
 
+		int							earlyLengthDetection();
+
 	private:
 		struct sockaddr_in			_addr;
 		socklen_t					_addrLen;
 		int							_fd;
+		time_t						_lastActive;
 		std::string					_requestBuffer;
 		Server						*_server;
 		Webserv						*_webserv;

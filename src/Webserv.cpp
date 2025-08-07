@@ -100,6 +100,7 @@ Client* Webserv::getClientByFd(int fd) {
 }
 
 void Webserv::initialize() {
+	bool atLeastOne = false;
 	for (size_t i = 0; i < _servers.size(); i++) {
 		if (_servers[i].getFd() > 0) {
 			std::cout << getTimeStamp() << BLUE << "Host:Port already opened: " << RESET << 
@@ -118,6 +119,7 @@ void Webserv::initialize() {
 			std::cerr << getTimeStamp() << RED << "Failed to add server to epoll: " << RESET << i + 1 << std::endl;
 			continue;
 		}
+		atLeastOne = true;
 		std::cout << getTimeStamp() << GREEN << "Server " << i + 1;
 		bool smth = false;
 		for (size_t x = 0; x < _servers[i].getConfigs().size(); x++) {
@@ -133,6 +135,8 @@ void Webserv::initialize() {
 		}
 		std::cout << " is listening on port " << _confParser.getPort(_servers[i].getConfigs()[0]) << RESET << std::endl << std::endl;
 	}
+	if (!atLeastOne)
+		_state = false;
 }
 
 bool Webserv::checkEventMaskErrors(uint32_t &eventMask, int fd) {
@@ -160,24 +164,23 @@ bool Webserv::checkEventMaskErrors(uint32_t &eventMask, int fd) {
 }
 
 int Webserv::run() {
-	_epollFd = epoll_create1(EPOLL_CLOEXEC);
+	_epollFd = epoll_create(1);
 	if (_epollFd == -1) {
-		std::cerr << getTimeStamp() << RED << "Error: epoll_create1() failed" << RESET << std::endl;
+		std::cerr << getTimeStamp() << RED << "Error: epoll_create() failed" << RESET << std::endl;
 		return 1;
 	}
 	initialize();
-	
 	while (_state == true) {
-		int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, -1);
+		int nfds = epoll_wait(_epollFd, _events, MAX_EVENTS, 1);
 		if (nfds == -1) {
 			if (errno == EINTR)
 				continue;
 			std::cerr << getTimeStamp() << RED << "Error: epoll_wait() failed" << RESET << std::endl;
 			continue;
 		}
-
+		for (size_t i = 0; i < _clients.size(); i++)
+			checkClientTimeout(time(NULL), _clients[i]);
 		checkCgiTimeouts();
-		
 		for (int i = 0; i < nfds; i++) {
 			int fd = _events[i].data.fd;
 			uint32_t eventMask = _events[i].events;
@@ -197,6 +200,16 @@ int Webserv::run() {
 		}
 	}
 	return 0;
+}
+
+void Webserv::checkClientTimeout(time_t now, Client &client) {
+	if (now - client.lastActive() > CLIENT_TIMEOUT) {
+		client.statusCode() = 408;
+		client.exitErr() = true;
+		client.shouldClose() = true;
+		Request req = Request();
+		sendErrorResponse(client, req);
+	}
 }
 
 void Webserv::handleErrorEvent(int fd) {
@@ -252,7 +265,6 @@ void Webserv::handleNewConnection(Server &server) {
 	}
 
 	Client newClient(server);
-	
 	if (newClient.acceptConnection(server.getFd()) == 0) {
 		newClient.displayConnection();
 
@@ -265,7 +277,7 @@ void Webserv::handleNewConnection(Server &server) {
 	}
 }
 
-void Webserv::handleClientActivity(int clientFd) {    
+void Webserv::handleClientActivity(int clientFd) {
 	if (isCgiPipeFd(*this, clientFd)) {
 		CGIHandler* handler = getCgiHandler(clientFd);
 		if (handler) {
@@ -336,6 +348,7 @@ void Webserv::handleEpollOut(int fd) {
 		else {
 			c->state() = UNTRACKED;
 			c->exitErr() = false;
+			c->statusCode() = 200;
 			setEpollEvents(*this, fd, EPOLLIN);
 		}
 	}
@@ -344,29 +357,27 @@ void Webserv::handleEpollOut(int fd) {
 }
 
 void Webserv::checkCgiTimeouts() {
-    time_t now = time(NULL);
-    std::vector<int> expiredCgis;
-    
-    for (std::map<int, CGIHandler*>::iterator it = _cgis.begin(); it != _cgis.end(); ++it) {
-        CGIHandler* handler = it->second;
-        if (handler && handler->isTimedOut(now)) {
-            std::cerr << getTimeStamp(it->first) << RED << "CGI timeout detected, killing process" << RESET << std::endl;
-            expiredCgis.push_back(it->first);
-        }
-    }
-    
-    for (size_t i = 0; i < expiredCgis.size(); ++i) {
-        int cgiFd = expiredCgis[i];
-        CGIHandler* handler = getCgiHandler(cgiFd);
-        if (handler) {
-            handler->killProcess();
-            handler->getClient()->statusCode() = 504;
-            sendErrorResponse(*(handler->getClient()), handler->getRequest());
-            handler->cleanupResources();
-            delete handler;
-            unregisterCgiPipe(*this, cgiFd);
-        }
-    }
+	time_t now = time(NULL);
+	std::vector<int> expiredCgis;
+	for (std::map<int, CGIHandler*>::iterator it = _cgis.begin(); it != _cgis.end(); ++it) {
+		CGIHandler* handler = it->second;
+		if (handler && handler->isTimedOut(now)) {
+			std::cerr << getTimeStamp(it->first) << RED << "CGI timeout detected, killing process" << RESET << std::endl;
+			expiredCgis.push_back(it->first);
+		}
+	}
+	for (size_t i = 0; i < expiredCgis.size(); ++i) {
+		int cgiFd = expiredCgis[i];
+		CGIHandler* handler = getCgiHandler(cgiFd);
+		if (handler) {
+			handler->killProcess();
+			handler->getClient()->statusCode() = 504;
+			sendErrorResponse(*(handler->getClient()), handler->getRequest());
+			handler->cleanupResources();
+			delete handler;
+			unregisterCgiPipe(*this, cgiFd);
+		}
+	}
 }
 
 void    Webserv::cleanup() {

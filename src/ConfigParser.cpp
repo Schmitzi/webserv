@@ -229,17 +229,3 @@ serverLevel& ConfigParser::getConfigByIndex(size_t nbr) {
 		throw configException("Error: Invalid config index specified.");
 	return _allConfigs[nbr];
 }
-
-/* ************************************************************************************** */
-// EXTRAS
-
-void ConfigParser::printAllConfigs() {
-	for (size_t i = 0; i < _storedConfigs.size(); i++) {
-		std::cout << "___config[" << i << "]___\n";
-		for (size_t j = 0; j < _storedConfigs[i].size(); j++) {
-			if (!whiteLine(_storedConfigs[i][j]))
-				std::cout << _storedConfigs[i][j] << std::endl;
-		}
-		std::cout << "____________________________________" << std::endl << std::endl;
-	}
-}

@@ -100,24 +100,20 @@ void setPort(std::vector<std::string>& s, serverLevel& serv) {
 }
 
 void setErrorPages(std::vector<std::string>& s, serverLevel &serv) {
-	std::string site;
 	std::vector<int> errCodes;
 	bool waitingForPath = true;
 	int err;
 
 	for (size_t j = 1; j < s.size(); j++) {
 		if (onlyDigits(s[j])) {
-			err = atoi(s[j].c_str());
-			if (err < 100 || err > 599)
+			err = std::atoi(s[j].c_str());
+			if (err < 400 || err > 599)
 				throw configException("Error: Invalid error status code.");
 			errCodes.push_back(err);
 			waitingForPath = true;
 		}
 		else if (waitingForPath == true && !onlyDigits(s[j]) && !errCodes.empty()) {
-			site = s[j].substr(0, s[j].size());
-			if (!isValidPath(site))
-				throw configException("Error: Invalid path (error_page) -> " + site);
-			serv.errPages.insert(std::pair<std::vector<int>, std::string>(errCodes, site));
+			serv.errPages.insert(std::pair<std::vector<int>, std::string>(errCodes, s[j]));
 			errCodes.clear();
 			waitingForPath = false;
 		}
@@ -167,6 +163,8 @@ void setRootLoc(locationLevel& loc, std::vector<std::string>& s) {
 }
 
 void setLocIndexFile(locationLevel& loc, std::vector<std::string>& s) {
+	if (s.size() > 2)
+		throw configException("Error: more than one index file specified");
 	if (!s[1].empty() && !isValidIndexFile(s[1]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
 	loc.indexFile = s[1];
@@ -199,7 +197,7 @@ void setRedirection(locationLevel& loc, std::vector<std::string>& s) {
 		throw configException("Error: invalid redirection!");
 	if (!s[2].empty() && !isValidRedirectPath(s[2]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1] + " " + s[2]);
-	loc.redirectionHTTP.first = atoi(s[1].c_str());
+	loc.redirectionHTTP.first = std::atoi(s[1].c_str());
 	loc.redirectionHTTP.second = s[2];
 	loc.hasRedirect = true;
 }
@@ -225,6 +223,8 @@ void setRootServ(serverLevel& serv, std::vector<std::string>& s) {
 }
 
 void setServIndexFile(serverLevel& serv, std::vector<std::string>& s) {
+	if (s.size() > 2)
+		throw configException("Error: more than one index file specified");
 	if (!s[1].empty() && !isValidIndexFile(s[1]))
 		throw configException("Error: invalid path for " + s[0] + " -> " + s[1]);
 	serv.indexFile = s[1];

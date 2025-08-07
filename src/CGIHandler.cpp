@@ -21,7 +21,6 @@ CGIHandler::CGIHandler(Client *client) {
 	_outputBuffer = "";
 	_pid = -1;
 	_startTime = 0;
-	_timeout = TIMEOUT_SECONDS;
 }
 
 CGIHandler::CGIHandler(const CGIHandler& copy) {
@@ -45,7 +44,6 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 		_pid = copy._pid;
 		_req = copy._req;
 		_startTime = copy._startTime;
-		_timeout = copy._timeout;
 	}
 	return *this;
 }
@@ -58,7 +56,7 @@ Client*  CGIHandler::getClient() const {
 }
 
 Request& CGIHandler::getRequest() {
-    return _req;
+	return _req;
 }
 
 void CGIHandler::setPath(const std::string& path) {
@@ -77,22 +75,21 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
 	}
 	
 	if (_cgiBinPath.empty()) {
-		if (NIX == true)
-			_cgiBinPath = "/etc/profiles/per-user/schmitzi/bin/php-cgi";
-		else
-			_cgiBinPath = "/usr/bin/cgi-bin";
+		_cgiBinPath = "/usr/bin/cgi-bin";
 	}
 }
 
 int CGIHandler::executeCGI(Request &req) {
-	_req = Request(req);
-	if (doChecks() || prepareEnv())
+	_req = req;
+	if (doChecks() || prepareEnv()) {
+		cleanupResources();
 		return 1;
+	}
 	startClock();
 	_pid = fork();
 	if (_pid < 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: fork() failed\n" + RESET;
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: fork() failed\n" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
@@ -103,23 +100,24 @@ int CGIHandler::executeCGI(Request &req) {
 }
 
 int CGIHandler::doChecks() {
+	std::cout << _path << "\n";
 	if (access(_path.c_str(), F_OK) != 0) {
 		_client->statusCode() = 404;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path + "\n";
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (access(_path.c_str(), X_OK) != 0) {
 		_client->statusCode() = 403;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Script is not executable: " + RESET + _path + "\n";
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Script is not executable: " + RESET + _path + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (pipe(_input) < 0 || pipe(_output) < 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: pipe() failed" + RESET + "\n";
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: pipe() failed" + RESET + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
@@ -135,48 +133,39 @@ int CGIHandler::prepareEnv() {
 	std::string fileContent;
 	locationLevel* loc = NULL;
 	
-	if (!_req.getQuery().empty()) {
+	if (!_req.getQuery().empty())
 		doQueryStuff(_req.getQuery(), fileName, fileContent);
-		size_t dotPos = _path.find_last_of('.');
-		if (dotPos != std::string::npos) {
-			ext = "." + _path.substr(dotPos + 1); 
-			
-			if (!matchLocation(ext, _req.getConf(), loc)) {
-				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
-				return 1;
-			}
-			
-			if (loc->uploadDirPath.empty()) {
-				_client->output() = getTimeStamp(_client->getFd()) + RED + "Upload directory not set for extension: " + RESET + ext + "\n";
-				return 1;
-			}
-			filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
-			makeArgs(loc->cgiProcessorPath, filePath);
+	size_t dotPos = _path.find_last_of('/');
+	if (dotPos != std::string::npos) {
+		std::string temp = _path.substr(dotPos + 1);
+		size_t slashPos = temp.find_first_of('/');
+		if (slashPos != std::string::npos) {
+			_pathInfo = temp.substr(slashPos);
+			ext = "." + temp.substr(0, temp.find_first_of('/') - 1);
+		} else
+			ext = "." + temp;
+		if (!matchLocation(ext, _req.getConf(), loc)) {
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
+			return 1;
 		}
-	} else {
-		size_t dotPos = _path.find_last_of('.');
-		if (dotPos != std::string::npos) {
-			ext = "." + _path.substr(dotPos + 1);
-			
-			if (!matchLocation(ext, _req.getConf(), loc)) {
-				_client->output() = getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
-				return 1;
-			}
-			makeArgs(loc->cgiProcessorPath, filePath);
+		if (loc->uploadDirPath.empty()) {
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Upload directory not set for extension: " + RESET + ext + "\n";
+			return 1;
 		}
+		filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
+		makeArgs(loc->cgiProcessorPath, filePath);
 	}
 	
 	_env.clear();
 	
+	std::cout << "PATH: " << _path << " PATHINFO: " << _pathInfo << std::endl;
 	const std::string abs_path = matchAndAppendPath(loc->rootLoc, _path);
-	_env.push_back("SCRIPT_FILENAME=" + abs_path);
 	_env.push_back("REDIRECT_STATUS=200");
 	_env.push_back("SERVER_SOFTWARE=WebServ/1.0");
 	_env.push_back("SERVER_NAME=" + _req.getConf().servName[0]);
 	_env.push_back("GATEWAY_INTERFACE=CGI/1.1");
-	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
+	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");//TODO: SERVER PROTOCOL exists twice
 	_env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(_req.getConf())));
-	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
 	
 	// Request information
 	_env.push_back("REQUEST_METHOD=" + _req.getMethod());
@@ -186,7 +175,7 @@ int CGIHandler::prepareEnv() {
 	
 	// Script information
 	_env.push_back("SCRIPT_NAME=" + _req.getPath());
-	_env.push_back("SCRIPT_FILENAME=" + _path);
+	_env.push_back("SCRIPT_FILENAME=" + _path);//TODO: SCRIPT FILENAME exists twice
 	
 	// PATH_INFO handling (for URLs like /script.php/extra/path)
 	_env.push_back("PATH_INFO=" + _pathInfo);
@@ -214,24 +203,53 @@ void    CGIHandler::makeArgs(std::string const &cgiBin, std::string& filePath) {
 }
 
 int CGIHandler::doChild() {
-	std::vector<char*> argsPtrs;
-	std::vector<char*> envPtrs;
-	prepareForExecve(argsPtrs, envPtrs);
 	close(_input[1]);
 	close(_output[0]);
 	
 	if (dup2(_input[0], STDIN_FILENO) < 0 || dup2(_output[1], STDOUT_FILENO) < 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: dup2() failed\n" + RESET;
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: dup2() failed\n" + RESET;
 		cleanupResources();
 		return 1;
 	}
 	close(_input[0]);
 	close(_output[1]);
 	
+	// Extract script directory and filename
+	std::string scriptDir = _path;
+	std::string scriptName = _path;
+	size_t lastSlash = scriptDir.find_last_of('/');
+	if (lastSlash != std::string::npos) {
+		scriptDir = scriptDir.substr(0, lastSlash);
+		scriptName = _path.substr(lastSlash + 1);
+
+		if (chdir(scriptDir.c_str()) != 0) {
+			_client->statusCode() = 500;
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: chdir() failed to " + scriptDir + "\n" + RESET;
+			cleanupResources();
+			return 1;
+		}
+		
+		for (size_t i = 0; i < _args.size(); i++) {
+			if (_args[i] == _path) {
+				_args[i] = scriptName;
+				break;
+			}
+		}
+	}
+	
+	std::vector<char*> argsPtrs;
+	std::vector<char*> envPtrs;
+	for (size_t i = 0; i < _args.size(); i++)
+		argsPtrs.push_back(const_cast<char*>(_args[i].c_str()));
+	argsPtrs.push_back(NULL);
+	for (size_t i = 0; i < _env.size(); i++)
+		envPtrs.push_back(const_cast<char*>(_env[i].c_str()));
+	envPtrs.push_back(NULL);
+	
 	execve(argsPtrs[0], argsPtrs.data(), envPtrs.data());
 	_client->statusCode() = 500;
-	_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: execve() failed\n" + RESET;
+	_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: execve() failed\n" + RESET;
 	cleanupResources();
 	return 1;
 }
@@ -265,7 +283,7 @@ int CGIHandler::doParent() {
 
 	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN) != 0) {
 		_client->statusCode() = 500;
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll\n" + RESET;
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll\n" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
@@ -296,11 +314,14 @@ int CGIHandler::processScriptOutput() {
 	}
 	pid_t result = waitpid(_pid, &status, WNOHANG);
 	if (result == _pid) {
+		_client->lastActive() = time(NULL);
 		if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-			_client->output() = getTimeStamp(_client->getFd()) + GREEN + "CGI Script completed successfully\n" + RESET;
+			_client->output() += getTimeStamp(_client->getFd()) + GREEN + "CGI Script completed successfully\n" + RESET;
 			
 			if (_outputBuffer.empty()) {
-				std::string defaultResponse = "HTTP/1.1 200 OK\r\n";
+				std::string defaultResponse = "HTTP/1.1 " + tostring(_client->statusCode()) + " " + getStatusMessage(_client->statusCode()) + "\r\n";
+				defaultResponse += "Server: WebServ/1.0\r\n";
+				defaultResponse += "Date: " + getCurrentTime() + "\r\n";
 				defaultResponse += "Content-Type: text/plain\r\n";
 				defaultResponse += "Content-Length: 22\r\n\r\n";
 				defaultResponse += "No output from script\n";
@@ -313,23 +334,23 @@ int CGIHandler::processScriptOutput() {
 				std::pair<std::string, std::string> headerAndBody = splitHeaderAndBody(_outputBuffer);
 				cleanupResources();
 				if (_req.isChunkedTransfer())
-					handleChunkedOutput(headerAndBody.second);
+					handleChunkedOutput(headerAndBody);
 				else {
 					if (_client->statusCode() == 501)
 						return 1;
-					handleStandardOutput(headerAndBody.second);
+					handleStandardOutput(headerAndBody);
 				}
 				return 1;
 			}
 		} else {
-			_client->output() = getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status)) + "\n";
-			_client->statusCode() = 500;
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status)) + "\n";
+			_client->statusCode() = 502;
 			sendErrorResponse(*_client, _req);
 			cleanupResources();
 			return 1;
 		}
 	} else if (result == -1) {
-		_client->output() = getTimeStamp(_client->getFd()) + RED + "Error: waitpid() failed\n" + RESET;
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: waitpid() failed\n" + RESET;
 		_client->statusCode() = 500;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
@@ -339,40 +360,64 @@ int CGIHandler::processScriptOutput() {
 	return 0;
 }
 
-int CGIHandler::handleStandardOutput(const std::string& initialBody) {
-	std::string response = "HTTP/1.1 200 OK\r\n";
-	
-	if (!_req.getContentType().empty())
-		response += "Content-Type: " + _req.getContentType() + "\r\n";
-	else
-		response += "Content-Type: text/html\r\n";
-	
-	response += "Content-Length: " + tostring(initialBody.length()) + "\r\n";
+int CGIHandler::handleStandardOutput(const std::pair<std::string, std::string>& output) {
+	int status = 200;
+	if (output.first.find("Status:") != std::string::npos) {
+		size_t statusPos = output.first.find("Status:") + 7;
+		int statusCode = std::atoi(output.first.substr(statusPos).c_str());
+		if (statusCode >= 100 && statusCode < 600)
+			status = statusCode;
+	}
+	std::string contentType = "text/html";
+	size_t contentTypePos = output.first.find("Content-Type:");
+	if (contentTypePos != std::string::npos) {
+		size_t endPos = output.first.find("\r\n", contentTypePos);
+		if (endPos != std::string::npos) {
+			contentType = output.first.substr(contentTypePos + 14, endPos - contentTypePos - 14);
+			contentType.erase(std::remove(contentType.begin(), contentType.end(), ' '), contentType.end());
+		}
+	}
+	std::string response = "HTTP/1.1 " + tostring(status) + " " + getStatusMessage(status) + "\r\n";
 	response += "Server: WebServ/1.0\r\n";
+	response += "Date: " + getCurrentTime() + "\r\n";
+	response += "Content-Type: " + contentType + "\r\n";
+	response += "Content-Length: " + tostring(output.second.length()) + "\r\n";
 	if (shouldCloseConnection(_req))
 		response += "Connection: close\r\n";
+	else
+		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
-	response += initialBody;
+	response += output.second;
 	response += "\n";
-	
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
-	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);    
+	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT); 
+	_client->lastActive() = time(NULL);   
 	return 0;
 }
 
-int CGIHandler::handleChunkedOutput(const std::string& initialBody) {
-	std::string response = "HTTP/1.1 200 OK\r\n";
-	
+int CGIHandler::handleChunkedOutput(const std::pair<std::string, std::string>& output) {
+	int status = 200;
+	if (output.first.find("Status:") != std::string::npos) {
+		size_t statusPos = output.first.find("Status:") + 7;
+		int statusCode = std::atoi(output.first.substr(statusPos).c_str());
+		if (statusCode >= 100 && statusCode < 600)
+			status = statusCode;
+	}
+	std::string response = "HTTP/1.1 " + tostring(status) + " " + getStatusMessage(status) + "\r\n";
+	response += "Server: WebServ/1.0\r\n";
+	response += "Date: " + getCurrentTime() + "\r\n";
 	if (_req.isChunkedTransfer())
 		response += "Transfer-Encoding: chunked\r\n";
-	
 	if (shouldCloseConnection(_req))
 		response += "Connection: close\r\n";
+	else
+		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
-	response += formatChunkedResponse(initialBody);
+	response += formatChunkedResponse(output.second);
 	response += "\n";
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
 	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
+	_client->lastActive() = time(NULL);
 	return 0;
 }
 
@@ -453,11 +498,12 @@ void CGIHandler::cleanupResources() {
 			unregisterCgiPipe(_server->getWebServ(), _output[0]);
 		close(_output[0]);
 		_output[0] = -1;
-		_client->output() = getTimeStamp(_client->getFd()) + "Cleaned up and disconnected CGI\n";
+		_client->output() += getTimeStamp(_client->getFd()) + "Cleaned up and disconnected CGI\n";
 	}
 	_path.clear();
 	_args.clear();
 	_env.clear();
 	_outputBuffer.clear();
 	_startTime = 0;
+	_client->shouldClose() = true;
 }
