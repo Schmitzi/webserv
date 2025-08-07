@@ -255,6 +255,7 @@ int Client::processRequest() {
 
 int Client::handleGetRequest() {
 	locationLevel* loc = NULL;
+	std::cout << "_req->getPath(): " << _req->getPath() << std::endl;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
 		_output += getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath() + "\n";
 		statusCode() = 404;

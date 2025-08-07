@@ -39,7 +39,7 @@ nm -u ./webserv | grep GLIBCXX_ | sort | uniq =>	C++98 symbols should be from:
 
 -> GET /dev/urandom returns 404, should not be 404
 
--> GET / for location / without GET in limit_except still returns index.html
+<!-- -> GET / for location / without GET in limit_except still returns index.html -->
 
 <!-- -> combine upload_store with location name and root -->
 

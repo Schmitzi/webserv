@@ -165,7 +165,6 @@ bool Webserv::checkEventMaskErrors(uint32_t &eventMask, int fd) {
 
 int Webserv::run() {
 	_epollFd = epoll_create(1);
-	// _epollFd = epoll_create1(EPOLL_CLOEXEC);TODO: epoll_create works as well?
 	if (_epollFd == -1) {
 		std::cerr << getTimeStamp() << RED << "Error: epoll_create() failed" << RESET << std::endl;
 		return 1;
