@@ -182,7 +182,7 @@ bool Request::matchHostServerName() {
 	return false;
 }
 
-bool Request::checkRaw(const std::string& raw) {#
+bool Request::checkRaw(const std::string& raw) {
 	size_t i = 0;
 	std::string r = raw.substr(0, raw.find("\r\n"));
 	if (r.size() > 8192) {
