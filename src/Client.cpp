@@ -890,18 +890,12 @@ bool Client::saveFile(Request& req, const std::string& filename, const std::stri
 }
 
 int Client::earlyLengthDetection() {
-	size_t contentLengthPos = _requestBuffer.find("Content-Length:");
-	if (contentLengthPos == std::string::npos) {
-		std::string lowerBuffer = toLower(_requestBuffer);
-		contentLengthPos = lowerBuffer.find("content-length:");
-	}
-	
+	size_t contentLengthPos = iFind(_requestBuffer, "Content-Length:");
 	if (contentLengthPos != std::string::npos) {
-		size_t valueStart = _requestBuffer.find(":", contentLengthPos) + 1;
+		size_t valueStart = contentLengthPos + 15;
 		size_t lineEnd = _requestBuffer.find("\r\n", valueStart);
-		if (lineEnd == std::string::npos) {
+		if (lineEnd == std::string::npos)
 			lineEnd = _requestBuffer.find("\n", valueStart);
-		}
 		
 		if (lineEnd != std::string::npos) {
 			std::string lengthStr = _requestBuffer.substr(valueStart, lineEnd - valueStart);
@@ -953,9 +947,8 @@ int Client::earlyLengthDetection() {
 					int targetPort = 80;
 					if (host.find(":") != std::string::npos) {
 						std::string portStr = host.substr(host.find(":") + 1);
-						if (onlyDigits(portStr)) {
+						if (onlyDigits(portStr))
 							targetPort = std::atoi(portStr.c_str());
-						}
 					}
 					
 					bool hasServerName = true;

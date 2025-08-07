@@ -343,7 +343,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 	std::getline(iss, line);
 	size_t end = line.find_last_not_of(" \t\r\n");
 	if (end != std::string::npos)
-	line = line.substr(0, end + 1);
+		line = line.substr(0, end + 1);
 
 	std::istringstream lineStream(line);
 	std::string target;
