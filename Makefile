@@ -1,7 +1,7 @@
 NAME	=	webserv
 
 CXX		=	c++
-CXXFLAGS	=	-std=c++98 -pedantic -Wall -Wextra -Werror -g
+CXXFLAGS	=	-std=c++98 -Wall -Wextra -Werror -g
 RM		=	rm -f
 
 RED     =   $(shell tput setaf 1)
@@ -61,11 +61,5 @@ start: re
 
 val: re
 	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./webserv config/test.conf
-
-nix: re
-	@./webserv config/nixos.conf
-
-nix-val: re
-	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./webserv config/nixos.conf
 
 .PHONY:		all clean fclean re

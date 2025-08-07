@@ -162,11 +162,9 @@ void Client::receiveData() {
 		_exitErr = false;
 		return;
 	} else {
-		// if (!earlyLengthDetection()) {
-		// 	_state = COMPLETE;
-		// 	_exitErr = false;
-		// 	return; 
-		// }
+		if (earlyLengthDetection() == 1) {
+			_exitErr = true;
+		}
 		_state = CHECKING;
 	} 
 
@@ -212,7 +210,7 @@ void Client::receiveData() {
 
 int Client::processRequest() {
 	serverLevel &conf = _req->getConf();
-	if (_req->getContentLength() > conf.requestLimit) {
+	if (_statusCode == 413 || _req->getContentLength() > conf.requestLimit) {
 		statusCode() = 413;
 		sendErrorResponse(*this, *_req);
 		_requestBuffer.clear();
@@ -932,6 +930,7 @@ int Client::earlyLengthDetection() {
 						std::string key = line.substr(0, colonPos);
 						if (key[key.size() - 1] == ' ') {
 							statusCode() = 400;
+							_output += getTimeStamp(_fd) + RED + "Bad method" + RESET;
 							return 1;
 						}
 						std::string value = line.substr(colonPos + 1);

@@ -76,10 +76,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
 	}
 	
 	if (_cgiBinPath.empty()) {
-		if (NIX == true)
-			_cgiBinPath = "/etc/profiles/per-user/schmitzi/bin/php-cgi";
-		else
-			_cgiBinPath = "/usr/bin/cgi-bin";
+		_cgiBinPath = "/usr/bin/cgi-bin";
 	}
 }
 
@@ -89,7 +86,7 @@ int CGIHandler::executeCGI(Request &req) {
 		cleanupResources();
 		return 1;
 	}
-	startClock(); // CHECK
+	startClock();
 	_pid = fork();
 	if (_pid < 0) {
 		_client->statusCode() = 500;
@@ -166,7 +163,7 @@ int CGIHandler::prepareEnv() {
 	_env.push_back("SERVER_SOFTWARE=WebServ/1.0");
 	_env.push_back("SERVER_NAME=" + _req.getConf().servName[0]);
 	_env.push_back("GATEWAY_INTERFACE=CGI/1.1");
-	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");//TODO: SERVER PROTOCOL exists twice
+	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
 	_env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(_req.getConf())));
 	
 	// Request information
@@ -177,7 +174,7 @@ int CGIHandler::prepareEnv() {
 	
 	// Script information
 	_env.push_back("SCRIPT_NAME=" + _req.getPath());
-	_env.push_back("SCRIPT_FILENAME=" + _path);//TODO: SCRIPT FILENAME exists twice
+	_env.push_back("SCRIPT_FILENAME=" + _path);
 	
 	// PATH_INFO handling (for URLs like /script.php/extra/path)
 	_env.push_back("PATH_INFO=" + _pathInfo);
@@ -223,9 +220,8 @@ int CGIHandler::doChild() {
 	size_t lastSlash = scriptDir.find_last_of('/');
 	if (lastSlash != std::string::npos) {
 		scriptDir = scriptDir.substr(0, lastSlash);
-		scriptName = _path.substr(lastSlash + 1); // Just the filename
-		
-		// Change to the script's directory
+		scriptName = _path.substr(lastSlash + 1);
+
 		if (chdir(scriptDir.c_str()) != 0) {
 			_client->statusCode() = 500;
 			_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: chdir() failed to " + scriptDir + "\n" + RESET;
