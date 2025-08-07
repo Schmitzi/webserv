@@ -14,8 +14,6 @@ struct	serverLevel;
 
 #define TIMEOUT_SECONDS 14;
 
-#define NIX false
-
 class CGIHandler {
 	public:
 		CGIHandler(Client *client = NULL);

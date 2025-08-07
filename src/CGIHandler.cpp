@@ -75,10 +75,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
 	}
 	
 	if (_cgiBinPath.empty()) {
-		if (NIX == true)
-			_cgiBinPath = "/etc/profiles/per-user/schmitzi/bin/php-cgi";
-		else
-			_cgiBinPath = "/usr/bin/cgi-bin";
+		_cgiBinPath = "/usr/bin/cgi-bin";
 	}
 }
 
@@ -224,9 +221,8 @@ int CGIHandler::doChild() {
 	size_t lastSlash = scriptDir.find_last_of('/');
 	if (lastSlash != std::string::npos) {
 		scriptDir = scriptDir.substr(0, lastSlash);
-		scriptName = _path.substr(lastSlash + 1); // Just the filename
-		
-		// Change to the script's directory
+		scriptName = _path.substr(lastSlash + 1);
+
 		if (chdir(scriptDir.c_str()) != 0) {
 			_client->statusCode() = 500;
 			_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: chdir() failed to " + scriptDir + "\n" + RESET;

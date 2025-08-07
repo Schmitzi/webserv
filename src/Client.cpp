@@ -162,11 +162,9 @@ void Client::receiveData() {
 		_exitErr = false;
 		return;
 	} else {
-		// if (!earlyLengthDetection()) {
-		// 	_state = COMPLETE;
-		// 	_exitErr = false;
-		// 	return; 
-		// }
+		if (earlyLengthDetection() == 1) {
+			_exitErr = true;
+		}
 		_state = CHECKING;
 	} 
 
@@ -212,7 +210,7 @@ void Client::receiveData() {
 
 int Client::processRequest() {
 	serverLevel &conf = _req->getConf();
-	if (_req->getContentLength() > conf.requestLimit) {
+	if (_statusCode == 413 || _req->getContentLength() > conf.requestLimit) {
 		statusCode() = 413;
 		sendErrorResponse(*this, *_req);
 		_requestBuffer.clear();
@@ -559,11 +557,31 @@ int Client::handleRegularRequest() {
 	size_t end = reqPath.find_last_not_of(" \t\r\n");
 	if (end != std::string::npos)
 		reqPath = reqPath.substr(0, end + 1);
+
+	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Original path: " << RESET << _req->getPath() << std::endl;
+	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Processed reqPath: " << RESET << reqPath << std::endl;
+	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Location found: " << RESET << loc->locName << std::endl;
+	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Location root: " << RESET << loc->rootLoc << std::endl;
+
+	std::string webRoot = _server->getWebRoot(*_req, *loc);
+	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - getWebRoot returned: '" << webRoot << "'" << RESET << std::endl;
+
+
 	std::string fullPath;
-	if (reqPath.find("/home") == std::string::npos)
-		fullPath = matchAndAppendPath(_server->getWebRoot(*_req, *loc), reqPath);
-	else
+	if (reqPath.find("/home") == std::string::npos) {
+		if (webRoot == "/" && !reqPath.empty() && reqPath[0] == '/') {
+			std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Root filesystem access: using reqPath directly" << RESET << std::endl;
+			fullPath = reqPath;
+		} else {
+			std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Using matchAndAppendPath with webRoot='" << webRoot << "' reqPath='" << reqPath << "'" << RESET << std::endl;
+			fullPath = matchAndAppendPath(webRoot, reqPath);
+		}
+	} else {
+		std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Using reqPath directly" << RESET << std::endl;
 		fullPath = reqPath;
+	}
+
+	std::cout << getTimeStamp(_fd) << BLUE << "Full path constructed: " << RESET << fullPath << std::endl;
 
 	if (fullPath.find("root") != std::string::npos && loc->autoindex == false) {
 		statusCode() = 403;
@@ -597,9 +615,10 @@ int Client::handleRegularRequest() {
 
 	if (S_ISDIR(fileStat.st_mode))
 		return viewDirectory(fullPath, *_req);
-	if (!S_ISREG(fileStat.st_mode) && ! S_ISCHR(fileStat.st_mode)) {
+		
+	if (!S_ISREG(fileStat.st_mode) && !S_ISCHR(fileStat.st_mode)) {
 		statusCode() = 403;
-		_output += getTimeStamp(_fd) + RED + "Not a regular file: " + RESET + fullPath + "\n";
+		_output += getTimeStamp(_fd) + RED + "Not a regular file or character device: " + RESET + fullPath + "\n";
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -911,6 +930,7 @@ int Client::earlyLengthDetection() {
 						std::string key = line.substr(0, colonPos);
 						if (key[key.size() - 1] == ' ') {
 							statusCode() = 400;
+							_output += getTimeStamp(_fd) + RED + "Bad method" + RESET;
 							return 1;
 						}
 						std::string value = line.substr(colonPos + 1);

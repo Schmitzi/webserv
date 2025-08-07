@@ -62,10 +62,4 @@ start: re
 val: re
 	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./webserv config/test.conf
 
-nix: re
-	@./webserv config/nixos.conf
-
-nix-val: re
-	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./webserv config/nixos.conf
-
 .PHONY:		all clean fclean re
