@@ -60,6 +60,6 @@ start: re
 	@./webserv config/test.conf
 
 val: re
-	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./webserv config/test.conf
+	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all --trace-child=yes ./webserv config/test.conf
 
 .PHONY:		all clean fclean re

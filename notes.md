@@ -37,7 +37,7 @@ nm -u ./webserv | grep GLIBCXX_ | sort | uniq =>	C++98 symbols should be from:
 
 <!-- -> check error_pages in config (should be >= 400) -->
 
--> GET /dev/urandom returns 404, should not be 404
+<!-- -> GET /dev/urandom returns 404, should not be 404 -->
 
 <!-- -> GET / for location / without GET in limit_except still returns index.html -->
 
@@ -54,7 +54,7 @@ nm -u ./webserv | grep GLIBCXX_ | sort | uniq =>	C++98 symbols should be from:
 
 <!-- -> check filesize (bytes to be received) before receiving bytes! -->
 
-CGI:
+<!-- CGI: -->
 
 <!-- -> cgi should be run in the correct directory (where the script is located) -->
 
