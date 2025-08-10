@@ -40,9 +40,63 @@ ConfigParser::ConfigParser() {
 
 ConfigParser::ConfigParser(const std::string& filepath) {
 	_filepath = filepath;
-	std::string s = filepath.substr(strlen(filepath.c_str()) - 5, 5);
-	if (s != ".conf")
-		throw configException("Error: Invalid config file specified.");
+	
+	// Validate file extension
+	if (filepath.length() < 5) {
+		throw configException("Error: Config file path too short: " + filepath);
+	}
+	
+	std::string s = filepath.substr(filepath.length() - 5, 5);
+	if (s != ".conf") {
+		throw configException("Error: Invalid config file extension. Expected '.conf', got: " + s);
+	}
+	
+	struct stat fileStat;
+	if (lstat(filepath.c_str(), &fileStat) != 0) {
+		std::string error = "Error: Cannot access config file: " + filepath;
+		if (errno == ENOENT) {
+			error += " (file does not exist)";
+		} else if (errno == EACCES) {
+			error += " (permission denied)";
+		} else {
+			error += " (errno: " + std::string(strerror(errno)) + ")";
+		}
+		throw configException(error);
+	}
+	
+	if (S_ISLNK(fileStat.st_mode)) {
+		throw configException("Error: Symbolic links are not allowed for security reasons: " + filepath);
+	}
+	
+	if (!S_ISREG(fileStat.st_mode)) {
+		std::string fileType;
+		if (S_ISDIR(fileStat.st_mode)) {
+			fileType = "directory";
+		} else if (S_ISCHR(fileStat.st_mode)) {
+			fileType = "character device";
+		} else if (S_ISBLK(fileStat.st_mode)) {
+			fileType = "block device";
+		} else if (S_ISFIFO(fileStat.st_mode)) {
+			fileType = "FIFO/pipe";
+		} else if (S_ISSOCK(fileStat.st_mode)) {
+			fileType = "socket";
+		} else {
+			fileType = "unknown type";
+		}
+		throw configException("Error: Config file must be a regular file, not a " + fileType + ": " + filepath);
+	}
+	
+	if (access(filepath.c_str(), R_OK) != 0) {
+		throw configException("Error: Config file is not readable: " + filepath + " (check permissions)");
+	}
+	
+	if (fileStat.st_size == 0) {
+		throw configException("Error: Config file is empty: " + filepath);
+	}
+	
+	std::cout << getTimeStamp() << GREEN << "Loading config file: " << filepath 
+			  << " (" << fileStat.st_size << " bytes)" << RESET << std::endl;
+	
 	storeConfigs();
 	parseAndSetConfigs();
 }

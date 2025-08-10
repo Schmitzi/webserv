@@ -468,6 +468,7 @@ int Client::handleDeleteRequest() {
 			return 1;
 		}
 	}
+	statusCode() = 204;
 	sendResponse(*this, *_req, "");
 	return 0;
 }

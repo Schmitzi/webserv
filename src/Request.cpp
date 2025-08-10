@@ -186,14 +186,17 @@ bool Request::checkRaw(const std::string& raw) {
 	size_t i = 0;
 	std::string r = raw.substr(0, raw.find("\r\n"));
 	if (r.size() > 8192) {
-		_client->statusCode() = 414;
+		_client->statusCode() = 400;
 		_check = "BAD";
 		return false;
 	}
+	
+	if (r.find("http://") != std::string::npos || r.find("https://") != std::string::npos) {
+		return true;
+	}
+	
 	while (!r.empty() && i < r.size()) {
-		if (r.find("http://") == 0)
-			i += 8;
-		else if (r.find("//") != std::string::npos) {
+		if (r.find("//") != std::string::npos) {
 			_client->statusCode() = 400;
 			_client->output() += getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
 			_check = "BAD";
@@ -279,7 +282,7 @@ void Request::setHeader(std::string& key, std::string& value, bool ignoreHost) {
 }
 
 bool Request::checkMethod() {
-	if (iEqual(_method, "GET") || iEqual(_method, "POST") || iEqual(_method, "DELETE")
+	if (_method == "GET" || _method == "POST" || _method == "DELETE"
 		|| iEqual(_method, "PUT") || iEqual(_method, "HEAD") || iEqual(_method, "OPTIONS")
 		|| iEqual(_method, "PATCH") || iEqual(_method, "TRACE") || iEqual(_method, "CONNECT")) {
 		if (!iEqual(_method, "GET") && !iEqual(_method, "POST") && !iEqual(_method, "DELETE")) {
