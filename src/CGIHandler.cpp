@@ -486,7 +486,7 @@ bool CGIHandler::isTimedOut(time_t now) const {
 
 void CGIHandler::killProcess() {
 	if (_pid > 0) {
-		std::cerr << getTimeStamp(_client->getFd()) << RED << "Killing CGI process " << _pid << RESET << std::endl;
+		std::cerr << getTimeStamp(_client->getFd()) << RED << "Error: Killing CGI process " << _pid << RESET << std::endl;
 		kill(_pid, SIGKILL);
 		int status;
 		waitpid(_pid, &status, WNOHANG);
