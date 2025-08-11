@@ -439,7 +439,7 @@ int Client::createFile(std::string& fullPath, std::string& contentToWrite) {
 		close(fd);
 		return 1;
 	}
-	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.";
+	std::string responseBody = "File uploaded successfully. Wrote " + tostring(bytesWritten) + " bytes.\n";
 	statusCode() = 201;
 	sendResponse(*this, *_req, responseBody);
 	_output += getTimeStamp(_fd) + GREEN  + "Uploaded file: " + RESET + fullPath + " (" + tostring(bytesWritten) + " bytes written)\n";

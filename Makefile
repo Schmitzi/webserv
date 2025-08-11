@@ -68,11 +68,11 @@ re: fclean all
 
 start: all
 	@echo "$(GREEN)Starting $(NAME) with test config$(RESET)"
-	@./$(NAME) config/test.conf
+	@./$(NAME) config/default.conf
 
 val: all
 	@echo "$(GREEN)Running $(NAME) with valgrind$(RESET)"
-	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./$(NAME) config/test.conf
+	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./$(NAME) config/default.conf
 
 .PHONY: all clean fclean re start val
 

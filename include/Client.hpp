@@ -18,7 +18,7 @@ class	Request;
 struct	serverLevel;
 struct	locationLevel;
 
-#define CLIENT_TIMEOUT 60
+#define CLIENT_TIMEOUT 75
 
 enum {
 	UNTRACKED,
