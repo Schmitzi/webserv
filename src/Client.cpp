@@ -928,7 +928,7 @@ int Client::earlyLengthDetection() {
 						std::string key = line.substr(0, colonPos);
 						if (key[key.size() - 1] == ' ') {
 							statusCode() = 400;
-							_output += getTimeStamp(_fd) + RED + "Error: Bad method" + RESET;
+							_output += getTimeStamp(_fd) + RED + "Error: Bad method\n" + RESET;
 							return 1;
 						}
 						std::string value = line.substr(colonPos + 1);
