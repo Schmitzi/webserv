@@ -182,8 +182,23 @@ bool Request::matchHostServerName() {
 	return false;
 }
 
-bool Request::checkRaw(const std::string& raw) {
+bool Request::miniCheckRaw(std::string& s) {
 	size_t i = 0;
+	while (i < s.size()) {
+		if (s.find("//") != std::string::npos) {
+			_client->statusCode() = 400;
+			_client->output() += getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
+			_check = "BAD";
+			return false;
+		} else
+			i++;
+		s = s.substr(i);
+		i = 0;
+	}
+	return true;
+}
+
+bool Request::checkRaw(const std::string& raw) {
 	std::string r = raw.substr(0, raw.find("\r\n"));
 	if (r.size() > 8192) {
 		_client->statusCode() = 400;
@@ -191,22 +206,18 @@ bool Request::checkRaw(const std::string& raw) {
 		return false;
 	}
 	
-	if (r.find("http://") != std::string::npos || r.find("https://") != std::string::npos) {
-		return true;
+	size_t x = r.find("http://");
+	if (x != std::string::npos) {
+		std::string one = r.substr(0, x);
+		std::string two = r.substr(x + 7);
+		if (!miniCheckRaw(one) || !miniCheckRaw(two))
+			return false;
+		else
+			return true;
 	}
 	
-	while (!r.empty() && i < r.size()) {
-		if (r.find("//") != std::string::npos) {
-			_client->statusCode() = 400;
-			_client->output() += getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
-			_check = "BAD";
-			return false;
-		}
-		else
-			i++;
-		r = r.substr(i);
-		i = 0;
-	}
+	if (!miniCheckRaw(r))
+		return false;
 	return true;
 }
 

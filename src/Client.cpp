@@ -359,8 +359,14 @@ int Client::handlePostRequest() {
 		return 1;
 	}
 
-	if (fullPath[fullPath.size() - 1] == '/')
+	if (fullPath[fullPath.size() - 1] == '/' && _req->getPath() != "/")
 		return createDirectory(fullPath);
+	else if (_req->getPath() == "/") {
+		_statusCode = 400;
+		_output += getTimeStamp(_fd) + RED + "Error: No filename specified\n" + RESET;
+		sendErrorResponse(*this, *_req);
+		return 1;
+	}
 	else
 		return createFile(fullPath, contentToWrite);
 }
