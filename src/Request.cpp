@@ -191,10 +191,10 @@ bool Request::checkRaw(const std::string& raw) {
 		return false;
 	}
 	
-	if (r.find("http://") != std::string::npos || r.find("https://") != std::string::npos) {
+	if (r.find("http://") != std::string::npos) {
 		return true;
 	}
-	
+		
 	while (!r.empty() && i < r.size()) {
 		if (r.find("//") != std::string::npos) {
 			_client->statusCode() = 400;
@@ -203,7 +203,7 @@ bool Request::checkRaw(const std::string& raw) {
 			return false;
 		}
 		else
-			i++;
+		i++;
 		r = r.substr(i);
 		i = 0;
 	}
@@ -219,10 +219,10 @@ void Request::parse(const std::string& rawRequest) {
 	}
 	
 	if (!checkRaw(rawRequest))
-		return;
+	return;
 	
 	checkContentLength(rawRequest);
-
+	
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
 	size_t headerSeparatorLength = 4;
 	
@@ -234,7 +234,8 @@ void Request::parse(const std::string& rawRequest) {
 			headerSeparatorLength = 0;
 		}
 	}
-
+	
+	std::cout << RED << _path << RESET << "\n";
 	std::string headerSection = rawRequest.substr(0, headerEnd);
 	if (headerEnd + headerSeparatorLength < rawRequest.length()) {
 		_body = rawRequest.substr(headerEnd + headerSeparatorLength);
@@ -251,7 +252,6 @@ void Request::parse(const std::string& rawRequest) {
 		_check = "BAD";
 		return;
 	}
-
 	parseContentType();
 
 	if (!checkMethod())
@@ -266,6 +266,7 @@ void Request::parse(const std::string& rawRequest) {
 		}
 	}
 	_path = decode(_path);
+	std::cout << RED << _path << RESET << "\n";
 }
 
 void Request::setHeader(std::string& key, std::string& value, bool ignoreHost) {
