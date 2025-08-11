@@ -193,7 +193,7 @@ void doQueryStuff(const std::string text, std::string& fileName, std::string& fi
 			std::string key = pair.substr(0, pos);
 			std::string value = pair.substr(pos + 1);
 
-			if (iEqual(key, "file") || iEqual(key, "name") || iEqual(key, "test"))
+			if (key == "file" || key == "name" || key == "test")
 				fileName = value;
 			else
 				fileContent = value;

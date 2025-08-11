@@ -8,7 +8,7 @@
 <!-- - Is checkRaw function correct? -->
 <!-- - Slashes need to be encoded -->
 <!-- - Remove blank Content-Type from DELETE request (NOCONT?) -->
-- POST localhost:8080 gives 409 error -> maybe this is correct?
+<!-- - POST localhost:8080 gives 409 error -> maybe this is correct? -->
 <!-- - Excess found in netcat (possible requires fcntl for true blocking) -->
 <!-- - PHP CGI results in 502 Bad Gateway -> add fullpath to scriptname (getcwd() + abspath) -->
 <!-- - Timeout CGI broken (_timeout was not initialized) -->
