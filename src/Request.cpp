@@ -235,7 +235,6 @@ void Request::parse(const std::string& rawRequest) {
 		}
 	}
 	
-	std::cout << RED << _path << RESET << "\n";
 	std::string headerSection = rawRequest.substr(0, headerEnd);
 	if (headerEnd + headerSeparatorLength < rawRequest.length()) {
 		_body = rawRequest.substr(headerEnd + headerSeparatorLength);
@@ -266,7 +265,6 @@ void Request::parse(const std::string& rawRequest) {
 		}
 	}
 	_path = decode(_path);
-	std::cout << RED << _path << RESET << "\n";
 }
 
 void Request::setHeader(std::string& key, std::string& value, bool ignoreHost) {
