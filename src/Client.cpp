@@ -208,7 +208,7 @@ void Client::receiveData() {
 	}
 }
 
-int Client::processRequest() {
+int Client::processRequest() {	
 	serverLevel &conf = _req->getConf();
 	if (_statusCode == 413 || _req->getContentLength() > conf.requestLimit) {
 		statusCode() = 413;
@@ -258,6 +258,12 @@ int Client::processRequest() {
 }
 
 int Client::handleGetRequest() {
+	if (_req->isChunkedTransfer()) {
+		_output += getTimeStamp(_fd) + RED  + "Chunked GET request not allowed\n" + RESET;
+		statusCode() = 400;
+		sendErrorResponse(*this, *_req);
+		return 1;
+	}
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
 		_output += getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath() + "\n";
@@ -559,30 +565,18 @@ int Client::handleRegularRequest() {
 	if (end != std::string::npos)
 		reqPath = reqPath.substr(0, end + 1);
 
-	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Original path: " << RESET << _req->getPath() << std::endl;
-	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Processed reqPath: " << RESET << reqPath << std::endl;
-	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Location found: " << RESET << loc->locName << std::endl;
-	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Location root: " << RESET << loc->rootLoc << std::endl;
-
 	std::string webRoot = _server->getWebRoot(*_req, *loc);
-	std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - getWebRoot returned: '" << webRoot << "'" << RESET << std::endl;
-
 
 	std::string fullPath;
 	if (reqPath.find("/home") == std::string::npos) {
 		if (webRoot == "/" && !reqPath.empty() && reqPath[0] == '/') {
-			std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Root filesystem access: using reqPath directly" << RESET << std::endl;
 			fullPath = reqPath;
 		} else {
-			std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Using matchAndAppendPath with webRoot='" << webRoot << "' reqPath='" << reqPath << "'" << RESET << std::endl;
 			fullPath = matchAndAppendPath(webRoot, reqPath);
 		}
 	} else {
-		std::cout << getTimeStamp(_fd) << YELLOW << "DEBUG - Using reqPath directly" << RESET << std::endl;
 		fullPath = reqPath;
 	}
-
-	std::cout << getTimeStamp(_fd) << BLUE << "Full path constructed: " << RESET << fullPath << std::endl;
 
 	if (fullPath.find("root") != std::string::npos && loc->autoindex == false) {
 		statusCode() = 403;
