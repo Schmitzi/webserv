@@ -196,6 +196,8 @@ int CGIHandler::prepareEnv() {
 		std::string envName = "HTTP_" + it->first;
 		std::transform(envName.begin(), envName.end(), envName.begin(), ::toupper);
 		std::replace(envName.begin(), envName.end(), '-', '_');
+		if (it->second == "keep-alive") 
+			it->second = "closed";
 		_env.push_back(envName + "=" + it->second);
 	}
 	return 0;
