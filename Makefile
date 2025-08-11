@@ -1,7 +1,8 @@
 NAME	=	webserv
 
 CXX		=	c++
-CXXFLAGS	=	-std=c++98 -pedantic -Wall -Wextra -Werror
+CXXFLAGS	=	-Wall -Werror -Wextra -std=c++98
+DEPFLAGS =	-MMD -MP
 RM		=	rm -f
 
 RED     =   $(shell tput setaf 1)
@@ -30,36 +31,63 @@ SRC 	= 	$(addprefix $(SRC_DIR), $(addsuffix .cpp, $(FILES)))
 OBJ_DIR	= 	obj/
 OBJ		= 	$(addprefix $(OBJ_DIR), $(addsuffix .o, $(FILES)))
 
-$(OBJ_DIR)%.o: $(SRC_DIR)%.cpp
-	@mkdir -p $(OBJ_DIR)
-	@$(CXX) $(CXXFLAGS) -c -o $@ $<
+DEP_DIR	= 	dep/
+DEP		= 	$(addprefix $(DEP_DIR), $(addsuffix .d, $(FILES)))
 
-all:	$(NAME)
+all: $(NAME)
+
+$(OBJ_DIR) $(DEP_DIR):
+	@mkdir -p $@
+
+$(OBJ_DIR)%.o: $(SRC_DIR)%.cpp | $(OBJ_DIR) $(DEP_DIR)
+	@echo "$(YELLOW)Compiling $<$(RESET)"
+	@$(CXX) $(CXXFLAGS) $(DEPFLAGS) -MF $(DEP_DIR)$*.d -c -o $@ $<
 
 $(NAME): $(OBJ)
-	@echo "$(YELLOW)Compiling exercise$(RESET)"
-	@$(CXX) $(OBJ) $(CXXFLAGS) -o $(NAME)
-	@echo "$(GREEN)Exercise built$(RESET)"
+	@echo "$(YELLOW)Linking $(NAME)$(RESET)"
+	@$(CXX) $(OBJ) -o $(NAME)
+	@echo "$(GREEN)$(NAME) built successfully$(RESET)"
 
 clean:
-	@$(RM) $(OBJ)
-	@if [ -d "obj" ]; then \
-		rm -r obj/; \
+	@if [ -d "$(OBJ_DIR)" ]; then \
+		echo "$(RED)Removing $(OBJ_DIR)$(RESET)"; \
+		$(RM) -r $(OBJ_DIR); \
 	fi
-	@echo "$(RED)Removed objects$(RESET)"
+	@if [ -d "$(DEP_DIR)" ]; then \
+		echo "$(RED)Removing $(DEP_DIR)$(RESET)"; \
+		$(RM) -r $(DEP_DIR); \
+	fi
 
-fclean:	clean
-	@$(RM) $(NAME)
-	@echo "$(RED)All files cleaned$(RESET)"
+fclean: clean
+	@if [ -f "$(NAME)" ]; then \
+		echo "$(RED)Removing $(NAME)$(RESET)"; \
+		$(RM) $(NAME); \
+	fi
 
-re:		fclean all
-	@clear ;
-	@echo "$(GREEN)Files cleaned and program re-compiled$(RESET)"
+re: fclean all
 
-start: re
-	@./webserv config/test.conf
+start: all
+	@echo "$(GREEN)Starting $(NAME) with test config$(RESET)"
+	@./$(NAME) config/test.conf
 
-val: re
-	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all --trace-child=yes ./webserv config/test.conf
+val: all
+	@echo "$(GREEN)Running $(NAME) with valgrind$(RESET)"
+	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./$(NAME) config/test.conf
 
-.PHONY:		all clean fclean re
+nix: all
+	@echo "$(GREEN)Starting $(NAME) with nixos config$(RESET)"
+	@./$(NAME) config/nixos.conf
+
+nix-val: all
+	@echo "$(GREEN)Running $(NAME) with nixos config and valgrind$(RESET)"
+	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./$(NAME) config/nixos.conf
+
+debug:
+	@echo "NAME: $(NAME)"
+	@echo "SRC: $(SRC)"
+	@echo "OBJ: $(OBJ)"
+	@echo "DEP: $(DEP)"
+
+.PHONY: all clean fclean re start val nix nix-val debug
+
+-include $(DEP)

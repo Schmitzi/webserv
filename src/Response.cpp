@@ -189,7 +189,6 @@ void sendRedirect(Client& c, const std::string& location, Request& req) {
 		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
 	response += body;
-	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
 	c.lastActive() = time(NULL);
@@ -201,18 +200,26 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 		c.output() += getTimeStamp() + RED + "Invalid fd in sendResponse\n" + RESET;
 		return -1;
 	}
-	std::string response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + getStatusMessage(c.statusCode()) + "\r\n";
-	response += "Server: WebServ/1.0\r\n";
-	response += "Date: " + getCurrentTime() + "\r\n";
-	response += "Content-Type: " + req.getContentType() + "\r\n";
+	std::string response;
+	if (req.getMethod() == "DELETE") {
+		response = "HTTP/1.1 " + tostring(c.statusCode()) + " No Content\r\n";
+	} else if (req.getMethod() == "POST") {
+		response = "HTTP/1.1 " + tostring(c.statusCode()) + " OK\r\n";
+		response += "Content-Type: " + req.getContentType() + "\r\n";
+	} else {
+		response = "HTTP/1.1 " + tostring(c.statusCode()) + " OK\r\n";
+		response += "Content-Type: " + req.getContentType() + "\r\n";
+	}
 	
 	std::string content = body;
 	
 	if (iEqual(req.getMethod(), "POST") && content.empty())
 		content = "Upload successful";
 	
-	if (!req.isChunked())
-		response += "Content-Length: " + tostring(content.size()) + "\r\n";
+	if (!req.isChunked()) {
+		if (req.getMethod() != "DELETE")
+			response += "Content-Length: " + tostring(content.size()) + "\r\n";
+	}
 	else
 		response += "Transfer-Encoding: chunked\r\n";
 	
@@ -256,14 +263,12 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 			c.output() += getTimeStamp(c.getFd()) + GREEN  + "Sent chunked body " + RESET + "(" + tostring(content.length()) + " bytes)\n";
 			return 0;
 		} else {
-			content += "\n";
 			addSendBuf(c.getWebserv(), c.getFd(), content);
 			setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
 			c.lastActive() = time(NULL);
 			return 0;
 		}
 	} else {
-		addSendBuf(c.getWebserv(), c.getFd(), "\n");
 		setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
 		c.lastActive() = time(NULL);
 		c.output() += getTimeStamp(c.getFd()) + GREEN  + "Response sent (headers only)\n" + RESET;
@@ -290,7 +295,6 @@ void sendErrorResponse(Client& c, Request& req) {
 		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
 	response += body;
-	response += "\n";
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
 	c.lastActive() = time(NULL);

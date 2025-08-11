@@ -80,7 +80,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
 }
 
 int CGIHandler::executeCGI(Request &req) {
-	_req = req;
+	_req = Request(req);
 	if (doChecks() || prepareEnv()) {
 		cleanupResources();
 		return 1;
@@ -158,8 +158,6 @@ int CGIHandler::prepareEnv() {
 	
 	_env.clear();
 	
-	std::cout << "PATH: " << _path << " PATHINFO: " << _pathInfo << std::endl;
-	const std::string abs_path = matchAndAppendPath(loc->rootLoc, _path);
 	_env.push_back("REDIRECT_STATUS=200");
 	_env.push_back("SERVER_SOFTWARE=WebServ/1.0");
 	_env.push_back("SERVER_NAME=" + _req.getConf().servName[0]);
@@ -175,7 +173,17 @@ int CGIHandler::prepareEnv() {
 	
 	// Script information
 	_env.push_back("SCRIPT_NAME=" + _req.getPath());
-	_env.push_back("SCRIPT_FILENAME=" + _path);//TODO: SCRIPT FILENAME exists twice
+
+	char cwd_buffer[1024];
+	memset(cwd_buffer, 0, sizeof(cwd_buffer));
+
+	if (getcwd(cwd_buffer, sizeof(cwd_buffer)) != NULL) {
+		std::string current_dir(cwd_buffer);
+		std::string script_filename = current_dir + "/" + _path;
+		_env.push_back("SCRIPT_FILENAME=" + script_filename);
+	} else {
+		_env.push_back("SCRIPT_FILENAME=" + _path);
+	}
 	
 	// PATH_INFO handling (for URLs like /script.php/extra/path)
 	_env.push_back("PATH_INFO=" + _pathInfo);
@@ -185,12 +193,10 @@ int CGIHandler::prepareEnv() {
 	for (std::map<std::string, std::string>::iterator it = headers.begin(); 
 		it != headers.end(); ++it) {
 		std::string envName = "HTTP_" + it->first;
-		// Convert to uppercase and replace - with _
 		std::transform(envName.begin(), envName.end(), envName.begin(), ::toupper);
 		std::replace(envName.begin(), envName.end(), '-', '_');
 		_env.push_back(envName + "=" + it->second);
 	}
-	_env.push_back("REDIRECT_STATUS=200");
 	return 0;
 }
 
