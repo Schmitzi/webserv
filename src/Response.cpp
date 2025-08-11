@@ -197,19 +197,13 @@ void sendRedirect(Client& c, const std::string& location, Request& req) {
 
 ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	if (c.getFd() <= 0) {
-		c.output() += getTimeStamp() + RED + "Invalid fd in sendResponse\n" + RESET;
+		c.output() += getTimeStamp() + RED + "Error: Invalid fd in sendResponse\n" + RESET;
 		return -1;
 	}
 	std::string response;
-	if (req.getMethod() == "DELETE") {
-		response = "HTTP/1.1 " + tostring(c.statusCode()) + " No Content\r\n";
-	} else if (req.getMethod() == "POST") {
-		response = "HTTP/1.1 " + tostring(c.statusCode()) + " OK\r\n";
+	response = "HTTP/1.1 " + tostring(c.statusCode()) + " " + getStatusMessage(c.statusCode()) + "\r\n";
+	if (req.getMethod() != "DELETE")
 		response += "Content-Type: " + req.getContentType() + "\r\n";
-	} else {
-		response = "HTTP/1.1 " + tostring(c.statusCode()) + " OK\r\n";
-		response += "Content-Type: " + req.getContentType() + "\r\n";
-	}
 	
 	std::string content = body;
 	
@@ -229,7 +223,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	response += "\r\n";
 	
 	if (c.getFd() < 0) {
-		c.output() += getTimeStamp(c.getFd()) + RED  + "FD became invalid before send\n" + RESET;
+		c.output() += getTimeStamp(c.getFd()) + RED + "Error: FD became invalid before send\n" + RESET;
 		return -1;
 	}
 	addSendBuf(c.getWebserv(), c.getFd(), response);
@@ -271,7 +265,7 @@ ssize_t sendResponse(Client& c, Request& req, std::string body) {
 	} else {
 		setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
 		c.lastActive() = time(NULL);
-		c.output() += getTimeStamp(c.getFd()) + GREEN  + "Response sent (headers only)\n" + RESET;
+		c.output() += getTimeStamp(c.getFd()) + GREEN  + "Response sent\n" + RESET;
 		return 0;
 	}
 }
@@ -298,7 +292,7 @@ void sendErrorResponse(Client& c, Request& req) {
 	addSendBuf(c.getWebserv(), c.getFd(), response);
 	setEpollEvents(c.getWebserv(), c.getFd(), EPOLLOUT);
 	c.lastActive() = time(NULL);
-	c.output() += getTimeStamp(c.getFd()) + RED  + "Error sent: " + tostring(c.statusCode()) + " " + getStatusMessage(c.statusCode()) + RESET + "\n";
+	c.output() += getTimeStamp(c.getFd()) + RED  + "Error sent: " + tostring(c.statusCode()) + " " + statusText + RESET + "\n";
 }
 
 bool shouldCloseConnection(Request& req) {

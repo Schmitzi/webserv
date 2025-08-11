@@ -187,7 +187,7 @@ bool Request::miniCheckRaw(std::string& s) {
 	while (i < s.size()) {
 		if (s.find("//") != std::string::npos) {
 			_client->statusCode() = 400;
-			_client->output() += getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
+			_client->output() += getTimeStamp(_clientFd) + RED + "Error: Invalid request!\n" + RESET;
 			_check = "BAD";
 			return false;
 		} else
@@ -223,7 +223,7 @@ bool Request::checkRaw(const std::string& raw) {
 
 void Request::parse(const std::string& rawRequest) {
 	if (rawRequest.empty()) {
-		_client->output() += getTimeStamp(_clientFd) + RED + "Empty request!\n" + RESET;
+		_client->output() += getTimeStamp(_clientFd) + RED + "Error: Empty request!\n" + RESET;
 		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
@@ -257,7 +257,7 @@ void Request::parse(const std::string& rawRequest) {
 	}
 	
 	if (!matchHostServerName()) {
-		_client->output() += getTimeStamp(_clientFd) + RED + "No Host-ServerName match + no default config specified!\n" + RESET;
+		_client->output() += getTimeStamp(_clientFd) + RED + "Error: No Host-ServerName match + no default config specified!\n" + RESET;
 		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
@@ -347,8 +347,8 @@ void Request::getHostAndPath(std::string& target) {
 		strip = target.substr(7);
 	} else {
 		_client->statusCode() = 400;
-		_client->output() += getTimeStamp(_clientFd) + RED + 
-			"Invalid absolute URL format: " + target + "\n" + RESET;
+		_client->output() += getTimeStamp(_clientFd) + RED +
+			"Error: Invalid absolute URL format: " + target + "\n" + RESET;
 		_check = "BAD";
 		return;
 	}
@@ -375,8 +375,8 @@ void Request::getHostAndPath(std::string& target) {
 	
 	if (_host.empty()) {
 		_client->statusCode() = 400;
-		_client->output() += getTimeStamp(_clientFd) + RED + 
-			"Could not extract host from URL: " + target + "\n" + RESET;
+		_client->output() += getTimeStamp(_clientFd) + RED +
+			"Error: Could not extract host from URL: " + target + "\n" + RESET;
 		_check = "BAD";
 		return;
 	}

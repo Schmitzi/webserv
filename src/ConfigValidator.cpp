@@ -29,7 +29,7 @@ bool isValidName(const std::string& name) {
 	if (name.empty()) return true;
 	if (name.size() > 253) return false;
 	if (name[0] == '~') {
-		std::cerr << getTimeStamp() << RED << "Regex server names not supported" << RESET << std::endl;
+		std::cerr << getTimeStamp() << RED << "Error: Regex server names not supported" << RESET << std::endl;
 		return false;
 	}
 	int starCount = 0;

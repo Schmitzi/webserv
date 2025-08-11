@@ -224,7 +224,7 @@ int Client::processRequest() {
 	}
 	
 	if (_req->check() == "NOTALLOWED") {
-		_output += getTimeStamp(_fd) + RED  + "Method Not Allowed: " + RESET + _req->getMethod() + "\n";
+		_output += getTimeStamp(_fd) + RED + "Error: Method Not Allowed: " + RESET + _req->getMethod() + "\n";
 		sendErrorResponse(*this, *_req);
 		_requestBuffer.clear();
 		return 1;
@@ -259,14 +259,14 @@ int Client::processRequest() {
 
 int Client::handleGetRequest() {
 	if (_req->isChunkedTransfer()) {
-		_output += getTimeStamp(_fd) + RED  + "Chunked GET request not allowed\n" + RESET;
+		_output += getTimeStamp(_fd) + RED + "Error: Chunked GET request not allowed\n" + RESET;
 		statusCode() = 400;
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
-		_output += getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath() + "\n";
+		_output += getTimeStamp(_fd) + RED + "Error: Location not found: " + RESET + _req->getPath() + "\n";
 		statusCode() = 404;
 		sendErrorResponse(*this, *_req);
 		return 1;
@@ -281,7 +281,7 @@ int Client::handleGetRequest() {
 			break;
 		if (i == loc->methods.size() - 1) {
 			statusCode() = 405;
-			output() += getTimeStamp(getFd()) + RED + "Method not allowed for GET request: " + RESET + _req->getPath() + "\n";
+			output() += getTimeStamp(getFd()) + RED + "Error: Method not allowed for GET request: " + RESET + _req->getPath() + "\n";
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -295,7 +295,7 @@ int Client::handleGetRequest() {
 int Client::handlePostRequest() {
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
-		_output += getTimeStamp(_fd) + RED  + "Location not found for POST request: " + RESET + _req->getPath() + "\n";
+		_output += getTimeStamp(_fd) + RED  + "Error: Location not found for POST request: " + RESET + _req->getPath() + "\n";
 		statusCode() = 404;
 		sendErrorResponse(*this, *_req);
 		return 1;
@@ -330,7 +330,7 @@ int Client::handlePostRequest() {
 		
 		if (contentToWrite.empty()) {
 			statusCode() = 400;
-			_output += getTimeStamp(_fd) + RED  + "Failed to decode chunked data\n" + RESET;
+			_output += getTimeStamp(_fd) + RED + "Error: Failed to decode chunked data\n" + RESET;
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -339,7 +339,7 @@ int Client::handlePostRequest() {
 		if ((contentToWrite.empty() && _req->getContentLength() > 0) || (contentToWrite.size() != _req->getContentLength())) {
 			statusCode() = 400;
 			_req->hasValidLength() = false;
-			_output += getTimeStamp(_fd) + RED  + "Content length mismatch: expected " + tostring(_req->getContentLength()) + ", got " + tostring(contentToWrite.size()) + RESET + "\n";
+			_output += getTimeStamp(_fd) + RED + "Error: Content length mismatch: expected " + tostring(_req->getContentLength()) + ", got " + tostring(contentToWrite.size()) + RESET + "\n";
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -434,7 +434,7 @@ int Client::createFile(std::string& fullPath, std::string& contentToWrite) {
 		sendErrorResponse(*this, *_req);
 		if (_fileIsNew == true) {
 			remove(fullPath.c_str());
-			_output += getTimeStamp(_fd) + RED + "File removed: " + fullPath + RESET + "\n";
+			_output += getTimeStamp(_fd) + GREEN + "File removed: " + fullPath + RESET + "\n";
 		}
 		close(fd);
 		return 1;
@@ -498,7 +498,7 @@ int Client::handleFileBrowserRequest() {
 				loc = &it->second;
 			} else {
 				statusCode() = 403;
-				_output += getTimeStamp(_fd) + RED + "Directory browsing not enabled for root path\n" + RESET;
+				_output += getTimeStamp(_fd) + RED + "Error: Directory browsing not enabled for root path\n" + RESET;
 				sendErrorResponse(*this, *_req);
 				return 1;
 			}
@@ -506,7 +506,7 @@ int Client::handleFileBrowserRequest() {
 		
 		if (!loc || !loc->autoindex) {
 			statusCode() = 403;
-			_output += getTimeStamp(_fd) + RED + "Directory browsing not enabled\n" + RESET;
+			_output += getTimeStamp(_fd) + RED + "Error: Directory browsing not enabled\n" + RESET;
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -521,7 +521,7 @@ int Client::handleFileBrowserRequest() {
 		locationLevel* loc = NULL;
 		if (!matchLocation("/", _req->getConf(), loc)) {
 			statusCode() = 404;
-			_output += getTimeStamp(_fd) + RED + "Location not found: " + RESET + requestPath + "\n";
+			_output += getTimeStamp(_fd) + RED + "Error: Location not found: " + RESET + requestPath + "\n";
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -531,7 +531,7 @@ int Client::handleFileBrowserRequest() {
 		struct stat fileStat;
 		if (stat(actualFullPath.c_str(), &fileStat) != 0) {
 			statusCode() = 404;
-			_output += getTimeStamp(_fd) + RED + "File not found: " + RESET + actualFullPath + "\n";
+			_output += getTimeStamp(_fd) + RED + "Error: File not found: " + RESET + actualFullPath + "\n";
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -548,7 +548,7 @@ int Client::handleFileBrowserRequest() {
 			return 0;
 		} else {
 			statusCode() = 403;
-			_output += getTimeStamp(_fd) + RED + "Not a regular file or directory: " + RESET + actualFullPath + "\n";
+			_output += getTimeStamp(_fd) + RED + "Error: Not a regular file or directory: " + RESET + actualFullPath + "\n";
 			sendErrorResponse(*this, *_req);
 			return 1;
 		}
@@ -559,7 +559,7 @@ int Client::handleRegularRequest() {
 	locationLevel* loc = NULL;
 	if (!matchLocation(_req->getPath(), _req->getConf(), loc)) {
 		statusCode() = 404;
-		_output += getTimeStamp(_fd) + RED  + "Location not found: " + RESET + _req->getPath() + "\n";
+		_output += getTimeStamp(_fd) + RED + "Error: Location not found: " + RESET + _req->getPath() + "\n";
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -575,18 +575,16 @@ int Client::handleRegularRequest() {
 
 	std::string fullPath;
 	if (reqPath.find("/home") == std::string::npos) {
-		if (webRoot == "/" && !reqPath.empty() && reqPath[0] == '/') {
+		if (webRoot == "/" && !reqPath.empty() && reqPath[0] == '/')
 			fullPath = reqPath;
-		} else {
+		else
 			fullPath = matchAndAppendPath(webRoot, reqPath);
-		}
-	} else {
+	} else
 		fullPath = reqPath;
-	}
 
 	if (fullPath.find("root") != std::string::npos && loc->autoindex == false) {
 		statusCode() = 403;
-		_output += getTimeStamp(_fd) + RED + "Access to directory browser is forbidden when autoindex is off\n" + RESET;
+		_output += getTimeStamp(_fd) + RED + "Error: Access to directory browser is forbidden when autoindex is off\n" + RESET;
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -619,7 +617,7 @@ int Client::handleRegularRequest() {
 		
 	if (!S_ISREG(fileStat.st_mode) && !S_ISCHR(fileStat.st_mode)) {
 		statusCode() = 403;
-		_output += getTimeStamp(_fd) + RED + "Not a regular file or character device: " + RESET + fullPath + "\n";
+		_output += getTimeStamp(_fd) + RED + "Error: Not a regular file or character device: " + RESET + fullPath + "\n";
 		sendErrorResponse(*this, *_req);
 		return 1;
 	}
@@ -713,7 +711,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 				return 0;
 			} else {
 				statusCode() = 403;
-				_output += getTimeStamp(_fd) + RED  + "Autoindex off and no index.html: " + RESET + fullPath + "\n";
+				_output += getTimeStamp(_fd) + RED  + "Error: Autoindex off and no index.html: " + RESET + fullPath + "\n";
 				sendErrorResponse(*this, req);
 				return 1;
 			}
@@ -736,7 +734,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 				return 0;
 			} else {
 				statusCode() = 403;
-				_output += getTimeStamp(_fd) + RED  + "Autoindex off and no index.html: " + RESET + fullPath + "\n";
+				_output += getTimeStamp(_fd) + RED  + "Error: Autoindex off and no index.html: " + RESET + fullPath + "\n";
 				sendErrorResponse(*this, req);
 				return 1;
 			}
@@ -744,7 +742,7 @@ int Client::viewDirectory(std::string fullPath, Request& req) {
 	}
 	else {
 		statusCode() = 403;
-		_output += getTimeStamp(_fd) + RED + "No matching location for: " + RESET + req.getPath() + "\n";
+		_output += getTimeStamp(_fd) + RED + "Error: No matching location for: " + RESET + req.getPath() + "\n";
 		sendErrorResponse(*this, req);
 		return 1;
 	}
@@ -931,7 +929,7 @@ int Client::earlyLengthDetection() {
 						std::string key = line.substr(0, colonPos);
 						if (key[key.size() - 1] == ' ') {
 							statusCode() = 400;
-							_output += getTimeStamp(_fd) + RED + "Bad method" + RESET;
+							_output += getTimeStamp(_fd) + RED + "Error: Bad method" + RESET;
 							return 1;
 						}
 						std::string value = line.substr(colonPos + 1);
@@ -1016,7 +1014,7 @@ int Client::earlyLengthDetection() {
 			
 				if (contentLength > requestLimit) {
 					_statusCode = 413;
-					_output += getTimeStamp(_fd) + RED + "Request body too large: " + 
+					_output += getTimeStamp(_fd) + RED + "Error: Request body too large: " + 
 								tostring(contentLength) + " bytes exceeds limit of " + 
 								tostring(requestLimit) + " bytes\n" + RESET;
 					return 1;

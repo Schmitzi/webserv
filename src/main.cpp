@@ -9,7 +9,7 @@ void signalHandler(int signal) {
 		std::cout << CYAN << "________________Received signal, cleaning up...________________" << RESET << std::endl;
 
 		if (!deleteErrorPages())
-			std::cerr << getTimeStamp() << RED << "Failed to delete error pages directory" << RESET << std::endl;
+			std::cerr << getTimeStamp() << RED << "Error: Failed to delete error pages directory" << RESET << std::endl;
 
 		g_webserv->flipState();
 	}

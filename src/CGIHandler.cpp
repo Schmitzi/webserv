@@ -21,6 +21,7 @@ CGIHandler::CGIHandler(Client *client) {
 	_outputBuffer = "";
 	_pid = -1;
 	_startTime = 0;
+	_timeout = TIMEOUT_SECONDS;
 }
 
 CGIHandler::CGIHandler(const CGIHandler& copy) {
@@ -44,6 +45,7 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 		_pid = copy._pid;
 		_req = copy._req;
 		_startTime = copy._startTime;
+		_timeout = copy._timeout;
 	}
 	return *this;
 }
@@ -100,17 +102,16 @@ int CGIHandler::executeCGI(Request &req) {
 }
 
 int CGIHandler::doChecks() {
-	std::cout << _path << "\n";
 	if (access(_path.c_str(), F_OK) != 0) {
 		_client->statusCode() = 404;
-		_client->output() += getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path + "\n";
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: Script does not exist: " + RESET + _path + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (access(_path.c_str(), X_OK) != 0) {
 		_client->statusCode() = 403;
-		_client->output() += getTimeStamp(_client->getFd()) + RED + "Script is not executable: " + RESET + _path + "\n";
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: Script is not executable: " + RESET + _path + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
@@ -145,11 +146,11 @@ int CGIHandler::prepareEnv() {
 		} else
 			ext = "." + temp;
 		if (!matchLocation(ext, _req.getConf(), loc)) {
-			_client->output() += getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: Location not found for extension: " + RESET + ext + "\n";
 			return 1;
 		}
 		if (loc->uploadDirPath.empty()) {
-			_client->output() += getTimeStamp(_client->getFd()) + RED + "Upload directory not set for extension: " + RESET + ext + "\n";
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: Upload directory not set for extension: " + RESET + ext + "\n";
 			return 1;
 		}
 		filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
@@ -162,7 +163,7 @@ int CGIHandler::prepareEnv() {
 	_env.push_back("SERVER_SOFTWARE=WebServ/1.0");
 	_env.push_back("SERVER_NAME=" + _req.getConf().servName[0]);
 	_env.push_back("GATEWAY_INTERFACE=CGI/1.1");
-	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");//TODO: SERVER PROTOCOL exists twice
+	_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
 	_env.push_back("SERVER_PORT=" + tostring(_server->getConfParser().getPort(_req.getConf())));
 	
 	// Request information
@@ -289,7 +290,7 @@ int CGIHandler::doParent() {
 
 	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN) != 0) {
 		_client->statusCode() = 500;
-		_client->output() += getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll\n" + RESET;
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: Failed to add CGI pipe to epoll\n" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
@@ -349,7 +350,7 @@ int CGIHandler::processScriptOutput() {
 				return 1;
 			}
 		} else {
-			_client->output() += getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status)) + "\n";
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status)) + "\n";
 			_client->statusCode() = 502;
 			sendErrorResponse(*_client, _req);
 			cleanupResources();
@@ -486,7 +487,7 @@ bool CGIHandler::isTimedOut(time_t now) const {
 
 void CGIHandler::killProcess() {
 	if (_pid > 0) {
-		std::cout << getTimeStamp(_client->getFd()) << RED << "Killing CGI process " << _pid << RESET << std::endl;
+		std::cerr << getTimeStamp(_client->getFd()) << RED << "Killing CGI process " << _pid << RESET << std::endl;
 		kill(_pid, SIGKILL);
 		int status;
 		waitpid(_pid, &status, WNOHANG);
@@ -511,5 +512,6 @@ void CGIHandler::cleanupResources() {
 	_env.clear();
 	_outputBuffer.clear();
 	_startTime = 0;
+	_client->statusCode() = 200;
 	_client->shouldClose() = true;
 }
