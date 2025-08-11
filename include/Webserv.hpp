@@ -27,7 +27,7 @@ class	CGIHandler;
 
 class Webserv {
 	public:
-		Webserv(std::string config = "config/default.conf");
+		Webserv(std::string config = "config/test.conf");
 		Webserv(Webserv const &other);
 		Webserv &operator=(Webserv const &other);
 		~Webserv();

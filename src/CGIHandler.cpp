@@ -21,6 +21,7 @@ CGIHandler::CGIHandler(Client *client) {
 	_outputBuffer = "";
 	_pid = -1;
 	_startTime = 0;
+	_timeout = TIMEOUT_SECONDS;
 }
 
 CGIHandler::CGIHandler(const CGIHandler& copy) {
@@ -44,6 +45,7 @@ CGIHandler& CGIHandler::operator=(const CGIHandler& copy) {
 		_pid = copy._pid;
 		_req = copy._req;
 		_startTime = copy._startTime;
+		_timeout = copy._timeout;
 	}
 	return *this;
 }
@@ -80,7 +82,7 @@ void    CGIHandler::setCGIBin(serverLevel *config) {
 }
 
 int CGIHandler::executeCGI(Request &req) {
-	_req = req;
+	_req = Request(req);
 	if (doChecks() || prepareEnv()) {
 		cleanupResources();
 		return 1;
@@ -100,17 +102,16 @@ int CGIHandler::executeCGI(Request &req) {
 }
 
 int CGIHandler::doChecks() {
-	std::cout << _path << "\n";
 	if (access(_path.c_str(), F_OK) != 0) {
 		_client->statusCode() = 404;
-		_client->output() += getTimeStamp(_client->getFd()) + RED + "Script does not exist: " + RESET + _path + "\n";
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: Script does not exist: " + RESET + _path + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
 	
 	if (access(_path.c_str(), X_OK) != 0) {
 		_client->statusCode() = 403;
-		_client->output() += getTimeStamp(_client->getFd()) + RED + "Script is not executable: " + RESET + _path + "\n";
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: Script is not executable: " + RESET + _path + "\n";
 		sendErrorResponse(*_client, _req);
 		return 1;
 	}
@@ -145,11 +146,11 @@ int CGIHandler::prepareEnv() {
 		} else
 			ext = "." + temp;
 		if (!matchLocation(ext, _req.getConf(), loc)) {
-			_client->output() += getTimeStamp(_client->getFd()) + RED + "Location not found for extension: " + RESET + ext + "\n";
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: Location not found for extension: " + RESET + ext + "\n";
 			return 1;
 		}
 		if (loc->uploadDirPath.empty()) {
-			_client->output() += getTimeStamp(_client->getFd()) + RED + "Upload directory not set for extension: " + RESET + ext + "\n";
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: Upload directory not set for extension: " + RESET + ext + "\n";
 			return 1;
 		}
 		filePath = matchAndAppendPath(loc->uploadDirPath, fileName);
@@ -158,8 +159,6 @@ int CGIHandler::prepareEnv() {
 	
 	_env.clear();
 	
-	std::cout << "PATH: " << _path << " PATHINFO: " << _pathInfo << std::endl;
-	const std::string abs_path = matchAndAppendPath(loc->rootLoc, _path);
 	_env.push_back("REDIRECT_STATUS=200");
 	_env.push_back("SERVER_SOFTWARE=WebServ/1.0");
 	_env.push_back("SERVER_NAME=" + _req.getConf().servName[0]);
@@ -175,7 +174,17 @@ int CGIHandler::prepareEnv() {
 	
 	// Script information
 	_env.push_back("SCRIPT_NAME=" + _req.getPath());
-	_env.push_back("SCRIPT_FILENAME=" + _path);
+
+	char cwd_buffer[1024];
+	memset(cwd_buffer, 0, sizeof(cwd_buffer));
+
+	if (getcwd(cwd_buffer, sizeof(cwd_buffer)) != NULL) {
+		std::string current_dir(cwd_buffer);
+		std::string script_filename = current_dir + "/" + _path;
+		_env.push_back("SCRIPT_FILENAME=" + script_filename);
+	} else {
+		_env.push_back("SCRIPT_FILENAME=" + _path);
+	}
 	
 	// PATH_INFO handling (for URLs like /script.php/extra/path)
 	_env.push_back("PATH_INFO=" + _pathInfo);
@@ -185,12 +194,12 @@ int CGIHandler::prepareEnv() {
 	for (std::map<std::string, std::string>::iterator it = headers.begin(); 
 		it != headers.end(); ++it) {
 		std::string envName = "HTTP_" + it->first;
-		// Convert to uppercase and replace - with _
 		std::transform(envName.begin(), envName.end(), envName.begin(), ::toupper);
 		std::replace(envName.begin(), envName.end(), '-', '_');
+		if (it->second == "keep-alive") 
+			it->second = "closed";
 		_env.push_back(envName + "=" + it->second);
 	}
-	_env.push_back("REDIRECT_STATUS=200");
 	return 0;
 }
 
@@ -283,7 +292,7 @@ int CGIHandler::doParent() {
 
 	if (addToEpoll(_server->getWebServ(), _output[0], EPOLLIN) != 0) {
 		_client->statusCode() = 500;
-		_client->output() += getTimeStamp(_client->getFd()) + RED + "Failed to add CGI pipe to epoll\n" + RESET;
+		_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: Failed to add CGI pipe to epoll\n" + RESET;
 		sendErrorResponse(*_client, _req);
 		cleanupResources();
 		return 1;
@@ -325,7 +334,6 @@ int CGIHandler::processScriptOutput() {
 				defaultResponse += "Content-Type: text/plain\r\n";
 				defaultResponse += "Content-Length: 22\r\n\r\n";
 				defaultResponse += "No output from script\n";
-				defaultResponse += "\n";
 				addSendBuf(_server->getWebServ(), _client->getFd(), defaultResponse);
 				setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
 				cleanupResources();
@@ -343,7 +351,7 @@ int CGIHandler::processScriptOutput() {
 				return 1;
 			}
 		} else {
-			_client->output() += getTimeStamp(_client->getFd()) + RED + "CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status)) + "\n";
+			_client->output() += getTimeStamp(_client->getFd()) + RED + "Error: CGI Script exit status: " + RESET + tostring(WEXITSTATUS(status)) + "\n";
 			_client->statusCode() = 502;
 			sendErrorResponse(*_client, _req);
 			cleanupResources();
@@ -388,7 +396,6 @@ int CGIHandler::handleStandardOutput(const std::pair<std::string, std::string>& 
 		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
 	response += output.second;
-	response += "\n";
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
 	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT); 
 	_client->lastActive() = time(NULL);   
@@ -414,7 +421,6 @@ int CGIHandler::handleChunkedOutput(const std::pair<std::string, std::string>& o
 		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
 	response += formatChunkedResponse(output.second);
-	response += "\n";
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
 	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
 	_client->lastActive() = time(NULL);
@@ -480,7 +486,7 @@ bool CGIHandler::isTimedOut(time_t now) const {
 
 void CGIHandler::killProcess() {
 	if (_pid > 0) {
-		std::cout << getTimeStamp(_client->getFd()) << RED << "Killing CGI process " << _pid << RESET << std::endl;
+		std::cerr << getTimeStamp(_client->getFd()) << RED << "Killing CGI process " << _pid << RESET << std::endl;
 		kill(_pid, SIGKILL);
 		int status;
 		waitpid(_pid, &status, WNOHANG);
@@ -505,5 +511,6 @@ void CGIHandler::cleanupResources() {
 	_env.clear();
 	_outputBuffer.clear();
 	_startTime = 0;
+	_client->statusCode() = 200;
 	_client->shouldClose() = true;
 }

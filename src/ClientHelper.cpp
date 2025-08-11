@@ -105,7 +105,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	
 	if (access(fullPath.c_str(), R_OK) != 0) {
 		c.statusCode() = 403;
-		c.output() += getTimeStamp(c.getFd()) + RED + "No permissions to open file: " + RESET + fullPath + "\n";
+		c.output() += getTimeStamp(c.getFd()) + RED + "Error: No permissions to open file: " + RESET + fullPath + "\n";
 		sendErrorResponse(c, req);
 		return 1;
 	}
@@ -114,7 +114,7 @@ int buildBody(Client& c, Request &req, std::string fullPath) {
 	if (fd < 0) {
 		if (!isCharDevice) releaseLockFile(fullPath);
 		c.statusCode() = 500;
-		c.output() += getTimeStamp(c.getFd()) + RED + "Failed to open file: " + RESET + fullPath + "\n";
+		c.output() += getTimeStamp(c.getFd()) + RED + "Error: Failed to open file: " + RESET + fullPath + "\n";
 		sendErrorResponse(c, req);
 		return 1;
 	}
@@ -173,13 +173,13 @@ std::string getLocationPath(Client& c, Request& req, const std::string& method) 
 	std::string path = req.getPath();
 	if (req.getPath().empty()) {
 		c.statusCode() = 400;
-		c.output() += getTimeStamp(c.getFd()) + RED + "Request path is empty for " + method + " request\n" + RESET;
+		c.output() += getTimeStamp(c.getFd()) + RED + "Error: Request path is empty for " + method + " request\n" + RESET;
 		sendErrorResponse(c, req);
 		return "";
 	}
 	if (!matchUploadLocation(path, req.getConf(), loc)) {
 		c.statusCode() = 404;
-		c.output() += getTimeStamp(c.getFd()) + RED + "Location not found for " + method + " request: " + RESET + req.getPath() + "\n";
+		c.output() += getTimeStamp(c.getFd()) + RED + "Error: Location not found for " + method + " request: " + RESET + req.getPath() + "\n";
 		sendErrorResponse(c, req);
 		return "";
 	}
@@ -188,14 +188,14 @@ std::string getLocationPath(Client& c, Request& req, const std::string& method) 
 			break;
 		if (i == loc->methods.size() - 1) {
 			c.statusCode() = 405;
-			c.output() += getTimeStamp(c.getFd()) + RED + "Method not allowed for " + method + " request: " + RESET + req.getPath() + "\n";
+			c.output() += getTimeStamp(c.getFd()) + RED + "Error: Method not allowed for " + method + " request: " + RESET + req.getPath() + "\n";
 			sendErrorResponse(c, req);
 			return "";
 		}
 	}
 	if (loc->uploadDirPath.empty()) {
 		c.statusCode() = 403;
-		c.output() += getTimeStamp(c.getFd()) + RED + "Upload directory not set for " + method + " request: " + RESET + req.getPath() + "\n";
+		c.output() += getTimeStamp(c.getFd()) + RED + "Error: Upload directory not set for " + method + " request: " + RESET + req.getPath() + "\n";
 		sendErrorResponse(c, req);
 		return "";
 	}
@@ -216,7 +216,7 @@ std::string decodeChunkedBody(Client& c, int fd, const std::string& chunkedData)
 			crlfPos = chunkedData.find("\n", pos);
 			lineEndLength = 1;
 			if (crlfPos == std::string::npos) {
-				c.output() += getTimeStamp(fd) + RED  + "Malformed chunked data: no CRLF after chunk size\n" + RESET;
+				c.output() += getTimeStamp(fd) + RED + "Error: Malformed chunked data: no CRLF after chunk size\n" + RESET;
 				break;
 			}
 		}

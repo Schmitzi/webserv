@@ -28,7 +28,7 @@ void removeFromEpoll(Webserv& web, int fd) {
 		return;
 	if (epoll_ctl(web.getEpollFd(), EPOLL_CTL_DEL, fd, NULL) == -1) {
 		if (errno != EBADF && errno != ENOENT)
-		std::cerr << getTimeStamp(fd) << RED << "Warning: epoll_ctl DEL failed" << RESET << std::endl;
+		std::cerr << getTimeStamp(fd) << RED << "Error: epoll_ctl DEL failed" << RESET << std::endl;
 	}
 }
 

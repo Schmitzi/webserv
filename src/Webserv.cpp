@@ -112,11 +112,11 @@ void Webserv::initialize() {
 		std::cout << getTimeStamp() << BLUE << "Initializing server " << i + 1 << " with port " << _confParser.getPort(_servers[i].getConfigs()[0]) << RESET << std::endl;
 		if (_servers[i].openSocket() || _servers[i].setOptional() || 
 			_servers[i].setServerAddr() || _servers[i].ft_bind() || _servers[i].ft_listen()) {
-			std::cerr << getTimeStamp() << RED << "Failed to initialize server: " << RESET << i + 1 << std::endl;
+			std::cerr << getTimeStamp() << RED << "Error: Failed to initialize server: " << RESET << i + 1 << std::endl;
 			continue;
 		}
 		if (addToEpoll(*this, _servers[i].getFd(), EPOLLIN) != 0) {
-			std::cerr << getTimeStamp() << RED << "Failed to add server to epoll: " << RESET << i + 1 << std::endl;
+			std::cerr << getTimeStamp() << RED << "Error: Failed to add server to epoll: " << RESET << i + 1 << std::endl;
 			continue;
 		}
 		atLeastOne = true;
@@ -216,7 +216,7 @@ void Webserv::handleErrorEvent(int fd) {
 	removeFromEpoll(*this, fd);
 	for (size_t i = 0; i < _clients.size(); i++) {
 		if (_clients[i].getFd() == fd) {
-			std::cerr << getTimeStamp(fd) << RED << "Removing client due to error" << RESET << std::endl;
+			std::cerr << getTimeStamp(fd) << RED << "Error: Removing client due to error" << RESET << std::endl;
 			close(_clients[i].getFd());
 			_clients.erase(_clients.begin() + i);
 			return;
@@ -255,7 +255,7 @@ void Webserv::handleClientDisconnect(int fd) {
 			return;
 		}
 	}
-	std::cerr << getTimeStamp(fd) << RED << "Disconnect on unknown fd" << RESET << std::endl;
+	std::cerr << getTimeStamp(fd) << RED << "Error: Disconnect on unknown fd" << RESET << std::endl;
 }
 
 void Webserv::handleNewConnection(Server &server) {
@@ -271,7 +271,7 @@ void Webserv::handleNewConnection(Server &server) {
 		if (addToEpoll(*this, newClient.getFd(), EPOLLIN) == 0)
 			_clients.push_back(newClient);
 		else {
-			std::cerr << getTimeStamp(newClient.getFd()) << RED << "Failed to add client to epoll" << RESET << std::endl;
+			std::cerr << getTimeStamp(newClient.getFd()) << RED << "Error: Failed to add client to epoll" << RESET << std::endl;
 			close(newClient.getFd());
 		}
 	}
@@ -359,13 +359,15 @@ void Webserv::handleEpollOut(int fd) {
 void Webserv::checkCgiTimeouts() {
 	time_t now = time(NULL);
 	std::vector<int> expiredCgis;
+	
 	for (std::map<int, CGIHandler*>::iterator it = _cgis.begin(); it != _cgis.end(); ++it) {
 		CGIHandler* handler = it->second;
 		if (handler && handler->isTimedOut(now)) {
-			std::cerr << getTimeStamp(it->first) << RED << "CGI timeout detected, killing process" << RESET << std::endl;
+			std::cerr << getTimeStamp(it->first) << RED << "Error: CGI timeout detected, killing process" << RESET << std::endl;
 			expiredCgis.push_back(it->first);
 		}
 	}
+	
 	for (size_t i = 0; i < expiredCgis.size(); ++i) {
 		int cgiFd = expiredCgis[i];
 		CGIHandler* handler = getCgiHandler(cgiFd);
@@ -393,7 +395,7 @@ void    Webserv::cleanup() {
 		if (_clients[i].getFd() >= 0) {
 			if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, _clients[i].getFd(), NULL) == -1) {
 				if (errno != EBADF && errno != ENOENT)
-					std::cerr << getTimeStamp(_clients[i].getFd()) << RED << "Warning: epoll_ctl DEL failed" << RESET << std::endl;
+					std::cerr << getTimeStamp(_clients[i].getFd()) << RED << "Error: epoll_ctl DEL failed" << RESET << std::endl;
 			}
 			std::cout << getTimeStamp(_clients[i].getFd()) << "Client disconnected" << std::endl;
 			close(_clients[i].getFd());
@@ -405,7 +407,7 @@ void    Webserv::cleanup() {
 		if (_servers[i].getFd() >= 0) {
 			if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, _servers[i].getFd(), NULL) == -1) {
 				if (errno != EBADF && errno != ENOENT)
-					std::cerr << getTimeStamp(_servers[i].getFd()) << RED << "Warning: epoll_ctl DEL failed" << RESET << std::endl;
+					std::cerr << getTimeStamp(_servers[i].getFd()) << RED << "Error: epoll_ctl DEL failed" << RESET << std::endl;
 			}
 			std::cout << getTimeStamp(_servers[i].getFd()) << "Server disconnected" << std::endl;
 			close(_servers[i].getFd());

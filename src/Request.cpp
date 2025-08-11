@@ -182,34 +182,48 @@ bool Request::matchHostServerName() {
 	return false;
 }
 
-bool Request::checkRaw(const std::string& raw) {
+bool Request::miniCheckRaw(std::string& s) {
 	size_t i = 0;
-	std::string r = raw.substr(0, raw.find("\r\n"));
-	if (r.size() > 8192) {
-		_client->statusCode() = 414;
-		_check = "BAD";
-		return false;
-	}
-	while (!r.empty() && i < r.size()) {
-		if (r.find("http://") == 0)
-			i += 8;
-		else if (r.find("//") != std::string::npos) {
+	while (i < s.size()) {
+		if (s.find("//") != std::string::npos) {
 			_client->statusCode() = 400;
-			_client->output() += getTimeStamp(_clientFd) + RED + "Invalid request!\n" + RESET;
+			_client->output() += getTimeStamp(_clientFd) + RED + "Error: Invalid request!\n" + RESET;
 			_check = "BAD";
 			return false;
-		}
-		else
+		} else
 			i++;
-		r = r.substr(i);
+		s = s.substr(i);
 		i = 0;
 	}
 	return true;
 }
 
+bool Request::checkRaw(const std::string& raw) {
+	std::string r = raw.substr(0, raw.find("\r\n"));
+	if (r.size() > 8192) {
+		_client->statusCode() = 400;
+		_check = "BAD";
+		return false;
+	}
+	
+	size_t x = r.find("http://");
+	if (x != std::string::npos) {
+		std::string one = r.substr(0, x);
+		std::string two = r.substr(x + 7);
+		if (!miniCheckRaw(one) || !miniCheckRaw(two))
+			return false;
+		else
+			return true;
+	}
+	
+	if (!miniCheckRaw(r))
+		return false;
+	return true;
+}
+
 void Request::parse(const std::string& rawRequest) {
 	if (rawRequest.empty()) {
-		_client->output() += getTimeStamp(_clientFd) + RED + "Empty request!\n" + RESET;
+		_client->output() += getTimeStamp(_clientFd) + RED + "Error: Empty request!\n" + RESET;
 		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
@@ -217,7 +231,7 @@ void Request::parse(const std::string& rawRequest) {
 	
 	if (!checkRaw(rawRequest))
 		return;
-
+	
 	checkContentLength(rawRequest);
 
 	size_t headerEnd = rawRequest.find("\r\n\r\n");
@@ -236,15 +250,14 @@ void Request::parse(const std::string& rawRequest) {
 	if (headerEnd + headerSeparatorLength < rawRequest.length()) {
 		_body = rawRequest.substr(headerEnd + headerSeparatorLength);
 	}
-
 	parseHeaders(headerSection);
 	if (_client->statusCode() >= 400) {
 		_check = "BAD";
 		return;
 	}
-
+	
 	if (!matchHostServerName()) {
-		_client->output() += getTimeStamp(_clientFd) + RED + "No Host-ServerName match + no default config specified!\n" + RESET;
+		_client->output() += getTimeStamp(_clientFd) + RED + "Error: No Host-ServerName match + no default config specified!\n" + RESET;
 		_client->statusCode() = 400;
 		_check = "BAD";
 		return;
@@ -279,7 +292,7 @@ void Request::setHeader(std::string& key, std::string& value, bool ignoreHost) {
 }
 
 bool Request::checkMethod() {
-	if (iEqual(_method, "GET") || iEqual(_method, "POST") || iEqual(_method, "DELETE")
+	if (_method == "GET" || _method == "POST" || _method == "DELETE"
 		|| iEqual(_method, "PUT") || iEqual(_method, "HEAD") || iEqual(_method, "OPTIONS")
 		|| iEqual(_method, "PATCH") || iEqual(_method, "TRACE") || iEqual(_method, "CONNECT")) {
 		if (!iEqual(_method, "GET") && !iEqual(_method, "POST") && !iEqual(_method, "DELETE")) {
@@ -328,23 +341,56 @@ void Request::getHostAndPath(std::string& target) {
 	std::string strip;
 	std::vector<std::string> hostPort;
 
-	strip = target.substr(7);
+	if (target.find("https://") == 0) {
+		strip = target.substr(8);
+	} else if (target.find("http://") == 0) {
+		strip = target.substr(7);
+	} else {
+		_client->statusCode() = 400;
+		_client->output() += getTimeStamp(_clientFd) + RED +
+			"Error: Invalid absolute URL format: " + target + "\n" + RESET;
+		_check = "BAD";
+		return;
+	}
+	
 	size_t divider = strip.find_first_of('/');
-	hostPort = splitBy(strip.substr(0, divider), ':');
-	_host = hostPort[0];
-	_path = strip.substr(divider);
+	
+	if (divider != std::string::npos) {
+		hostPort = splitBy(strip.substr(0, divider), ':');
+		if (!hostPort.empty()) {
+			_host = hostPort[0];
+		}
+		_path = strip.substr(divider);
+		
+		if (_path.empty()) {
+			_path = "/";
+		}
+	} else {
+		hostPort = splitBy(strip, ':');
+		if (!hostPort.empty()) {
+			_host = hostPort[0];
+		}
+		_path = "/";
+	}
+	
+	if (_host.empty()) {
+		_client->statusCode() = 400;
+		_client->output() += getTimeStamp(_clientFd) + RED +
+			"Error: Could not extract host from URL: " + target + "\n" + RESET;
+		_check = "BAD";
+		return;
+	}
 }
 
 void Request::parseHeaders(const std::string& headerSection) {
 	bool ignoreHost = false;
-	bool mentionHost = false;
 	std::istringstream iss(headerSection);
 	std::string line;
 
 	std::getline(iss, line);
 	size_t end = line.find_last_not_of(" \t\r\n");
 	if (end != std::string::npos)
-		line = line.substr(0, end + 1);
+	line = line.substr(0, end + 1);
 
 	std::istringstream lineStream(line);
 	std::string target;
@@ -369,7 +415,6 @@ void Request::parseHeaders(const std::string& headerSection) {
 			value.erase(0, value.find_first_not_of(" \t"));
 			value.erase(value.find_last_not_of(" \t\r\n") + 1);
 			if (iEqual(key, "Host")) {
-				mentionHost = true;
 				std::vector<std::string> values = split(value);
 				if (values.size() > 1) {
 					_client->statusCode() = 400;
@@ -381,7 +426,7 @@ void Request::parseHeaders(const std::string& headerSection) {
 		}
 	}
 	
-	if (_host.empty() && !mentionHost) {
+	if (_host.empty()) {
 		_client->statusCode() = 400;
 		return;
 	}
