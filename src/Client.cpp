@@ -767,7 +767,6 @@ int Client::createDirList(std::string fullPath, Request& req) {
 		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
 	response += dirListing;
-	response += "\n";
 	addSendBuf(*_webserv, _fd, response);
 	setEpollEvents(*_webserv, _fd, EPOLLOUT);
 	_output += getTimeStamp(_fd) + GREEN  + "Sent directory listing: " + RESET + fullPath + "\n";

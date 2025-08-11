@@ -332,7 +332,6 @@ int CGIHandler::processScriptOutput() {
 				defaultResponse += "Content-Type: text/plain\r\n";
 				defaultResponse += "Content-Length: 22\r\n\r\n";
 				defaultResponse += "No output from script\n";
-				defaultResponse += "\n";
 				addSendBuf(_server->getWebServ(), _client->getFd(), defaultResponse);
 				setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
 				cleanupResources();
@@ -395,7 +394,6 @@ int CGIHandler::handleStandardOutput(const std::pair<std::string, std::string>& 
 		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
 	response += output.second;
-	response += "\n";
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
 	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT); 
 	_client->lastActive() = time(NULL);   
@@ -421,7 +419,6 @@ int CGIHandler::handleChunkedOutput(const std::pair<std::string, std::string>& o
 		response += "Connection: keep-alive\r\n";
 	response += "\r\n";
 	response += formatChunkedResponse(output.second);
-	response += "\n";
 	addSendBuf(_server->getWebServ(), _client->getFd(), response);
 	setEpollEvents(_server->getWebServ(), _client->getFd(), EPOLLOUT);
 	_client->lastActive() = time(NULL);
