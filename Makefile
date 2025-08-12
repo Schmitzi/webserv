@@ -74,20 +74,6 @@ val: all
 	@echo "$(GREEN)Running $(NAME) with valgrind$(RESET)"
 	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./$(NAME) config/test.conf
 
-nix: all
-	@echo "$(GREEN)Starting $(NAME) with nixos config$(RESET)"
-	@./$(NAME) config/nixos.conf
-
-nix-val: all
-	@echo "$(GREEN)Running $(NAME) with nixos config and valgrind$(RESET)"
-	@valgrind --track-origins=yes --leak-check=full --show-leak-kinds=all --track-fds=all ./$(NAME) config/nixos.conf
-
-debug:
-	@echo "NAME: $(NAME)"
-	@echo "SRC: $(SRC)"
-	@echo "OBJ: $(OBJ)"
-	@echo "DEP: $(DEP)"
-
-.PHONY: all clean fclean re start val nix nix-val debug
+.PHONY: all clean fclean re start val
 
 -include $(DEP)
