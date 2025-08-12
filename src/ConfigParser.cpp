@@ -230,6 +230,13 @@ void ConfigParser::setConfigLevels(serverLevel& serv, std::vector<std::string>& 
 	if (bracket == false)
 		throw configException("Error: No closing bracket found for server.");
 	checkConfig(serv);
+	if (serv.locations.size() == 0) {
+		locationLevel loc;
+		loc.indexFile = serv.indexFile;
+		loc.locName = "/";
+		loc.rootLoc = serv.rootServ;
+		serv.locations.insert(std::pair<std::string, locationLevel>(loc.locName, loc));
+	}
 }
 
 void ConfigParser::parseAndSetConfigs() {
